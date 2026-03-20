@@ -6,7 +6,7 @@ import { useState } from "react"
 export default function CP9524(){
 
 const router = useRouter()
-const [roomImage,setRoomImage] = useState(require("../../../assets/images/room.png"))
+const [roomImage,setRoomImage] = useState(require("../../../assets/images/c01.png"))
 
 async function pickImage(){
 

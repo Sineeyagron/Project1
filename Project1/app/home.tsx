@@ -1,13 +1,38 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity
+} from "react-native";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-export default function Home(){
+const API = "http://192.168.0.244:5000"; // 🔥 เปลี่ยน IP
 
-const router = useRouter();
-const [tab,setTab] = useState("room");
+export default function Home() {
 
-return(
+  const router = useRouter();
+
+  const [tab,setTab] = useState("room");
+  const [rooms,setRooms] = useState<string[]>([]);
+
+  // ✅ โหลดห้องจาก DB
+  useEffect(()=>{
+    fetchRooms();
+  },[]);
+
+  async function fetchRooms(){
+    try{
+      const res = await fetch(`${API}/api/room`);
+      const data = await res.json();
+
+      setRooms(data.map((r:any)=>r.name));
+    }catch(err){
+      console.log(err);
+    }
+  }
+
+  return(
 
 <View style={styles.container}>
 
@@ -15,20 +40,16 @@ return(
 {tab === "room" ? "ห้องเรียน" : "การยืม"}
 </Text>
 
+{/* 🔥 ห้องจาก DB */}
+{rooms.map((room,index)=>(
 <TouchableOpacity
+key={index}
 style={styles.roomBtn}
 onPress={()=>router.push("./roommap")}
 >
-<Text style={styles.roomText}>CP9524</Text>
+<Text style={styles.roomText}>{room}</Text>
 </TouchableOpacity>
-
-<TouchableOpacity
-style={styles.roomBtn}
-onPress={()=>router.push("./roommap")}
->
-<Text style={styles.roomText}>SC9604</Text>
-</TouchableOpacity>
-
+))}
 
 <View style={styles.bottomBar}>
 

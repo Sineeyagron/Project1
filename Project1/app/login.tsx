@@ -10,7 +10,7 @@ return(
 <View style={styles.container}>
 
 <Image
-source={require("../assets/images/logo.png")}
+source={require("../assets/images/c02.png")}
 style={styles.logo}
 />
 
@@ -34,8 +34,11 @@ onPress={()=>router.push("/home")}
 <Text style={styles.btnText}>Log in</Text>
 </TouchableOpacity>
 
-<TouchableOpacity onPress={()=>router.push("./loginAdmin")}>
-<Text style={styles.adminBtn}>Admin</Text>
+<TouchableOpacity
+style={styles.adminBtn}
+onPress={()=>router.push("/admin/home")}
+>
+<Text>Admin</Text>
 </TouchableOpacity>
 
 </View>
@@ -87,7 +90,7 @@ fontSize:20
 adminBtn:{
 position:"absolute",
 top:60,
-right:20,
+left:20, // 🔥 เปลี่ยนจาก right → left
 backgroundColor:"#b8cbe0",
 padding:10,
 borderRadius:10

@@ -10,7 +10,7 @@ return(
 <View style={styles.container}>
 
 <Image
-source={require("../assets/images/logo.png")}
+source={require("../assets/images/c02.png")}
 style={styles.logo}
 />
 
