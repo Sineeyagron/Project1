@@ -1,153 +1,178 @@
-import { View, Text, StyleSheet, TouchableOpacity, Image } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  ScrollView,
+} from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function RoomMap(){
+export default function RoomMap() {
+  const router = useRouter();
+  const [selectedGroup, setSelectedGroup] = useState(1);
 
-const router = useRouter();
+  return (
+    <ScrollView style={styles.container}>
+      
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={24} color="#1e3a8a" />
+        </TouchableOpacity>
+        <Text style={styles.headerText}>ผังห้อง</Text>
+      </View>
 
-return(
+      {/* TITLE */}
+      <Text style={styles.subTitle}>INTERACTIVE ASSET MAP</Text>
+      <Text style={styles.title}>ผังห้อง</Text>
 
-<View style={styles.container}>
+      {/* MAP BOX */}
+      <View style={styles.mapBox}>
+        <Image
+          source={require("../assets/images/c01.png")}
+          style={styles.map}
+        />
 
-<Text style={styles.title}>ผังห้อง</Text>
+        {/* ปุ่มเครื่อง */}
+        {[1, 2, 3, 4].map((num, i) => (
+          <TouchableOpacity
+            key={i}
+            style={[
+              styles.pc,
+              { left: 60 + i * 70, top: 200 },
+              num === selectedGroup && styles.activePc,
+            ]}
+            onPress={() => alert(`Desk ${num}`)}
+          >
+            <Text style={styles.pcText}>{num}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-<View style={styles.mapBox}>
+      {/* GROUP */}
+      <Text style={styles.groupTitle}>NAVIGATION BY GROUP</Text>
 
-<Image
-source={require("../assets/images/c01.png")}
-style={styles.map}
-/>
+      <View style={styles.groupContainer}>
+        {Array.from({ length: 8 }).map((_, i) => (
+          <TouchableOpacity
+            key={i}
+            style={[
+              styles.groupBtn,
+              selectedGroup === i + 1 && styles.activeGroup,
+            ]}
+            onPress={() => setSelectedGroup(i + 1)}
+          >
+            <Text
+              style={[
+                styles.groupText,
+                selectedGroup === i + 1 && { color: "#fff" },
+              ]}
+            >
+              {i === 0 ? "Group 1" : `กลุ่มที่ ${i + 1}`}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-{/* C01 */}
-<TouchableOpacity
-style={[styles.pc,{top:260,left:90}]}
-onPress={()=>alert("C01")}
->
-<Text style={styles.pcText}>C01</Text>
-</TouchableOpacity>
-
-{/* C02 */}
-<TouchableOpacity
-style={[styles.pc,{top:260,left:160}]}
-onPress={()=>alert("C02")}
->
-<Text style={styles.pcText}>C02</Text>
-</TouchableOpacity>
-
-{/* C03 */}
-<TouchableOpacity
-style={[styles.pc,{top:200,left:210}]}
-onPress={()=>alert("C03")}
->
-<Text style={styles.pcText}>C03</Text>
-</TouchableOpacity>
-
-{/* C04 */}
-<TouchableOpacity
-style={[styles.pc,{top:120,left:210}]}
-onPress={()=>alert("C04")}
->
-<Text style={styles.pcText}>C04</Text>
-</TouchableOpacity>
-
-{/* C05 */}
-<TouchableOpacity
-style={[styles.pc,{top:120,left:140}]}
-onPress={()=>alert("C05")}
->
-<Text style={styles.pcText}>C05</Text>
-</TouchableOpacity>
-
-{/* C06 */}
-<TouchableOpacity
-style={[styles.pc,{top:120,left:70}]}
-onPress={()=>alert("C06")}
->
-<Text style={styles.pcText}>C06</Text>
-</TouchableOpacity>
-
-</View>
-
-
-{/* ปุ่มกลุ่ม */}
-
-<View style={styles.groupGrid}>
-
-{[1,2,3,4,5,6,7,8].map((g)=>(
-
-<TouchableOpacity
-key={g}
-style={styles.groupBtn}
-onPress={()=>router.push(`./groups/group${g}`)}
->
-
-<Text>กลุ่มที่ {g}</Text>
-
-</TouchableOpacity>
-
-))}
-
-</View>
-
-</View>
-
-);
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f1f5f9",
+    padding: 20,
+  },
 
-container:{
-flex:1,
-backgroundColor:"#eee",
-padding:20
-},
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
 
-title:{
-fontSize:26,
-textAlign:"center",
-marginBottom:10
-},
+  headerText: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
 
-mapBox:{
-height:380,
-backgroundColor:"#ddd",
-borderRadius:10,
-overflow:"hidden",
-position:"relative",
-marginBottom:20
-},
+  subTitle: {
+    marginTop: 20,
+    fontSize: 12,
+    letterSpacing: 2,
+    color: "#64748b",
+  },
 
-map:{
-width:"100%",
-height:"100%",
-resizeMode:"contain"
-},
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#1e3a8a",
+    marginBottom: 20,
+  },
 
-pc:{
-position:"absolute",
-backgroundColor:"#4da3ff",
-padding:6,
-borderRadius:8
-},
+  mapBox: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 10,
+    alignItems: "center",
+    marginBottom: 30,
+  },
 
-pcText:{
-color:"#fff",
-fontWeight:"bold"
-},
+  map: {
+    width: 350,
+    height: 250,
+    resizeMode: "contain",
+  },
 
-groupGrid:{
-flexDirection:"row",
-flexWrap:"wrap",
-justifyContent:"space-between"
-},
+  pc: {
+    position: "absolute",
+    width: 45,
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: "#e2e8f0",
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
-groupBtn:{
-backgroundColor:"#9fb6d8",
-padding:15,
-borderRadius:12,
-width:"48%",
-marginBottom:12,
-alignItems:"center"
-}
+  activePc: {
+    backgroundColor: "#1e3a8a",
+  },
 
+  pcText: {
+    fontWeight: "bold",
+    color: "#000",
+  },
+
+  groupTitle: {
+    fontSize: 12,
+    letterSpacing: 2,
+    color: "#64748b",
+    marginBottom: 10,
+  },
+
+  groupContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+
+  groupBtn: {
+    backgroundColor: "#e2e8f0",
+    padding: 15,
+    borderRadius: 12,
+    width: "45%",
+    alignItems: "center",
+  },
+
+  activeGroup: {
+    backgroundColor: "#1e3a8a",
+  },
+
+  groupText: {
+    color: "#1e3a8a",
+    fontWeight: "bold",
+  },
 });

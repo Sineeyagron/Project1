@@ -1,96 +1,224 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "react-native";
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+} from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
-export default function Login(){
+export default function Login() {
+  const router = useRouter();
 
-const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
-return(
+  return (
+    <View style={styles.container}>
+      
+      {/* ADMIN BUTTON */}
+      <TouchableOpacity
+        style={styles.adminBtn}
+        onPress={() => router.push("./admin/home")}
+      >
+        <Ionicons name="shield-checkmark-outline" size={16} color="#64748b" />
+        <Text style={styles.adminText}>ADMIN</Text>
+      </TouchableOpacity>
 
-<View style={styles.container}>
+      {/* LOGO */}
+      <View style={styles.logoContainer}>
+        <Image
+          source={require("../assets/images/c02.png")}
+          style={styles.logo}
+        />
+        <Text style={styles.title}>Intelligent Ledger</Text>
+        <Text style={styles.subtitle}>IOT INVENTORY MANAGEMENT</Text>
+      </View>
 
-<Image
-source={require("../assets/images/logo.png")}
-style={styles.logo}
-/>
+      {/* CARD */}
+      <View style={styles.card}>
+        <Text style={styles.welcome}>Welcome Back</Text>
+        <Text style={styles.desc}>Access your secure dashboard</Text>
 
-<Text style={styles.title}>Log in</Text>
+        {/* EMAIL */}
+        <Text style={styles.label}>CORPORATE EMAIL</Text>
+        <View style={styles.inputBox}>
+          <Ionicons name="mail-outline" size={18} color="#64748b" />
+          <TextInput
+            placeholder="name@company.com"
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+          />
+        </View>
 
-<TextInput
-placeholder="Email"
-style={styles.input}
-/>
+        {/* PASSWORD */}
+        <View style={styles.passwordHeader}>
+          <Text style={styles.label}>ACCESS KEY</Text>
+          <Text style={styles.forgot}>Forgot Password?</Text>
+        </View>
 
-<TextInput
-placeholder="Password"
-style={styles.input}
-secureTextEntry
-/>
+        <View style={styles.inputBox}>
+          <Ionicons name="lock-closed-outline" size={18} color="#64748b" />
+          <TextInput
+            placeholder="••••••••"
+            secureTextEntry={!showPassword}
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+          />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+            <Ionicons
+              name={showPassword ? "eye-off-outline" : "eye-outline"}
+              size={18}
+              color="#64748b"
+            />
+          </TouchableOpacity>
+        </View>
 
-<TouchableOpacity
-style={styles.loginBtn}
-onPress={()=>router.push("/home")}
->
-<Text style={styles.btnText}>Log in</Text>
-</TouchableOpacity>
+        {/* LOGIN BUTTON */}
+        <TouchableOpacity
+          style={styles.loginBtn}
+          onPress={() => router.replace("/home")}
+        >
+          <Text style={styles.loginText}>Log In →</Text>
+        </TouchableOpacity>
+      </View>
 
-<TouchableOpacity onPress={()=>router.push("./loginAdmin")}>
-<Text style={styles.adminBtn}>Admin</Text>
-</TouchableOpacity>
-
-</View>
-
-);
+      {/* SIGN UP */}
+      <View style={styles.signupRow}>
+        <Text>Don't have an account? </Text>
+        <TouchableOpacity onPress={() => router.push("/signup")}>
+          <Text style={styles.signup}>Sign Up</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f1f5f9",
+    padding: 20,
+  },
 
-container:{
-flex:1,
-justifyContent:"center",
-alignItems:"center",
-backgroundColor:"#eee"
-},
+  adminBtn: {
+    position: "absolute",
+    top: 40,
+    right: 20,
+    flexDirection: "row",
+    backgroundColor: "#e2e8f0",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    alignItems: "center",
+    gap: 5,
+  },
 
-logo:{
-width:140,
-height:140,
-marginBottom:20
-},
+  adminText: {
+    fontSize: 12,
+    color: "#64748b",
+  },
 
-title:{
-fontSize:30,
-marginBottom:20
-},
+  logoContainer: {
+    alignItems: "center",
+    marginTop: 100,
+    marginBottom: 20,
+  },
 
-input:{
-width:"80%",
-backgroundColor:"#b8cbe0",
-padding:15,
-borderRadius:12,
-marginBottom:15
-},
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: 10,
+  },
 
-loginBtn:{
-backgroundColor:"#114d8b",
-padding:15,
-borderRadius:12,
-width:"80%",
-alignItems:"center"
-},
+  title: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#1e3a8a",
+  },
 
-btnText:{
-color:"#fff",
-fontSize:20
-},
+  subtitle: {
+    fontSize: 12,
+    color: "#64748b",
+    letterSpacing: 2,
+  },
 
-adminBtn:{
-position:"absolute",
-top:60,
-right:20,
-backgroundColor:"#b8cbe0",
-padding:10,
-borderRadius:10
-}
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 20,
+    elevation: 3,
+  },
 
+  welcome: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+
+  desc: {
+    color: "#64748b",
+    marginBottom: 20,
+  },
+
+  label: {
+    fontSize: 12,
+    marginBottom: 5,
+    color: "#1e3a8a",
+  },
+
+  inputBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f1f5f9",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    marginBottom: 15,
+    height: 50,
+    gap: 8,
+  },
+
+  input: {
+    flex: 1,
+  },
+
+  passwordHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+
+  forgot: {
+    fontSize: 12,
+    color: "#1e3a8a",
+  },
+
+  loginBtn: {
+    backgroundColor: "#0f172a",
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  loginText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  signupRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 20,
+  },
+
+  signup: {
+    color: "#1e3a8a",
+    fontWeight: "bold",
+  },
 });

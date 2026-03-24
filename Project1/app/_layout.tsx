@@ -5,8 +5,12 @@ export default function Layout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="login" />
       <Stack.Screen name="signup" />
-      <Stack.Screen name="otp" />
       <Stack.Screen name="home" />
+      <Stack.Screen name="roommap" />
+      <Stack.Screen name="profile" />
+      <Stack.Screen name="sittings" />
+      <Stack.Screen name="notifications" />
+      <Stack.Screen name="borrow" />
     </Stack>
   );
 }
