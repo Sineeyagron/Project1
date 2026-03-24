@@ -1,96 +1,48 @@
+
+@@ -1,96 +1,285 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image } from "react-native";
+import React from "react";
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  TouchableOpacity, 
+  StyleSheet, 
+  Image, 
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform
+} from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons"; // ใช้ไอคอนพื้นฐานของ Expo
 
 export default function Login(){
+export default function Login() {
+  const router = useRouter();
 
 const router = useRouter();
+  return (
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.innerContainer}
+      >
+        {/* Admin Button Top Right */}
+        <TouchableOpacity 
+          style={styles.adminBtn}
+          onPress={() => router.push("./admin/home")}
+        >
+          <Ionicons name="shield-checkmark-outline" size={16} color="#64748b" />
+          <Text style={styles.adminText}>ADMIN</Text>
+        </TouchableOpacity>
 
 return(
-
-<View style={styles.container}>
-
-<Image
-source={require("../assets/images/logo.png")}
-style={styles.logo}
-/>
-
-<Text style={styles.title}>Log in</Text>
-
-<TextInput
-placeholder="Email"
-style={styles.input}
-/>
-
-<TextInput
-placeholder="Password"
-style={styles.input}
-secureTextEntry
-/>
-
-<TouchableOpacity
-style={styles.loginBtn}
-onPress={()=>router.push("/home")}
->
-<Text style={styles.btnText}>Log in</Text>
-</TouchableOpacity>
-
-<TouchableOpacity onPress={()=>router.push("./loginAdmin")}>
-<Text style={styles.adminBtn}>Admin</Text>
-</TouchableOpacity>
-
-</View>
-
-);
-}
-
-const styles = StyleSheet.create({
-
-container:{
-flex:1,
-justifyContent:"center",
-alignItems:"center",
-backgroundColor:"#eee"
-},
-
-logo:{
-width:140,
-height:140,
-marginBottom:20
-},
-
-title:{
-fontSize:30,
-marginBottom:20
-},
-
-input:{
-width:"80%",
-backgroundColor:"#b8cbe0",
-padding:15,
-borderRadius:12,
-marginBottom:15
-},
-
-loginBtn:{
-backgroundColor:"#114d8b",
-padding:15,
-borderRadius:12,
-width:"80%",
-alignItems:"center"
-},
-
-btnText:{
-color:"#fff",
-fontSize:20
-},
-
-adminBtn:{
-position:"absolute",
-top:60,
-right:20,
-backgroundColor:"#b8cbe0",
-padding:10,
-borderRadius:10
-}
-
-});
+        {/* Logo Section */}
+        <View style={styles.logoContainer}>
+          <View style={styles.logoBox}>
+            <Image
+              source={require("../assets/images/c02.png")} // ตรวจสอบว่าไฟล์ชื่อนี้อยู่ในโฟลเดอร์ assets จริง
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
