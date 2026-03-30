@@ -46,6 +46,20 @@ onPress={()=>router.push("./admin/room")}
 <Text>การยืม</Text>
 </TouchableOpacity>
 
+<TouchableOpacity
+  onPress={() => router.push("/admin/borrow")}
+  style={{
+    backgroundColor: "red",
+    padding: 15,
+    borderRadius: 10,
+    margin: 20,
+  }}
+>
+  <Text style={{ color: "#fff", textAlign: "center" }}>
+    ไปหน้า Admin
+  </Text>
+</TouchableOpacity>
+
 </View>
 
 </View>

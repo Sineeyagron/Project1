@@ -1,77 +1,143 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Alert,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import supabase from "../../lib/supabase";
 
-export default function Borrow(){
+export default function AdminBorrow() {
+  const [requests, setRequests] = useState<any[]>([]);
 
-return(
+  useEffect(() => {
+    fetchRequests();
+  }, []);
 
-<ScrollView style={styles.container}>
+  const fetchRequests = async () => {
+    const { data, error } = await supabase
+      .from("borrow_records")
+      .select(`
+        id,
+        status,
+        item_id,
+        items (
+          name
+        )
+      `)
+      .eq("status", "pending_return");
 
-<Text style={styles.title}>จัดการยืม</Text>
+    if (error) {
+      console.log(error);
+    } else {
+      setRequests(data);
+    }
+  };
 
-<View style={styles.row}>
-<Text>ค้นหา</Text>
-<TouchableOpacity style={styles.deviceBtn}>
-<Text>จัดการอุปกรณ์</Text>
-</TouchableOpacity>
-</View>
+  // 🔥 ฟังก์ชันยืนยันคืน
+  const confirmReturn = (item: any) => {
+    Alert.alert(
+      "ยืนยันคืน",
+      "ตรวจสอบของแล้วใช่ไหม?",
+      [
+        { text: "ยกเลิก", style: "cancel" },
+        {
+          text: "ยืนยัน",
+          onPress: async () => {
+            // 1. update borrow_records
+            await supabase
+              .from("borrow_records")
+              .update({
+                status: "returned",
+                return_date: new Date().toISOString(),
+              })
+              .eq("id", item.id);
 
-<Text style={styles.date}>22/05/69</Text>
+            // 2. update items
+            await supabase
+              .from("items")
+              .update({
+                status: "available",
+              })
+              .eq("id", item.item_id);
 
-<View style={styles.card}>
-<Text>65301234   Arduino</Text>
-</View>
+            Alert.alert("สำเร็จ", "คืนของเรียบร้อย 🎉");
 
-<View style={styles.card}>
-<Text>65301235   Sensor</Text>
-</View>
+            fetchRequests();
+          },
+        },
+      ]
+    );
+  };
 
-<Text style={styles.date}>23/05/69</Text>
+  return (
+    <ScrollView style={styles.container}>
 
-<View style={styles.card}>
-<Text>65301231   ESP32</Text>
-</View>
+      <Text style={styles.header}>รายการรอคืน</Text>
 
-</ScrollView>
+      {requests.map((r) => (
+        <Pressable
+          key={r.id}
+          style={styles.card}
+          onPress={() => confirmReturn(r)}
+        >
+          <View style={styles.row}>
+            <Ionicons name="cube-outline" size={20} color="#1e3a8a" />
 
-);
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>
+                {r.items?.name || r.items?.[0]?.name}
+              </Text>
+
+              <Text style={styles.status}>
+                STATUS: {r.status}
+              </Text>
+            </View>
+
+            <Ionicons name="checkmark-circle" size={22} color="green" />
+          </View>
+        </Pressable>
+      ))}
+
+    </ScrollView>
+  );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f1f5f9",
+    padding: 20,
+  },
 
-container:{
-flex:1,
-backgroundColor:"#eee",
-padding:20
-},
+  header: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
 
-title:{
-fontSize:28,
-textAlign:"center",
-marginBottom:20
-},
+  card: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 10,
+  },
 
-row:{
-flexDirection:"row",
-justifyContent:"space-between",
-marginBottom:20
-},
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
 
-deviceBtn:{
-backgroundColor:"#ff8c8c",
-padding:10,
-borderRadius:10
-},
+  title: {
+    fontWeight: "bold",
+  },
 
-date:{
-marginTop:20,
-marginBottom:10
-},
-
-card:{
-backgroundColor:"#c7d8e6",
-padding:20,
-borderRadius:12,
-marginBottom:10
-}
-
+  status: {
+    color: "#64748b",
+    fontSize: 12,
+  },
 });
