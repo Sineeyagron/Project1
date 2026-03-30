@@ -1,16 +1,78 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import supabase from "../lib/supabase";
 
 export default function Borrow() {
   const router = useRouter();
+
+  const [borrows, setBorrows] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchBorrows();
+  }, []);
+
+  const fetchBorrows = async () => {
+    const { data, error } = await supabase
+      .from("borrow_records")
+      .select(`
+        id,
+        status,
+        borrow_date,
+        item_id,
+        items (
+          name
+        )
+      `);
+
+    if (error) {
+      console.log(error);
+    } else {
+      setBorrows(data);
+    }
+  };
+
+  // 🔥 ฟังก์ชัน "ขอคืน"
+  const requestReturn = (item: any) => {
+    if (item.status !== "borrowed") return;
+
+    Alert.alert(
+      "ขอคืนอุปกรณ์",
+      "คุณต้องการขอคืนอุปกรณ์นี้ใช่ไหม?",
+      [
+        { text: "ยกเลิก", style: "cancel" },
+        {
+          text: "ยืนยัน",
+          onPress: async () => {
+            const { error } = await supabase
+              .from("borrow_records")
+              .update({
+                status: "pending_return",
+              })
+              .eq("id", item.id);
+
+            if (error) {
+              console.log(error);
+              alert("ขอคืนไม่สำเร็จ");
+              return;
+            }
+
+            alert("ส่งคำขอคืนแล้ว ✅");
+
+            fetchBorrows();
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -26,83 +88,51 @@ export default function Borrow() {
         <View style={{ width: 22 }} />
       </View>
 
-      {/* ล่าสุด */}
+      {/* TITLE */}
       <View style={styles.rowBetween}>
-        <Text style={styles.section}>ล่าสุด</Text>
-        <Text style={styles.link}>ดูทั้งหมด</Text>
+        <Text style={styles.section}>รายการที่ยืม</Text>
       </View>
 
-      {/* ACTIVE CARD */}
-      <View style={styles.card}>
+      {/* LIST */}
+      {borrows.map((b) => (
+        <TouchableOpacity
+          key={b.id}
+          style={styles.itemCard}
+          onPress={() => {
+            console.log("CLICK", b.status);
 
-        <View style={styles.itemRow}>
-          <View style={styles.iconBox}>
-            <Ionicons name="cube-outline" size={20} color="#1e3a8a" />
+            if (b.status === "borrowed") {
+              requestReturn(b);
+            } else {
+              Alert.alert("รายการนี้คืนไม่ได้");
+            }
+          }}
+        > 
+          <View style={styles.itemRow}>
+            
+            <View style={styles.iconBox}>
+              <Ionicons name="cube-outline" size={20} color="#1e3a8a" />
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>
+                {b.items?.name || b.items?.[0]?.name || "ไม่มีชื่อ"}
+              </Text>
+
+              <Text style={styles.sub}>
+                STATUS: {b.status}
+              </Text>
+
+              <Text style={styles.date}>
+                {b.borrow_date
+                  ? new Date(b.borrow_date).toLocaleDateString()
+                  : ""}
+              </Text>
+            </View>
+
           </View>
-
-          <View>
-            <Text style={styles.title}>Temperature Sensor (AA)</Text>
-            <Text style={styles.status}>● IN POSSESSION</Text>
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.rowBetween}>
-          <View>
-            <Text style={styles.label}>BORROWED</Text>
-            <Text style={styles.date}>15/03/69</Text>
-          </View>
-
-          <View>
-            <Text style={styles.label}>RETURN</Text>
-            <Text style={styles.date}>20/03/69</Text>
-          </View>
-        </View>
-
-        <View style={styles.timeBox}>
-          <Text style={styles.timeText}>Time remaining</Text>
-          <Text style={styles.timeText}>0 days left</Text>
-        </View>
-
-      </View>
-
-      {/* ITEM */}
-      <View style={styles.itemCard}>
-        <View style={styles.itemRow}>
-          <View style={styles.iconBox}>
-            <Ionicons name="wifi-outline" size={20} color="#1e3a8a" />
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Temperature Sensor (AA)</Text>
-            <Text style={styles.sub}>ID: TS-0092-B</Text>
-          </View>
-
-          <Ionicons name="chevron-forward" size={20} color="#94a3b8" />
-        </View>
-      </View>
-
-      {/* DATE */}
-      <View style={styles.dateLine}>
-        <Text style={styles.dateLineText}>15 / 04 / 69</Text>
-      </View>
-
-      {/* RETURNED */}
-      <View style={styles.itemCard}>
-        <View style={styles.itemRow}>
-          <View style={styles.iconBoxGray}>
-            <Ionicons name="cube-outline" size={20} color="#888" />
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text style={styles.title}>Temperature Sensor (AA)</Text>
-            <Text style={styles.returned}>RETURNED</Text>
-          </View>
-
-          <Text style={styles.qty}>QTY 1</Text>
-        </View>
-      </View>
+        </TouchableOpacity>
+      ))}
 
     </ScrollView>
   );
@@ -133,21 +163,18 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
-  link: {
-    color: "#1e3a8a",
-  },
-
   rowBetween: {
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 20,
   },
 
-  card: {
+  itemCard: {
     backgroundColor: "#fff",
     marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 20,
+    marginTop: 15,
+    padding: 15,
+    borderRadius: 15,
   },
 
   itemRow: {
@@ -165,81 +192,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  iconBoxGray: {
-    width: 50,
-    height: 50,
-    backgroundColor: "#eee",
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
   title: {
     fontWeight: "bold",
     fontSize: 16,
   },
 
-  status: {
-    color: "#1e3a8a",
+  sub: {
+    color: "#64748b",
     marginTop: 5,
-  },
-
-  divider: {
-    height: 1,
-    backgroundColor: "#eee",
-    marginVertical: 15,
-  },
-
-  label: {
-    fontSize: 12,
-    color: "#94a3b8",
   },
 
   date: {
-    fontWeight: "bold",
     marginTop: 5,
-  },
-
-  timeBox: {
-    backgroundColor: "#e2e8f0",
-    padding: 15,
-    borderRadius: 12,
-    marginTop: 15,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-
-  timeText: {
-    color: "#1e3a8a",
-  },
-
-  itemCard: {
-    backgroundColor: "#fff",
-    marginHorizontal: 20,
-    marginTop: 15,
-    padding: 15,
-    borderRadius: 15,
-  },
-
-  sub: {
-    color: "#64748b",
-  },
-
-  dateLine: {
-    alignItems: "center",
-    marginVertical: 20,
-  },
-
-  dateLineText: {
+    fontSize: 12,
     color: "#94a3b8",
-  },
-
-  returned: {
-    color: "#94a3b8",
-    marginTop: 5,
-  },
-
-  qty: {
-    color: "#64748b",
   },
 });

@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import supabase from "../lib/supabase";
 import React from "react";
 import {
   View,
@@ -13,13 +15,54 @@ import { Ionicons } from "@expo/vector-icons";
 export default function Equipment() {
   const router = useRouter();
 
-  const items = [
-    { name: "MacBook Pro M2", total: 15, broken: 1 },
-    { name: "Sony Alpha A7R", total: 8, broken: 0 },
-    { name: "Wacom Intuos Pro", total: 22, broken: 4 },
-    { name: "Bose QuietComfort 45", total: 30, broken: 0 },
-    { name: "DJI Ronin RS3", total: 4, broken: 0 },
-  ];
+  const [items, setItems] = useState<any>([]);
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
+
+  const fetchItems = async () => {
+    const { data, error } = await supabase
+      .from("items")
+      .select("*");
+
+    if (error) {
+      console.log(error);
+    } else {
+      setItems(data);
+    }
+  };
+
+  const borrowItem = async (item: { status: string; id: any; }) => {
+    if (item.status !== "available") {
+      alert("อุปกรณ์ถูกยืมแล้ว");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("borrow_records")
+      .insert([
+        {
+          user_id: "11111111-1111-1111-1111-111111111111",
+          item_id: item.id,
+          status: "borrowed",
+        },
+      ]);
+
+    if (error) {
+      alert("ยืมไม่สำเร็จ");
+      return;
+    }
+
+    await supabase
+      .from("items")
+      .update({ status: "borrowed" })
+      .eq("id", item.id);
+
+    alert("ยืมสำเร็จ 🎉");
+
+    fetchItems();
+  };
 
   return (
     <View style={styles.container}>
@@ -59,8 +102,12 @@ export default function Equipment() {
 
       {/* LIST */}
       <ScrollView showsVerticalScrollIndicator={false}>
-        {items.map((item, i) => (
-          <TouchableOpacity key={i} style={styles.item}>
+        {items.map((item: any) => (
+          <TouchableOpacity 
+            key={item.id} 
+            style={styles.item}
+            onPress={() => borrowItem(item)}
+          >
             
             <View style={styles.iconBox}>
               <Ionicons name="laptop-outline" size={20} color="#1e3a8a" />
@@ -69,10 +116,7 @@ export default function Equipment() {
             <View style={{ flex: 1 }}>
               <Text style={styles.itemTitle}>{item.name}</Text>
               <Text style={styles.subText}>
-                TOTAL: {item.total}{" "}
-                <Text style={{ color: item.broken > 0 ? "red" : "#94a3b8" }}>
-                  BROKEN: {item.broken}
-                </Text>
+                STATUS: {item.status}
               </Text>
             </View>
 
@@ -83,7 +127,6 @@ export default function Equipment() {
 
       {/* TAB */}
       <View style={styles.tab}>
-
         <TouchableOpacity onPress={() => router.push("/home")}>
           <Text>ชั้นเรียน</Text>
         </TouchableOpacity>
@@ -99,7 +142,6 @@ export default function Equipment() {
         <TouchableOpacity onPress={() => router.push("./profile")}>
           <Text>โปรไฟล์</Text>
         </TouchableOpacity>
-
       </View>
 
     </View>
