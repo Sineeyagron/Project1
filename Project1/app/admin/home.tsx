@@ -124,7 +124,7 @@ export default function AdminHome() {
           <Text>การยืม</Text>
         </TouchableOpacity>
       </View>
-        {/* 🔥 HISTORY */}
+        {/* 🔥 ปุ่มกลับ HISTORY */}
             <TouchableOpacity
         onPress={() => router.push("/admin/history")}
         style={{
@@ -136,6 +136,20 @@ export default function AdminHome() {
         >
         <Text style={{ color: "#fff", textAlign: "center" }}>
             ดูประวัติทั้งหมด
+        </Text>
+        </TouchableOpacity>
+        {/* 🔥 ปุ่มเข้า Manage Items */}
+        <TouchableOpacity
+        onPress={() => router.push("/admin/items")}
+        style={{
+            backgroundColor: "#10b981",
+            padding: 12,
+            borderRadius: 10,
+            marginBottom: 10,
+        }}
+        >
+        <Text style={{ color: "#fff", textAlign: "center" }}>
+            จัดการอุปกรณ์
         </Text>
         </TouchableOpacity>
 
