@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Image,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import supabase from "../lib/supabase";
 
 export default function Login() {
   const router = useRouter();
@@ -17,10 +19,52 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
+  // 🔥 LOGIN FUNCTION
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("กรอกข้อมูลให้ครบ");
+      return;
+    }
+
+    // 🔐 login
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.log(error);
+      Alert.alert("Login ไม่สำเร็จ");
+      return;
+    }
+
+    const user = data.user;
+
+    // 🔥 ดึง role จาก profiles
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.log(profileError);
+      Alert.alert("ไม่พบข้อมูลผู้ใช้");
+      return;
+    }
+
+    // 🔥 แยก role
+    if (profile.role === "admin") {
+      router.replace("/admin/home");
+    } else {
+      router.replace("/home");
+    }
+  };
+
   return (
     <View style={styles.container}>
       
-      {/* ADMIN BUTTON */}
+      {/* ADMIN BUTTON (optional test) */}
       <TouchableOpacity
         style={styles.adminBtn}
         onPress={() => router.push("./admin/home")}
@@ -80,10 +124,10 @@ export default function Login() {
           </TouchableOpacity>
         </View>
 
-        {/* LOGIN BUTTON */}
+        {/* 🔥 LOGIN BUTTON */}
         <TouchableOpacity
           style={styles.loginBtn}
-          onPress={() => router.replace("/home")}
+          onPress={handleLogin}
         >
           <Text style={styles.loginText}>Log In →</Text>
         </TouchableOpacity>
