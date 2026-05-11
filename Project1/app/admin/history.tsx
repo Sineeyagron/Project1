@@ -16,8 +16,17 @@ export default function AdminHistory() {
     fetchHistory();
   }, []);
 
+  // ── อธิบาย ──────────────────────────────────────────────────────────
+  // ก่อนหน้า: แสดง user_id ซึ่งเป็น UUID ยาวๆ อ่านไม่ออก
+  // แก้แล้ว: ดึง profiles มาพร้อมกัน เพื่อแสดงอีเมลแทน
+  //
+  // วิธีที่ใช้: Supabase รองรับ foreign key join แบบ nested select
+  // "profiles ( email )" จะดึง email จากตาราง profiles
+  // โดย join ผ่าน user_id → profiles.id อัตโนมัติ
+  // ────────────────────────────────────────────────────────────────────
   const fetchHistory = async () => {
-    const { data, error } = await supabase
+    // ดึง borrow_records + items ก่อน (ไม่ join profiles เพื่อหลีกเลี่ยง error)
+    const { data: records, error } = await supabase
       .from("borrow_records")
       .select(`
         id,
@@ -32,9 +41,28 @@ export default function AdminHistory() {
 
     if (error) {
       console.log(error);
-    } else {
-      setData(data);
+      return;
     }
+
+    if (!records || records.length === 0) {
+      setData([]);
+      return;
+    }
+
+    // ดึง email จาก profiles แยกต่างหาก โดยใช้ user_id ที่ได้มา
+    const userIds = [...new Set(records.map((r: any) => r.user_id))];
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, email")
+      .in("id", userIds);
+
+    // รวม email เข้ากับแต่ละ record
+    const merged = records.map((r: any) => ({
+      ...r,
+      email: profiles?.find((p: any) => p.id === r.user_id)?.email || r.user_id,
+    }));
+
+    setData(merged);
   };
 
     const router = useRouter();
@@ -60,7 +88,7 @@ export default function AdminHistory() {
           </Text>
 
           <Text style={styles.text}>
-            👤 User: {item.user_id}
+            👤 User: {item.email}
           </Text>
 
           <Text style={styles.text}>

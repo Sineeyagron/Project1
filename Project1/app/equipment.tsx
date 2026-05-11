@@ -39,11 +39,22 @@ export default function Equipment() {
       return;
     }
 
+    // ── อธิบาย ────────────────────────────────────────────────────────
+    // supabase.auth.getUser() → ดึงข้อมูล user ที่ login อยู่ตอนนี้
+    // user.id คือ UUID ที่ Supabase สร้างให้ตอนสมัคร (ไม่ใช่ตัวปลอมแล้ว)
+    // ──────────────────────────────────────────────────────────────────
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      alert("กรุณาเข้าสู่ระบบก่อน");
+      return;
+    }
+
     const { error } = await supabase
       .from("borrow_records")
       .insert([
         {
-          user_id: "11111111-1111-1111-1111-111111111111",
+          user_id: user.id,   // ใช้ user จริงที่ login อยู่
           item_id: item.id,
           status: "borrowed",
         },

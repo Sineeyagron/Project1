@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Image,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,13 +19,21 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 🔥 LOGIN FUNCTION (แก้แล้ว)
+  // ── อธิบาย ──────────────────────────────────────────────────────────
+  // handleLogin ทำงานแบบนี้:
+  // 1. ส่ง email+password ไปให้ Supabase ตรวจสอบ
+  // 2. ถ้าผ่าน → ดึง "role" ของ user จากตาราง profiles
+  // 3. role="admin" → ไปหน้า admin, อื่นๆ → ไปหน้า home ปกติ
+  // ────────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("กรอกข้อมูลให้ครบ");
       return;
     }
+
+    setIsLoading(true); // ปิดปุ่มระหว่างรอ ป้องกันกดซ้ำ
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -33,7 +42,8 @@ export default function Login() {
 
     if (error) {
       console.log(error);
-      Alert.alert(error.message); // 🔥 แสดง error จริง
+      Alert.alert("เข้าสู่ระบบไม่สำเร็จ", "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+      setIsLoading(false);
       return;
     }
 
@@ -41,15 +51,18 @@ export default function Login() {
 
     if (!user) {
       Alert.alert("ไม่พบผู้ใช้");
+      setIsLoading(false);
       return;
     }
 
-    // 🔥 ดึง role
+    // ดึง role จากตาราง profiles (ที่เราสร้างตอน signup)
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
       .eq("id", user.id)
       .single();
+
+    setIsLoading(false);
 
     if (profileError || !profile) {
       console.log(profileError);
@@ -57,7 +70,7 @@ export default function Login() {
       return;
     }
 
-    // 🔥 แยก role
+    // แยกทางตาม role
     if (profile.role === "admin") {
       router.replace("/admin/home");
     } else {
@@ -67,15 +80,7 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
-      
-      {/* ADMIN BUTTON */}
-      <TouchableOpacity
-        style={styles.adminBtn}
-        onPress={() => router.push("/admin/home")}
-      >
-        <Ionicons name="shield-checkmark-outline" size={16} color="#64748b" />
-        <Text style={styles.adminText}>ADMIN</Text>
-      </TouchableOpacity>
+      {/* ลบปุ่ม ADMIN ที่ข้ามการยืนยันตัวตนออกแล้ว */}
 
       {/* LOGO */}
       <View style={styles.logoContainer}>
@@ -134,10 +139,14 @@ export default function Login() {
 
         {/* LOGIN */}
         <TouchableOpacity
-          style={styles.loginBtn}
+          style={[styles.loginBtn, isLoading && { opacity: 0.6 }]}
           onPress={handleLogin}
+          disabled={isLoading}
         >
-          <Text style={styles.loginText}>Log In →</Text>
+          {isLoading
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.loginText}>Log In →</Text>
+          }
         </TouchableOpacity>
       </View>
 
@@ -157,24 +166,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f1f5f9",
     padding: 20,
-  },
-
-  adminBtn: {
-    position: "absolute",
-    top: 40,
-    right: 20,
-    flexDirection: "row",
-    backgroundColor: "#e2e8f0",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    alignItems: "center",
-    gap: 5,
-  },
-
-  adminText: {
-    fontSize: 12,
-    color: "#64748b",
   },
 
   logoContainer: {

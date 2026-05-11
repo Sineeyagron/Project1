@@ -20,7 +20,16 @@ export default function Borrow() {
     fetchBorrows();
   }, []);
 
+  // ── อธิบาย ──────────────────────────────────────────────────────────
+  // ก่อนหน้านี้: ดึง borrow_records ทั้งหมด → ทุกคนเห็นของทุกคน ❌
+  // แก้แล้ว: ดึง user ที่ login อยู่ก่อน แล้ว filter เฉพาะของ user นั้น ✅
+  // ────────────────────────────────────────────────────────────────────
   const fetchBorrows = async () => {
+    // ดึง user ปัจจุบันที่ login อยู่
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return;
+
     const { data, error } = await supabase
       .from("borrow_records")
       .select(`
@@ -31,7 +40,8 @@ export default function Borrow() {
         items (
           name
         )
-      `);
+      `)
+      .eq("user_id", user.id);  // กรองเฉพาะของ user นี้เท่านั้น
 
     if (error) {
       console.log(error);

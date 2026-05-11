@@ -56,7 +56,14 @@ export default function AdminItems() {
     fetchItems();
   };
 
-  // 🔥 ลบ item
+  // ── อธิบาย ──────────────────────────────────────────────────────────
+  // ก่อนหน้า: ลบ item ทันทีโดยไม่เช็ค → ถ้ายังมีคนยืมอยู่
+  // DB จะ error เพราะ borrow_records ยังอ้างถึง item นั้น (foreign key)
+  //
+  // แก้แล้ว: เช็คก่อนว่ามี borrow_records ที่ status="borrowed" อยู่ไหม
+  // ถ้ามี → แจ้งเตือน ลบไม่ได้
+  // ถ้าไม่มี → ลบได้
+  // ────────────────────────────────────────────────────────────────────
   const deleteItem = (id: any) => {
     Alert.alert(
       "ลบอุปกรณ์",
@@ -66,10 +73,31 @@ export default function AdminItems() {
         {
           text: "ลบ",
           onPress: async () => {
-            await supabase
+            // เช็คว่ามีคนยืมอุปกรณ์นี้อยู่ไหม
+            const { data: activeBorrows } = await supabase
+              .from("borrow_records")
+              .select("id")
+              .eq("item_id", id)
+              .eq("status", "borrowed");
+
+            if (activeBorrows && activeBorrows.length > 0) {
+              Alert.alert(
+                "ลบไม่ได้",
+                "อุปกรณ์นี้ยังถูกยืมอยู่ กรุณารอให้คืนก่อน"
+              );
+              return;
+            }
+
+            // ปลอดภัยแล้ว ลบได้
+            const { error } = await supabase
               .from("items")
               .delete()
               .eq("id", id);
+
+            if (error) {
+              Alert.alert("ลบไม่สำเร็จ", error.message);
+              return;
+            }
 
             fetchItems();
           },

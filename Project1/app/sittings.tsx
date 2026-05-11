@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import supabase from "../lib/supabase";
 
 export default function Settings() {
   const router = useRouter();
@@ -63,7 +64,15 @@ export default function Settings() {
       {/* LOGOUT */}
       <TouchableOpacity
         style={styles.logout}
-        onPress={() => router.replace("/login")}
+        onPress={async () => {
+          // ── อธิบาย ────────────────────────────────────────────────────
+          // ก่อนหน้า: แค่เปลี่ยนหน้าไป login แต่ session ยังค้างอยู่
+          // แก้แล้ว: เรียก signOut() ก่อน → Supabase ลบ session ทิ้ง
+          // แล้วค่อยไปหน้า login
+          // ────────────────────────────────────────────────────────────
+          await supabase.auth.signOut();
+          router.replace("/login");
+        }}
       >
         <Ionicons name="log-out-outline" size={20} color="red" />
         <Text style={styles.logoutText}>LOGOUT</Text>
