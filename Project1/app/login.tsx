@@ -19,14 +19,13 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  // 🔥 LOGIN FUNCTION
+  // 🔥 LOGIN FUNCTION (แก้แล้ว)
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("กรอกข้อมูลให้ครบ");
       return;
     }
 
-    // 🔐 login
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -34,13 +33,18 @@ export default function Login() {
 
     if (error) {
       console.log(error);
-      Alert.alert("Login ไม่สำเร็จ");
+      Alert.alert(error.message); // 🔥 แสดง error จริง
       return;
     }
 
     const user = data.user;
 
-    // 🔥 ดึง role จาก profiles
+    if (!user) {
+      Alert.alert("ไม่พบผู้ใช้");
+      return;
+    }
+
+    // 🔥 ดึง role
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
@@ -49,7 +53,7 @@ export default function Login() {
 
     if (profileError || !profile) {
       console.log(profileError);
-      Alert.alert("ไม่พบข้อมูลผู้ใช้");
+      Alert.alert("ไม่พบข้อมูล role");
       return;
     }
 
@@ -64,10 +68,10 @@ export default function Login() {
   return (
     <View style={styles.container}>
       
-      {/* ADMIN BUTTON (optional test) */}
+      {/* ADMIN BUTTON */}
       <TouchableOpacity
         style={styles.adminBtn}
-        onPress={() => router.push("./admin/home")}
+        onPress={() => router.push("/admin/home")}
       >
         <Ionicons name="shield-checkmark-outline" size={16} color="#64748b" />
         <Text style={styles.adminText}>ADMIN</Text>
@@ -103,7 +107,11 @@ export default function Login() {
         {/* PASSWORD */}
         <View style={styles.passwordHeader}>
           <Text style={styles.label}>ACCESS KEY</Text>
-          <Text style={styles.forgot}>Forgot Password?</Text>
+
+          {/* 🔥 FIX: Forgot Password กดได้ */}
+          <TouchableOpacity onPress={() => router.push("/forgot")}>
+            <Text style={styles.forgot}>Forgot Password?</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.inputBox}>
@@ -124,7 +132,7 @@ export default function Login() {
           </TouchableOpacity>
         </View>
 
-        {/* 🔥 LOGIN BUTTON */}
+        {/* LOGIN */}
         <TouchableOpacity
           style={styles.loginBtn}
           onPress={handleLogin}
