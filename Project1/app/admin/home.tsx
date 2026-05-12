@@ -110,48 +110,38 @@ export default function AdminHome() {
         <Text style={styles.roomText}>SC9604</Text>
       </TouchableOpacity>
 
-      {/* 🔥 NAVBAR */}
-      <View style={styles.navbar}>
-        <TouchableOpacity onPress={() => router.push("/admin/home")}>
-          <Text>ห้องเรียน</Text>
+      {/* 🔥 MENU */}
+      <View style={styles.menuGrid}>
+        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/borrow")}>
+          <Text style={styles.menuIcon}>↩️</Text>
+          <Text style={styles.menuText}>ยืนยันคืน</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push("/admin/scan")}>
-          <Text>สแกน</Text>
+        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/booking")}>
+          <Text style={styles.menuIcon}>📅</Text>
+          <Text style={styles.menuText}>การจองห้อง</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push("/admin/borrow")}>
-          <Text>การยืม</Text>
+        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/items")}>
+          <Text style={styles.menuIcon}>📦</Text>
+          <Text style={styles.menuText}>จัดการอุปกรณ์</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/scan")}>
+          <Text style={styles.menuIcon}>📷</Text>
+          <Text style={styles.menuText}>สแกน & เพิ่ม</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/history")}>
+          <Text style={styles.menuIcon}>📜</Text>
+          <Text style={styles.menuText}>ประวัติยืม</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/status/editStatus")}>
+          <Text style={styles.menuIcon}>🖥️</Text>
+          <Text style={styles.menuText}>สถานะเครื่อง</Text>
         </TouchableOpacity>
       </View>
-        {/* 🔥 ปุ่มกลับ HISTORY */}
-            <TouchableOpacity
-        onPress={() => router.push("/admin/history")}
-        style={{
-            backgroundColor: "#1e3a8a",
-            padding: 12,
-            borderRadius: 10,
-            marginBottom: 10,
-        }}
-        >
-        <Text style={{ color: "#fff", textAlign: "center" }}>
-            ดูประวัติทั้งหมด
-        </Text>
-        </TouchableOpacity>
-        {/* 🔥 ปุ่มเข้า Manage Items */}
-        <TouchableOpacity
-        onPress={() => router.push("/admin/items")}
-        style={{
-            backgroundColor: "#10b981",
-            padding: 12,
-            borderRadius: 10,
-            marginBottom: 10,
-        }}
-        >
-        <Text style={{ color: "#fff", textAlign: "center" }}>
-            จัดการอุปกรณ์
-        </Text>
-        </TouchableOpacity>
 
     </ScrollView>
   );
@@ -208,14 +198,25 @@ const styles = StyleSheet.create({
     fontSize: 28,
   },
 
-  navbar: {
-    marginTop: 20,
+  menuGrid: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    backgroundColor: "#c7d8e6",
-    padding: 15,
-    borderRadius: 10,
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 10,
+    marginBottom: 20,
   },
+  menuBtn: {
+    width: "47%",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 16,
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  menuIcon: { fontSize: 24 },
+  menuText: { fontSize: 12, fontWeight: "600", color: "#1e293b" },
 
   // 🔥 DASHBOARD STYLE
   card: {
