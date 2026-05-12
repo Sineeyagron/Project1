@@ -5,234 +5,201 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 
 export default function AdminHome() {
   const router = useRouter();
 
-  // 🔥 STATE
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Equipment stats
   const [total, setTotal] = useState(0);
   const [borrowed, setBorrowed] = useState(0);
   const [pending, setPending] = useState(0);
   const [returned, setReturned] = useState(0);
 
-  // 🔥 LOAD DATA
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Booking stats
+  const [bookingToday, setBookingToday] = useState(0);
+  const [bookingTotal, setBookingTotal] = useState(0);
+
+  useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
-    // 📦 ITEMS
-    const { data: items } = await supabase
-      .from("items")
-      .select("*");
+    const today = new Date().toISOString().split("T")[0];
 
+    // Items
+    const { data: items } = await supabase.from("items").select("id");
     setTotal(items?.length || 0);
 
-    // 📤 BORROWS
-    const { data: borrows } = await supabase
-      .from("borrow_records")
-      .select("*");
+    // Borrow records
+    const { data: borrows } = await supabase.from("borrow_records").select("status");
+    setBorrowed(borrows?.filter((b: any) => b.status === "borrowed").length || 0);
+    setPending(borrows?.filter((b: any) => b.status === "pending_return").length || 0);
+    setReturned(borrows?.filter((b: any) => b.status === "returned").length || 0);
 
-    setBorrowed(
-      borrows?.filter(b => b.status === "borrowed").length || 0
-    );
+    // Bookings
+    const { data: bookings } = await supabase
+      .from("room_bookings")
+      .select("booking_date, status")
+      .eq("status", "active");
 
-    setPending(
-      borrows?.filter(b => b.status === "pending_return").length || 0
-    );
+    setBookingTotal(bookings?.length || 0);
+    setBookingToday(bookings?.filter((b: any) => b.booking_date === today).length || 0);
 
-    setReturned(
-      borrows?.filter(b => b.status === "returned").length || 0
-    );
+    setLoading(false);
+    setRefreshing(false);
   };
 
+  const onRefresh = () => { setRefreshing(true); fetchData(); };
+
+  const MENU = [
+    { icon: "return-down-back-outline", label: "ยืนยันคืน",    route: "/admin/borrow",            color: "#f97316" },
+    { icon: "calendar-outline",         label: "การจองห้อง",    route: "/admin/booking",           color: "#8b5cf6" },
+    { icon: "cube-outline",             label: "จัดการอุปกรณ์", route: "/admin/items",             color: "#0ea5e9" },
+    { icon: "qr-code-outline",          label: "สร้าง QR",      route: "/admin/qrgen",             color: "#10b981" },
+    { icon: "scan-outline",             label: "สแกน & เพิ่ม",  route: "/admin/scan",              color: "#6366f1" },
+    { icon: "receipt-outline",          label: "ประวัติยืม",    route: "/admin/history",           color: "#64748b" },
+    { icon: "desktop-outline",          label: "สถานะเครื่อง",  route: "/admin/status/editStatus", color: "#dc2626" },
+  ];
+
   return (
-    <ScrollView style={styles.container}>
-
-            {/* 🔥 TITLE */}
-            <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => router.push("/")}>
-            <Text style={styles.backBtn}>← กลับ</Text>
+    <ScrollView
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}
+    >
+      {/* HEADER */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.push("/")} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={20} color="#93c5fd" />
+          <Text style={styles.backText}>กลับ</Text>
         </TouchableOpacity>
-
-        <Text style={styles.title}>จัดการห้องเรียน</Text>
-
-        <View style={{ width: 50 }} />
-        </View>
-
-      {/* 🔥 DASHBOARD */}
-      <View style={{ marginBottom: 20 }}>
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📦 Total Items</Text>
-          <Text style={styles.cardNumber}>{total}</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>📤 Borrowed</Text>
-          <Text style={styles.cardNumber}>{borrowed}</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>⏳ Pending</Text>
-          <Text style={styles.cardNumber}>{pending}</Text>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>✅ Returned</Text>
-          <Text style={styles.cardNumber}>{returned}</Text>
-        </View>
+        <Text style={styles.headerTitle}>Admin Dashboard</Text>
+        <Text style={styles.headerSub}>ระบบจัดการห้องแล็บ IoT</Text>
       </View>
 
-      {/* 🔍 SEARCH + ADD */}
-      <View style={styles.searchRow}>
-        <Text>ค้นหา</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 40 }} />
+      ) : (
+        <>
+          {/* ── EQUIPMENT STATS ── */}
+          <Text style={styles.sectionLabel}>📦 อุปกรณ์</Text>
+          <View style={styles.statsGrid}>
+            <View style={[styles.statCard, { borderLeftColor: "#3b82f6" }]}>
+              <Text style={styles.statNum}>{total}</Text>
+              <Text style={styles.statLabel}>ทั้งหมด</Text>
+            </View>
+            <View style={[styles.statCard, { borderLeftColor: "#f97316" }]}>
+              <Text style={[styles.statNum, { color: "#ea580c" }]}>{borrowed}</Text>
+              <Text style={styles.statLabel}>กำลังยืม</Text>
+            </View>
+            <View style={[styles.statCard, { borderLeftColor: "#ef4444" }]}>
+              <Text style={[styles.statNum, { color: "#dc2626" }]}>{pending}</Text>
+              <Text style={styles.statLabel}>รอคืน</Text>
+            </View>
+            <View style={[styles.statCard, { borderLeftColor: "#22c55e" }]}>
+              <Text style={[styles.statNum, { color: "#16a34a" }]}>{returned}</Text>
+              <Text style={styles.statLabel}>คืนแล้ว</Text>
+            </View>
+          </View>
 
-        <TouchableOpacity style={styles.addBtn}>
-          <Text>เพิ่มห้อง</Text>
-        </TouchableOpacity>
-      </View>
+          {/* ── BOOKING STATS ── */}
+          <Text style={styles.sectionLabel}>📅 การจองห้อง (active)</Text>
+          <View style={styles.bookingRow}>
+            <View style={[styles.bookingCard, { backgroundColor: "#eff6ff" }]}>
+              <Ionicons name="today-outline" size={24} color="#1d4ed8" />
+              <Text style={styles.bookingNum}>{bookingToday}</Text>
+              <Text style={styles.bookingLabel}>วันนี้</Text>
+            </View>
+            <View style={[styles.bookingCard, { backgroundColor: "#f0fdf4" }]}>
+              <Ionicons name="calendar-outline" size={24} color="#16a34a" />
+              <Text style={styles.bookingNum}>{bookingTotal}</Text>
+              <Text style={styles.bookingLabel}>ทั้งหมด</Text>
+            </View>
+          </View>
 
-      {/* 🏫 ROOM LIST */}
-      <TouchableOpacity
-        style={styles.room}
-        onPress={() => router.push("/admin/room")}
-      >
-        <Text style={styles.roomText}>CP9524</Text>
-      </TouchableOpacity>
+          {/* ── MENU GRID ── */}
+          <Text style={styles.sectionLabel}>⚙️ จัดการ</Text>
+          <View style={styles.menuGrid}>
+            {MENU.map((m) => (
+              <TouchableOpacity
+                key={m.route}
+                style={styles.menuBtn}
+                onPress={() => router.push(m.route as any)}
+              >
+                <View style={[styles.menuIconBox, { backgroundColor: m.color + "18" }]}>
+                  <Ionicons name={m.icon as any} size={22} color={m.color} />
+                </View>
+                <Text style={styles.menuText}>{m.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
 
-      <TouchableOpacity
-        style={styles.room}
-        onPress={() => router.push("/admin/room")}
-      >
-        <Text style={styles.roomText}>SC9604</Text>
-      </TouchableOpacity>
-
-      {/* 🔥 MENU */}
-      <View style={styles.menuGrid}>
-        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/borrow")}>
-          <Text style={styles.menuIcon}>↩️</Text>
-          <Text style={styles.menuText}>ยืนยันคืน</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/booking")}>
-          <Text style={styles.menuIcon}>📅</Text>
-          <Text style={styles.menuText}>การจองห้อง</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/items")}>
-          <Text style={styles.menuIcon}>📦</Text>
-          <Text style={styles.menuText}>จัดการอุปกรณ์</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/scan")}>
-          <Text style={styles.menuIcon}>📷</Text>
-          <Text style={styles.menuText}>สแกน & เพิ่ม</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/history")}>
-          <Text style={styles.menuIcon}>📜</Text>
-          <Text style={styles.menuText}>ประวัติยืม</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuBtn} onPress={() => router.push("/admin/status/editStatus")}>
-          <Text style={styles.menuIcon}>🖥️</Text>
-          <Text style={styles.menuText}>สถานะเครื่อง</Text>
-        </TouchableOpacity>
-      </View>
-
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: "#f1f5f9" },
 
-  headerRow:{
-    flexDirection:"row",
-    alignItems:"center",
-    justifyContent:"space-between",
-    marginBottom:20
-    },
+  header: {
+    backgroundColor: "#1e3a8a",
+    paddingTop: 54, paddingBottom: 24, paddingHorizontal: 20,
+  },
+  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 10 },
+  backText: { color: "#93c5fd", fontSize: 13 },
+  headerTitle: { color: "#fff", fontSize: 22, fontWeight: "bold" },
+  headerSub: { color: "#93c5fd", fontSize: 12, marginTop: 4 },
 
-  backBtn:{
-    fontSize:16,
-    color:"#1e3a8a",
-    fontWeight:"bold"
-    },
-
-  container: {
-    flex: 1,
-    backgroundColor: "#eee",
-    padding: 20,
+  sectionLabel: {
+    fontSize: 11, fontWeight: "700", color: "#64748b",
+    textTransform: "uppercase", letterSpacing: 0.5,
+    marginHorizontal: 16, marginTop: 20, marginBottom: 10,
   },
 
-  title: {
-    fontSize: 28,
-    textAlign: "center",
-    marginBottom: 20,
+  statsGrid: {
+    flexDirection: "row", flexWrap: "wrap",
+    paddingHorizontal: 12, gap: 8,
   },
+  statCard: {
+    width: "47%", backgroundColor: "#fff",
+    borderRadius: 14, padding: 14,
+    borderLeftWidth: 4, marginHorizontal: 4,
+  },
+  statNum: { fontSize: 28, fontWeight: "800", color: "#1e293b" },
+  statLabel: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
 
-  searchRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
+  bookingRow: {
+    flexDirection: "row", paddingHorizontal: 16, gap: 10,
   },
-
-  addBtn: {
-    backgroundColor: "#ff8c8c",
-    padding: 10,
-    borderRadius: 10,
+  bookingCard: {
+    flex: 1, borderRadius: 14, padding: 16,
+    alignItems: "center", gap: 4,
   },
-
-  room: {
-    backgroundColor: "#bcd0df",
-    padding: 40,
-    borderRadius: 20,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-
-  roomText: {
-    fontSize: 28,
-  },
+  bookingNum: { fontSize: 28, fontWeight: "800", color: "#1e293b" },
+  bookingLabel: { fontSize: 12, color: "#64748b" },
 
   menuGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginTop: 10,
-    marginBottom: 20,
+    flexDirection: "row", flexWrap: "wrap",
+    paddingHorizontal: 16, gap: 10,
   },
   menuBtn: {
-    width: "47%",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 16,
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
+    width: "30%", backgroundColor: "#fff",
+    borderRadius: 14, padding: 14,
+    alignItems: "center", gap: 8,
+    borderWidth: 1, borderColor: "#f1f5f9",
   },
-  menuIcon: { fontSize: 24 },
-  menuText: { fontSize: 12, fontWeight: "600", color: "#1e293b" },
-
-  // 🔥 DASHBOARD STYLE
-  card: {
-    backgroundColor: "#fff",
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
+  menuIconBox: {
+    width: 44, height: 44, borderRadius: 12,
+    justifyContent: "center", alignItems: "center",
   },
-
-  cardTitle: {
-    color: "#666",
-    fontSize: 14,
-  },
-
-  cardNumber: {
-    fontSize: 22,
-    fontWeight: "bold",
-  },
+  menuText: { fontSize: 11, fontWeight: "600", color: "#1e293b", textAlign: "center" },
 });
