@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,67 +6,108 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import supabase from "../lib/supabase";
 
 export default function Home() {
   const router = useRouter();
 
-  const rooms = ["CP9524", "SC9604", "MA3012"];
+  const [rooms, setRooms] = useState<string[]>([]);
+  const [totalStations, setTotalStations] = useState(0);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRooms();
+  }, []);
+
+  const fetchRooms = async () => {
+    // ดึง room_id ที่ไม่ซ้ำกันจาก computer_stations
+    const { data, error } = await supabase
+      .from("computer_stations")
+      .select("room_id");
+
+    if (error) {
+      console.log(error);
+      setLoading(false);
+      return;
+    }
+
+    // distinct room_id
+    const uniqueRooms = [...new Set(data.map((r: any) => r.room_id))];
+    setRooms(uniqueRooms);
+    setTotalStations(data.length);
+    setLoading(false);
+  };
+
+  // กรองตาม search
+  const filteredRooms = rooms.filter(r =>
+    r.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <View style={styles.container}>
 
-      {/* 🔵 TOP TITLE */}
-      <Text style={styles.topTitle}>ห้องเรียน</Text>
-
-      {/* 🔵 BIG TITLE */}
+      {/* TITLE */}
       <Text style={styles.title}>ห้องเรียน</Text>
 
-      {/* 🔍 SEARCH */}
+      {/* SEARCH */}
       <View style={styles.searchBox}>
         <Ionicons name="search" size={18} color="#94a3b8" />
-        <TextInput placeholder="Search rooms..." style={styles.input} />
+        <TextInput
+          placeholder="ค้นหาห้อง..."
+          style={styles.input}
+          value={search}
+          onChangeText={setSearch}
+        />
       </View>
 
-      {/* 🔵 BLUE CARD */}
+      {/* STAT CARD */}
       <View style={styles.card}>
-        <Text style={styles.bigNumber}>42</Text>
-        <Text style={styles.sub}>TOTAL CLASSROOMS</Text>
+        <Text style={styles.bigNumber}>{loading ? "..." : totalStations}</Text>
+        <Text style={styles.sub}>TOTAL COMPUTER STATIONS</Text>
+        <Text style={styles.subSmall}>{rooms.length} ห้อง</Text>
       </View>
 
-      {/* 📦 ROOMS */}
-      <ScrollView>
-        {rooms.map((room, i) => (
-          <TouchableOpacity
-            key={i}
-            style={styles.room}
-            onPress={() => router.push("/roommap")}
-          >
-            <Text style={styles.roomText}>{room}</Text>
+      {/* ROOMS */}
+      {loading ? (
+        <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 40 }} />
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {filteredRooms.map((room, i) => (
+            <TouchableOpacity
+              key={i}
+              style={styles.room}
+              onPress={() => router.push({
+                pathname: "/roommap",
+                params: { room_id: room },
+              })}
+            >
+              <View>
+                <Text style={styles.roomText}>{room}</Text>
+                <Text style={styles.roomSub}>กดเพื่อดูผังห้องและจองเครื่อง</Text>
+              </View>
+              <View style={styles.circle}>
+                <Ionicons name="chevron-forward" size={16} color="#1e3a8a" />
+              </View>
+            </TouchableOpacity>
+          ))}
 
-            <View style={styles.circle}>
-              <Ionicons name="chevron-forward" size={16} color="#1e3a8a" />
+          {filteredRooms.length === 0 && (
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>ไม่พบห้องที่ค้นหา</Text>
             </View>
-          </TouchableOpacity>
-        ))}
+          )}
 
-        {/* ➕ ADD */}
-        <View style={styles.addBox}>
-          <Ionicons name="add" size={20} color="#1e3a8a" />
-          <Text style={styles.addText}>Register New Room</Text>
-        </View>
-      </ScrollView>
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      )}
 
-      {/* ➕ FLOAT */}
-      <TouchableOpacity style={styles.fab}>
-        <Ionicons name="add" size={24} color="#fff" />
-      </TouchableOpacity>
-
-      {/* 🔻 TAB BAR */}
+      {/* TAB BAR */}
       <View style={styles.tab}>
-
         <TouchableOpacity style={styles.activeTab}>
           <Ionicons name="home" size={20} color="#fff" />
           <Text style={styles.activeText}>ชั้นเรียน</Text>
@@ -86,7 +127,6 @@ export default function Home() {
           <Ionicons name="person-outline" size={20} />
           <Text>โปรไฟล์</Text>
         </TouchableOpacity>
-
       </View>
 
     </View>
@@ -97,70 +137,68 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    paddingTop: 50,
     backgroundColor: "#f1f5f9",
   },
-
-  topTitle: {
-    textAlign: "center",
-    color: "#1e3a8a",
-    marginBottom: 10,
-  },
-
   title: {
     fontSize: 28,
     fontWeight: "bold",
     color: "#1e3a8a",
-    marginBottom: 10,
+    marginBottom: 12,
   },
-
   searchBox: {
     flexDirection: "row",
     backgroundColor: "#e2e8f0",
     padding: 12,
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: 16,
     alignItems: "center",
   },
-
   input: {
     marginLeft: 10,
     flex: 1,
+    fontSize: 14,
   },
-
   card: {
     backgroundColor: "#0f3a6d",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
   },
-
   bigNumber: {
     color: "#fff",
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: "bold",
   },
-
   sub: {
     color: "#cbd5e1",
     letterSpacing: 2,
+    fontSize: 11,
   },
-
+  subSmall: {
+    color: "#93c5fd",
+    fontSize: 12,
+    marginTop: 4,
+  },
   room: {
     backgroundColor: "#fff",
     padding: 20,
     borderRadius: 20,
-    marginBottom: 15,
+    marginBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-
   roomText: {
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "bold",
     color: "#1e3a8a",
   },
-
+  roomSub: {
+    fontSize: 11,
+    color: "#94a3b8",
+    marginTop: 2,
+  },
   circle: {
     width: 35,
     height: 35,
@@ -169,31 +207,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-
-  addBox: {
-    borderWidth: 1,
-    borderStyle: "dashed",
-    borderColor: "#cbd5e1",
-    padding: 25,
-    borderRadius: 20,
+  empty: {
+    padding: 40,
     alignItems: "center",
-    marginTop: 10,
   },
-
-  addText: {
-    marginTop: 5,
-    color: "#1e3a8a",
+  emptyText: {
+    color: "#94a3b8",
+    fontSize: 14,
   },
-
-  fab: {
-    position: "absolute",
-    right: 20,
-    bottom: 100,
-    backgroundColor: "#0f3a6d",
-    padding: 15,
-    borderRadius: 30,
-  },
-
   tab: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -202,16 +223,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     position: "absolute",
     bottom: 10,
-    width: "100%",
+    left: 20,
+    right: 20,
   },
-
   activeTab: {
     backgroundColor: "#0f3a6d",
     padding: 10,
     borderRadius: 15,
     alignItems: "center",
   },
-
   activeText: {
     color: "#fff",
     fontSize: 12,
