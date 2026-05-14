@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import supabase from "../lib/supabase";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, TextInput, Image, Alert, ActivityIndicator,
+  ScrollView, TextInput, Image, ActivityIndicator, RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -29,8 +29,8 @@ export default function Equipment() {
 
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
-  const [borrowing, setBorrowing] = useState<string | null>(null);
 
   useEffect(() => { fetchItems(); }, []);
 
@@ -40,50 +40,18 @@ export default function Equipment() {
     if (error) console.log(error);
     else setItems(data || []);
     setLoading(false);
+    setRefreshing(false);
   };
+
+  const onRefresh = () => { setRefreshing(true); fetchItems(); };
 
   const filtered = items.filter((item) =>
     item.name?.toLowerCase().includes(search.toLowerCase()) ||
     item.type?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const borrowItem = async (item: any) => {
-    if (item.status !== "available") {
-      Alert.alert(
-        "ไม่สามารถยืมได้",
-        item.status === "borrowed" ? "อุปกรณ์ถูกยืมไปแล้ว" : "อุปกรณ์กำลังซ่อมบำรุง"
-      );
-      return;
-    }
-
-    Alert.alert(
-      "ยืนยันการยืม",
-      `ยืม "${item.name}" ใช่ไหม?`,
-      [
-        { text: "ยกเลิก", style: "cancel" },
-        {
-          text: "ยืม",
-          onPress: async () => {
-            setBorrowing(item.id);
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) { Alert.alert("กรุณาเข้าสู่ระบบก่อน"); setBorrowing(null); return; }
-
-            const { error } = await supabase
-              .from("borrow_records")
-              .insert([{ user_id: user.id, item_id: item.id, status: "borrowed" }]);
-
-            if (error) { Alert.alert("ยืมไม่สำเร็จ", error.message); setBorrowing(null); return; }
-
-            await supabase.from("items").update({ status: "borrowed" }).eq("id", item.id);
-
-            Alert.alert("ยืมสำเร็จ 🎉", `ยืม ${item.name} แล้ว`);
-            fetchItems();
-            setBorrowing(null);
-          },
-        },
-      ]
-    );
-  };
+  const available = items.filter(i => i.status === "available").length;
+  const borrowed  = items.filter(i => i.status === "borrowed").length;
 
   return (
     <View style={styles.container}>
@@ -92,6 +60,18 @@ export default function Equipment() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>อุปกรณ์ IoT</Text>
         <Text style={styles.headerSub}>{items.length} รายการทั้งหมด</Text>
+
+        {/* สรุปสถิติ */}
+        <View style={styles.statsRow}>
+          <View style={styles.statChip}>
+            <View style={[styles.statDot, { backgroundColor: "#86efac" }]} />
+            <Text style={styles.statText}>ว่าง {available}</Text>
+          </View>
+          <View style={styles.statChip}>
+            <View style={[styles.statDot, { backgroundColor: "#fca5a5" }]} />
+            <Text style={styles.statText}>ถูกยืม {borrowed}</Text>
+          </View>
+        </View>
       </View>
 
       {/* SEARCH */}
@@ -111,18 +91,6 @@ export default function Equipment() {
         )}
       </View>
 
-      {/* MY BORROW shortcut */}
-      <TouchableOpacity style={styles.borrowCard} onPress={() => router.push("./borrow")}>
-        <View style={styles.borrowLeft}>
-          <Ionicons name="cube-outline" size={24} color="#fff" />
-          <View>
-            <Text style={styles.borrowTitle}>รายการยืมของฉัน</Text>
-            <Text style={styles.borrowSub}>ดูประวัติยืม-คืน และการจองห้อง</Text>
-          </View>
-        </View>
-        <Ionicons name="arrow-forward" size={20} color="#fff" />
-      </TouchableOpacity>
-
       {/* TITLE ROW */}
       <View style={styles.titleRow}>
         <Text style={styles.sectionTitle}>รายการอุปกรณ์</Text>
@@ -135,7 +103,11 @@ export default function Equipment() {
       {loading ? (
         <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 40 }} />
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} style={styles.list}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}
+        >
           {filtered.length === 0 ? (
             <View style={styles.empty}>
               <Ionicons name="search-outline" size={40} color="#cbd5e1" />
@@ -145,15 +117,9 @@ export default function Equipment() {
             filtered.map((item: any) => {
               const badge = STATUS_BADGE[item.status] || STATUS_BADGE.available;
               const iconName = TYPE_ICONS[item.type] || "cube-outline";
-              const isBorrowing = borrowing === item.id;
 
               return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={[styles.item, item.status !== "available" && styles.itemDim]}
-                  onPress={() => borrowItem(item)}
-                  disabled={isBorrowing}
-                >
+                <View key={item.id} style={styles.item}>
                   {/* รูปภาพ หรือ icon */}
                   {item.image_url ? (
                     <Image
@@ -162,8 +128,8 @@ export default function Equipment() {
                       resizeMode="cover"
                     />
                   ) : (
-                    <View style={[styles.iconBox, item.status !== "available" && { backgroundColor: "#f1f5f9" }]}>
-                      <Ionicons name={iconName} size={22} color={item.status === "available" ? "#1e3a8a" : "#94a3b8"} />
+                    <View style={styles.iconBox}>
+                      <Ionicons name={iconName} size={22} color="#1e3a8a" />
                     </View>
                   )}
 
@@ -177,17 +143,10 @@ export default function Equipment() {
                     ) : null}
                   </View>
 
-                  <View style={styles.itemRight}>
-                    <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-                      <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
-                    </View>
-                    {isBorrowing ? (
-                      <ActivityIndicator size="small" color="#1e3a8a" style={{ marginTop: 4 }} />
-                    ) : item.status === "available" ? (
-                      <Ionicons name="add-circle-outline" size={20} color="#1e3a8a" style={{ marginTop: 4 }} />
-                    ) : null}
+                  <View style={[styles.badge, { backgroundColor: badge.bg }]}>
+                    <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
                   </View>
-                </TouchableOpacity>
+                </View>
               );
             })
           )}
@@ -231,6 +190,10 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: "#fff", fontSize: 22, fontWeight: "bold" },
   headerSub: { color: "#93c5fd", fontSize: 12, marginTop: 2 },
+  statsRow: { flexDirection: "row", gap: 12, marginTop: 10 },
+  statChip: { flexDirection: "row", alignItems: "center", gap: 5 },
+  statDot: { width: 8, height: 8, borderRadius: 4 },
+  statText: { color: "#e0f2fe", fontSize: 11, fontWeight: "600" },
 
   searchBox: {
     flexDirection: "row", alignItems: "center",
@@ -239,16 +202,6 @@ const styles = StyleSheet.create({
     gap: 8, borderWidth: 1, borderColor: "#e2e8f0",
   },
   searchInput: { flex: 1, fontSize: 14, color: "#1e293b" },
-
-  borrowCard: {
-    backgroundColor: "#0f3a6d", borderRadius: 14,
-    marginHorizontal: 16, marginBottom: 16,
-    padding: 16, flexDirection: "row",
-    justifyContent: "space-between", alignItems: "center",
-  },
-  borrowLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  borrowTitle: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  borrowSub: { color: "#93c5fd", fontSize: 11, marginTop: 2 },
 
   titleRow: {
     flexDirection: "row", justifyContent: "space-between",
@@ -267,11 +220,8 @@ const styles = StyleSheet.create({
     marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12,
     borderWidth: 1, borderColor: "#f1f5f9",
   },
-  itemDim: { opacity: 0.75 },
 
-  itemImage: {
-    width: 52, height: 52, borderRadius: 10, backgroundColor: "#f1f5f9",
-  },
+  itemImage: { width: 52, height: 52, borderRadius: 10, backgroundColor: "#f1f5f9" },
   iconBox: {
     width: 52, height: 52, borderRadius: 10,
     backgroundColor: "#eff6ff",
@@ -283,11 +233,9 @@ const styles = StyleSheet.create({
   itemType: { fontSize: 11, color: "#64748b", marginTop: 2 },
   itemDesc: { fontSize: 10, color: "#94a3b8", marginTop: 2 },
 
-  itemRight: { alignItems: "center" },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   badgeText: { fontSize: 10, fontWeight: "700" },
 
-  // Tab Bar
   tab: {
     flexDirection: "row", backgroundColor: "#fff",
     borderTopWidth: 1, borderTopColor: "#e2e8f0",

@@ -59,13 +59,15 @@ export default function AdminHome() {
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
   const MENU = [
-    { icon: "return-down-back-outline", label: "ยืนยันคืน",    route: "/admin/borrow",            color: "#f97316" },
+    { icon: "barcode-outline",          label: "สแกนยืม",       route: "/admin/borrowscan",        color: "#1d4ed8" },
+    { icon: "return-down-back-outline", label: "สแกนคืน",       route: "/admin/returnscan",        color: "#f97316" },
     { icon: "calendar-outline",         label: "การจองห้อง",    route: "/admin/booking",           color: "#8b5cf6" },
     { icon: "cube-outline",             label: "จัดการอุปกรณ์", route: "/admin/items",             color: "#0ea5e9" },
     { icon: "qr-code-outline",          label: "สร้าง QR",      route: "/admin/qrgen",             color: "#10b981" },
     { icon: "scan-outline",             label: "สแกน & เพิ่ม",  route: "/admin/scan",              color: "#6366f1" },
     { icon: "receipt-outline",          label: "ประวัติยืม",    route: "/admin/history",           color: "#64748b" },
-    { icon: "desktop-outline",          label: "สถานะเครื่อง",  route: "/admin/status/editStatus", color: "#dc2626" },
+    { icon: "desktop-outline",          label: "จัดการเครื่อง", route: "/admin/stations",          color: "#dc2626" },
+    { icon: "git-network-outline",      label: "จัดการแลน",     route: "/admin/lanports",          color: "#7c3aed" },
   ];
 
   return (

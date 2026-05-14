@@ -17,39 +17,75 @@
 
 ---
 
-## ✅ ขอบเขตฟีเจอร์ที่ต้องการ (Scope)
-1. ระบบ Login / Auth (role: user / admin)
-2. ยืม-คืนอุปกรณ์ IoT
-3. ประวัติการยืม (History)
-4. จองห้องใช้คอม (Room Booking)
-5. Admin เพิ่มอุปกรณ์โดยสแกน QR → ถ่ายรูปจริง → ใส่รายละเอียด
+## 🎭 Role & แนวคิดหลัก
+- **User** — ดูสถานะอย่างเดียว (ห้อง, อุปกรณ์, LAN port) ไม่มีปุ่มจองหรือยืมเอง
+- **Admin** — จัดการทุกอย่าง (ยืม/คืน, ห้อง, อุปกรณ์, LAN port)
+- **ยืมของ** — User เอาของมาให้ Admin สแกน Barcode + บอก Email → Admin บันทึก
+- **คืนของ** — Admin สแกน Barcode item → ยืนยันคืน
+- **สมัครแอปก่อนถึงยืมได้** — ทุก user ต้องมีบัญชีในระบบ
 
 ---
 
-## 🗄️ Supabase Tables
+## 🗄️ Supabase Tables (ครบทุกตาราง ✅)
 
-### ที่มีอยู่แล้ว (ครบทุกตาราง ✅)
 | Table | ใช้ทำอะไร |
 |-------|-----------|
-| `profiles` | เก็บ user info + role (user/admin) |
-| `items` | รายการอุปกรณ์ IoT ที่ให้ยืม + `image_url` + `description` |
-| `borrow_records` | ประวัติการยืม-คืน |
+| `profiles` | user info + role (user/admin) + email |
+| `items` | อุปกรณ์ IoT + `image_url` + `description` + `barcode` |
+| `borrow_records` | ประวัติยืม-คืน + `due_date` (วันครบกำหนด) |
 | `computer_stations` | เครื่องคอมแต่ละห้อง (room_id, name, group_no, status) |
 | `room_bookings` | การจองห้อง (user_id, station_id, booking_date, time_slot, status) |
+| `lan_ports` | LAN port ของ server แต่ละกลุ่ม (room_id, group_no, port_no, label, status) |
 
-### RLS
-- `computer_stations` — **DISABLED** (ALTER TABLE ... DISABLE ROW LEVEL SECURITY)
-- `room_bookings` — **DISABLED**
+### RLS — DISABLED สำหรับ:
+- `computer_stations`, `room_bookings`, `lan_ports`
 
 ### Supabase Storage
-- Bucket: **`item-images`** — สำหรับรูปภาพอุปกรณ์ (public)
+- Bucket: **`item-images`** — รูปอุปกรณ์ (public)
 
-### SQL ที่ต้องรัน (ถ้ายังไม่ได้รัน)
+---
+
+## 📐 โครงสร้างห้อง
+- 1 ห้อง → 6 กลุ่ม
+- 1 กลุ่ม → คอม 6 เครื่อง + Server 1 เครื่อง
+- Server มี LAN Port 12 ช่อง (สถานะ: available / repair / broken)
+- ห้องที่มี: CP9524, SC9604
+
+---
+
+## 🔑 SQL ที่ต้องรัน (ถ้ายังไม่ได้รัน)
+
 ```sql
--- เพิ่ม description column ใน items
+-- 1. description ใน items
 ALTER TABLE items ADD COLUMN IF NOT EXISTS description text;
 
--- UNIQUE INDEX ป้องกัน double booking
+-- 2. due_date ใน borrow_records
+ALTER TABLE borrow_records ADD COLUMN IF NOT EXISTS due_date date;
+
+-- 3. barcode ใน items (สำหรับ scan ยืม/คืน)
+ALTER TABLE items ADD COLUMN IF NOT EXISTS barcode text;
+
+-- 4. สร้างตาราง lan_ports
+CREATE TABLE IF NOT EXISTS lan_ports (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  room_id text NOT NULL,
+  group_no int NOT NULL,
+  port_no int NOT NULL,
+  label text,
+  status text DEFAULT 'available'
+    CHECK (status IN ('available','repair','broken')),
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE lan_ports DISABLE ROW LEVEL SECURITY;
+
+-- 5. Seed lan_ports
+INSERT INTO lan_ports (room_id, group_no, port_no, status)
+SELECT room, g, p, 'available'
+FROM (VALUES ('CP9524'), ('SC9604')) AS rooms(room),
+  generate_series(1,6) g, generate_series(1,12) p
+ON CONFLICT DO NOTHING;
+
+-- 6. UNIQUE INDEX ป้องกัน double booking
 CREATE UNIQUE INDEX IF NOT EXISTS room_bookings_no_overlap
   ON room_bookings (station_id, booking_date, time_slot)
   WHERE status = 'active';
@@ -58,91 +94,107 @@ CREATE UNIQUE INDEX IF NOT EXISTS room_bookings_no_overlap
 ---
 
 ## 🕐 Room Booking — ข้อตกลง
-- **Time Slot คงที่** 4 ช่วงต่อวัน:
-  - Slot 1: 08:00–10:00
-  - Slot 2: 10:00–12:00
-  - Slot 3: 13:00–15:00
-  - Slot 4: 15:00–17:00
-- **จองปุ๊บได้เลย** ไม่ต้องรอ Admin อนุมัติ
-- **หลายห้อง** รองรับ CP9524, SC9604 และห้องอื่นๆ (ดึงจาก computer_stations จริง)
+- Time Slot คงที่ 4 ช่วง/วัน: 08:00–10:00, 10:00–12:00, 13:00–15:00, 15:00–17:00
+- Admin เป็นคนจัดการการจอง (user ดูสถานะอย่างเดียว)
 
 ---
 
-## 🔑 QR Code System (Admin)
-- **qrgen.tsx** — สร้าง QR encode JSON: `{"name":"ESP32","type":"Microcontroller","description":"..."}`
-- **scan.tsx** — สแกน QR → auto-fill → ถ่ายรูปจริง → upload Storage → insert items
-- QR API: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=...`
-- expo-file-system: ต้อง `import * as FileSystem from "expo-file-system"` แล้ว cast `as any` เพราะ type ไม่ export `documentDirectory`
+## 🔄 Borrow Flow (ใหม่)
+
+### ยืม (Admin ทำ):
+1. Admin กด "สแกนยืม" ใน `admin/borrowscan.tsx`
+2. สแกน Barcode บน item → ขึ้นชื่อ + รูป + สถานะ
+3. พิมพ์ email user (มี autocomplete จาก profiles)
+4. กำหนดวันคืน (preset: 1/3/7 วัน หรือเลือกเอง)
+5. กดยืนยัน → insert borrow_records + update items.status = "borrowed"
+
+### คืน (Admin ทำ):
+1. Admin กด "สแกนคืน" ใน `admin/returnscan.tsx`
+2. สแกน Barcode บน item → ขึ้นชื่อ user + วันยืม + วันครบกำหนด
+3. กดยืนยันรับคืน → update borrow_records.status = "returned" + items.status = "available"
 
 ---
 
-## 📊 สถานะปัจจุบัน (ณ 12 พ.ค. 2569)
+## 📊 สถานะปัจจุบัน (อัปเดต 14 พ.ค. 2569)
 
-### ✅ เสร็จแล้ว (พร้อมใช้งาน)
-- [x] Login / Signup / Forgot Password / Reset Password (Supabase Auth)
-- [x] Home — ดึงรายการห้องจาก `computer_stations` จริง
-- [x] Equipment list — แสดงรูป image_url, search filter, badge สถานะ
-- [x] ยืมอุปกรณ์ + ยืนยันก่อนยืม
-- [x] Profile — ดึงข้อมูลจริงจาก Supabase (email, จำนวนยืม, ประวัติ)
-- [x] Borrow history — 2 แท็บ (ยืมอุปกรณ์ + จองห้อง) + ยกเลิกจองได้
-- [x] Notifications — feed รวม (ยืม + จอง) pull-to-refresh
-- [x] Room Booking (roommap.tsx) — ผังห้อง real-time, เลือกวัน 7 วัน, จองทันที
-- [x] Admin Dashboard — สถิติอุปกรณ์ + สถิติการจอง + เมนู 7 ปุ่ม
-- [x] Admin จัดการอุปกรณ์ (เพิ่ม/ลบ + foreign key guard)
-- [x] Admin ยืนยันการคืน
-- [x] Admin ประวัติการยืม (แสดง email user)
-- [x] Admin การจองห้อง (booking.tsx) — filter วันนี้/ล่วงหน้า/ทั้งหมด, ยกเลิกได้
-- [x] Admin สถานะเครื่อง (editStatus.tsx) — ดึงจาก Supabase จริง, toggle available/repair
-- [x] Admin QR Generator (qrgen.tsx) — สร้าง QR + บันทึกลง Gallery
-- [x] Admin Scan & Add Item (scan.tsx) — 3 step: สแกน → รายละเอียด → บันทึก
-- [x] Logout (Supabase signOut)
+### ✅ เสร็จแล้ว
+- [x] Login / Signup (แก้บัค upsert + ตาดูรหัสผ่าน) / Forgot / Reset Password
+- [x] Home — ดึงห้องจาก DB + ปุ่ม LAN Status
+- [x] Equipment — ดูสถานะอุปกรณ์ + search (view-only)
+- [x] Roommap — ผังห้อง view-only + Server port per group
+- [x] LAN Status (user) — ดูสถานะ port แยกห้อง/กลุ่ม
+- [x] Notifications — feed รวม (ยืม + จอง)
+- [x] Profile — ดึงข้อมูลจริงจาก Supabase
+- [x] Borrow history — 2 แท็บ (ยืม + จองห้อง)
+- [x] Admin Dashboard — สถิติ + เมนู 8 ปุ่ม
+- [x] Admin จัดการอุปกรณ์ (เพิ่ม/ลบ)
+- [x] Admin ยืนยันการคืน (เดิม — รอเปลี่ยนเป็น scan flow ใหม่)
+- [x] Admin ประวัติการยืม
+- [x] Admin การจองห้อง
+- [x] Admin สถานะเครื่องคอม (toggle available/repair)
+- [x] Admin QR Generator
+- [x] Admin Scan & เพิ่ม Item (3 step)
+- [x] Admin LAN Port (จัดการสถานะ port แยกห้อง/กลุ่ม)
+- [x] Logout
 
-### ❌ ยังไม่ได้ทำ
-- [ ] room/sc9604.tsx — ยัง return null (ถ้าต้องการหน้า detail แยก)
-- [ ] admin/room.tsx — ยัง return null
-- [ ] รูป IoT ใน borrow list (แสดงแค่ icon อยู่)
+### 🔲 ยังไม่ได้ทำ (เรียงลำดับความสำคัญ)
+
+#### 🔴 สำคัญมาก
+- [x] **admin/borrowscan.tsx** — สแกน barcode item + พิมพ์ email user + กำหนดวันคืน → ยืม ✅
+- [x] **admin/returnscan.tsx** — สแกน barcode item → แสดงข้อมูล → ยืนยันคืน ✅
+- [x] **admin/stations.tsx** — เพิ่ม/ลบ/แก้เครื่องคอมในห้อง (computer_stations) ผ่านแอป ✅
+
+#### 🟡 ควรทำ
+- [x] **admin/items.tsx** — เพิ่มช่อง barcode + type + รูป + search + stats ✅
+- [x] รูป IoT ใน borrow list — แสดงรูปจริงจาก image_url ✅
+- [x] แสดงวันครบกำหนด (due_date) ใน borrow history ของ user + overdue indicator ✅
+
+#### 🟢 ทำทีหลังได้
+- [ ] **room/sc9604.tsx** — หน้า detail ห้อง SC9604
+- [ ] **admin/room.tsx** — ยัง return null
 
 ---
 
 ## 📁 โครงสร้างไฟล์สำคัญ
 ```
 app/
-├── index.tsx          — หน้าแรก (landing)
-├── login.tsx          — Login ✅
-├── signup.tsx         — Signup ✅
-├── forgot.tsx         — Forgot Password ✅
-├── reset-password.tsx — Reset Password ✅
-├── home.tsx           — หน้าหลัก user ✅ (ดึงห้องจาก DB)
-├── equipment.tsx      — รายการอุปกรณ์ ✅ (แสดงรูป + search)
-├── borrow.tsx         — ประวัติยืม + จองห้อง ✅
-├── profile.tsx        — โปรไฟล์ ✅ (ดึงจาก Supabase)
-├── sittings.tsx       — Settings + Logout ✅
-├── notifications.tsx  — การแจ้งเตือน ✅ (feed รวม)
-├── roommap.tsx        — ผังห้อง + จอง ✅
-├── room/
-│   ├── cp9524.tsx     — ห้อง CP9524 ⚠️
-│   └── sc9604.tsx     — ห้อง SC9604 ❌ return null
-├── groups/
-│   └── group1-6.tsx   — กลุ่มคอม ⚠️
+├── index.tsx            — Landing
+├── login.tsx            — ✅ (ตาดูรหัสผ่าน)
+├── signup.tsx           — ✅ (แก้บัค + ตาดูรหัสผ่าน)
+├── forgot.tsx           — ✅
+├── reset-password.tsx   — ✅
+├── home.tsx             — ✅ (ห้องจาก DB + ลิงก์ LAN)
+├── equipment.tsx        — ✅ (view-only + search + รูป)
+├── borrow.tsx           — ✅ (2 แท็บ)
+├── profile.tsx          — ✅ (ดึงจาก Supabase)
+├── sittings.tsx         — ✅
+├── notifications.tsx    — ✅
+├── roommap.tsx          — ✅ (view-only + server port)
+├── lanstatus.tsx        — ✅ (แยกห้อง/กลุ่ม)
 └── admin/
-    ├── home.tsx       — Admin Dashboard ✅ (สถิติ + เมนู)
-    ├── items.tsx      — จัดการอุปกรณ์ ✅
-    ├── borrow.tsx     — ยืนยันคืน ✅
-    ├── history.tsx    — ประวัติทั้งหมด ✅
-    ├── booking.tsx    — การจองห้อง ✅
-    ├── scan.tsx       — สแกน QR & เพิ่ม Item ✅
-    ├── qrgen.tsx      — สร้าง QR Code ✅
-    ├── room.tsx       — จัดการห้อง ❌ return null
+    ├── home.tsx         — ✅ (สถิติ + 8 เมนู)
+    ├── items.tsx        — ✅
+    ├── borrow.tsx       — ✅ (ยืนยันคืน เดิม)
+    ├── history.tsx      — ✅
+    ├── booking.tsx      — ✅
+    ├── scan.tsx         — ✅ (QR scan + เพิ่ม item)
+    ├── qrgen.tsx        — ✅
+    ├── lanports.tsx     — ✅ (จัดการ port แยกห้อง/กลุ่ม)
+    ├── borrowscan.tsx   — ✅ (สแกนยืม: barcode/UUID/JSON → email autocomplete → due date)
+    ├── returnscan.tsx   — ✅ (สแกนคืน: barcode/UUID/JSON → ยืนยันคืน + overdue detect)
+    ├── stations.tsx     — ✅ (จัดการเครื่องคอม: เพิ่ม/ลบ/แก้/toggle status)
+    ├── room.tsx         — ❌ return null
     └── status/
-        └── editStatus.tsx — สถานะเครื่อง ✅ (เชื่อม DB จริง)
+        └── editStatus.tsx — ✅
 
 lib/
-└── supabase.ts        — Supabase client
+└── supabase.ts
 ```
 
 ---
 
-## ⚠️ หมายเหตุ / Known Issues
-- `expo-file-system` — ต้อง cast `as any` เพื่อใช้ `documentDirectory` และ `downloadAsync` (type definition ไม่ export ตรงๆ)
-- Expo LAN mode: ถ้า timeout ให้เปิด firewall port 8081 ด้วย `netsh advfirewall firewall add rule name="Expo Metro" dir=in action=allow protocol=TCP localport=8081`
-- ถ้าเห็น UI เก่าค้างอยู่ให้รัน `npx expo start --clear`
+## ⚠️ Known Issues / หมายเหตุ
+- `expo-file-system` — ต้อง `import * as FileSystem from "expo-file-system"` แล้ว cast `as any` (type ไม่ export `documentDirectory`)
+- Expo LAN mode timeout → เปิด firewall: `netsh advfirewall firewall add rule name="Expo Metro" dir=in action=allow protocol=TCP localport=8081`
+- UI เก่าค้าง → `npx expo start --clear`
+- Supabase Signup trigger อาจสร้าง profile อัตโนมัติ → ใช้ `upsert` แทน `insert` ใน signup.tsx แล้ว

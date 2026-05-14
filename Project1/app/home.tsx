@@ -88,7 +88,7 @@ export default function Home() {
             >
               <View>
                 <Text style={styles.roomText}>{room}</Text>
-                <Text style={styles.roomSub}>กดเพื่อดูผังห้องและจองเครื่อง</Text>
+                <Text style={styles.roomSub}>กดเพื่อดูผังห้องและสถานะเครื่อง</Text>
               </View>
               <View style={styles.circle}>
                 <Ionicons name="chevron-forward" size={16} color="#1e3a8a" />
@@ -101,6 +101,19 @@ export default function Home() {
               <Text style={styles.emptyText}>ไม่พบห้องที่ค้นหา</Text>
             </View>
           )}
+
+          {/* LAN STATUS shortcut */}
+          <TouchableOpacity
+            style={styles.lanBtn}
+            onPress={() => router.push("/lanstatus")}
+          >
+            <Ionicons name="git-network-outline" size={22} color="#7c3aed" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.lanBtnText}>สถานะช่องเสียบสายแลน</Text>
+              <Text style={styles.lanBtnSub}>ตู้ Server / Patch Panel</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color="#7c3aed" />
+          </TouchableOpacity>
 
           <View style={{ height: 100 }} />
         </ScrollView>
@@ -215,6 +228,14 @@ const styles = StyleSheet.create({
     color: "#94a3b8",
     fontSize: 14,
   },
+  lanBtn: {
+    backgroundColor: "#f5f3ff",
+    borderRadius: 16, padding: 16,
+    flexDirection: "row", alignItems: "center", gap: 12,
+    marginBottom: 12, borderWidth: 1, borderColor: "#ede9fe",
+  },
+  lanBtnText: { fontSize: 14, fontWeight: "700", color: "#5b21b6" },
+  lanBtnSub: { fontSize: 11, color: "#8b5cf6", marginTop: 2 },
   tab: {
     flexDirection: "row",
     justifyContent: "space-around",

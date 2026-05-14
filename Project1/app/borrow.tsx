@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -43,9 +44,9 @@ export default function Borrow() {
 
     const { data, error } = await supabase
       .from("borrow_records")
-      .select(`id, status, borrow_date, item_id, items ( name )`)
+      .select(`id, status, borrow_date, due_date, created_at, item_id, items ( name, image_url )`)
       .eq("user_id", user.id)
-      .order("borrow_date", { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (!error) setBorrows(data || []);
     setBorrowLoading(false);
@@ -137,10 +138,20 @@ export default function Borrow() {
     return                             { label: "จองแล้ว",      bg: "#dcfce7", color: "#16a34a" };
   };
 
-  const formatDate = (dateStr: string) =>
-    new Date(dateStr).toLocaleDateString("th-TH", {
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleDateString("th-TH", {
       day: "numeric", month: "short", year: "numeric",
     });
+  };
+
+  const getDaysLeft = (dueDate: string) => {
+    if (!dueDate) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  };
 
   return (
     <View style={styles.container}>
@@ -190,21 +201,40 @@ export default function Borrow() {
           ) : (
             borrows.map((b) => {
               const badge = getBorrowBadge(b.status);
+              const itemName = b.items?.name || b.items?.[0]?.name || "อุปกรณ์";
+              const imageUrl = b.items?.image_url || b.items?.[0]?.image_url || null;
+              const borrowDate = b.borrow_date || b.created_at;
+              const daysLeft = b.due_date ? getDaysLeft(b.due_date) : null;
+              const isOverdue = daysLeft !== null && daysLeft < 0 && b.status === "borrowed";
               return (
                 <TouchableOpacity
                   key={b.id}
-                  style={styles.card}
+                  style={[styles.card, isOverdue && styles.cardOverdue]}
                   onPress={() => b.status === "borrowed" ? requestReturn(b) : null}
                 >
                   <View style={styles.cardLeft}>
-                    <View style={styles.iconBox}>
-                      <Ionicons name="cube-outline" size={22} color="#1e3a8a" />
-                    </View>
+                    {imageUrl ? (
+                      <Image source={{ uri: imageUrl }} style={styles.itemImg} />
+                    ) : (
+                      <View style={styles.iconBox}>
+                        <Ionicons name="cube-outline" size={22} color="#1e3a8a" />
+                      </View>
+                    )}
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.cardTitle}>
-                        {b.items?.name || b.items?.[0]?.name || "อุปกรณ์"}
+                      <Text style={styles.cardTitle}>{itemName}</Text>
+                      <Text style={styles.cardDate}>
+                        ยืม: {formatDate(borrowDate)}
                       </Text>
-                      <Text style={styles.cardDate}>{formatDate(b.borrow_date)}</Text>
+                      {b.due_date && (
+                        <Text style={[styles.cardDate, isOverdue && { color: "#dc2626", fontWeight: "700" }]}>
+                          {isOverdue
+                            ? `⚠️ เกินกำหนด ${Math.abs(daysLeft!)} วัน`
+                            : b.status === "borrowed"
+                              ? `ครบ: ${formatDate(b.due_date)} (อีก ${daysLeft} วัน)`
+                              : `ครบ: ${formatDate(b.due_date)}`
+                          }
+                        </Text>
+                      )}
                       {b.status === "borrowed" && (
                         <Text style={styles.tapHint}>กดเพื่อขอคืน</Text>
                       )}
@@ -330,6 +360,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  itemImg: { width: 48, height: 48, borderRadius: 12 },
+  cardOverdue: { borderWidth: 1.5, borderColor: "#fca5a5" },
   cardTitle: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
   cardDate: { fontSize: 11, color: "#94a3b8", marginTop: 2 },
   cardSlot: { fontSize: 11, color: "#64748b", marginTop: 2 },
