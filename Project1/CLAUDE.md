@@ -150,8 +150,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS room_bookings_no_overlap
 - [x] แสดงวันครบกำหนด (due_date) ใน borrow history ของ user + overdue indicator ✅
 
 #### 🟢 ทำทีหลังได้
-- [ ] **room/sc9604.tsx** — หน้า detail ห้อง SC9604
-- [ ] **admin/room.tsx** — ยัง return null
+- [x] **room/sc9604.tsx** — ไม่จำเป็น roommap.tsx รับ room_id param ได้อยู่แล้ว ✅
+- [x] **admin/room.tsx** — Room overview: สถิติแต่ละห้อง + การจองวันนี้ + quick links ✅
 
 ---
 
@@ -183,7 +183,7 @@ app/
     ├── borrowscan.tsx   — ✅ (สแกนยืม: barcode/UUID/JSON → email autocomplete → due date)
     ├── returnscan.tsx   — ✅ (สแกนคืน: barcode/UUID/JSON → ยืนยันคืน + overdue detect)
     ├── stations.tsx     — ✅ (จัดการเครื่องคอม: เพิ่ม/ลบ/แก้/toggle status)
-    ├── room.tsx         — ❌ return null
+    ├── room.tsx         — ✅ (Room overview: สถิติแต่ละห้อง + จองวันนี้ + quick links)
     └── status/
         └── editStatus.tsx — ✅
 

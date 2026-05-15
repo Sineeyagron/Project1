@@ -24,33 +24,16 @@ export default function AdminHome() {
   const [pending, setPending] = useState(0);
   const [returned, setReturned] = useState(0);
 
-  // Booking stats
-  const [bookingToday, setBookingToday] = useState(0);
-  const [bookingTotal, setBookingTotal] = useState(0);
-
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
-    const today = new Date().toISOString().split("T")[0];
-
-    // Items
     const { data: items } = await supabase.from("items").select("id");
     setTotal(items?.length || 0);
 
-    // Borrow records
     const { data: borrows } = await supabase.from("borrow_records").select("status");
     setBorrowed(borrows?.filter((b: any) => b.status === "borrowed").length || 0);
     setPending(borrows?.filter((b: any) => b.status === "pending_return").length || 0);
     setReturned(borrows?.filter((b: any) => b.status === "returned").length || 0);
-
-    // Bookings
-    const { data: bookings } = await supabase
-      .from("room_bookings")
-      .select("booking_date, status")
-      .eq("status", "active");
-
-    setBookingTotal(bookings?.length || 0);
-    setBookingToday(bookings?.filter((b: any) => b.booking_date === today).length || 0);
 
     setLoading(false);
     setRefreshing(false);
@@ -61,11 +44,11 @@ export default function AdminHome() {
   const MENU = [
     { icon: "barcode-outline",          label: "สแกนยืม",       route: "/admin/borrowscan",        color: "#1d4ed8" },
     { icon: "return-down-back-outline", label: "สแกนคืน",       route: "/admin/returnscan",        color: "#f97316" },
-    { icon: "calendar-outline",         label: "การจองห้อง",    route: "/admin/booking",           color: "#8b5cf6" },
+    { icon: "business-outline",         label: "จัดการห้อง",    route: "/admin/room",              color: "#8b5cf6" },
     { icon: "cube-outline",             label: "จัดการอุปกรณ์", route: "/admin/items",             color: "#0ea5e9" },
-    { icon: "qr-code-outline",          label: "สร้าง QR",      route: "/admin/qrgen",             color: "#10b981" },
-    { icon: "scan-outline",             label: "สแกน & เพิ่ม",  route: "/admin/scan",              color: "#6366f1" },
-    { icon: "receipt-outline",          label: "ประวัติยืม",    route: "/admin/history",           color: "#64748b" },
+    { icon: "qr-code-outline",          label: "สร้าง QR",      route: "/admin/qrgen",             color: "#6366f1" },
+    { icon: "scan-outline",             label: "สแกน & เพิ่ม",  route: "/admin/scan",              color: "#64748b" },
+    { icon: "receipt-outline",          label: "ประวัติยืม",    route: "/admin/history",           color: "#94a3b8" },
     { icon: "desktop-outline",          label: "จัดการเครื่อง", route: "/admin/stations",          color: "#dc2626" },
     { icon: "git-network-outline",      label: "จัดการแลน",     route: "/admin/lanports",          color: "#7c3aed" },
   ];
@@ -107,21 +90,6 @@ export default function AdminHome() {
             <View style={[styles.statCard, { borderLeftColor: "#22c55e" }]}>
               <Text style={[styles.statNum, { color: "#16a34a" }]}>{returned}</Text>
               <Text style={styles.statLabel}>คืนแล้ว</Text>
-            </View>
-          </View>
-
-          {/* ── BOOKING STATS ── */}
-          <Text style={styles.sectionLabel}>📅 การจองห้อง (active)</Text>
-          <View style={styles.bookingRow}>
-            <View style={[styles.bookingCard, { backgroundColor: "#eff6ff" }]}>
-              <Ionicons name="today-outline" size={24} color="#1d4ed8" />
-              <Text style={styles.bookingNum}>{bookingToday}</Text>
-              <Text style={styles.bookingLabel}>วันนี้</Text>
-            </View>
-            <View style={[styles.bookingCard, { backgroundColor: "#f0fdf4" }]}>
-              <Ionicons name="calendar-outline" size={24} color="#16a34a" />
-              <Text style={styles.bookingNum}>{bookingTotal}</Text>
-              <Text style={styles.bookingLabel}>ทั้งหมด</Text>
             </View>
           </View>
 
@@ -178,16 +146,6 @@ const styles = StyleSheet.create({
   },
   statNum: { fontSize: 28, fontWeight: "800", color: "#1e293b" },
   statLabel: { fontSize: 12, color: "#94a3b8", marginTop: 2 },
-
-  bookingRow: {
-    flexDirection: "row", paddingHorizontal: 16, gap: 10,
-  },
-  bookingCard: {
-    flex: 1, borderRadius: 14, padding: 16,
-    alignItems: "center", gap: 4,
-  },
-  bookingNum: { fontSize: 28, fontWeight: "800", color: "#1e293b" },
-  bookingLabel: { fontSize: 12, color: "#64748b" },
 
   menuGrid: {
     flexDirection: "row", flexWrap: "wrap",

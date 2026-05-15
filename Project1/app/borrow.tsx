@@ -22,19 +22,12 @@ const TIME_SLOTS: { [key: number]: string } = {
 
 export default function Borrow() {
   const router = useRouter();
-  const [tab, setTab] = useState<"borrow" | "booking">("borrow");
 
-  // ── ยืมอุปกรณ์ ──
   const [borrows, setBorrows] = useState<any[]>([]);
   const [borrowLoading, setBorrowLoading] = useState(true);
 
-  // ── จองห้อง ──
-  const [bookings, setBookings] = useState<any[]>([]);
-  const [bookingLoading, setBookingLoading] = useState(true);
-
   useEffect(() => {
     fetchBorrows();
-    fetchBookings();
   }, []);
 
   // ── ดึงประวัติยืมอุปกรณ์ ──
@@ -50,24 +43,6 @@ export default function Borrow() {
 
     if (!error) setBorrows(data || []);
     setBorrowLoading(false);
-  };
-
-  // ── ดึงประวัติจองห้อง ──
-  const fetchBookings = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data, error } = await supabase
-      .from("room_bookings")
-      .select(`
-        id, booking_date, time_slot, status,
-        computer_stations ( name, room_id )
-      `)
-      .eq("user_id", user.id)
-      .order("booking_date", { ascending: false });
-
-    if (!error) setBookings(data || []);
-    setBookingLoading(false);
   };
 
   // ── ขอคืนอุปกรณ์ ──
@@ -90,35 +65,6 @@ export default function Borrow() {
     ]);
   };
 
-  // ── ยกเลิกการจองห้อง ──
-  const cancelBooking = (booking: any) => {
-    if (booking.status !== "active") return;
-
-    // เช็คว่าเป็นวันที่ผ่านมาแล้วหรือเปล่า
-    const today = new Date().toISOString().split("T")[0];
-    if (booking.booking_date < today) {
-      Alert.alert("ไม่สามารถยกเลิกได้", "การจองที่ผ่านมาแล้วไม่สามารถยกเลิกได้");
-      return;
-    }
-
-    Alert.alert("ยกเลิกการจอง", `ยืนยันยกเลิกการจอง ${booking.computer_stations?.name} ?`, [
-      { text: "ไม่ยกเลิก", style: "cancel" },
-      {
-        text: "ยกเลิกการจอง",
-        style: "destructive",
-        onPress: async () => {
-          const { error } = await supabase
-            .from("room_bookings")
-            .update({ status: "cancelled" })
-            .eq("id", booking.id);
-          if (error) { alert("ยกเลิกไม่สำเร็จ"); return; }
-          alert("ยกเลิกการจองแล้ว");
-          fetchBookings();
-        },
-      },
-    ]);
-  };
-
   // ── Badge สถานะยืม ──
   const getBorrowBadge = (status: string) => {
     switch (status) {
@@ -127,15 +73,6 @@ export default function Borrow() {
       case "returned":       return { label: "คืนแล้ว",   bg: "#dcfce7", color: "#16a34a" };
       default:               return { label: status,      bg: "#f1f5f9", color: "#64748b" };
     }
-  };
-
-  // ── Badge สถานะจอง ──
-  const getBookingBadge = (status: string, date: string) => {
-    const today = new Date().toISOString().split("T")[0];
-    if (status === "cancelled") return { label: "ยกเลิกแล้ว", bg: "#f1f5f9", color: "#94a3b8" };
-    if (date < today)           return { label: "ผ่านไปแล้ว",  bg: "#f1f5f9", color: "#94a3b8" };
-    if (date === today)         return { label: "วันนี้",       bg: "#dbeafe", color: "#1d4ed8" };
-    return                             { label: "จองแล้ว",      bg: "#dcfce7", color: "#16a34a" };
   };
 
   const formatDate = (dateStr: string) => {
@@ -161,39 +98,15 @@ export default function Borrow() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerText}>ประวัติของฉัน</Text>
+        <Text style={styles.headerText}>ประวัติการยืม</Text>
         <View style={{ width: 22 }} />
       </View>
 
-      {/* TABS */}
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === "borrow" && styles.tabActive]}
-          onPress={() => setTab("borrow")}
-        >
-          <Ionicons name="cube-outline" size={16} color={tab === "borrow" ? "#fff" : "#64748b"} />
-          <Text style={[styles.tabText, tab === "borrow" && styles.tabTextActive]}>
-            ยืมอุปกรณ์
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabBtn, tab === "booking" && styles.tabActive]}
-          onPress={() => setTab("booking")}
-        >
-          <Ionicons name="calendar-outline" size={16} color={tab === "booking" ? "#fff" : "#64748b"} />
-          <Text style={[styles.tabText, tab === "booking" && styles.tabTextActive]}>
-            จองห้อง
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ── TAB: ยืมอุปกรณ์ ── */}
-      {tab === "borrow" && (
-        <ScrollView contentContainerStyle={styles.list}>
+      <ScrollView contentContainerStyle={styles.list}>
           {borrowLoading ? (
             <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 40 }} />
           ) : borrows.length === 0 ? (
+
             <View style={styles.empty}>
               <Ionicons name="cube-outline" size={40} color="#cbd5e1" />
               <Text style={styles.emptyText}>ยังไม่มีประวัติการยืม</Text>
@@ -248,63 +161,6 @@ export default function Borrow() {
             })
           )}
         </ScrollView>
-      )}
-
-      {/* ── TAB: จองห้อง ── */}
-      {tab === "booking" && (
-        <ScrollView contentContainerStyle={styles.list}>
-          {bookingLoading ? (
-            <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 40 }} />
-          ) : bookings.length === 0 ? (
-            <View style={styles.empty}>
-              <Ionicons name="calendar-outline" size={40} color="#cbd5e1" />
-              <Text style={styles.emptyText}>ยังไม่มีประวัติการจองห้อง</Text>
-              <TouchableOpacity
-                style={styles.goBookBtn}
-                onPress={() => router.push("/home")}
-              >
-                <Text style={styles.goBookText}>จองห้องเลย →</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            bookings.map((b) => {
-              const badge = getBookingBadge(b.status, b.booking_date);
-              const station = b.computer_stations;
-              const canCancel = b.status === "active" && b.booking_date >= new Date().toISOString().split("T")[0];
-              return (
-                <TouchableOpacity
-                  key={b.id}
-                  style={styles.card}
-                  onPress={() => canCancel ? cancelBooking(b) : null}
-                >
-                  <View style={styles.cardLeft}>
-                    <View style={[styles.iconBox, { backgroundColor: "#ede9fe" }]}>
-                      <Ionicons name="desktop-outline" size={22} color="#7c3aed" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.cardTitle}>
-                        {station?.room_id} · {station?.name}
-                      </Text>
-                      <Text style={styles.cardDate}>
-                        {formatDate(b.booking_date)}
-                      </Text>
-                      <Text style={styles.cardSlot}>
-                        🕐 {TIME_SLOTS[b.time_slot]}
-                      </Text>
-                      {canCancel && (
-                        <Text style={[styles.tapHint, { color: "#dc2626" }]}>กดเพื่อยกเลิก</Text>
-                      )}
-                    </View>
-                  </View>
-                  <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-                    <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          )}
-        </ScrollView>
-      )}
 
     </View>
   );
@@ -322,24 +178,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   headerText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-
-  // Tabs
-  tabs: {
-    flexDirection: "row",
-    margin: 16,
-    backgroundColor: "#e2e8f0",
-    borderRadius: 12,
-    padding: 4,
-    gap: 4,
-  },
-  tabBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 6,
-    paddingVertical: 10, borderRadius: 10,
-  },
-  tabActive: { backgroundColor: "#1e3a8a" },
-  tabText: { fontSize: 13, fontWeight: "600", color: "#64748b" },
-  tabTextActive: { color: "#fff" },
 
   // List
   list: { paddingHorizontal: 16, paddingBottom: 40 },
@@ -364,7 +202,6 @@ const styles = StyleSheet.create({
   cardOverdue: { borderWidth: 1.5, borderColor: "#fca5a5" },
   cardTitle: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
   cardDate: { fontSize: 11, color: "#94a3b8", marginTop: 2 },
-  cardSlot: { fontSize: 11, color: "#64748b", marginTop: 2 },
   tapHint: { fontSize: 10, color: "#f97316", marginTop: 3 },
   badge: {
     paddingHorizontal: 10, paddingVertical: 4,
@@ -377,8 +214,7 @@ const styles = StyleSheet.create({
   emptyText: { color: "#94a3b8", fontSize: 14 },
   goBookBtn: {
     marginTop: 8, backgroundColor: "#1e3a8a",
-    paddingHorizontal: 20, paddingVertical: 10,
-    borderRadius: 10,
+    paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10,
   },
   goBookText: { color: "#fff", fontWeight: "600" },
 });
