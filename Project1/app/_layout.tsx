@@ -18,7 +18,7 @@ export default function Layout() {
       (event, session) => {
         console.log("AUTH EVENT:", event);
         if (event === "PASSWORD_RECOVERY") {
-          router.replace("/reset-password");
+          setTimeout(() => router.replace("/reset-password"), 0);
         }
       }
     );
@@ -44,7 +44,7 @@ export default function Layout() {
 
           // ถ้าเป็น recovery link → ไปหน้าเปลี่ยนรหัส
           if (type === "recovery") {
-            router.replace("/reset-password");
+            setTimeout(() => router.replace("/reset-password"), 0);
           }
           return;
         }
@@ -59,12 +59,12 @@ export default function Layout() {
         const tokenA = Array.isArray(access_token) ? access_token[0] : access_token;
         const tokenR = Array.isArray(refresh_token) ? refresh_token[0] : refresh_token;
         await supabase.auth.setSession({ access_token: tokenA, refresh_token: tokenR });
-        router.replace("/reset-password");
+        setTimeout(() => router.replace("/reset-password"), 0);
         return;
       }
 
       if (url.includes("reset-password")) {
-        router.replace("/reset-password");
+        setTimeout(() => router.replace("/reset-password"), 0);
       }
     };
 
