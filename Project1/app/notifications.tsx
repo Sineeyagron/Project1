@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator, RefreshControl,
+  TouchableOpacity, ActivityIndicator, RefreshControl, AppState,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -21,6 +21,9 @@ export default function Notifications() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [newCount, setNewCount] = useState(0);
+  const prevCountRef = useRef<number>(-1);
+  const isFirstLoad = useRef(true);
 
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "";
@@ -29,19 +32,37 @@ export default function Notifications() {
     });
   };
 
-  const fetchFeed = useCallback(async () => {
+  const fetchFeed = useCallback(async (silent = false) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
 
-    const { data: borrows } = await supabase
+    // ดึง borrow_records ก่อน (ไม่รวม join เพื่อความแน่นอน)
+    const { data: borrows, error: borrowErr } = await supabase
       .from("borrow_records")
-      .select("id, status, borrow_date, created_at, due_date, items ( name )")
+      .select("id, status, created_at, due_date, item_id")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(40);
 
-    const borrowFeed: FeedItem[] = (borrows || []).map((b: any) => {
-      const itemName = b.items?.name || b.items?.[0]?.name || "อุปกรณ์";
+    if (borrowErr) {
+      console.warn("[Notifications] borrow_records error:", borrowErr.message);
+    }
+
+    // ดึงชื่อ item แยก (หลีกเลี่ยงปัญหา FK join)
+    const records = borrows || [];
+    const itemIds = [...new Set(records.map((b: any) => b.item_id).filter(Boolean))];
+    let itemMap: Record<string, string> = {};
+
+    if (itemIds.length > 0) {
+      const { data: itemRows } = await supabase
+        .from("items")
+        .select("id, name")
+        .in("id", itemIds);
+      (itemRows || []).forEach((it: any) => { itemMap[it.id] = it.name; });
+    }
+
+    const borrowFeed: FeedItem[] = records.map((b: any) => {
+      const itemName = itemMap[b.item_id] || "อุปกรณ์";
       let subtitle = "";
       switch (b.status) {
         case "borrowed":       subtitle = b.due_date ? `ครบกำหนด ${formatDate(b.due_date)}` : "กำลังยืมอยู่"; break;
@@ -49,7 +70,7 @@ export default function Notifications() {
         case "returned":       subtitle = "คืนอุปกรณ์เรียบร้อยแล้ว"; break;
         default:               subtitle = b.status;
       }
-      const dateKey = b.borrow_date || b.created_at || "";
+      const dateKey = b.created_at || "";
       return {
         id: `borrow-${b.id}`,
         title: `ยืม: ${itemName}`,
@@ -60,13 +81,40 @@ export default function Notifications() {
       };
     });
 
+    // ตรวจว่ามีรายการใหม่มั้ย (ยกเว้นครั้งแรก)
+    if (!isFirstLoad.current && prevCountRef.current >= 0 && borrowFeed.length > prevCountRef.current) {
+      setNewCount(borrowFeed.length - prevCountRef.current);
+    }
+    prevCountRef.current = borrowFeed.length;
+    isFirstLoad.current = false;
+
     setFeed(borrowFeed);
-    setLoading(false);
-    setRefreshing(false);
+    if (!silent) {
+      setLoading(false);
+      setRefreshing(false);
+    } else {
+      setLoading(false);
+    }
   }, []);
 
+  // โหลดครั้งแรก
   useEffect(() => { fetchFeed(); }, [fetchFeed]);
-  const onRefresh = () => { setRefreshing(true); fetchFeed(); };
+
+  // Poll ทุก 15 วินาที
+  useEffect(() => {
+    const interval = setInterval(() => { fetchFeed(true); }, 15000);
+    return () => clearInterval(interval);
+  }, [fetchFeed]);
+
+  // โหลดใหม่เมื่อ app กลับมา foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") fetchFeed(true);
+    });
+    return () => sub.remove();
+  }, [fetchFeed]);
+
+  const onRefresh = () => { setRefreshing(true); setNewCount(0); fetchFeed(); };
 
   const getStyle = (status: string) => {
     switch (status) {
@@ -88,6 +136,17 @@ export default function Notifications() {
         <Text style={styles.headerText}>การแจ้งเตือน</Text>
         <View style={{ width: 22 }} />
       </View>
+
+      {/* แบนเนอร์รายการใหม่ */}
+      {newCount > 0 && (
+        <TouchableOpacity
+          style={styles.newBanner}
+          onPress={() => { setNewCount(0); }}
+        >
+          <Ionicons name="notifications" size={16} color="#fff" />
+          <Text style={styles.newBannerTxt}>มีรายการใหม่ {newCount} รายการ</Text>
+        </TouchableOpacity>
+      )}
 
       {loading ? (
         <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 60 }} />
@@ -137,6 +196,12 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
   headerText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+
+  newBanner: {
+    backgroundColor: "#1d4ed8", flexDirection: "row", alignItems: "center",
+    justifyContent: "center", gap: 8, paddingVertical: 10,
+  },
+  newBannerTxt: { color: "#fff", fontSize: 13, fontWeight: "700" },
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingBottom: 60 },
   emptyTitle: { fontSize: 17, fontWeight: "700", color: "#475569", marginTop: 8 },
