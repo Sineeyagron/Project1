@@ -3,6 +3,7 @@ import React, {
   useImperativeHandle,
   useRef,
   useState,
+  useEffect,
 } from "react";
 import { PanResponder, StyleSheet, View, ViewStyle } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -19,9 +20,10 @@ type Props = {
   backgroundColor?: string;
   style?: ViewStyle;
   onBegin?: () => void;
+  onDrawingChange?: (isDrawing: boolean) => void;
 };
 
-const CANVAS_W = 340;
+const CANVAS_W = 320;
 const CANVAS_H = 180;
 
 const SignatureCanvas = forwardRef<SignatureCanvasRef, Props>(
@@ -32,6 +34,7 @@ const SignatureCanvas = forwardRef<SignatureCanvasRef, Props>(
       backgroundColor = "#f8f9ff",
       style,
       onBegin,
+      onDrawingChange,
     },
     ref
   ) => {
@@ -39,6 +42,16 @@ const SignatureCanvas = forwardRef<SignatureCanvasRef, Props>(
     const [activePath, setActivePath] = useState("");
     const current = useRef("");
     const started = useRef(false);
+
+    // ใช้ ref สำหรับ callback เพื่อหลีกเลี่ยง stale closure ใน PanResponder
+    const onBeginRef = useRef(onBegin);
+    const onDrawingChangeRef = useRef(onDrawingChange);
+    useEffect(() => { onBeginRef.current = onBegin; });
+    useEffect(() => { onDrawingChangeRef.current = onDrawingChange; });
+
+    // เก็บ strokeColor ใน ref เพื่อใช้ใน getSvgString
+    const strokeColorRef = useRef(strokeColor);
+    useEffect(() => { strokeColorRef.current = strokeColor; });
 
     useImperativeHandle(ref, () => ({
       clear: () => {
@@ -53,7 +66,7 @@ const SignatureCanvas = forwardRef<SignatureCanvasRef, Props>(
         const pathEls = allPaths
           .map(
             (d) =>
-              `<path d="${d}" stroke="${strokeColor}" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
+              `<path d="${d}" stroke="${strokeColorRef.current}" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`
           )
           .join("");
         return `<svg xmlns="http://www.w3.org/2000/svg" width="${CANVAS_W}" height="${CANVAS_H}" style="background:${backgroundColor}">${pathEls}</svg>`;
@@ -64,10 +77,13 @@ const SignatureCanvas = forwardRef<SignatureCanvasRef, Props>(
       PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
+        onStartShouldSetPanResponderCapture: () => true,
+        onMoveShouldSetPanResponderCapture: () => true,
         onPanResponderGrant: (e) => {
+          onDrawingChangeRef.current?.(true);
           if (!started.current) {
             started.current = true;
-            onBegin?.();
+            onBeginRef.current?.();
           }
           const { locationX: x, locationY: y } = e.nativeEvent;
           current.current = `M${x.toFixed(1)},${y.toFixed(1)}`;
@@ -79,11 +95,22 @@ const SignatureCanvas = forwardRef<SignatureCanvasRef, Props>(
           setActivePath(current.current);
         },
         onPanResponderRelease: () => {
-          if (current.current) {
-            setDonePaths((prev) => [...prev, current.current]);
+          const path = current.current;
+          current.current = "";
+          if (path) {
+            setDonePaths((prev) => [...prev, path]);
             setActivePath("");
-            current.current = "";
           }
+          onDrawingChangeRef.current?.(false);
+        },
+        onPanResponderTerminate: () => {
+          const path = current.current;
+          current.current = "";
+          if (path) {
+            setDonePaths((prev) => [...prev, path]);
+            setActivePath("");
+          }
+          onDrawingChangeRef.current?.(false);
         },
       })
     ).current;
@@ -96,6 +123,7 @@ const SignatureCanvas = forwardRef<SignatureCanvasRef, Props>(
           style,
         ]}
         {...pan.panHandlers}
+        collapsable={false}
       >
         <Svg width={CANVAS_W} height={CANVAS_H}>
           {donePaths.map((d, i) => (

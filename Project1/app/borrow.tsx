@@ -1,220 +1,227 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Alert,
-  ActivityIndicator,
-  Image,
+  View, Text, StyleSheet, TouchableOpacity,
+  ScrollView, Alert, ActivityIndicator, Image, RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
 
-const TIME_SLOTS: { [key: number]: string } = {
-  1: "08:00 – 10:00",
-  2: "10:00 – 12:00",
-  3: "13:00 – 15:00",
-  4: "15:00 – 17:00",
+const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
+  borrowed:       { label: "กำลังยืม",  color: "#b45309", bg: "#fef3c7", border: "#f59e0b", icon: "cube-outline" },
+  pending_return: { label: "รอคืน",     color: "#dc2626", bg: "#fee2e2", border: "#ef4444", icon: "time-outline" },
+  returned:       { label: "คืนแล้ว",   color: "#16a34a", bg: "#dcfce7", border: "#22c55e", icon: "checkmark-circle-outline" },
+};
+
+const formatDate = (d: string) => {
+  if (!d) return "-";
+  return new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+};
+
+const getDaysLeft = (due: string) => {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return Math.ceil((new Date(due).getTime() - today.getTime()) / 86400000);
 };
 
 export default function Borrow() {
   const router = useRouter();
-
   const [borrows, setBorrows] = useState<any[]>([]);
-  const [borrowLoading, setBorrowLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchBorrows();
-  }, []);
-
-  // ── ดึงประวัติยืมอุปกรณ์ ──
-  const fetchBorrows = async () => {
+  const fetchBorrows = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data, error } = await supabase
+    if (!user) { setLoading(false); return; }
+    const { data } = await supabase
       .from("borrow_records")
-      .select(`id, status, borrow_date, due_date, created_at, item_id, items ( name, image_url )`)
+      .select("id, status, borrow_date, due_date, created_at, item_id, items(name, image_url)")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
+    setBorrows(data || []);
+    setLoading(false);
+    setRefreshing(false);
+  }, []);
 
-    if (!error) setBorrows(data || []);
-    setBorrowLoading(false);
-  };
+  useEffect(() => { fetchBorrows(); }, [fetchBorrows]);
 
-  // ── ขอคืนอุปกรณ์ ──
+  const onRefresh = () => { setRefreshing(true); fetchBorrows(); };
+
   const requestReturn = (item: any) => {
     if (item.status !== "borrowed") return;
-    Alert.alert("ขอคืนอุปกรณ์", "คุณต้องการขอคืนอุปกรณ์นี้ใช่ไหม?", [
+    Alert.alert("ขอคืนอุปกรณ์", `ยืนยันขอคืน "${item.items?.name || "อุปกรณ์"}"?`, [
       { text: "ยกเลิก", style: "cancel" },
       {
-        text: "ยืนยัน",
-        onPress: async () => {
+        text: "ยืนยัน", onPress: async () => {
           const { error } = await supabase
-            .from("borrow_records")
-            .update({ status: "pending_return" })
-            .eq("id", item.id);
-          if (error) { alert("ขอคืนไม่สำเร็จ"); return; }
-          alert("ส่งคำขอคืนแล้ว ✅");
+            .from("borrow_records").update({ status: "pending_return" }).eq("id", item.id);
+          if (error) { Alert.alert("เกิดข้อผิดพลาด"); return; }
           fetchBorrows();
         },
       },
     ]);
   };
 
-  // ── Badge สถานะยืม ──
-  const getBorrowBadge = (status: string) => {
-    switch (status) {
-      case "borrowed":       return { label: "กำลังยืม",  bg: "#fef3c7", color: "#b45309" };
-      case "pending_return": return { label: "รอคืน",     bg: "#fee2e2", color: "#dc2626" };
-      case "returned":       return { label: "คืนแล้ว",   bg: "#dcfce7", color: "#16a34a" };
-      default:               return { label: status,      bg: "#f1f5f9", color: "#64748b" };
-    }
-  };
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "-";
-    return new Date(dateStr).toLocaleDateString("th-TH", {
-      day: "numeric", month: "short", year: "numeric",
-    });
-  };
-
-  const getDaysLeft = (dueDate: string) => {
-    if (!dueDate) return null;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const due = new Date(dueDate);
-    return Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  };
+  const activeBorrows  = borrows.filter(b => b.status === "borrowed").length;
+  const pendingReturns = borrows.filter(b => b.status === "pending_return").length;
+  const returned       = borrows.filter(b => b.status === "returned").length;
 
   return (
-    <View style={styles.container}>
-
+    <View style={s.container}>
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerText}>ประวัติการยืม</Text>
+        <View>
+          <Text style={s.headerTitle}>ประวัติการยืม</Text>
+          <Text style={s.headerSub}>อุปกรณ์ของฉัน</Text>
+        </View>
         <View style={{ width: 22 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.list}>
-          {borrowLoading ? (
-            <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 40 }} />
-          ) : borrows.length === 0 ? (
+      {loading ? (
+        <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 60 }} />
+      ) : (
+        <ScrollView
+          contentContainerStyle={s.body}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}
+        >
+          {/* STATS */}
+          <View style={s.statsRow}>
+            <View style={[s.statCard, { borderLeftColor: "#f59e0b" }]}>
+              <Text style={[s.statNum, { color: "#b45309" }]}>{activeBorrows}</Text>
+              <Text style={s.statLabel}>กำลังยืม</Text>
+            </View>
+            <View style={[s.statCard, { borderLeftColor: "#ef4444" }]}>
+              <Text style={[s.statNum, { color: "#dc2626" }]}>{pendingReturns}</Text>
+              <Text style={s.statLabel}>รอคืน</Text>
+            </View>
+            <View style={[s.statCard, { borderLeftColor: "#22c55e" }]}>
+              <Text style={[s.statNum, { color: "#16a34a" }]}>{returned}</Text>
+              <Text style={s.statLabel}>คืนแล้ว</Text>
+            </View>
+          </View>
 
-            <View style={styles.empty}>
-              <Ionicons name="cube-outline" size={40} color="#cbd5e1" />
-              <Text style={styles.emptyText}>ยังไม่มีประวัติการยืม</Text>
+          {/* LIST */}
+          {borrows.length === 0 ? (
+            <View style={s.empty}>
+              <Ionicons name="cube-outline" size={52} color="#cbd5e1" />
+              <Text style={s.emptyTitle}>ยังไม่มีประวัติการยืม</Text>
+              <Text style={s.emptyText}>เมื่อคุณยืมอุปกรณ์จะปรากฎที่นี่</Text>
             </View>
           ) : (
-            borrows.map((b) => {
-              const badge = getBorrowBadge(b.status);
-              const itemName = b.items?.name || b.items?.[0]?.name || "อุปกรณ์";
-              const imageUrl = b.items?.image_url || b.items?.[0]?.image_url || null;
-              const borrowDate = b.borrow_date || b.created_at;
-              const daysLeft = b.due_date ? getDaysLeft(b.due_date) : null;
-              const isOverdue = daysLeft !== null && daysLeft < 0 && b.status === "borrowed";
-              return (
-                <TouchableOpacity
-                  key={b.id}
-                  style={[styles.card, isOverdue && styles.cardOverdue]}
-                  onPress={() => b.status === "borrowed" ? requestReturn(b) : null}
-                >
-                  <View style={styles.cardLeft}>
-                    {imageUrl ? (
-                      <Image source={{ uri: imageUrl }} style={styles.itemImg} />
+            <>
+              <Text style={s.sectionLabel}>รายการทั้งหมด ({borrows.length})</Text>
+              {borrows.map((b) => {
+                const cfg   = STATUS_CFG[b.status] ?? STATUS_CFG.returned;
+                const name  = b.items?.name || b.items?.[0]?.name || "อุปกรณ์";
+                const img   = b.items?.image_url || b.items?.[0]?.image_url || null;
+                const bDate = b.borrow_date || b.created_at;
+                const days  = b.due_date ? getDaysLeft(b.due_date) : null;
+                const overdue = days !== null && days < 0 && b.status === "borrowed";
+
+                return (
+                  <TouchableOpacity
+                    key={b.id}
+                    style={[s.card, { borderLeftColor: cfg.border }, overdue && s.cardOverdue]}
+                    onPress={() => requestReturn(b)}
+                    activeOpacity={b.status === "borrowed" ? 0.7 : 1}
+                  >
+                    {/* รูปหรือ icon */}
+                    {img ? (
+                      <Image source={{ uri: img }} style={s.itemImg} />
                     ) : (
-                      <View style={styles.iconBox}>
-                        <Ionicons name="cube-outline" size={22} color="#1e3a8a" />
+                      <View style={[s.iconBox, { backgroundColor: cfg.bg }]}>
+                        <Ionicons name={cfg.icon} size={22} color={cfg.color} />
                       </View>
                     )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.cardTitle}>{itemName}</Text>
-                      <Text style={styles.cardDate}>
-                        ยืม: {formatDate(borrowDate)}
-                      </Text>
+
+                    {/* ข้อมูล */}
+                    <View style={s.cardBody}>
+                      <Text style={s.cardName} numberOfLines={1}>{name}</Text>
+                      <Text style={s.cardDate}>ยืม {formatDate(bDate)}</Text>
                       {b.due_date && (
-                        <Text style={[styles.cardDate, isOverdue && { color: "#dc2626", fontWeight: "700" }]}>
-                          {isOverdue
-                            ? `⚠️ เกินกำหนด ${Math.abs(daysLeft!)} วัน`
+                        <Text style={[s.cardDue, overdue && s.cardDueOverdue]}>
+                          {overdue
+                            ? `⚠️ เกินกำหนด ${Math.abs(days!)} วัน`
                             : b.status === "borrowed"
-                              ? `ครบ: ${formatDate(b.due_date)} (อีก ${daysLeft} วัน)`
-                              : `ครบ: ${formatDate(b.due_date)}`
-                          }
+                              ? `ครบกำหนด ${formatDate(b.due_date)} · อีก ${days} วัน`
+                              : `ครบกำหนด ${formatDate(b.due_date)}`}
                         </Text>
                       )}
-                      {b.status === "borrowed" && (
-                        <Text style={styles.tapHint}>กดเพื่อขอคืน</Text>
+                      {b.status === "borrowed" && !overdue && (
+                        <Text style={s.tapHint}>กดเพื่อขอคืน</Text>
                       )}
                     </View>
-                  </View>
-                  <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-                    <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })
-          )}
-        </ScrollView>
 
+                    {/* badge */}
+                    <View style={[s.badge, { backgroundColor: cfg.bg }]}>
+                      <Text style={[s.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </>
+          )}
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f1f5f9" },
+
   header: {
     backgroundColor: "#1e3a8a",
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    paddingTop: 54, paddingBottom: 20, paddingHorizontal: 20,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
-  headerText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", textAlign: "center" },
+  headerSub:   { color: "#93c5fd", fontSize: 12, textAlign: "center", marginTop: 2 },
 
-  // List
-  list: { paddingHorizontal: 16, paddingBottom: 40 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 14,
+  body: { padding: 16 },
+
+  statsRow: { flexDirection: "row", gap: 8, marginBottom: 20 },
+  statCard: {
+    flex: 1, backgroundColor: "#fff", borderRadius: 14,
+    padding: 14, borderLeftWidth: 4,
+  },
+  statNum:   { fontSize: 24, fontWeight: "800", color: "#1e293b" },
+  statLabel: { fontSize: 11, color: "#94a3b8", marginTop: 2 },
+
+  sectionLabel: {
+    fontSize: 11, fontWeight: "700", color: "#64748b",
+    textTransform: "uppercase", letterSpacing: 0.5,
     marginBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
   },
-  cardLeft: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  iconBox: {
-    width: 48, height: 48,
-    backgroundColor: "#e2e8f0",
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
+
+  card: {
+    backgroundColor: "#fff", borderRadius: 14, padding: 14,
+    marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12,
+    borderLeftWidth: 4,
+    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
+  cardOverdue: { borderColor: "#fca5a5", borderWidth: 1.5, borderLeftWidth: 4 },
+  iconBox: { width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center" },
   itemImg: { width: 48, height: 48, borderRadius: 12 },
-  cardOverdue: { borderWidth: 1.5, borderColor: "#fca5a5" },
-  cardTitle: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
-  cardDate: { fontSize: 11, color: "#94a3b8", marginTop: 2 },
-  tapHint: { fontSize: 10, color: "#f97316", marginTop: 3 },
+
+  cardBody: { flex: 1 },
+  cardName: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
+  cardDate: { fontSize: 11, color: "#94a3b8", marginTop: 3 },
+  cardDue:  { fontSize: 11, color: "#64748b", marginTop: 2 },
+  cardDueOverdue: { color: "#dc2626", fontWeight: "700" },
+  tapHint: { fontSize: 10, color: "#f97316", marginTop: 4, fontWeight: "600" },
+
   badge: {
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 20, marginLeft: 8,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, alignSelf: "flex-start",
   },
   badgeText: { fontSize: 10, fontWeight: "700" },
 
-  // Empty
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
-  emptyText: { color: "#94a3b8", fontSize: 14 },
-  goBookBtn: {
-    marginTop: 8, backgroundColor: "#1e3a8a",
-    paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10,
-  },
-  goBookText: { color: "#fff", fontWeight: "600" },
+  emptyTitle: { fontSize: 17, fontWeight: "700", color: "#475569", marginTop: 8 },
+  emptyText: { fontSize: 13, color: "#94a3b8", textAlign: "center", lineHeight: 20 },
 });

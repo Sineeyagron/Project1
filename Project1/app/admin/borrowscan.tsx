@@ -36,7 +36,7 @@ export default function BorrowScan() {
   const [permission, requestPermission] = useCameraPermissions();
 
   const [step, setStep] = useState<Step>("scan");
-  const [scanned, setScanned] = useState(false);
+  const scanLock = useRef(false);
 
   const [item, setItem] = useState<any>(null);
   const [itemLoading, setItemLoading] = useState(false);
@@ -55,8 +55,8 @@ export default function BorrowScan() {
 
   // ── สแกน barcode → หา item ──
   const handleScan = async ({ data }: { data: string }) => {
-    if (scanned) return;
-    setScanned(true);
+    if (scanLock.current) return;
+    scanLock.current = true;
     setItemLoading(true);
 
     let found: any = null;
@@ -90,7 +90,7 @@ export default function BorrowScan() {
       Alert.alert(
         "ไม่พบอุปกรณ์",
         `ไม่พบ "${data}" ในระบบ`,
-        [{ text: "สแกนใหม่", onPress: () => setScanned(false) }]
+        [{ text: "สแกนใหม่", onPress: () => { scanLock.current = false; } }]
       );
       return;
     }
@@ -99,7 +99,7 @@ export default function BorrowScan() {
       Alert.alert(
         "อุปกรณ์ถูกยืมแล้ว",
         `${found.name} กำลังถูกยืมอยู่`,
-        [{ text: "สแกนใหม่", onPress: () => setScanned(false) }]
+        [{ text: "สแกนใหม่", onPress: () => { scanLock.current = false; } }]
       );
       return;
     }
@@ -133,6 +133,7 @@ export default function BorrowScan() {
   const goToSignature = () => {
     if (!selectedUser) { Alert.alert("เลือก User ก่อน"); return; }
     setSigError(false);
+    sigRef.current?.clear();
     setStep("signature");
   };
 
@@ -142,6 +143,7 @@ export default function BorrowScan() {
       setSigError(true);
       return;
     }
+    setSigError(false);
     if (!selectedUser || !item) return;
 
     setSaving(true);
@@ -187,7 +189,7 @@ export default function BorrowScan() {
 
   const reset = () => {
     setStep("scan");
-    setScanned(false);
+    scanLock.current = false;
     setItem(null);
     setEmail("");
     setSelectedUser(null);
@@ -385,7 +387,7 @@ export default function BorrowScan() {
         <View style={{ width: 22 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.form}>
+      <View style={[s.form, { flex: 1 }]}>
         {/* STEP INDICATOR */}
         <View style={s.stepRow}>
           <View style={s.stepDone}><Ionicons name="checkmark" size={14} color="#fff" /></View>
@@ -410,7 +412,6 @@ export default function BorrowScan() {
         <View style={s.sigWrap}>
           <SignatureCanvas
             ref={sigRef}
-            onBegin={() => setSigError(false)}
             style={sigError ? s.sigError : undefined}
           />
           {sigError && (
@@ -442,9 +443,7 @@ export default function BorrowScan() {
         <TouchableOpacity style={s.cancelBtn} onPress={() => setStep("confirm")}>
           <Text style={s.cancelBtnTxt}>← ย้อนกลับ</Text>
         </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+      </View>
     </View>
   );
 }

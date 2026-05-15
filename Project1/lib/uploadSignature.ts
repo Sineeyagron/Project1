@@ -13,10 +13,14 @@ export async function uploadSignature(
   const filename = `${prefix}_${borrowRecordId}_${Date.now()}.svg`;
   const path = filename;
 
+  // ใช้ access token ของ user ที่ login อยู่ เพื่อผ่าน RLS
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token ?? ANON_KEY;
+
   const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${ANON_KEY}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "image/svg+xml",
       "x-upsert": "true",
     },

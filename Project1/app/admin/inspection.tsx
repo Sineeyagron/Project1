@@ -37,18 +37,17 @@ export default function InspectionPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  type ConditionKey = "good" | "damaged" | "missing";
+  type EquipState = { condition: ConditionKey; notes: string; existingId: string | null };
+
   // Modal: form บันทึก
   const [formModal, setFormModal] = useState(false);
   const [formStation, setFormStation] = useState<any>(null);
-  const [formType, setFormType] = useState<EquipType>("mouse");
-  const [formCondition, setFormCondition] = useState<"good" | "damaged" | "missing">("good");
-  const [formNotes, setFormNotes] = useState("");
-
-  // Modal: ดูประวัติผู้ยืมล่าสุดของ station
-  const [histModal, setHistModal] = useState(false);
-  const [histStation, setHistStation] = useState<any>(null);
-  const [histRecords, setHistRecords] = useState<any[]>([]);
-  const [histLoading, setHistLoading] = useState(false);
+  const [formData, setFormData] = useState<Record<EquipType, EquipState>>({
+    mouse:    { condition: "good", notes: "", existingId: null },
+    keyboard: { condition: "good", notes: "", existingId: null },
+    monitor:  { condition: "good", notes: "", existingId: null },
+  });
 
   useEffect(() => {
     if (stations.length === 0) fetchStations();
@@ -72,47 +71,33 @@ export default function InspectionPage() {
       .from("equipment_inspections")
       .select("*")
       .eq("term", termVal.trim())
-      .in("station_id", (stations.map(s => s.id)));
+      .in("station_id", stations.map(s => s.id))
+      .order("created_at", { ascending: true });
     setInspections(data || []);
     setLoading(false);
   };
 
-  const openHistory = async (station: any) => {
-    setHistStation(station);
-    setHistModal(true);
-    setHistLoading(true);
-
-    // ดึงประวัติยืมล่าสุด 5 รายการของ station นี้
-    // (ยังไม่มี FK station↔borrow แต่ดึงจาก profile ได้)
-    const { data: recs } = await supabase
-      .from("borrow_records")
-      .select("*")
-      .eq("status", "returned")
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    // enrichment: ดึง email
-    const enriched: any[] = [];
-    for (const r of (recs || [])) {
-      let email = "ไม่ทราบ";
-      if (r.user_id) {
-        const { data: p } = await supabase
-          .from("profiles").select("email").eq("id", r.user_id).single();
-        if (p?.email) email = p.email;
-      }
-      enriched.push({ ...r, email });
-    }
-
-    setHistRecords(enriched);
-    setHistLoading(false);
-  };
-
   const openForm = (station: any) => {
     setFormStation(station);
-    setFormType("mouse");
-    setFormCondition("good");
-    setFormNotes("");
+    // โหลดข้อมูลเดิมถ้าเคยตรวจแล้วในเทอมนี้
+    const existing = inspections.filter(i => i.station_id === station.id);
+    const init: Record<EquipType, EquipState> = {
+      mouse:    { condition: "good", notes: "", existingId: null },
+      keyboard: { condition: "good", notes: "", existingId: null },
+      monitor:  { condition: "good", notes: "", existingId: null },
+    };
+    for (const rec of existing) {
+      const t = rec.equipment_type as EquipType;
+      if (init[t] !== undefined) {
+        init[t] = { condition: rec.condition, notes: rec.notes || "", existingId: rec.id };
+      }
+    }
+    setFormData(init);
     setFormModal(true);
+  };
+
+  const setEquipField = (type: EquipType, field: keyof EquipState, value: string) => {
+    setFormData(prev => ({ ...prev, [type]: { ...prev[type], [field]: value } }));
   };
 
   const saveInspection = async () => {
@@ -121,33 +106,59 @@ export default function InspectionPage() {
 
     setSaving(true);
 
-    // ดึง admin session
     const { data: { user } } = await supabase.auth.getUser();
 
-    const { error } = await supabase.from("equipment_inspections").insert([{
-      term: term.trim(),
-      station_id: formStation.id,
-      inspector_id: user?.id || null,
-      equipment_type: formType,
-      condition: formCondition,
-      notes: formNotes.trim() || null,
-    }]);
+    // ดึง record ที่มีอยู่จาก DB ตรงๆ ไม่พึ่ง state เพื่อป้องกัน insert ซ้ำ
+    const { data: existing } = await supabase
+      .from("equipment_inspections")
+      .select("id, equipment_type")
+      .eq("term", term.trim())
+      .eq("station_id", formStation.id);
+
+    const existingMap: Record<string, string> = {};
+    for (const r of (existing || [])) {
+      existingMap[r.equipment_type] = r.id;
+    }
+
+    let errorMsg: string | null = null;
+
+    for (const t of EQUIP_TYPES) {
+      const row = {
+        term: term.trim(),
+        station_id: formStation.id,
+        inspector_id: user?.id || null,
+        equipment_type: t,
+        condition: formData[t].condition,
+        notes: formData[t].notes.trim() || null,
+      };
+      const existingId = existingMap[t];
+      const { error } = existingId
+        ? await supabase.from("equipment_inspections").update(row).eq("id", existingId)
+        : await supabase.from("equipment_inspections").insert([row]);
+      if (error) { errorMsg = error.message; break; }
+    }
 
     setSaving(false);
 
-    if (error) { Alert.alert("เกิดข้อผิดพลาด", error.message); return; }
+    if (errorMsg) { Alert.alert("เกิดข้อผิดพลาด", errorMsg); return; }
 
     Alert.alert("บันทึกสำเร็จ");
     setFormModal(false);
     fetchInspections(term);
   };
 
-  // นับจำนวน inspection ของ station นี้ในเทอมนี้
-  const getStationInspCount = (stationId: string) =>
-    inspections.filter(i => i.station_id === stationId).length;
+  // deduplicate เหลือแค่ 1 record ต่อ equipment_type (ล่าสุด) ต่อ station
+  const getLatestPerType = (stationId: string) => {
+    const recs = inspections.filter(i => i.station_id === stationId);
+    const map: Record<string, any> = {};
+    for (const r of recs) map[r.equipment_type] = r; // ล่าสุดทับก่อนหน้าเสมอ
+    return Object.values(map);
+  };
+
+  const getStationInspCount = (stationId: string) => getLatestPerType(stationId).length;
 
   const getStationIssues = (stationId: string) =>
-    inspections.filter(i => i.station_id === stationId && i.condition !== "good").length;
+    getLatestPerType(stationId).filter(i => i.condition !== "good").length;
 
   // จัดกลุ่ม
   const grouped: Record<number, any[]> = {};
@@ -221,12 +232,12 @@ export default function InspectionPage() {
                     )}
                   </View>
                   <View style={st.stationActions}>
-                    <TouchableOpacity style={st.histBtn} onPress={() => openHistory(station)}>
-                      <Ionicons name="time-outline" size={16} color="#64748b" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={st.inspBtn} onPress={() => openForm(station)}>
-                      <Ionicons name="clipboard-outline" size={16} color="#fff" />
-                      <Text style={st.inspBtnTxt}>ตรวจ</Text>
+                    <TouchableOpacity
+                      style={[st.inspBtn, count > 0 && { backgroundColor: "#0891b2" }]}
+                      onPress={() => openForm(station)}
+                    >
+                      <Ionicons name={count > 0 ? "create-outline" : "clipboard-outline"} size={16} color="#fff" />
+                      <Text style={st.inspBtnTxt}>{count > 0 ? "แก้ไข" : "ตรวจ"}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -239,7 +250,12 @@ export default function InspectionPage() {
         {inspections.length > 0 && (
           <View style={st.summaryBox}>
             <Text style={st.summaryTitle}>ผลรวมเทอม {term}</Text>
-            {inspections.filter(i => i.condition !== "good").map(i => {
+            {(() => {
+              // last-wins: record หลังสุดของแต่ละ station+type ชนะเสมอ
+              const map: Record<string, any> = {};
+              for (const i of inspections) map[`${i.station_id}_${i.equipment_type}`] = i;
+              return Object.values(map).filter(i => i.condition !== "good");
+            })().map(i => {
               const stn = stations.find(s => s.id === i.station_id);
               const cfg = CONDITION_CFG[i.condition];
               return (
@@ -265,105 +281,67 @@ export default function InspectionPage() {
       {/* ── MODAL: บันทึกการตรวจ ── */}
       <Modal visible={formModal} transparent animationType="slide">
         <View style={st.modalOverlay}>
-          <View style={st.modalBox}>
-            <View style={st.modalHeader}>
-              <Text style={st.modalTitle}>บันทึกการตรวจ — {formStation?.name}</Text>
-              <TouchableOpacity onPress={() => setFormModal(false)}>
-                <Ionicons name="close" size={22} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={st.fieldLabel}>อุปกรณ์</Text>
-            <View style={st.typeRow}>
-              {EQUIP_TYPES.map(t => (
-                <TouchableOpacity
-                  key={t}
-                  style={[st.typeBtn, formType === t && st.typeBtnActive]}
-                  onPress={() => setFormType(t)}
-                >
-                  <Text style={[st.typeBtnTxt, formType === t && st.typeBtnTxtActive]}>
-                    {EQUIP_LABELS[t]}
-                  </Text>
+          <ScrollView contentContainerStyle={st.modalScroll} keyboardShouldPersistTaps="handled">
+            <View style={st.modalBox}>
+              <View style={st.modalHeader}>
+                <Text style={st.modalTitle}>
+                {EQUIP_TYPES.some(t => formData[t].existingId) ? "แก้ไขผลตรวจ" : "ตรวจสภาพ"} — {formStation?.name}
+              </Text>
+                <TouchableOpacity onPress={() => setFormModal(false)}>
+                  <Ionicons name="close" size={22} color="#64748b" />
                 </TouchableOpacity>
-              ))}
-            </View>
+              </View>
 
-            <Text style={st.fieldLabel}>สภาพ</Text>
-            <View style={st.condRow}>
-              {(["good", "damaged", "missing"] as const).map(c => {
-                const cfg = CONDITION_CFG[c];
+              {EQUIP_TYPES.map((t, idx) => {
+                const cfg = CONDITION_CFG[formData[t].condition];
                 return (
-                  <TouchableOpacity
-                    key={c}
-                    style={[st.condBtn, { borderColor: cfg.color }, formCondition === c && { backgroundColor: cfg.bg }]}
-                    onPress={() => setFormCondition(c)}
-                  >
-                    <Ionicons name={cfg.icon} size={18} color={cfg.color} />
-                    <Text style={[st.condBtnTxt, { color: cfg.color }]}>{cfg.label}</Text>
-                  </TouchableOpacity>
+                  <View key={t} style={[st.equipBlock, idx < EQUIP_TYPES.length - 1 && st.equipBlockBorder]}>
+                    <Text style={st.equipBlockTitle}>{EQUIP_LABELS[t]}</Text>
+                    <View style={st.condRow}>
+                      {(["good", "damaged", "missing"] as const).map(c => {
+                        const ccfg = CONDITION_CFG[c];
+                        const active = formData[t].condition === c;
+                        return (
+                          <TouchableOpacity
+                            key={c}
+                            style={[st.condBtn, { borderColor: ccfg.color }, active && { backgroundColor: ccfg.bg }]}
+                            onPress={() => setEquipField(t, "condition", c)}
+                          >
+                            <Ionicons name={ccfg.icon} size={16} color={ccfg.color} />
+                            <Text style={[st.condBtnTxt, { color: ccfg.color }]}>{ccfg.label}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    {formData[t].condition !== "good" && (
+                      <TextInput
+                        style={st.notesInput}
+                        placeholder="หมายเหตุ (ถ้ามี)..."
+                        value={formData[t].notes}
+                        onChangeText={v => setEquipField(t, "notes", v)}
+                      />
+                    )}
+                  </View>
                 );
               })}
-            </View>
 
-            <Text style={st.fieldLabel}>หมายเหตุ (ถ้ามี)</Text>
-            <TextInput
-              style={st.notesInput}
-              placeholder="รายละเอียดเพิ่มเติม..."
-              value={formNotes}
-              onChangeText={setFormNotes}
-              multiline
-            />
-
-            <TouchableOpacity
-              style={[st.saveBtn, saving && { backgroundColor: "#94a3b8" }]}
-              onPress={saveInspection}
-              disabled={saving}
-            >
-              {saving ? <ActivityIndicator color="#fff" /> : (
-                <>
-                  <Ionicons name="save-outline" size={18} color="#fff" />
-                  <Text style={st.saveBtnTxt}>บันทึก</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* ── MODAL: ประวัติผู้ยืม ── */}
-      <Modal visible={histModal} transparent animationType="slide">
-        <View style={st.modalOverlay}>
-          <View style={[st.modalBox, { maxHeight: "75%" }]}>
-            <View style={st.modalHeader}>
-              <Text style={st.modalTitle}>ประวัติผู้ยืม — {histStation?.name}</Text>
-              <TouchableOpacity onPress={() => setHistModal(false)}>
-                <Ionicons name="close" size={22} color="#64748b" />
+              <TouchableOpacity
+                style={[st.saveBtn, saving && { backgroundColor: "#94a3b8" }]}
+                onPress={saveInspection}
+                disabled={saving}
+              >
+                {saving ? <ActivityIndicator color="#fff" /> : (
+                  <>
+                    <Ionicons name="save-outline" size={18} color="#fff" />
+                    <Text style={st.saveBtnTxt}>บันทึกทั้งหมด</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
-
-            {histLoading ? (
-              <ActivityIndicator color="#7c3aed" style={{ marginVertical: 20 }} />
-            ) : histRecords.length === 0 ? (
-              <Text style={st.emptyTxt}>ไม่พบประวัติการยืม</Text>
-            ) : (
-              <ScrollView>
-                {histRecords.map(r => (
-                  <View key={r.id} style={st.histRow}>
-                    <Ionicons name="person-circle-outline" size={20} color="#7c3aed" />
-                    <View style={{ flex: 1 }}>
-                      <Text style={st.histEmail}>{r.email}</Text>
-                      <Text style={st.histDate}>
-                        ยืม: {formatDate(r.borrow_date || r.created_at)}
-                        {r.return_date ? `  คืน: ${formatDate(r.return_date)}` : "  (ยังไม่คืน)"}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </ScrollView>
-            )}
-          </View>
+          </ScrollView>
         </View>
       </Modal>
+
     </View>
   );
 }
@@ -416,10 +394,6 @@ const st = StyleSheet.create({
   stationName: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
   stationBadge: { fontSize: 11, color: "#64748b", marginTop: 2 },
   stationActions: { flexDirection: "row", gap: 8 },
-  histBtn: {
-    width: 34, height: 34, borderRadius: 8,
-    backgroundColor: "#f1f5f9", justifyContent: "center", alignItems: "center",
-  },
   inspBtn: {
     flexDirection: "row", alignItems: "center", gap: 4,
     backgroundColor: "#7c3aed", paddingHorizontal: 10, paddingVertical: 7, borderRadius: 8,
@@ -438,20 +412,16 @@ const st = StyleSheet.create({
   issueDate: { fontSize: 10, color: "#94a3b8", marginTop: 2 },
 
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  modalScroll: { justifyContent: "flex-end", flexGrow: 1 },
   modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   modalTitle: { fontSize: 15, fontWeight: "700", color: "#1e293b", flex: 1, marginRight: 8 },
 
-  typeRow: { flexDirection: "row", gap: 8, marginBottom: 12, flexWrap: "wrap" },
-  typeBtn: {
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10,
-    backgroundColor: "#f1f5f9", borderWidth: 1, borderColor: "#e2e8f0",
-  },
-  typeBtnActive: { backgroundColor: "#ede9fe", borderColor: "#7c3aed" },
-  typeBtnTxt: { fontSize: 12, color: "#64748b", fontWeight: "600" },
-  typeBtnTxtActive: { color: "#7c3aed" },
+  equipBlock: { paddingVertical: 12 },
+  equipBlockBorder: { borderBottomWidth: 1, borderBottomColor: "#f1f5f9" },
+  equipBlockTitle: { fontSize: 14, fontWeight: "700", color: "#1e293b", marginBottom: 10 },
 
-  condRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  condRow: { flexDirection: "row", gap: 8, marginBottom: 8 },
   condBtn: {
     flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1.5,
     alignItems: "center", gap: 4,
@@ -469,11 +439,5 @@ const st = StyleSheet.create({
   },
   saveBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
-  histRow: {
-    flexDirection: "row", gap: 10, alignItems: "flex-start",
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#f1f5f9",
-  },
-  histEmail: { fontSize: 13, fontWeight: "600", color: "#1e293b" },
-  histDate: { fontSize: 11, color: "#64748b", marginTop: 2 },
   emptyTxt: { color: "#94a3b8", fontSize: 13, textAlign: "center", marginVertical: 20 },
 });

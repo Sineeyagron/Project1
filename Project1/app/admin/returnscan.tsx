@@ -32,7 +32,7 @@ export default function ReturnScan() {
   const [permission, requestPermission] = useCameraPermissions();
 
   const [step, setStep] = useState<Step>("scan");
-  const [scanned, setScanned] = useState(false);
+  const scanLock = useRef(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sigError, setSigError] = useState(false);
@@ -45,8 +45,8 @@ export default function ReturnScan() {
 
   // ── สแกน barcode → ดึงข้อมูลการยืม ──
   const handleScan = async ({ data }: { data: string }) => {
-    if (scanned) return;
-    setScanned(true);
+    if (scanLock.current) return;
+    scanLock.current = true;
     setLoading(true);
 
     let foundItem: any = null;
@@ -76,14 +76,14 @@ export default function ReturnScan() {
     if (!foundItem) {
       setLoading(false);
       Alert.alert("ไม่พบอุปกรณ์", `ไม่พบ "${data}" ในระบบ`,
-        [{ text: "สแกนใหม่", onPress: () => setScanned(false) }]);
+        [{ text: "สแกนใหม่", onPress: () => { scanLock.current = false; } }]);
       return;
     }
 
     if (foundItem.status !== "borrowed") {
       setLoading(false);
       Alert.alert("ไม่ได้ถูกยืม", `${foundItem.name} ไม่ได้อยู่ในสถานะถูกยืม`,
-        [{ text: "สแกนใหม่", onPress: () => setScanned(false) }]);
+        [{ text: "สแกนใหม่", onPress: () => { scanLock.current = false; } }]);
       return;
     }
 
@@ -105,7 +105,7 @@ export default function ReturnScan() {
 
     if (!finalRecord) {
       Alert.alert("ไม่พบประวัติการยืม", "ไม่พบข้อมูลการยืมในระบบ",
-        [{ text: "สแกนใหม่", onPress: () => setScanned(false) }]);
+        [{ text: "สแกนใหม่", onPress: () => { scanLock.current = false; } }]);
       return;
     }
 
@@ -124,6 +124,7 @@ export default function ReturnScan() {
 
   const goToSignature = () => {
     setSigError(false);
+    sigRef.current?.clear();
     setStep("signature");
   };
 
@@ -133,6 +134,7 @@ export default function ReturnScan() {
       setSigError(true);
       return;
     }
+    setSigError(false);
     if (!item || !borrowRecord) return;
 
     setSaving(true);
@@ -161,7 +163,7 @@ export default function ReturnScan() {
 
   const reset = () => {
     setStep("scan");
-    setScanned(false);
+    scanLock.current = false;
     setItem(null);
     setBorrowRecord(null);
     setBorrowerEmail("");
@@ -346,7 +348,7 @@ export default function ReturnScan() {
         <View style={{ width: 22 }} />
       </View>
 
-      <ScrollView contentContainerStyle={s.form}>
+      <View style={[s.form, { flex: 1 }]}>
         {/* STEP INDICATOR */}
         <View style={s.stepRow}>
           <View style={s.stepDone}><Ionicons name="checkmark" size={14} color="#fff" /></View>
@@ -374,7 +376,6 @@ export default function ReturnScan() {
           <SignatureCanvas
             ref={sigRef}
             strokeColor="#c2410c"
-            onBegin={() => setSigError(false)}
             style={sigError ? s.sigError : undefined}
           />
           {sigError && (
@@ -406,9 +407,7 @@ export default function ReturnScan() {
         <TouchableOpacity style={s.cancelBtn} onPress={() => setStep("confirm")}>
           <Text style={s.cancelBtnTxt}>← ย้อนกลับ</Text>
         </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+      </View>
     </View>
   );
 }

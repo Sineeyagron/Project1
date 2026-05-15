@@ -1,4 +1,4 @@
-# 📱 Project: IoT Equipment & Room Booking System
+# 📱 Project: IoT Lab Management App
 
 > อ่านไฟล์นี้ก่อนทุกครั้งที่เริ่มทำงาน เพื่อให้รู้บริบทโปรเจกต์
 
@@ -46,6 +46,7 @@
 
 ### Supabase Storage
 - Bucket: **`item-images`** — รูปอุปกรณ์ (public)
+- Bucket: **`signatures`** — ลายเซ็น SVG ยืม/คืน (public) — ถ้ายังไม่มีต้องสร้างใน Supabase dashboard
 
 ---
 
@@ -103,12 +104,14 @@ ON CONFLICT DO NOTHING;
 2. สแกน Barcode/QR บน item → ขึ้นชื่อ + รูป + สถานะ
 3. พิมพ์ email user (มี autocomplete จาก profiles)
 4. กำหนดวันคืน (preset: 1/3/7/14 วัน)
-5. กดยืนยัน → insert borrow_records + update items.status = "borrowed"
+5. เซ็นลายเซ็นด้วยนิ้ว (SignatureCanvas)
+6. กดยืนยัน → insert borrow_records + อัปโหลด SVG ลายเซ็น → update `borrow_signature_url` + items.status = "borrowed"
 
 ### คืน (Admin ทำ):
 1. Admin กด "สแกนคืน" ใน `admin/returnscan.tsx`
 2. สแกน Barcode/QR บน item → ขึ้นชื่อ user + วันยืม + วันครบกำหนด
-3. กดยืนยันรับคืน → update borrow_records.status = "returned" + items.status = "available"
+3. เซ็นลายเซ็นด้วยนิ้ว (SignatureCanvas)
+4. กดยืนยันรับคืน → อัปโหลด SVG ลายเซ็น → update `return_signature_url` + borrow_records.status = "returned" + items.status = "available"
 
 ### Logic การค้นหา item จาก scan (ทั้ง borrow และ return):
 1. ค้นด้วย `barcode` field ก่อน
@@ -117,9 +120,9 @@ ON CONFLICT DO NOTHING;
 
 ---
 
-## 📊 สถานะปัจจุบัน (อัปเดต 15 พ.ค. 2569)
+## 📊 สถานะปัจจุบัน (อัปเดต 16 พ.ค. 2569)
 
-### ✅ เสร็จแล้ว — ทุก feature เสร็จหมดแล้ว (อัปเดต 16 พ.ค. 2569)
+### ✅ เสร็จแล้ว — ทุก feature เสร็จหมดแล้ว
 
 #### User screens
 - [x] Login / Signup (upsert + ตาดูรหัสผ่าน) / Forgot / Reset Password
@@ -133,9 +136,9 @@ ON CONFLICT DO NOTHING;
 
 #### Admin screens
 - [x] Admin Dashboard — สถิติอุปกรณ์ + เมนู (เอา booking stats ออกแล้ว)
-- [x] Admin สแกนยืม (borrowscan) — barcode/UUID/JSON → email autocomplete → due date
-- [x] Admin สแกนคืน (returnscan) — barcode/UUID/JSON → ยืนยันคืน + overdue detect
-- [x] Admin จัดการห้อง (room) — สถิติเครื่องแต่ละห้อง + quick links
+- [x] Admin สแกนยืม (borrowscan) — barcode/UUID/JSON → email autocomplete → due date → **ลายเซ็นนิ้ว**
+- [x] Admin สแกนคืน (returnscan) — barcode/UUID/JSON → ยืนยันคืน + overdue detect → **ลายเซ็นนิ้ว**
+- [x] Admin จัดการห้อง (room) — สถิติเครื่องแต่ละห้อง + quick links (รวม 11 ปุ่มใน dashboard)
 - [x] Admin จัดการอุปกรณ์ (items) — เพิ่ม/ลบ + barcode + type + search + stats
 - [x] Admin QR Generator (qrgen)
 - [x] Admin Scan & เพิ่ม Item (scan)
@@ -173,7 +176,7 @@ app/
 ├── roommap.tsx          — ✅ (กดเครื่องดูสถานะ, กด Server ดู LAN port)
 ├── lanstatus.tsx        — ✅ (แยกห้อง/กลุ่ม)
 └── admin/
-    ├── home.tsx         — ✅ (สถิติอุปกรณ์ + เมนู 9 ปุ่ม)
+    ├── home.tsx         — ✅ (สถิติอุปกรณ์ + เมนู 11 ปุ่ม)
     ├── items.tsx        — ✅ (เพิ่ม/ลบ + barcode + type + search + stats)
     ├── borrow.tsx       — ✅ (ยืนยันคืน เดิม — ยังคงไว้แต่ไม่ได้ link)
     ├── history.tsx      — ✅
@@ -200,10 +203,25 @@ components/
 ---
 
 ## ⚠️ Known Issues / หมายเหตุ
+
+### Navigation
+- **`app/index.tsx` ต้องใช้ `<Redirect href="/admin/home" />` เท่านั้น** — ห้ามใช้ `router.replace()` ใน useEffect เพราะจะเกิด error "Attempted to navigate before mounting the Root Layout component"
+- `_layout.tsx`: router calls ใน `onAuthStateChange` และ deep link handler ให้ wrap ด้วย `setTimeout(() => ..., 0)` เสมอ
+
+### Expo / Build
 - `expo-file-system` — ต้อง `import * as FileSystem from "expo-file-system"` แล้ว cast `const FS = FileSystem as any`
 - Expo LAN mode timeout → เปิด firewall: `netsh advfirewall firewall add rule name="Expo Metro" dir=in action=allow protocol=TCP localport=8081`
 - UI เก่าค้าง → `npx expo start --clear`
+
+### Supabase
 - Supabase Signup trigger อาจสร้าง profile อัตโนมัติ → ใช้ `upsert` แทน `insert` ใน signup.tsx แล้ว
 - QR code จาก qrgen เก็บ JSON `{name, type, description}` ไม่ใช่ barcode → borrowscan/returnscan มี fallback parse JSON แล้ว
 - borrow_records อาจไม่มี `borrow_date` → ใช้ `created_at` เป็น fallback
 - profiles join ใน borrow_records อาจไม่มี FK → ดึง email แยกด้วย query ใน returnscan
+- Signature upload ใช้ Supabase Storage REST API ผ่าน `fetch()` โดยตรง (ไม่ใช้ JS client) เพราะ React Native ไม่รองรับ Blob ตามปกติ — ดู `lib/uploadSignature.ts`
+
+### SQL ที่ต้องรัน (ถ้า signatures ยังไม่มี columns):
+```sql
+ALTER TABLE borrow_records ADD COLUMN IF NOT EXISTS borrow_signature_url text;
+ALTER TABLE borrow_records ADD COLUMN IF NOT EXISTS return_signature_url text;
+```
