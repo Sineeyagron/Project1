@@ -1,267 +1,143 @@
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  TextInput,
+  Pressable,
   ScrollView,
-  Modal
+  Alert,
 } from "react-native";
-import { useState } from "react";
-import { useRouter } from "expo-router";
-import { useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import supabase from "../../lib/supabase";
 
-type BorrowItem = {
-  id: string;
-  item: string;
-  date: string;
-  returnDate: string;
-  show: boolean;
-};
+export default function AdminBorrow() {
+  const [requests, setRequests] = useState<any[]>([]);
 
-export default function Borrow() {
+  useEffect(() => {
+    fetchRequests();
+  }, []);
 
-  const router = useRouter();
+  const fetchRequests = async () => {
+    const { data, error } = await supabase
+      .from("borrow_records")
+      .select(`
+        id,
+        status,
+        item_id,
+        items (
+          name
+        )
+      `)
+      .eq("status", "pending_return");
 
-  const [search,setSearch] = useState("");
-
-  const [data,setData] = useState<BorrowItem[]>([
-    {
-      id:"65301234",
-      item:"Arduino",
-      date:"22/05/69",
-      returnDate:"25/05/69",
-      show:false
-    },
-    {
-      id:"65301235",
-      item:"Sensor",
-      date:"22/05/69",
-      returnDate:"25/05/69",
-      show:false
-    },
-    {
-      id:"65301231",
-      item:"ESP32",
-      date:"23/05/69",
-      returnDate:"26/05/69",
-      show:false
+    if (error) {
+      console.log(error);
+    } else {
+      setRequests(data);
     }
-  ]);
+  };
 
-  // ✅ ต้องอยู่ใน function เท่านั้น
-  const [editModal,setEditModal] = useState(false);
-  const [editData,setEditData] = useState<BorrowItem | null>(null);
+  // 🔥 ฟังก์ชันยืนยันคืน
+  const confirmReturn = (item: any) => {
+    Alert.alert(
+      "ยืนยันคืน",
+      "ตรวจสอบของแล้วใช่ไหม?",
+      [
+        { text: "ยกเลิก", style: "cancel" },
+        {
+          text: "ยืนยัน",
+          onPress: async () => {
+            // 1. update borrow_records
+            await supabase
+              .from("borrow_records")
+              .update({
+                status: "returned",
+                return_date: new Date().toISOString(),
+              })
+              .eq("id", item.id);
 
-  const filtered = data.filter(d =>
-    d.id.includes(search)
+            // 2. update items
+            await supabase
+              .from("items")
+              .update({
+                status: "available",
+              })
+              .eq("id", item.item_id);
+
+            Alert.alert("สำเร็จ", "คืนของเรียบร้อย 🎉");
+
+            fetchRequests();
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+
+      <Text style={styles.header}>รายการรอคืน</Text>
+
+      {requests.map((r) => (
+        <Pressable
+          key={r.id}
+          style={styles.card}
+          onPress={() => confirmReturn(r)}
+        >
+          <View style={styles.row}>
+            <Ionicons name="cube-outline" size={20} color="#1e3a8a" />
+
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>
+                {r.items?.name || r.items?.[0]?.name}
+              </Text>
+
+              <Text style={styles.status}>
+                STATUS: {r.status}
+              </Text>
+            </View>
+
+            <Ionicons name="checkmark-circle" size={22} color="green" />
+          </View>
+        </Pressable>
+      ))}
+
+    </ScrollView>
   );
-
-  function toggle(id: string){
-    const newData = data.map(item =>
-      item.id === id ? {...item, show: !item.show} : item
-    );
-    setData(newData);
-  }
-
-  // ✅ เปิดแก้ไข
-  function openEdit(item: BorrowItem){
-    setEditData(item);
-    setEditModal(true);
-  }
-
-  // ✅ บันทึก
-  function saveEdit(){
-    if(!editData) return;
-
-    const newData = data.map(d =>
-      d.id === editData.id ? editData : d
-    );
-
-    setData(newData);
-    setEditModal(false);
-  }
-
-  return(
-
-<View style={styles.container}>
-
-<Text style={styles.title}>จัดการยืม</Text>
-
-<View style={styles.row}>
-<TextInput
-placeholder="ค้นหา"
-value={search}
-onChangeText={setSearch}
-style={styles.search}
-/>
-
-<TouchableOpacity
-style={styles.btn}
-onPress={()=>router.push("/admin/device")}
->
-<Text style={{color:"#fff"}}>จัดการอุปกรณ์</Text>
-</TouchableOpacity>
-</View>
-
-<ScrollView>
-
-{filtered.map((item)=>(
-
-<View key={item.id}>
-
-<Text style={{marginTop:10}}>{item.date}</Text>
-
-<TouchableOpacity
-style={styles.card}
-onPress={()=>toggle(item.id)}
->
-
-<Text>{item.id}   {item.item}</Text>
-
-{item.show && (
-<View>
-
-<Text>วันที่ยืม: {item.date}</Text>
-<Text>วันที่คืน: {item.returnDate}</Text>
-
-{/* 🔥 ปุ่มแก้ไข */}
-<TouchableOpacity
-style={styles.editBtn}
-onPress={()=>openEdit(item)}
->
-<Text style={{color:"#fff"}}>แก้ไข</Text>
-</TouchableOpacity>
-
-</View>
-)}
-
-</TouchableOpacity>
-
-</View>
-
-))}
-
-</ScrollView>
-
-{/* 🔻 navbar */}
-<View style={styles.navbar}>
-<TouchableOpacity onPress={()=>router.push("/admin/home")}>
-<Text>ห้องเรียน</Text>
-</TouchableOpacity>
-
-<TouchableOpacity onPress={()=>router.push("/admin/scan")}>
-<Text>สแกน</Text>
-</TouchableOpacity>
-
-<TouchableOpacity onPress={()=>router.push("/admin/borrow")}>
-<Text>การยืม</Text>
-</TouchableOpacity>
-</View>
-
-{/* 🔥 Modal แก้ไข */}
-<Modal visible={editModal} transparent>
-
-<View style={styles.modalBg}>
-<View style={styles.modalBox}>
-
-<Text style={{fontSize:18}}>แก้ไขข้อมูล</Text>
-
-<TextInput
-value={editData?.item}
-onChangeText={(text)=>
-setEditData({...editData!,item:text})
-}
-style={styles.input}
-/>
-
-<TextInput
-value={editData?.date}
-onChangeText={(text)=>
-setEditData({...editData!,date:text})
-}
-style={styles.input}
-/>
-
-<TextInput
-value={editData?.returnDate}
-onChangeText={(text)=>
-setEditData({...editData!,returnDate:text})
-}
-style={styles.input}
-/>
-
-<TouchableOpacity style={styles.okBtn} onPress={saveEdit}>
-<Text style={{color:"#fff"}}>บันทึก</Text>
-</TouchableOpacity>
-
-<TouchableOpacity
-onPress={()=>setEditModal(false)}
-style={{marginTop:10}}
->
-<Text>ยกเลิก</Text>
-</TouchableOpacity>
-
-</View>
-</View>
-
-</Modal>
-
-</View>
-);
 }
 
 const styles = StyleSheet.create({
-container:{flex:1,backgroundColor:"#eee",padding:20},
-title:{fontSize:26,textAlign:"center",marginBottom:10},
-row:{flexDirection:"row",marginBottom:10},
-search:{flex:1,backgroundColor:"#c7d8e6",padding:10,borderRadius:10,marginRight:10},
-btn:{backgroundColor:"#ff8c8c",padding:10,borderRadius:10},
-card:{backgroundColor:"#bcd0df",padding:20,borderRadius:15,marginTop:10},
+  container: {
+    flex: 1,
+    backgroundColor: "#f1f5f9",
+    padding: 20,
+  },
 
-editBtn:{
-backgroundColor:"red",
-padding:10,
-borderRadius:10,
-marginTop:10,
-alignItems:"center"
-},
+  header: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
 
-navbar:{
-position:"absolute",
-bottom:0,
-width:"100%",
-flexDirection:"row",
-justifyContent:"space-around",
-backgroundColor:"#c7d8e6",
-padding:15
-},
+  card: {
+    backgroundColor: "#fff",
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 10,
+  },
 
-modalBg:{
-flex:1,
-backgroundColor:"rgba(0,0,0,0.5)",
-justifyContent:"center",
-alignItems:"center"
-},
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
 
-modalBox:{
-backgroundColor:"#fff",
-padding:20,
-borderRadius:10,
-width:"80%"
-},
+  title: {
+    fontWeight: "bold",
+  },
 
-input:{
-borderWidth:1,
-padding:10,
-marginVertical:10
-},
-
-okBtn:{
-backgroundColor:"green",
-padding:10,
-borderRadius:10,
-alignItems:"center"
-}
-
+  status: {
+    color: "#64748b",
+    fontSize: 12,
+  },
 });
