@@ -33,8 +33,11 @@
 |-------|-----------|
 | `profiles` | user info + role (user/admin) + email |
 | `items` | อุปกรณ์ IoT + `image_url` + `description` + `barcode` + `type` |
-| `borrow_records` | ประวัติยืม-คืน + `due_date` (วันครบกำหนด) |
-| `computer_stations` | เครื่องคอมแต่ละห้อง (room_id, name, group_no, status) |
+| `borrow_records` | ประวัติยืม-คืน + `due_date` + `borrow_signature_url` + `return_signature_url` |
+| `computer_stations` | เครื่องคอมแต่ละห้อง (room_id, name, group_no, status) — **9 เครื่อง/กลุ่ม** |
+| `station_equipment` | checklist อุปกรณ์ต่อเครื่อง (mouse/keyboard/monitor, status: present/missing/broken) |
+| `equipment_inspections` | บันทึกการตรวจประจำเทอม (term, station_id, equipment_type, condition, notes) |
+| `repair_records` | ติดตามการซ่อม (station_id, description, status: pending/in-repair/done) |
 | `room_bookings` | ไม่ได้ใช้แล้ว (ระบบจองถูกเอาออก) |
 | `lan_ports` | LAN port ของ server แต่ละกลุ่ม (room_id, group_no, port_no, label, status) |
 
@@ -48,8 +51,9 @@
 
 ## 📐 โครงสร้างห้อง
 - 1 ห้อง → 6 กลุ่ม
-- 1 กลุ่ม → คอม 6 เครื่อง + Server 1 เครื่อง
+- 1 กลุ่ม → คอม **9 เครื่อง** (C1–C9) + Server 1 เครื่อง
 - Server มี LAN Port 12 ช่อง (สถานะ: available / repair / broken)
+- ทุกเครื่องมี checklist: mouse / keyboard / monitor (station_equipment)
 - ห้องที่มี: CP9524, SC9604
 
 ---
@@ -115,7 +119,7 @@ ON CONFLICT DO NOTHING;
 
 ## 📊 สถานะปัจจุบัน (อัปเดต 15 พ.ค. 2569)
 
-### ✅ เสร็จแล้ว — ทุก feature เสร็จหมดแล้ว
+### ✅ เสร็จแล้ว — ทุก feature เสร็จหมดแล้ว (อัปเดต 16 พ.ค. 2569)
 
 #### User screens
 - [x] Login / Signup (upsert + ตาดูรหัสผ่าน) / Forgot / Reset Password
@@ -139,6 +143,8 @@ ON CONFLICT DO NOTHING;
 - [x] Admin จัดการเครื่องคอม (stations) — เพิ่ม/ลบ/แก้/toggle status
 - [x] Admin สถานะเครื่องคอม (editStatus) — toggle available/repair
 - [x] Admin จัดการ LAN Port (lanports) — toggle status/เพิ่ม/ลบ
+- [x] Admin ตรวจอุปกรณ์ประจำเทอม (inspection) — บันทึกสภาพ + ดูประวัติผู้ยืม
+- [x] Admin ซ่อมบำรุง (repairs) — แจ้งซ่อม/อัปเดตสถานะ pending→in-repair→done
 - [x] Logout
 
 ### ❌ เอาออกแล้ว
@@ -174,15 +180,21 @@ app/
     ├── scan.tsx         — ✅ (QR scan + เพิ่ม item)
     ├── qrgen.tsx        — ✅
     ├── lanports.tsx     — ✅ (จัดการ port แยกห้อง/กลุ่ม)
-    ├── borrowscan.tsx   — ✅ (สแกนยืม: barcode/UUID/JSON → email → due date)
-    ├── returnscan.tsx   — ✅ (สแกนคืน: barcode/UUID/JSON → ยืนยัน + overdue)
+    ├── borrowscan.tsx   — ✅ (สแกนยืม → email → due date → **ลายเซ็น**)
+    ├── returnscan.tsx   — ✅ (สแกนคืน → ยืนยัน + overdue → **ลายเซ็น**)
     ├── stations.tsx     — ✅ (จัดการเครื่องคอม: เพิ่ม/ลบ/แก้/toggle)
     ├── room.tsx         — ✅ (overview: สถิติแต่ละห้อง + quick links)
+    ├── inspection.tsx   — ✅ (ตรวจอุปกรณ์ประจำเทอม + ดูประวัติผู้ยืม)
+    ├── repairs.tsx      — ✅ (แจ้งซ่อม/ติดตามสถานะ pending→in-repair→done)
     └── status/
         └── editStatus.tsx — ✅
 
 lib/
-└── supabase.ts
+├── supabase.ts
+└── uploadSignature.ts   — helper upload SVG ลายเซ็น → Supabase Storage
+
+components/
+└── SignatureCanvas.tsx   — reusable signature pad (PanResponder + react-native-svg)
 ```
 
 ---

@@ -7,16 +7,28 @@ import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
 
-const PORT_STATUS: { [k: string]: { color: string; bg: string; label: string; icon: any } } = {
+const PORT_STATUS: Record<string, { color: string; bg: string; label: string; icon: any }> = {
   available: { color: "#16a34a", bg: "#dcfce7", label: "ใช้งานได้", icon: "checkmark-circle-outline" },
   repair:    { color: "#b45309", bg: "#fef3c7", label: "กำลังซ่อม", icon: "construct-outline" },
   broken:    { color: "#dc2626", bg: "#fee2e2", label: "เสีย",       icon: "close-circle-outline" },
 };
 
-const STATION_STATUS: { [k: string]: { color: string; bg: string; label: string; icon: any } } = {
-  available: { color: "#16a34a", bg: "#86efac", label: "ว่าง",          icon: "checkmark-circle-outline" },
-  repair:    { color: "#b45309", bg: "#fde68a", label: "ซ่อมบำรุง",     icon: "construct-outline" },
-  broken:    { color: "#dc2626", bg: "#fca5a5", label: "พัง",            icon: "close-circle-outline" },
+const STATION_STATUS: Record<string, { color: string; bg: string; label: string; icon: any }> = {
+  available: { color: "#16a34a", bg: "#86efac", label: "ว่าง",      icon: "checkmark-circle-outline" },
+  repair:    { color: "#b45309", bg: "#fde68a", label: "ซ่อมบำรุง", icon: "construct-outline" },
+  broken:    { color: "#dc2626", bg: "#fca5a5", label: "พัง",        icon: "close-circle-outline" },
+};
+
+const EQUIP_STATUS: Record<string, { color: string; bg: string; label: string; icon: any }> = {
+  present: { color: "#16a34a", bg: "#dcfce7", label: "ครบ",    icon: "checkmark-circle-outline" },
+  missing: { color: "#dc2626", bg: "#fee2e2", label: "หาย",   icon: "alert-circle-outline" },
+  broken:  { color: "#b45309", bg: "#fef3c7", label: "ชำรุด", icon: "construct-outline" },
+};
+
+const EQUIP_LABELS: Record<string, string> = {
+  mouse:    "🖱️ เมาส์",
+  keyboard: "⌨️ คีย์บอร์ด",
+  monitor:  "🖥️ จอภาพ",
 };
 
 export default function RoomMap() {
@@ -26,11 +38,12 @@ export default function RoomMap() {
 
   const [stations, setStations] = useState<any[]>([]);
   const [lanPorts, setLanPorts] = useState<any[]>([]);
-  const [loading, setLoading]   = useState(true);
+  const [equipMap, setEquipMap] = useState<Record<string, any[]>>({});
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Modal: detail เครื่องคอม
-  const [compModal, setCompModal]           = useState(false);
+  // Modal: detail เครื่องคอม + checklist
+  const [compModal, setCompModal] = useState(false);
   const [selectedStation, setSelectedStation] = useState<any>(null);
 
   // Modal: Server LAN ports
@@ -40,14 +53,24 @@ export default function RoomMap() {
   useEffect(() => { fetchAll(); }, []);
 
   const fetchAll = async () => {
-    const [{ data: st }, { data: lp }] = await Promise.all([
+    const [{ data: st }, { data: lp }, { data: eq }] = await Promise.all([
       supabase.from("computer_stations").select("*")
         .eq("room_id", roomName).order("group_no").order("name"),
       supabase.from("lan_ports").select("*")
         .eq("room_id", roomName).order("group_no").order("port_no"),
+      supabase.from("station_equipment").select("*"),
     ]);
+
     setStations(st || []);
     setLanPorts(lp || []);
+
+    // จัด equipMap: station_id → []
+    const map: Record<string, any[]> = {};
+    (eq || []).forEach((e: any) => {
+      if (!map[e.station_id]) map[e.station_id] = [];
+      map[e.station_id].push(e);
+    });
+    setEquipMap(map);
     setLoading(false);
     setRefreshing(false);
   };
@@ -64,7 +87,7 @@ export default function RoomMap() {
   };
 
   // จัดกลุ่ม stations
-  const grouped: { [k: number]: any[] } = {};
+  const grouped: Record<number, any[]> = {};
   stations.forEach(s => {
     if (!grouped[s.group_no]) grouped[s.group_no] = [];
     grouped[s.group_no].push(s);
@@ -72,30 +95,39 @@ export default function RoomMap() {
 
   const serverGroupPorts = serverGroup !== null ? getGroupPorts(serverGroup) : [];
 
-  const getStationCfg = (status: string) =>
-    STATION_STATUS[status] || STATION_STATUS.available;
+  // Equipment summary สำหรับ station badge
+  const getEquipSummary = (stationId: string) => {
+    const equips = equipMap[stationId] || [];
+    const hasIssue = equips.some(e => e.status !== "present");
+    return { hasIssue, equips };
+  };
+
+  const openStation = (station: any) => {
+    setSelectedStation(station);
+    setCompModal(true);
+  };
 
   return (
-    <View style={styles.container}>
+    <View style={s.container}>
 
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#1e3a8a" />
         </TouchableOpacity>
-        <Text style={styles.headerText}>ผังห้อง {roomName}</Text>
+        <Text style={s.headerText}>ผังห้อง {roomName}</Text>
         <View style={{ width: 24 }} />
       </View>
 
       {/* LEGEND */}
-      <View style={styles.legend}>
+      <View style={s.legend}>
         {Object.entries(STATION_STATUS).map(([k, v]) => (
-          <View key={k} style={styles.legItem}>
-            <View style={[styles.legDot, { backgroundColor: v.bg }]} />
-            <Text style={styles.legTxt}>{v.label}</Text>
+          <View key={k} style={s.legItem}>
+            <View style={[s.legDot, { backgroundColor: v.bg }]} />
+            <Text style={s.legTxt}>{v.label}</Text>
           </View>
         ))}
-        <Text style={styles.viewOnly}>👁 กดเพื่อดูสถานะ</Text>
+        <Text style={s.viewOnly}>👁 กดเพื่อดูรายละเอียด</Text>
       </View>
 
       {loading ? (
@@ -105,12 +137,12 @@ export default function RoomMap() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}>
 
           {/* กระดาน */}
-          <View style={styles.board}>
+          <View style={s.board}>
             <Ionicons name="easel-outline" size={20} color="#fff" />
-            <Text style={styles.boardTxt}>กระดาน / Projector</Text>
+            <Text style={s.boardTxt}>กระดาน / Projector</Text>
           </View>
-          <View style={styles.teacherDesk}>
-            <Text style={styles.teacherTxt}>🧑‍🏫 โต๊ะอาจารย์</Text>
+          <View style={s.teacherDesk}>
+            <Text style={s.teacherTxt}>🧑‍🏫 โต๊ะอาจารย์</Text>
           </View>
 
           {/* กลุ่ม */}
@@ -118,27 +150,25 @@ export default function RoomMap() {
             const groupNo = Number(gNo);
             const srv = getServerSummary(groupNo);
             return (
-              <View key={gNo} style={styles.groupBox}>
-                <Text style={styles.groupLabel}>กลุ่มที่ {groupNo}</Text>
-                <View style={styles.groupRow}>
+              <View key={gNo} style={s.groupBox}>
+                <Text style={s.groupLabel}>กลุ่มที่ {groupNo}</Text>
+                <View style={s.groupRow}>
 
                   {/* คอมในกลุ่ม */}
-                  <View style={styles.stationsWrap}>
+                  <View style={s.stationsWrap}>
                     {stns.map(station => {
-                      const cfg = getStationCfg(station.status);
+                      const cfg = STATION_STATUS[station.status] || STATION_STATUS.available;
+                      const { hasIssue } = getEquipSummary(station.id);
                       return (
                         <TouchableOpacity
                           key={station.id}
-                          style={[styles.station, { backgroundColor: cfg.bg }]}
-                          onPress={() => { setSelectedStation(station); setCompModal(true); }}
+                          style={[s.station, { backgroundColor: cfg.bg }]}
+                          onPress={() => openStation(station)}
                         >
+                          {hasIssue && <View style={s.equipWarnDot} />}
                           <Ionicons name="desktop-outline" size={16} color={cfg.color} />
-                          <Text style={[styles.stationName, { color: cfg.color }]}>
-                            {station.name}
-                          </Text>
-                          <Text style={[styles.stationSub, { color: cfg.color }]}>
-                            {cfg.label}
-                          </Text>
+                          <Text style={[s.stationName, { color: cfg.color }]}>{station.name}</Text>
+                          <Text style={[s.stationSub, { color: cfg.color }]}>{cfg.label}</Text>
                         </TouchableOpacity>
                       );
                     })}
@@ -146,20 +176,18 @@ export default function RoomMap() {
 
                   {/* Server card */}
                   <TouchableOpacity
-                    style={[styles.serverCard, srv.broken > 0 && styles.serverCardWarn]}
+                    style={[s.serverCard, srv.broken > 0 && s.serverCardWarn]}
                     onPress={() => { setServerGroup(groupNo); setServerModal(true); }}
                   >
-                    <Ionicons
-                      name="server-outline" size={20}
-                      color={srv.broken > 0 ? "#b45309" : "#1d4ed8"}
-                    />
-                    <Text style={[styles.serverLabel, { color: srv.broken > 0 ? "#b45309" : "#1d4ed8" }]}>
+                    <Ionicons name="server-outline" size={20}
+                      color={srv.broken > 0 ? "#b45309" : "#1d4ed8"} />
+                    <Text style={[s.serverLabel, { color: srv.broken > 0 ? "#b45309" : "#1d4ed8" }]}>
                       Server
                     </Text>
-                    <Text style={styles.serverPort}>{srv.total} port</Text>
+                    <Text style={s.serverPort}>{srv.total} port</Text>
                     {srv.broken > 0 && (
-                      <View style={styles.warnBadge}>
-                        <Text style={styles.warnBadgeTxt}>{srv.broken} เสีย</Text>
+                      <View style={s.warnBadge}>
+                        <Text style={s.warnBadgeTxt}>{srv.broken} เสีย</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -169,9 +197,9 @@ export default function RoomMap() {
           })}
 
           {stations.length === 0 && (
-            <View style={styles.empty}>
+            <View style={s.empty}>
               <Ionicons name="desktop-outline" size={48} color="#cbd5e1" />
-              <Text style={styles.emptyTxt}>ไม่พบข้อมูลเครื่องคอมในห้องนี้</Text>
+              <Text style={s.emptyTxt}>ไม่พบข้อมูลเครื่องคอมในห้องนี้</Text>
             </View>
           )}
 
@@ -179,54 +207,75 @@ export default function RoomMap() {
         </ScrollView>
       )}
 
-      {/* MODAL: สถานะเครื่องคอม */}
+      {/* ── MODAL: สถานะเครื่องคอม + Equipment Checklist ── */}
       <Modal visible={compModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <View style={styles.modalHeader}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <View style={s.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>{selectedStation?.name}</Text>
-                <Text style={styles.modalSub}>ห้อง {roomName} · กลุ่ม {selectedStation?.group_no}</Text>
+                <Text style={s.modalTitle}>{selectedStation?.name}</Text>
+                <Text style={s.modalSub}>ห้อง {roomName} · กลุ่ม {selectedStation?.group_no}</Text>
               </View>
               <TouchableOpacity onPress={() => setCompModal(false)}>
                 <Ionicons name="close" size={24} color="#64748b" />
               </TouchableOpacity>
             </View>
 
+            {/* สถานะเครื่อง */}
             {(() => {
-              const cfg = getStationCfg(selectedStation?.status || "available");
+              const cfg = STATION_STATUS[selectedStation?.status || "available"];
               return (
-                <View style={[styles.statusBigBox, { backgroundColor: cfg.bg + "80" }]}>
-                  <Ionicons name={cfg.icon} size={48} color={cfg.color} />
-                  <Text style={[styles.statusBigLabel, { color: cfg.color }]}>{cfg.label}</Text>
+                <View style={[s.statusBigBox, { backgroundColor: cfg.bg + "80" }]}>
+                  <Ionicons name={cfg.icon} size={40} color={cfg.color} />
+                  <Text style={[s.statusBigLabel, { color: cfg.color }]}>{cfg.label}</Text>
                   {selectedStation?.status === "repair" && (
-                    <Text style={styles.statusNote}>เครื่องนี้อยู่ระหว่างซ่อมบำรุง ไม่สามารถใช้งานได้</Text>
+                    <Text style={s.statusNote}>เครื่องนี้อยู่ระหว่างซ่อมบำรุง</Text>
                   )}
                   {selectedStation?.status === "broken" && (
-                    <Text style={styles.statusNote}>เครื่องนี้ชำรุด กรุณาแจ้งผู้ดูแล</Text>
+                    <Text style={s.statusNote}>เครื่องนี้ชำรุด กรุณาแจ้งผู้ดูแล</Text>
                   )}
                   {selectedStation?.status === "available" && (
-                    <Text style={styles.statusNote}>เครื่องนี้พร้อมใช้งาน</Text>
+                    <Text style={s.statusNote}>เครื่องนี้พร้อมใช้งาน</Text>
                   )}
                 </View>
               );
             })()}
 
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setCompModal(false)}>
-              <Text style={styles.closeBtnTxt}>ปิด</Text>
+            {/* Equipment Checklist */}
+            <Text style={s.checklistTitle}>อุปกรณ์ประจำเครื่อง</Text>
+            <View style={s.checklistGrid}>
+              {(["mouse", "keyboard", "monitor"] as const).map(type => {
+                const equips = equipMap[selectedStation?.id] || [];
+                const eq = equips.find((e: any) => e.equipment_type === type);
+                const status = eq?.status || "present";
+                const cfg = EQUIP_STATUS[status];
+                return (
+                  <View key={type} style={[s.checklistItem, { backgroundColor: cfg.bg }]}>
+                    <Ionicons name={cfg.icon} size={20} color={cfg.color} />
+                    <Text style={[s.checklistLabel, { color: cfg.color }]}>
+                      {EQUIP_LABELS[type]}
+                    </Text>
+                    <Text style={[s.checklistStatus, { color: cfg.color }]}>{cfg.label}</Text>
+                  </View>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity style={s.closeBtn} onPress={() => setCompModal(false)}>
+              <Text style={s.closeBtnTxt}>ปิด</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* MODAL: LAN Ports ของ Server */}
+      {/* ── MODAL: LAN Ports ── */}
       <Modal visible={serverModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalBox, { maxHeight: "80%" }]}>
-            <View style={styles.modalHeader}>
+        <View style={s.modalOverlay}>
+          <View style={[s.modalBox, { maxHeight: "80%" }]}>
+            <View style={s.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Server กลุ่ม {serverGroup}</Text>
-                <Text style={styles.modalSub}>ห้อง {roomName} · {serverGroupPorts.length} LAN Port</Text>
+                <Text style={s.modalTitle}>Server กลุ่ม {serverGroup}</Text>
+                <Text style={s.modalSub}>ห้อง {roomName} · {serverGroupPorts.length} LAN Port</Text>
               </View>
               <TouchableOpacity onPress={() => setServerModal(false)}>
                 <Ionicons name="close" size={24} color="#64748b" />
@@ -234,37 +283,34 @@ export default function RoomMap() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.portGrid}>
+              <View style={s.portGrid}>
                 {serverGroupPorts.map(port => {
                   const cfg = PORT_STATUS[port.status] || PORT_STATUS.available;
                   return (
                     <View key={port.id}
-                      style={[styles.portCell, { backgroundColor: cfg.bg, borderColor: cfg.color + "40" }]}>
+                      style={[s.portCell, { backgroundColor: cfg.bg, borderColor: cfg.color + "40" }]}>
                       <Ionicons name={cfg.icon} size={14} color={cfg.color} />
-                      <Text style={[styles.portNo, { color: cfg.color }]}>P{port.port_no}</Text>
-                      <Text style={[styles.portStatus, { color: cfg.color }]}>{cfg.label}</Text>
-                      {port.label ? (
-                        <Text style={styles.portLabel} numberOfLines={1}>{port.label}</Text>
-                      ) : null}
+                      <Text style={[s.portNo, { color: cfg.color }]}>P{port.port_no}</Text>
+                      <Text style={[s.portStatus, { color: cfg.color }]}>{cfg.label}</Text>
+                      {port.label ? <Text style={s.portLabel} numberOfLines={1}>{port.label}</Text> : null}
                     </View>
                   );
                 })}
               </View>
 
-              <View style={styles.portLegend}>
+              <View style={s.portLegend}>
                 {Object.entries(PORT_STATUS).map(([k, v]) => (
-                  <View key={k} style={styles.legItem}>
-                    <View style={[styles.legDot, { backgroundColor: v.color }]} />
-                    <Text style={styles.legTxt}>{v.label}</Text>
+                  <View key={k} style={s.legItem}>
+                    <View style={[s.legDot, { backgroundColor: v.color }]} />
+                    <Text style={s.legTxt}>{v.label}</Text>
                   </View>
                 ))}
               </View>
-
               <View style={{ height: 20 }} />
             </ScrollView>
 
-            <TouchableOpacity style={styles.closeBtn} onPress={() => setServerModal(false)}>
-              <Text style={styles.closeBtnTxt}>ปิด</Text>
+            <TouchableOpacity style={s.closeBtn} onPress={() => setServerModal(false)}>
+              <Text style={s.closeBtnTxt}>ปิด</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -274,7 +320,7 @@ export default function RoomMap() {
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f1f5f9", paddingTop: 50, paddingHorizontal: 16 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
   headerText: { fontSize: 18, fontWeight: "bold", color: "#1e3a8a" },
@@ -295,11 +341,15 @@ const styles = StyleSheet.create({
   groupRow: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
   stationsWrap: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 6 },
 
-  station: { width: 62, height: 66, borderRadius: 10, alignItems: "center", justifyContent: "center", gap: 2 },
-  stationName: { fontSize: 10, fontWeight: "700" },
-  stationSub: { fontSize: 8, fontWeight: "600" },
+  station: { width: 60, height: 66, borderRadius: 10, alignItems: "center", justifyContent: "center", gap: 2, position: "relative" },
+  stationName: { fontSize: 9, fontWeight: "700" },
+  stationSub: { fontSize: 7.5, fontWeight: "600" },
+  equipWarnDot: {
+    position: "absolute", top: 4, right: 4,
+    width: 7, height: 7, borderRadius: 4, backgroundColor: "#f97316",
+  },
 
-  serverCard: { width: 68, backgroundColor: "#eff6ff", borderRadius: 12, padding: 8, alignItems: "center", gap: 3, borderWidth: 1.5, borderColor: "#bfdbfe" },
+  serverCard: { width: 66, backgroundColor: "#eff6ff", borderRadius: 12, padding: 8, alignItems: "center", gap: 3, borderWidth: 1.5, borderColor: "#bfdbfe" },
   serverCardWarn: { backgroundColor: "#fffbeb", borderColor: "#fde68a" },
   serverLabel: { fontSize: 10, fontWeight: "700" },
   serverPort: { fontSize: 9, color: "#94a3b8" },
@@ -311,13 +361,22 @@ const styles = StyleSheet.create({
 
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
   modalTitle: { fontSize: 16, fontWeight: "bold", color: "#1e293b" },
   modalSub: { fontSize: 12, color: "#64748b", marginTop: 2 },
 
-  statusBigBox: { alignItems: "center", paddingVertical: 28, gap: 10, borderRadius: 16, marginBottom: 16 },
-  statusBigLabel: { fontSize: 22, fontWeight: "800" },
-  statusNote: { fontSize: 13, color: "#64748b", textAlign: "center" },
+  statusBigBox: { alignItems: "center", paddingVertical: 20, gap: 8, borderRadius: 16, marginBottom: 14 },
+  statusBigLabel: { fontSize: 20, fontWeight: "800" },
+  statusNote: { fontSize: 12, color: "#64748b", textAlign: "center" },
+
+  checklistTitle: { fontSize: 12, fontWeight: "700", color: "#1e293b", marginBottom: 8 },
+  checklistGrid: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  checklistItem: {
+    flex: 1, borderRadius: 12, padding: 10,
+    alignItems: "center", gap: 4,
+  },
+  checklistLabel: { fontSize: 11, fontWeight: "700", textAlign: "center" },
+  checklistStatus: { fontSize: 10, fontWeight: "600" },
 
   portGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   portCell: { width: "22%", borderRadius: 10, padding: 8, alignItems: "center", gap: 2, borderWidth: 1 },
