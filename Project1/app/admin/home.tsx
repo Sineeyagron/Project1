@@ -20,20 +20,20 @@ export default function AdminHome() {
 
   // Equipment stats
   const [total, setTotal] = useState(0);
+  const [available, setAvailable] = useState(0);
   const [borrowed, setBorrowed] = useState(0);
-  const [pending, setPending] = useState(0);
-  const [returned, setReturned] = useState(0);
+  const [repair, setRepair] = useState(0);
 
   useEffect(() => { fetchData(); }, []);
 
   const fetchData = async () => {
-    const { data: items } = await supabase.from("items").select("id");
-    setTotal(items?.length || 0);
-
-    const { data: borrows } = await supabase.from("borrow_records").select("status");
-    setBorrowed(borrows?.filter((b: any) => b.status === "borrowed").length || 0);
-    setPending(borrows?.filter((b: any) => b.status === "pending_return").length || 0);
-    setReturned(borrows?.filter((b: any) => b.status === "returned").length || 0);
+    // นับจาก items.status เหมือนหน้าจัดการอุปกรณ์ ให้ตัวเลขตรงกัน
+    const { data: items } = await supabase.from("items").select("status");
+    const all = items || [];
+    setTotal(all.length);
+    setAvailable(all.filter((i: any) => i.status === "available").length);
+    setBorrowed(all.filter((i: any) => i.status === "borrowed").length);
+    setRepair(all.filter((i: any) => i.status === "repair").length);
 
     setLoading(false);
     setRefreshing(false);
@@ -81,17 +81,17 @@ export default function AdminHome() {
               <Text style={styles.statNum}>{total}</Text>
               <Text style={styles.statLabel}>ทั้งหมด</Text>
             </View>
+            <View style={[styles.statCard, { borderLeftColor: "#22c55e" }]}>
+              <Text style={[styles.statNum, { color: "#16a34a" }]}>{available}</Text>
+              <Text style={styles.statLabel}>ว่าง</Text>
+            </View>
             <View style={[styles.statCard, { borderLeftColor: "#f97316" }]}>
               <Text style={[styles.statNum, { color: "#ea580c" }]}>{borrowed}</Text>
-              <Text style={styles.statLabel}>กำลังยืม</Text>
+              <Text style={styles.statLabel}>ถูกยืม</Text>
             </View>
             <View style={[styles.statCard, { borderLeftColor: "#ef4444" }]}>
-              <Text style={[styles.statNum, { color: "#dc2626" }]}>{pending}</Text>
-              <Text style={styles.statLabel}>รอคืน</Text>
-            </View>
-            <View style={[styles.statCard, { borderLeftColor: "#22c55e" }]}>
-              <Text style={[styles.statNum, { color: "#16a34a" }]}>{returned}</Text>
-              <Text style={styles.statLabel}>คืนแล้ว</Text>
+              <Text style={[styles.statNum, { color: "#dc2626" }]}>{repair}</Text>
+              <Text style={styles.statLabel}>ซ่อม</Text>
             </View>
           </View>
 

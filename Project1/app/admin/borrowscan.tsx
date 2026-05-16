@@ -156,6 +156,7 @@ export default function BorrowScan() {
           item_id: item.id,
           status: "borrowed",
           due_date: dueDate,
+          borrow_date: new Date().toISOString(),
         }])
         .select("id")
         .single();

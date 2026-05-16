@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:\\\\Users\\\\JimmyReal\\\\.claude\\\\projects\\\\C--Users-JimmyReal-Documents-GitHub-Project1\\\\memory\\\\\" 2>&1)"
+    ]
+  }
+}

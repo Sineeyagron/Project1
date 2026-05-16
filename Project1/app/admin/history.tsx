@@ -5,7 +5,27 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
+
+// render SVG string ที่เก็บใน DB โดยตรง
+function SignaturePreview({ svgString }: { svgString: string }) {
+  if (!svgString || !svgString.startsWith("<svg")) return null;
+  const paths: { d: string; stroke: string; sw: number }[] = [];
+  const re = /d="([^"]+)"[^/]*stroke="([^"]+)"[^/]*stroke-width="([^"]+)"/g;
+  let m;
+  while ((m = re.exec(svgString)) !== null) {
+    paths.push({ d: m[1], stroke: m[2], sw: parseFloat(m[3]) });
+  }
+  return (
+    <Svg width="100%" height={90} viewBox="0 0 320 180" style={{ backgroundColor: "#f8f9ff", borderRadius: 10 }}>
+      {paths.map((p, i) => (
+        <Path key={i} d={p.d} stroke={p.stroke} strokeWidth={p.sw}
+          fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      ))}
+    </Svg>
+  );
+}
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
   borrowed:       { label: "กำลังยืม",  color: "#b45309", bg: "#fef3c7", border: "#f59e0b", icon: "cube-outline" },
@@ -18,10 +38,19 @@ const formatDate = (d: string) => {
   return new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
 };
 
+const formatDateTime = (d: string) => {
+  if (!d) return "-";
+  return new Date(d).toLocaleString("th-TH", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+};
+
 const getDaysLeft = (due: string) => {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   return Math.ceil((new Date(due).getTime() - today.getTime()) / 86400000);
 };
+
 
 export default function AdminHistory() {
   const router = useRouter();
@@ -31,15 +60,28 @@ export default function AdminHistory() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchHistory = useCallback(async () => {
     const { data, error } = await supabase
       .from("borrow_records")
-      .select("id, user_id, status, borrow_date, due_date, created_at, items(name)")
-      .order("created_at", { ascending: false });
+      .select("*");
 
-    if (error) { setLoading(false); setRefreshing(false); return; }
+    if (error) {
+      console.error("history fetch error:", error.message);
+      setLoading(false); setRefreshing(false); return;
+    }
 
+    // ดึง item names แยก
+    const itemIds = [...new Set((data || []).map((r: any) => r.item_id).filter(Boolean))];
+    let itemMap: Record<string, string> = {};
+    if (itemIds.length > 0) {
+      const { data: items } = await supabase
+        .from("items").select("id, name").in("id", itemIds);
+      (items || []).forEach((it: any) => { itemMap[it.id] = it.name; });
+    }
+
+    // ดึง emails แยก
     const userIds = [...new Set((data || []).map((r: any) => r.user_id).filter(Boolean))];
     let emailMap: Record<string, string> = {};
     if (userIds.length > 0) {
@@ -51,8 +93,18 @@ export default function AdminHistory() {
     const merged = (data || []).map((r: any) => ({
       ...r,
       email: emailMap[r.user_id] || "-",
-      itemName: r.items?.name || r.items?.[0]?.name || "อุปกรณ์",
+      itemName: itemMap[r.item_id] || "อุปกรณ์",
     }));
+
+    // sort: borrow_date ล่าสุดก่อน, fallback due_date
+    merged.sort((a: any, b: any) => {
+      const aDate = a.borrow_date || a.due_date || "";
+      const bDate = b.borrow_date || b.due_date || "";
+      if (!aDate && !bDate) return 0;
+      if (!aDate) return 1;
+      if (!bDate) return -1;
+      return new Date(bDate).getTime() - new Date(aDate).getTime();
+    });
 
     setRecords(merged);
     applyFilter(merged, activeFilter, search);
@@ -72,10 +124,10 @@ export default function AdminHistory() {
   };
 
   useEffect(() => { fetchHistory(); }, [fetchHistory]);
-
   useEffect(() => { applyFilter(records, activeFilter, search); }, [activeFilter, search, records]);
 
   const onRefresh = () => { setRefreshing(true); fetchHistory(); };
+  const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
 
   const total    = records.length;
   const active   = records.filter(r => r.status === "borrowed").length;
@@ -91,7 +143,6 @@ export default function AdminHistory() {
 
   return (
     <View style={s.container}>
-      {/* HEADER */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
@@ -171,42 +222,96 @@ export default function AdminHistory() {
               <Text style={s.sectionLabel}>แสดง {filtered.length} รายการ</Text>
               {filtered.map((r) => {
                 const cfg = STATUS_CFG[r.status] ?? STATUS_CFG.returned;
-                const bDate = r.borrow_date || r.created_at;
+                const bDate = r.borrow_date || r.due_date;
                 const days = r.due_date ? getDaysLeft(r.due_date) : null;
                 const overdue = days !== null && days < 0 && r.status === "borrowed";
+                const isExpanded = expandedId === r.id;
+                const borrowSig = r.borrow_signature_url || "";
+                const returnSig = r.return_signature_url || "";
+
                 return (
-                  <View key={r.id} style={[s.card, { borderLeftColor: cfg.border }, overdue && s.cardOverdue]}>
-                    {/* icon */}
-                    <View style={[s.iconBox, { backgroundColor: cfg.bg }]}>
-                      <Ionicons name={cfg.icon} size={22} color={cfg.color} />
+                  <TouchableOpacity
+                    key={r.id}
+                    style={[s.card, { borderLeftColor: cfg.border }, overdue && s.cardOverdue]}
+                    onPress={() => toggleExpand(r.id)}
+                    activeOpacity={0.85}
+                  >
+                    {/* ROW หลัก */}
+                    <View style={s.cardMain}>
+                      <View style={[s.iconBox, { backgroundColor: cfg.bg }]}>
+                        <Ionicons name={cfg.icon} size={22} color={cfg.color} />
+                      </View>
+                      <View style={s.cardBody}>
+                        <Text style={s.cardName} numberOfLines={1}>{r.itemName}</Text>
+                        <View style={s.cardRow}>
+                          <Ionicons name="person-outline" size={11} color="#94a3b8" />
+                          <Text style={s.cardEmail} numberOfLines={1}>{r.email}</Text>
+                        </View>
+                        {r.borrow_date && (
+                        <View style={s.cardRow}>
+                          <Ionicons name="time-outline" size={11} color="#94a3b8" />
+                          <Text style={s.cardDate}>ยืม {formatDateTime(r.borrow_date)}</Text>
+                        </View>
+                      )}
+                      <View style={s.cardRow}>
+                          <Ionicons name="calendar-outline" size={11} color="#94a3b8" />
+                          {r.due_date && (
+                            <Text style={[s.cardDate, overdue && { color: "#dc2626", fontWeight: "700" }]}>
+                              {overdue
+                                ? `⚠️ เกิน ${Math.abs(days!)} วัน`
+                                : `ครบ ${formatDate(r.due_date)}`}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                      <View style={{ alignItems: "flex-end", gap: 6 }}>
+                        <View style={[s.badge, { backgroundColor: cfg.bg }]}>
+                          <Text style={[s.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
+                        </View>
+                        <Ionicons
+                          name={isExpanded ? "chevron-up" : "chevron-down"}
+                          size={14} color="#94a3b8"
+                        />
+                      </View>
                     </View>
 
-                    {/* ข้อมูล */}
-                    <View style={s.cardBody}>
-                      <Text style={s.cardName} numberOfLines={1}>{r.itemName}</Text>
-                      <View style={s.cardRow}>
-                        <Ionicons name="person-outline" size={11} color="#94a3b8" />
-                        <Text style={s.cardEmail} numberOfLines={1}>{r.email}</Text>
+                    {/* EXPANDED: ลายเซ็น */}
+                    {isExpanded && (
+                      <View style={s.sigSection}>
+                        <View style={s.sigDivider} />
+                        <View style={s.sigRow}>
+                          {/* ลายเซ็นยืม */}
+                          <View style={s.sigBox}>
+                            <Text style={s.sigLabel}>✍️ ลายเซ็นยืม</Text>
+                            {borrowSig.startsWith("<svg") ? (
+                              <View style={s.sigImgWrap}>
+                                <SignaturePreview svgString={borrowSig} />
+                              </View>
+                            ) : (
+                              <View style={s.sigEmpty}>
+                                <Text style={s.sigEmptyTxt}>ไม่มีลายเซ็น</Text>
+                              </View>
+                            )}
+                          </View>
+                          {/* ลายเซ็นคืน */}
+                          <View style={s.sigBox}>
+                            <Text style={s.sigLabel}>✍️ ลายเซ็นคืน</Text>
+                            {returnSig.startsWith("<svg") ? (
+                              <View style={s.sigImgWrap}>
+                                <SignaturePreview svgString={returnSig} />
+                              </View>
+                            ) : (
+                              <View style={s.sigEmpty}>
+                                <Text style={s.sigEmptyTxt}>
+                                  {r.status === "returned" ? "ไม่มีลายเซ็น" : "ยังไม่ได้คืน"}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        </View>
                       </View>
-                      <View style={s.cardRow}>
-                        <Ionicons name="calendar-outline" size={11} color="#94a3b8" />
-                        <Text style={s.cardDate}>ยืม {formatDate(bDate)}</Text>
-                        {r.due_date && (
-                          <Text style={[s.cardDate, overdue && { color: "#dc2626", fontWeight: "700" }]}>
-                            {" · "}
-                            {overdue
-                              ? `⚠️ เกิน ${Math.abs(days!)} วัน`
-                              : `ครบ ${formatDate(r.due_date)}`}
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-
-                    {/* badge */}
-                    <View style={[s.badge, { backgroundColor: cfg.bg }]}>
-                      <Text style={[s.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
-                    </View>
-                  </View>
+                    )}
+                  </TouchableOpacity>
                 );
               })}
             </>
@@ -221,7 +326,6 @@ export default function AdminHistory() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f1f5f9" },
-
   header: {
     backgroundColor: "#1e3a8a",
     paddingTop: 54, paddingBottom: 20, paddingHorizontal: 20,
@@ -229,16 +333,12 @@ const s = StyleSheet.create({
   },
   headerTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", textAlign: "center" },
   headerSub:   { color: "#93c5fd", fontSize: 12, textAlign: "center", marginTop: 2 },
-
   body: { padding: 16 },
 
   statsRow: { flexDirection: "row", gap: 6, marginBottom: 16 },
-  statCard: {
-    flex: 1, backgroundColor: "#fff", borderRadius: 12,
-    padding: 10, borderLeftWidth: 4,
-  },
-  statNum:   { fontSize: 20, fontWeight: "800", color: "#1e293b" },
-  statLabel: { fontSize: 10, color: "#94a3b8", marginTop: 2 },
+  statCard: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 10, borderLeftWidth: 4 },
+  statNum:  { fontSize: 20, fontWeight: "800", color: "#1e293b" },
+  statLabel:{ fontSize: 10, color: "#94a3b8", marginTop: 2 },
 
   searchBox: {
     flexDirection: "row", alignItems: "center", gap: 8,
@@ -263,23 +363,35 @@ const s = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 14,
-    marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12,
-    borderLeftWidth: 4,
+    backgroundColor: "#fff", borderRadius: 14, marginBottom: 10,
+    borderLeftWidth: 4, overflow: "hidden",
     shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
   cardOverdue: { borderColor: "#fca5a5", borderWidth: 1.5, borderLeftWidth: 4 },
+  cardMain: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
   iconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center" },
-
   cardBody: { flex: 1 },
   cardName:  { fontSize: 14, fontWeight: "700", color: "#1e293b", marginBottom: 4 },
   cardRow:   { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
   cardEmail: { fontSize: 11, color: "#64748b", flex: 1 },
   cardDate:  { fontSize: 11, color: "#94a3b8" },
-
-  badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, alignSelf: "flex-start" },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   badgeText: { fontSize: 10, fontWeight: "700" },
+
+  // Expanded signature section
+  sigSection: { paddingHorizontal: 14, paddingBottom: 14 },
+  sigDivider: { height: 1, backgroundColor: "#f1f5f9", marginBottom: 12 },
+  sigRow: { flexDirection: "row", gap: 10 },
+  sigBox: { flex: 1 },
+  sigLabel: { fontSize: 11, fontWeight: "700", color: "#64748b", marginBottom: 6 },
+  sigImgWrap: { borderRadius: 10, borderWidth: 1, borderColor: "#e2e8f0", overflow: "hidden" },
+  sigEmpty: {
+    height: 100, backgroundColor: "#f8fafc", borderRadius: 10,
+    borderWidth: 1, borderColor: "#e2e8f0", borderStyle: "dashed",
+    justifyContent: "center", alignItems: "center",
+  },
+  sigEmptyTxt: { fontSize: 11, color: "#94a3b8" },
 
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
   emptyTitle: { fontSize: 15, fontWeight: "600", color: "#94a3b8" },

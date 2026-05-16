@@ -120,7 +120,7 @@ ON CONFLICT DO NOTHING;
 
 ---
 
-## 📊 สถานะปัจจุบัน (อัปเดต 16 พ.ค. 2569)
+## 📊 สถานะปัจจุบัน (อัปเดต 16 พ.ค. 2569 — session 2)
 
 ### ✅ เสร็จแล้ว — ทุก feature เสร็จหมดแล้ว
 
@@ -225,3 +225,24 @@ components/
 ALTER TABLE borrow_records ADD COLUMN IF NOT EXISTS borrow_signature_url text;
 ALTER TABLE borrow_records ADD COLUMN IF NOT EXISTS return_signature_url text;
 ```
+
+---
+
+## 🔧 สิ่งที่แก้ใน Session 2 (16 พ.ค. 2569)
+
+### Bug fixes
+- `app/index.tsx` — เปลี่ยนกลับเป็น `<Redirect href="/admin/home" />` (ห้ามใช้ `router.replace()` ใน useEffect)
+- `admin/borrowscan.tsx` + `returnscan.tsx` — เปลี่ยน scan lock จาก `useState` → `useRef` (กัน popup เด้งซ้ำ)
+- `components/SignatureCanvas.tsx` — แก้ bug ลายเซ็นหาย: ต้อง capture `const path = current.current` ก่อน reset ref ไม่งั้น React 18 batch updater วิ่งหลัง reset แล้วได้ empty string
+- `components/SignatureCanvas.tsx` — เพิ่ม `collapsable={false}`, `onStartShouldSetPanResponderCapture`, ใช้ ref สำหรับ callback (กัน stale closure)
+- Signature step ใน borrowscan/returnscan — เปลี่ยนจาก `ScrollView` → `View` ธรรมดา (กัน scroll แย่ง touch)
+- `lib/uploadSignature.ts` — เปลี่ยนจาก anon key → ใช้ `session?.access_token` (แก้ RLS 403)
+
+### UI ปรับปรุง
+- `app/borrow.tsx` — redesign ให้ match style ทั้งแอป (stats row, left border cards, section label, RefreshControl)
+- `admin/history.tsx` — redesign ใหม่ทั้งหมด (stats 4 card, search bar, filter tabs, cards with status)
+- `admin/inspection.tsx` — เอา "ประวัติผู้ยืม" ออก (ไม่เกี่ยวกัน), form ตรวจ 3 อุปกรณ์พร้อมกัน, แก้ duplicate insert → upsert จาก DB, deduplicate display
+
+### Supabase Storage (ต้องทำใน dashboard)
+- Bucket `signatures` → เปิด **Public** แล้ว ✅
+- Policy INSERT สำหรับ authenticated users — ถ้า 403 ยังขึ้น ให้เพิ่ม policy `true` ใต้ SIGNATURES bucket โดยตรง

@@ -2,22 +2,69 @@ import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
   TouchableOpacity, Alert, ActivityIndicator,
-  Modal, RefreshControl, Image,
+  RefreshControl, Image, Modal, Dimensions, StatusBar,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 
-const DEVICE_TYPES = [
-  "Microcontroller", "SBC", "Sensor", "Actuator",
-  "Module", "Kit", "Cable", "Other",
-];
+const { width: SW, height: SH } = Dimensions.get("window");
 
 const STATUS_CFG: { [k: string]: { label: string; color: string; bg: string } } = {
-  available: { label: "ว่าง",       color: "#16a34a", bg: "#dcfce7" },
-  borrowed:  { label: "ถูกยืม",     color: "#b45309", bg: "#fef3c7" },
-  repair:    { label: "ซ่อม",       color: "#dc2626", bg: "#fee2e2" },
+  available: { label: "ว่าง",   color: "#16a34a", bg: "#dcfce7" },
+  borrowed:  { label: "ถูกยืม", color: "#b45309", bg: "#fef3c7" },
+  repair:    { label: "ซ่อม",   color: "#dc2626", bg: "#fee2e2" },
 };
+
+function ItemCard({ item, cfg, onDelete, onPressImage, onChangeStatus }: {
+  item: any; cfg: any;
+  onDelete: (i: any) => void;
+  onPressImage: (url: string) => void;
+  onChangeStatus: (i: any) => void;
+}) {
+  const [imgError, setImgError] = useState(false);
+  const showIcon = !item.image_url || imgError;
+  return (
+    <View style={s.card}>
+      {showIcon ? (
+        <View style={s.itemIconBox}>
+          <Ionicons name="cube-outline" size={24} color="#0ea5e9" />
+        </View>
+      ) : (
+        <TouchableOpacity onPress={() => onPressImage(item.image_url)} activeOpacity={0.85}>
+          <Image
+            source={{ uri: item.image_url }}
+            style={s.itemImg}
+            onError={() => setImgError(true)}
+          />
+        </TouchableOpacity>
+      )}
+      <View style={{ flex: 1 }}>
+        <View style={s.cardTopRow}>
+          <Text style={s.cardName} numberOfLines={1}>{item.name}</Text>
+          <TouchableOpacity
+            style={[s.badge, { backgroundColor: cfg.bg }]}
+            onPress={() => onChangeStatus(item)}
+          >
+            <Text style={[s.badgeTxt, { color: cfg.color }]}>{cfg.label} ✎</Text>
+          </TouchableOpacity>
+        </View>
+        {item.type ? <Text style={s.cardType}>{item.type}</Text> : null}
+        {item.barcode ? (
+          <View style={s.barcodeRow}>
+            <Ionicons name="barcode-outline" size={12} color="#94a3b8" />
+            <Text style={s.barcodeVal}>{item.barcode}</Text>
+          </View>
+        ) : (
+          <Text style={s.noBarcodeHint}>ยังไม่มี barcode</Text>
+        )}
+      </View>
+      <TouchableOpacity style={s.deleteBtn} onPress={() => onDelete(item)}>
+        <Ionicons name="trash-outline" size={18} color="#dc2626" />
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export default function AdminItems() {
   const router = useRouter();
@@ -26,20 +73,12 @@ export default function AdminItems() {
   const [loading, setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch]     = useState("");
-
-  // Add modal
-  const [addModal, setAddModal] = useState(false);
-  const [newName, setNewName]   = useState("");
-  const [newBarcode, setNewBarcode] = useState("");
-  const [newType, setNewType]   = useState("Microcontroller");
-  const [newDesc, setNewDesc]   = useState("");
-  const [adding, setAdding]     = useState(false);
+  const [viewImg, setViewImg]   = useState<string | null>(null);
 
   useEffect(() => { fetchItems(); }, []);
 
   const fetchItems = async () => {
-    const { data, error } = await supabase
-      .from("items").select("*").order("name");
+    const { data, error } = await supabase.from("items").select("*").order("name");
     if (!error) setItems(data || []);
     setLoading(false);
     setRefreshing(false);
@@ -47,37 +86,48 @@ export default function AdminItems() {
 
   const onRefresh = () => { setRefreshing(true); fetchItems(); };
 
-  // ── เพิ่ม item ──
-  const addItem = async () => {
-    if (!newName.trim()) { Alert.alert("กรอกชื่ออุปกรณ์ก่อน"); return; }
-    setAdding(true);
-    const { error } = await supabase.from("items").insert([{
-      name:        newName.trim(),
-      barcode:     newBarcode.trim() || null,
-      type:        newType,
-      description: newDesc.trim() || null,
-      status:      "available",
-    }]);
-    setAdding(false);
-    if (error) { Alert.alert("เพิ่มไม่สำเร็จ", error.message); return; }
-    setAddModal(false);
-    setNewName(""); setNewBarcode(""); setNewType("Microcontroller"); setNewDesc("");
-    fetchItems();
+  const changeStatus = (item: any) => {
+    const STATUS_OPTS = [
+      { label: "✅ ว่าง",    value: "available" },
+      { label: "🔧 ซ่อม",   value: "repair" },
+    ];
+    // ถ้ายืมอยู่ไม่ให้เปลี่ยนจากที่นี่
+    if (item.status === "borrowed") {
+      Alert.alert("เปลี่ยนไม่ได้", "อุปกรณ์นี้กำลังถูกยืมอยู่\nคืนของก่อนถึงจะเปลี่ยนสถานะได้");
+      return;
+    }
+    Alert.alert(
+      `เปลี่ยนสถานะ: ${item.name}`,
+      `สถานะปัจจุบัน: ${item.status}`,
+      [
+        ...STATUS_OPTS.filter(o => o.value !== item.status).map(o => ({
+          text: o.label,
+          onPress: async () => {
+            const { error } = await supabase.from("items").update({ status: o.value }).eq("id", item.id);
+            if (error) { Alert.alert("เกิดข้อผิดพลาด", error.message); return; }
+            fetchItems();
+          },
+        })),
+        { text: "ยกเลิก", style: "cancel" as const },
+      ]
+    );
   };
 
-  // ── ลบ item ──
   const deleteItem = (item: any) => {
     Alert.alert("ลบอุปกรณ์", `ลบ "${item.name}" ?`, [
       { text: "ยกเลิก", style: "cancel" },
       {
         text: "ลบ", style: "destructive",
         onPress: async () => {
+          // ห้ามลบถ้ากำลังยืมอยู่
           const { data: active } = await supabase
             .from("borrow_records").select("id")
             .eq("item_id", item.id).eq("status", "borrowed");
           if (active && active.length > 0) {
             Alert.alert("ลบไม่ได้", "อุปกรณ์นี้ยังถูกยืมอยู่"); return;
           }
+          // ลบ borrow_records ที่อ้างถึง item นี้ก่อน (FK constraint)
+          await supabase.from("borrow_records").delete().eq("item_id", item.id);
           const { error } = await supabase.from("items").delete().eq("id", item.id);
           if (error) { Alert.alert("ลบไม่สำเร็จ", error.message); return; }
           fetchItems();
@@ -101,9 +151,7 @@ export default function AdminItems() {
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={s.headerTxt}>จัดการอุปกรณ์</Text>
-        <TouchableOpacity onPress={() => setAddModal(true)}>
-          <Ionicons name="add-circle-outline" size={26} color="#fff" />
-        </TouchableOpacity>
+        <View style={{ width: 22 }} />
       </View>
 
       {/* SEARCH */}
@@ -142,9 +190,10 @@ export default function AdminItems() {
       {loading ? (
         <ActivityIndicator size="large" color="#0ea5e9" style={{ marginTop: 40 }} />
       ) : (
-        <ScrollView contentContainerStyle={s.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0ea5e9" />}>
-
+        <ScrollView
+          contentContainerStyle={s.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0ea5e9" />}
+        >
           {filtered.length === 0 && (
             <View style={s.empty}>
               <Ionicons name="cube-outline" size={48} color="#cbd5e1" />
@@ -154,114 +203,28 @@ export default function AdminItems() {
 
           {filtered.map(item => {
             const cfg = STATUS_CFG[item.status] || STATUS_CFG.available;
-            return (
-              <View key={item.id} style={s.card}>
-                {/* รูป / icon */}
-                {item.image_url ? (
-                  <Image source={{ uri: item.image_url }} style={s.itemImg} />
-                ) : (
-                  <View style={s.itemIconBox}>
-                    <Ionicons name="cube-outline" size={24} color="#0ea5e9" />
-                  </View>
-                )}
-
-                <View style={{ flex: 1 }}>
-                  <View style={s.cardTopRow}>
-                    <Text style={s.cardName} numberOfLines={1}>{item.name}</Text>
-                    <View style={[s.badge, { backgroundColor: cfg.bg }]}>
-                      <Text style={[s.badgeTxt, { color: cfg.color }]}>{cfg.label}</Text>
-                    </View>
-                  </View>
-
-                  {item.type ? (
-                    <Text style={s.cardType}>{item.type}</Text>
-                  ) : null}
-
-                  {item.barcode ? (
-                    <View style={s.barcodeRow}>
-                      <Ionicons name="barcode-outline" size={12} color="#94a3b8" />
-                      <Text style={s.barcodeVal}>{item.barcode}</Text>
-                    </View>
-                  ) : (
-                    <Text style={s.noBarcodeHint}>ยังไม่มี barcode</Text>
-                  )}
-                </View>
-
-                <TouchableOpacity style={s.deleteBtn} onPress={() => deleteItem(item)}>
-                  <Ionicons name="trash-outline" size={18} color="#dc2626" />
-                </TouchableOpacity>
-              </View>
-            );
+            return <ItemCard key={item.id} item={item} cfg={cfg} onDelete={deleteItem} onPressImage={setViewImg} onChangeStatus={changeStatus} />;
           })}
 
           <View style={{ height: 40 }} />
         </ScrollView>
       )}
-
-      {/* ADD MODAL */}
-      <Modal visible={addModal} transparent animationType="slide">
-        <View style={s.overlay}>
-          <ScrollView contentContainerStyle={s.modalBox} keyboardShouldPersistTaps="handled">
-            <View style={s.modalHeader}>
-              <Text style={s.modalTitle}>เพิ่มอุปกรณ์ใหม่</Text>
-              <TouchableOpacity onPress={() => {
-                setAddModal(false);
-                setNewName(""); setNewBarcode(""); setNewType("Microcontroller"); setNewDesc("");
-              }}>
-                <Ionicons name="close" size={24} color="#64748b" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={s.fieldLabel}>ชื่ออุปกรณ์ *</Text>
-            <TextInput
-              style={s.input}
-              placeholder="เช่น Arduino Uno, Raspberry Pi..."
-              value={newName}
-              onChangeText={setNewName}
+      {/* IMAGE VIEWER */}
+      <Modal visible={!!viewImg} transparent animationType="fade" onRequestClose={() => setViewImg(null)}>
+        <StatusBar hidden />
+        <TouchableOpacity style={s.viewer} activeOpacity={1} onPress={() => setViewImg(null)}>
+          <TouchableOpacity style={s.viewerClose} onPress={() => setViewImg(null)}>
+            <Ionicons name="close" size={26} color="#fff" />
+          </TouchableOpacity>
+          {viewImg && (
+            <Image
+              source={{ uri: viewImg }}
+              style={s.viewerImg}
+              resizeMode="contain"
             />
-
-            <Text style={s.fieldLabel}>Barcode (ถ้ามี)</Text>
-            <TextInput
-              style={s.input}
-              placeholder="หมายเลข barcode บนอุปกรณ์"
-              value={newBarcode}
-              onChangeText={setNewBarcode}
-              keyboardType="default"
-            />
-
-            <Text style={s.fieldLabel}>ประเภท</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}
-              style={{ marginBottom: 12 }} contentContainerStyle={{ gap: 8, paddingVertical: 4 }}>
-              {DEVICE_TYPES.map(t => (
-                <TouchableOpacity key={t}
-                  style={[s.typeBtn, newType === t && s.typeBtnActive]}
-                  onPress={() => setNewType(t)}>
-                  <Text style={[s.typeBtnTxt, newType === t && s.typeBtnTxtActive]}>{t}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <Text style={s.fieldLabel}>รายละเอียด (ไม่บังคับ)</Text>
-            <TextInput
-              style={[s.input, { height: 80, textAlignVertical: "top" }]}
-              placeholder="รายละเอียดเพิ่มเติม..."
-              value={newDesc}
-              onChangeText={setNewDesc}
-              multiline
-            />
-
-            <TouchableOpacity
-              style={[s.addBtn, adding && { opacity: 0.6 }]}
-              onPress={addItem} disabled={adding}>
-              {adding
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={s.addBtnTxt}>เพิ่มอุปกรณ์</Text>
-              }
-            </TouchableOpacity>
-
-            <View style={{ height: 20 }} />
-          </ScrollView>
-        </View>
+          )}
+          <Text style={s.viewerHint}>กดที่ไหนก็ได้เพื่อปิด</Text>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
@@ -315,34 +278,15 @@ const s = StyleSheet.create({
   empty: { alignItems: "center", paddingVertical: 60, gap: 10 },
   emptyTxt: { color: "#94a3b8", fontSize: 14 },
 
-  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  modalBox: {
-    backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 20, paddingBottom: 0,
+  viewer: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.95)",
+    justifyContent: "center", alignItems: "center",
   },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  modalTitle: { fontSize: 16, fontWeight: "bold", color: "#1e293b" },
-
-  fieldLabel: {
-    fontSize: 11, fontWeight: "700", color: "#64748b",
-    textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, marginTop: 10,
+  viewerClose: {
+    position: "absolute", top: 54, right: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 20, padding: 8, zIndex: 10,
   },
-  input: {
-    backgroundColor: "#f8fafc", borderRadius: 12, padding: 13,
-    fontSize: 14, borderWidth: 1, borderColor: "#e2e8f0",
-  },
-
-  typeBtn: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-    backgroundColor: "#f1f5f9", borderWidth: 1, borderColor: "#e2e8f0",
-  },
-  typeBtnActive: { backgroundColor: "#0ea5e9", borderColor: "#0ea5e9" },
-  typeBtnTxt: { fontSize: 12, fontWeight: "600", color: "#64748b" },
-  typeBtnTxtActive: { color: "#fff" },
-
-  addBtn: {
-    backgroundColor: "#0ea5e9", padding: 16, borderRadius: 12,
-    alignItems: "center", marginTop: 16,
-  },
-  addBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  viewerImg: { width: SW, height: SH * 0.75 },
+  viewerHint: { color: "rgba(255,255,255,0.4)", fontSize: 11, marginTop: 16 },
 });

@@ -6,9 +6,14 @@ import {
 } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+
+const FS = FileSystem as any;
+const SUPABASE_URL = "https://enupmlxmajjwskvzgcdq.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVudXBtbHhtYWpqd3NrdnpnY2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDIxMDUsImV4cCI6MjA4OTMxODEwNX0.px5ah-o_guGnQ8lTP7oJIwZXJEDiAcicuQTo3A_4aqE";
 
 type Step = "scan" | "details" | "preview";
 
@@ -92,21 +97,33 @@ export default function Scan() {
     try {
       let finalImageUrl = "";
 
-      // Upload รูปจริงไป Supabase Storage
+      // Upload รูปจริงไป Supabase Storage ด้วย FileSystem.uploadAsync (reliable ที่สุดใน RN)
       if (photoUri) {
-        const fileName = `items/${Date.now()}_${name.replace(/\s+/g, "_")}.jpg`;
-        const response = await fetch(photoUri);
-        const blob = await response.blob();
+        const ext = photoUri.split(".").pop()?.split("?")[0]?.toLowerCase() || "jpg";
+        const fileName = `items/${Date.now()}_${name.replace(/\s+/g, "_")}.${ext}`;
+        const contentType = ext === "png" ? "image/png" : "image/jpeg";
 
-        const { error: uploadError } = await supabase.storage
-          .from("item-images")
-          .upload(fileName, blob, { contentType: "image/jpeg", upsert: true });
+        const uploadRes = await FS.uploadAsync(
+          `${SUPABASE_URL}/storage/v1/object/item-images/${fileName}`,
+          photoUri,
+          {
+            uploadType: FS.FileSystemUploadType.BINARY_CONTENT,
+            mimeType: contentType,
+            httpMethod: "POST",
+            headers: {
+              Authorization: `Bearer ${SUPABASE_ANON}`,
+              "Content-Type": contentType,
+              "x-upsert": "true",
+            },
+          }
+        );
 
-        if (!uploadError) {
+        if (uploadRes.status === 200 || uploadRes.status === 201) {
           const { data: { publicUrl } } = supabase.storage
-            .from("item-images")
-            .getPublicUrl(fileName);
+            .from("item-images").getPublicUrl(fileName);
           finalImageUrl = publicUrl;
+        } else {
+          Alert.alert("อัปโหลดรูปไม่สำเร็จ", `status: ${uploadRes.status}\n${uploadRes.body}`);
         }
       }
 
