@@ -9,6 +9,8 @@ import { useRouter } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
 import * as FileSystem from "expo-file-system/legacy";
 
+const FS = FileSystem as any;
+
 const DEVICE_TYPES = [
   "Microcontroller", "SBC", "Sensor", "Actuator",
   "Module", "Kit", "Cable", "Other",
@@ -23,46 +25,24 @@ export default function QRGen() {
   const [qrUrl, setQrUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // สร้าง QR URL จาก qrserver.com (ฟรี ไม่ต้อง API key)
   const handleGenerate = () => {
     if (!name.trim()) { Alert.alert("กรอกชื่ออุปกรณ์ก่อน"); return; }
-
-    const payload = JSON.stringify({
-      name: name.trim(),
-      type,
-      description: description.trim(),
-    });
-
-    const encoded = encodeURIComponent(payload);
-    const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encoded}&margin=10`;
+    const payload = JSON.stringify({ name: name.trim(), type, description: description.trim() });
+    const url = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(payload)}&margin=10`;
     setQrUrl(url);
   };
 
-  // บันทึก QR ลง Gallery
   const handleSave = async () => {
     if (!qrUrl) return;
     setSaving(true);
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("ต้องการสิทธิ์เข้าถึง Gallery");
-        setSaving(false);
-        return;
-      }
-
-      // Download รูปก่อน แล้วค่อยบันทึก
+      if (status !== "granted") { Alert.alert("ต้องการสิทธิ์เข้าถึง Gallery"); setSaving(false); return; }
       const fileName = `QR_${name.replace(/\s+/g, "_")}_${Date.now()}.png`;
-      const FS = FileSystem as any;
       const fileUri = (FS.documentDirectory ?? "") + fileName;
-
       const { uri } = await FS.downloadAsync(qrUrl, fileUri);
       await MediaLibrary.saveToLibraryAsync(uri);
-
-      Alert.alert(
-        "บันทึกสำเร็จ! 📸",
-        "QR Code ถูกบันทึกลง Gallery แล้ว\nนำไปปรื้นแล้วแปะที่อุปกรณ์ได้เลย",
-        [{ text: "โอเค" }]
-      );
+      Alert.alert("บันทึกสำเร็จ", "QR Code ถูกบันทึกลง Gallery แล้ว");
     } catch (e: any) {
       Alert.alert("เกิดข้อผิดพลาด", e.message);
     } finally {
@@ -71,144 +51,126 @@ export default function QRGen() {
   };
 
   const handleReset = () => {
-    setName("");
-    setType("Microcontroller");
-    setDescription("");
-    setQrUrl("");
+    setName(""); setType("Microcontroller"); setDescription(""); setQrUrl("");
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+
       {/* HEADER */}
-      <View style={styles.header}>
+      <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerText}>สร้าง QR อุปกรณ์</Text>
+        <View>
+          <Text style={s.headerTitle}>สร้าง QR อุปกรณ์</Text>
+          <Text style={s.headerSub}>กรอกข้อมูล → สร้าง → บันทึกลง Gallery</Text>
+        </View>
         <View style={{ width: 22 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
 
-        {/* HOW TO */}
-        <View style={styles.howTo}>
-          <Text style={styles.howToTitle}>📌 วิธีใช้</Text>
-          <Text style={styles.howToText}>
-            1. กรอกข้อมูลอุปกรณ์ → กดสร้าง QR{"\n"}
-            2. กดบันทึก QR ลง Gallery{"\n"}
-            3. ส่งไปปรื้น → แปะที่กล่อง/อุปกรณ์{"\n"}
-            4. ใช้หน้าสแกนเพื่อเพิ่มอุปกรณ์เข้าระบบ
-          </Text>
+        {/* FORM CARD */}
+        <View style={s.formCard}>
+          <Text style={s.sectionLabel}>ข้อมูลอุปกรณ์</Text>
+
+          <Text style={s.fieldLabel}>ชื่ออุปกรณ์ *</Text>
+          <View style={s.inputWrap}>
+            <Ionicons name="cube-outline" size={18} color="#94a3b8" />
+            <TextInput
+              style={s.input}
+              placeholder="เช่น ESP32, Arduino Uno..."
+              placeholderTextColor="#94a3b8"
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+
+          <Text style={s.fieldLabel}>ประเภท</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.typeRow}>
+            {DEVICE_TYPES.map(t => (
+              <TouchableOpacity
+                key={t}
+                style={[s.typeBtn, type === t && s.typeBtnActive]}
+                onPress={() => setType(t)}
+              >
+                <Text style={[s.typeBtnTxt, type === t && s.typeBtnTxtActive]}>{t}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <Text style={s.fieldLabel}>รายละเอียด (ไม่บังคับ)</Text>
+          <TextInput
+            style={s.inputMulti}
+            placeholder="คุณสมบัติ, รุ่น, หมายเหตุ..."
+            placeholderTextColor="#94a3b8"
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={2}
+          />
+
+          <TouchableOpacity
+            style={[s.genBtn, !name.trim() && s.btnDisabled]}
+            onPress={handleGenerate}
+            disabled={!name.trim()}
+          >
+            <Ionicons name="qr-code-outline" size={20} color="#fff" />
+            <Text style={s.genBtnTxt}>สร้าง QR Code</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* FORM */}
-        <Text style={styles.label}>ชื่ออุปกรณ์ *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="เช่น ESP32, Arduino Uno, Raspberry Pi 4B"
-          value={name}
-          onChangeText={setName}
-        />
-
-        <Text style={styles.label}>ประเภท</Text>
-        <ScrollView
-          horizontal showsHorizontalScrollIndicator={false}
-          style={styles.typeScroll}
-          contentContainerStyle={styles.typeRow}
-        >
-          {DEVICE_TYPES.map((t) => (
-            <TouchableOpacity
-              key={t}
-              style={[styles.typeBtn, type === t && styles.typeBtnActive]}
-              onPress={() => setType(t)}
-            >
-              <Text style={[styles.typeBtnText, type === t && styles.typeBtnTextActive]}>
-                {t}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        <Text style={styles.label}>รายละเอียด (ไม่บังคับ)</Text>
-        <TextInput
-          style={[styles.input, styles.inputMulti]}
-          placeholder="คุณสมบัติ, รุ่น, หมายเหตุ..."
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          numberOfLines={2}
-        />
-
-        <TouchableOpacity
-          style={[styles.genBtn, !name.trim() && styles.btnDisabled]}
-          onPress={handleGenerate}
-          disabled={!name.trim()}
-        >
-          <Ionicons name="qr-code-outline" size={18} color="#fff" />
-          <Text style={styles.genBtnText}>  สร้าง QR Code</Text>
-        </TouchableOpacity>
-
-        {/* QR PREVIEW */}
+        {/* QR RESULT */}
         {qrUrl ? (
-          <View style={styles.qrCard}>
-            <Text style={styles.qrCardTitle}>QR Code พร้อมใช้งาน</Text>
+          <View style={s.qrCard}>
+            <Text style={s.sectionLabel}>QR Code พร้อมใช้งาน</Text>
 
-            <View style={styles.qrImageBox}>
-              <Image
-                source={{ uri: qrUrl }}
-                style={styles.qrImage}
-                resizeMode="contain"
-              />
+            {/* QR IMAGE */}
+            <View style={s.qrImageBox}>
+              <Image source={{ uri: qrUrl }} style={s.qrImage} resizeMode="contain" />
             </View>
 
             {/* INFO */}
-            <View style={styles.qrInfo}>
-              <View style={styles.qrInfoRow}>
-                <Text style={styles.qrInfoLabel}>ชื่อ</Text>
-                <Text style={styles.qrInfoVal}>{name}</Text>
+            <View style={s.infoBox}>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>ชื่อ</Text>
+                <Text style={s.infoVal}>{name}</Text>
               </View>
-              <View style={styles.qrInfoRow}>
-                <Text style={styles.qrInfoLabel}>ประเภท</Text>
-                <Text style={styles.qrInfoVal}>{type}</Text>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>ประเภท</Text>
+                <Text style={s.infoVal}>{type}</Text>
               </View>
               {description ? (
-                <View style={styles.qrInfoRow}>
-                  <Text style={styles.qrInfoLabel}>รายละเอียด</Text>
-                  <Text style={styles.qrInfoVal}>{description}</Text>
+                <View style={s.infoRow}>
+                  <Text style={s.infoLabel}>รายละเอียด</Text>
+                  <Text style={s.infoVal}>{description}</Text>
                 </View>
               ) : null}
             </View>
 
-            <Text style={styles.qrHint}>
-              📲 สแกน QR นี้จะได้ข้อมูลอุปกรณ์ขึ้นอัตโนมัติ
-            </Text>
+            <Text style={s.hint}>สแกน QR นี้ในหน้า "สแกน & เพิ่ม" เพื่อเพิ่มอุปกรณ์เข้าระบบ</Text>
 
-            {/* ACTION BUTTONS */}
-            <View style={styles.actionRow}>
+            {/* ACTIONS */}
+            <View style={s.actionRow}>
               <TouchableOpacity
-                style={[styles.saveBtn, saving && styles.btnDisabled]}
+                style={[s.saveBtn, saving && s.btnDisabled]}
                 onPress={handleSave}
                 disabled={saving}
               >
-                {saving ? (
-                  <ActivityIndicator color="#fff" size="small" />
-                ) : (
+                {saving ? <ActivityIndicator color="#fff" size="small" /> : (
                   <>
-                    <Ionicons name="download-outline" size={16} color="#fff" />
-                    <Text style={styles.saveBtnText}>บันทึกลง Gallery</Text>
+                    <Ionicons name="download-outline" size={18} color="#fff" />
+                    <Text style={s.saveBtnTxt}>บันทึกลง Gallery</Text>
                   </>
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.resetBtn} onPress={handleReset}>
-                <Ionicons name="refresh-outline" size={16} color="#64748b" />
-                <Text style={styles.resetBtnText}>สร้างใหม่</Text>
+              <TouchableOpacity style={s.resetBtn} onPress={handleReset}>
+                <Ionicons name="refresh-outline" size={18} color="#64748b" />
+                <Text style={s.resetBtnTxt}>สร้างใหม่</Text>
               </TouchableOpacity>
             </View>
-
           </View>
         ) : null}
 
@@ -218,93 +180,100 @@ export default function QRGen() {
   );
 }
 
-const styles = StyleSheet.create({
+const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f1f5f9" },
+
   header: {
     backgroundColor: "#1e3a8a",
-    paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
+    paddingTop: 54, paddingBottom: 20, paddingHorizontal: 20,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
-  headerText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-  scroll: { padding: 16 },
+  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", textAlign: "center" },
+  headerSub:   { color: "#93c5fd", fontSize: 12, textAlign: "center", marginTop: 2 },
 
-  howTo: {
-    backgroundColor: "#eff6ff", borderRadius: 12,
-    padding: 12, marginBottom: 16,
-    borderLeftWidth: 3, borderLeftColor: "#3b82f6",
-  },
-  howToTitle: { fontSize: 12, fontWeight: "700", color: "#1e3a8a", marginBottom: 4 },
-  howToText: { fontSize: 11, color: "#475569", lineHeight: 18 },
+  body: { padding: 16 },
 
-  label: {
+  sectionLabel: {
     fontSize: 11, fontWeight: "700", color: "#64748b",
-    textTransform: "uppercase", letterSpacing: 0.5,
-    marginBottom: 6, marginTop: 12,
+    textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 14,
   },
-  input: {
-    backgroundColor: "#fff", borderRadius: 12, padding: 14,
-    fontSize: 14, borderWidth: 1, borderColor: "#e2e8f0",
-  },
-  inputMulti: { height: 72, textAlignVertical: "top" },
 
-  typeScroll: { marginBottom: 4 },
-  typeRow: { gap: 8, paddingVertical: 4 },
-  typeBtn: {
-    paddingHorizontal: 14, paddingVertical: 8,
-    borderRadius: 20, backgroundColor: "#fff",
+  // Form Card
+  formCard: {
+    backgroundColor: "#fff", borderRadius: 16, padding: 16,
+    marginBottom: 16,
+    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  fieldLabel: { fontSize: 12, fontWeight: "600", color: "#475569", marginBottom: 6, marginTop: 12 },
+  inputWrap: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    backgroundColor: "#f8fafc", borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12,
     borderWidth: 1, borderColor: "#e2e8f0",
   },
+  input: { flex: 1, fontSize: 14, color: "#1e293b" },
+  inputMulti: {
+    backgroundColor: "#f8fafc", borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 1, borderColor: "#e2e8f0",
+    fontSize: 14, color: "#1e293b",
+    minHeight: 70, textAlignVertical: "top",
+  },
+
+  typeRow: { flexDirection: "row", gap: 8, paddingVertical: 4 },
+  typeBtn: {
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: "#f1f5f9", borderWidth: 1, borderColor: "#e2e8f0",
+  },
   typeBtnActive: { backgroundColor: "#1e3a8a", borderColor: "#1e3a8a" },
-  typeBtnText: { fontSize: 12, color: "#64748b", fontWeight: "600" },
-  typeBtnTextActive: { color: "#fff" },
+  typeBtnTxt: { fontSize: 12, fontWeight: "600", color: "#64748b" },
+  typeBtnTxtActive: { color: "#fff" },
 
   genBtn: {
-    flexDirection: "row", justifyContent: "center", alignItems: "center",
-    backgroundColor: "#1e3a8a", padding: 16, borderRadius: 14, marginTop: 16,
+    flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8,
+    backgroundColor: "#1e3a8a", padding: 15, borderRadius: 12, marginTop: 16,
   },
-  genBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  genBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 15 },
   btnDisabled: { backgroundColor: "#94a3b8" },
 
   // QR Card
   qrCard: {
-    backgroundColor: "#fff", borderRadius: 16,
-    padding: 16, marginTop: 16,
-    borderWidth: 1, borderColor: "#e2e8f0",
-  },
-  qrCardTitle: {
-    fontSize: 13, fontWeight: "700", color: "#1e293b",
-    textAlign: "center", marginBottom: 12,
+    backgroundColor: "#fff", borderRadius: 16, padding: 16,
+    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   qrImageBox: {
-    alignItems: "center", backgroundColor: "#fff",
-    padding: 8, borderRadius: 12,
-    borderWidth: 1, borderColor: "#f1f5f9",
+    alignItems: "center", backgroundColor: "#f8fafc",
+    borderRadius: 12, padding: 16,
+    borderWidth: 1, borderColor: "#e2e8f0", marginBottom: 14,
   },
-  qrImage: { width: 220, height: 220 },
-  qrInfo: {
-    marginTop: 12, backgroundColor: "#f8fafc",
-    borderRadius: 10, padding: 10,
-  },
-  qrInfoRow: {
-    flexDirection: "row", justifyContent: "space-between",
-    paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: "#f1f5f9",
-  },
-  qrInfoLabel: { fontSize: 11, color: "#94a3b8" },
-  qrInfoVal: { fontSize: 11, fontWeight: "700", color: "#1e293b" },
-  qrHint: {
-    fontSize: 10, color: "#64748b", textAlign: "center",
-    marginTop: 10, marginBottom: 12,
-  },
-  actionRow: { flexDirection: "row", gap: 10 },
-  saveBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    backgroundColor: "#16a34a", padding: 12, borderRadius: 12, gap: 6,
-  },
-  saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
-  resetBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    backgroundColor: "#f1f5f9", padding: 12, borderRadius: 12, gap: 6,
+  qrImage: { width: 200, height: 200 },
+
+  infoBox: {
+    backgroundColor: "#f8fafc", borderRadius: 12,
+    padding: 12, marginBottom: 12,
     borderWidth: 1, borderColor: "#e2e8f0",
   },
-  resetBtnText: { color: "#64748b", fontWeight: "600", fontSize: 13 },
+  infoRow: {
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: "#f1f5f9",
+  },
+  infoLabel: { fontSize: 12, color: "#94a3b8" },
+  infoVal:   { fontSize: 12, fontWeight: "700", color: "#1e293b", flex: 1, textAlign: "right" },
+
+  hint: { fontSize: 11, color: "#64748b", textAlign: "center", marginBottom: 14, lineHeight: 16 },
+
+  actionRow: { flexDirection: "row", gap: 10 },
+  saveBtn: {
+    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    backgroundColor: "#16a34a", padding: 13, borderRadius: 12,
+  },
+  saveBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 13 },
+  resetBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    backgroundColor: "#f1f5f9", padding: 13, borderRadius: 12,
+    borderWidth: 1, borderColor: "#e2e8f0",
+  },
+  resetBtnTxt: { color: "#64748b", fontWeight: "600", fontSize: 13 },
 });

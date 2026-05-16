@@ -176,6 +176,15 @@ export default function BorrowScan() {
       // Update item status
       await supabase.from("items").update({ status: "borrowed" }).eq("id", item.id);
 
+      // ส่ง notification ไปยัง user
+      await supabase.from("notifications").insert([{
+        user_id: selectedUser.id,
+        type: "borrow",
+        title: "ยืมอุปกรณ์สำเร็จ",
+        body: `คุณได้ยืม "${item.name}" ครบกำหนดคืน ${formatDate(dueDate)}`,
+        item_name: item.name,
+      }]);
+
       Alert.alert(
         "ยืมสำเร็จ! ✅",
         `${item.name}\nผู้ยืม: ${selectedUser.email}\nครบกำหนด: ${formatDate(dueDate)}`,

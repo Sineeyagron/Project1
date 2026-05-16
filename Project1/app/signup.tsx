@@ -71,7 +71,7 @@ export default function Signup() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>สมัครสมาชิก</Text>
-      <Text style={styles.subtitle}>Create your account</Text>
+      <Text style={styles.subtitle}>กรอกข้อมูลเพื่อสร้างบัญชีใหม่</Text>
 
       {/* อีเมล */}
       <Text style={styles.label}>อีเมล</Text>
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, fontSize: 15, color: "#1e293b" },
   btn: {
-    backgroundColor: "#0f172a", padding: 16,
+    backgroundColor: "#1e3a8a", padding: 16,
     borderRadius: 12, alignItems: "center", marginTop: 8,
   },
   btnText: { color: "#fff", fontWeight: "bold", fontSize: 15 },

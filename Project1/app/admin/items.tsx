@@ -126,8 +126,6 @@ export default function AdminItems() {
           if (active && active.length > 0) {
             Alert.alert("ลบไม่ได้", "อุปกรณ์นี้ยังถูกยืมอยู่"); return;
           }
-          // ลบ borrow_records ที่อ้างถึง item นี้ก่อน (FK constraint)
-          await supabase.from("borrow_records").delete().eq("item_id", item.id);
           const { error } = await supabase.from("items").delete().eq("id", item.id);
           if (error) { Alert.alert("ลบไม่สำเร็จ", error.message); return; }
           fetchItems();

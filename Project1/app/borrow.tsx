@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator, Image, RefreshControl,
+  ScrollView, ActivityIndicator, Image, RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -9,7 +9,7 @@ import supabase from "../lib/supabase";
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
   borrowed:       { label: "กำลังยืม",  color: "#b45309", bg: "#fef3c7", border: "#f59e0b", icon: "cube-outline" },
-  pending_return: { label: "รอคืน",     color: "#dc2626", bg: "#fee2e2", border: "#ef4444", icon: "time-outline" },
+  pending_return: { label: "กำลังยืม",  color: "#b45309", bg: "#fef3c7", border: "#f59e0b", icon: "cube-outline" },
   returned:       { label: "คืนแล้ว",   color: "#16a34a", bg: "#dcfce7", border: "#22c55e", icon: "checkmark-circle-outline" },
 };
 
@@ -46,24 +46,8 @@ export default function Borrow() {
 
   const onRefresh = () => { setRefreshing(true); fetchBorrows(); };
 
-  const requestReturn = (item: any) => {
-    if (item.status !== "borrowed") return;
-    Alert.alert("ขอคืนอุปกรณ์", `ยืนยันขอคืน "${item.items?.name || "อุปกรณ์"}"?`, [
-      { text: "ยกเลิก", style: "cancel" },
-      {
-        text: "ยืนยัน", onPress: async () => {
-          const { error } = await supabase
-            .from("borrow_records").update({ status: "pending_return" }).eq("id", item.id);
-          if (error) { Alert.alert("เกิดข้อผิดพลาด"); return; }
-          fetchBorrows();
-        },
-      },
-    ]);
-  };
-
-  const activeBorrows  = borrows.filter(b => b.status === "borrowed").length;
-  const pendingReturns = borrows.filter(b => b.status === "pending_return").length;
-  const returned       = borrows.filter(b => b.status === "returned").length;
+  const activeBorrows = borrows.filter(b => b.status === "borrowed" || b.status === "pending_return").length;
+  const returned      = borrows.filter(b => b.status === "returned").length;
 
   return (
     <View style={s.container}>
@@ -88,13 +72,13 @@ export default function Borrow() {
         >
           {/* STATS */}
           <View style={s.statsRow}>
+            <View style={[s.statCard, { borderLeftColor: "#3b82f6" }]}>
+              <Text style={s.statNum}>{borrows.length}</Text>
+              <Text style={s.statLabel}>ทั้งหมด</Text>
+            </View>
             <View style={[s.statCard, { borderLeftColor: "#f59e0b" }]}>
               <Text style={[s.statNum, { color: "#b45309" }]}>{activeBorrows}</Text>
               <Text style={s.statLabel}>กำลังยืม</Text>
-            </View>
-            <View style={[s.statCard, { borderLeftColor: "#ef4444" }]}>
-              <Text style={[s.statNum, { color: "#dc2626" }]}>{pendingReturns}</Text>
-              <Text style={s.statLabel}>รอคืน</Text>
             </View>
             <View style={[s.statCard, { borderLeftColor: "#22c55e" }]}>
               <Text style={[s.statNum, { color: "#16a34a" }]}>{returned}</Text>
@@ -121,11 +105,9 @@ export default function Borrow() {
                 const overdue = days !== null && days < 0 && b.status === "borrowed";
 
                 return (
-                  <TouchableOpacity
+                  <View
                     key={b.id}
                     style={[s.card, { borderLeftColor: cfg.border }, overdue && s.cardOverdue]}
-                    onPress={() => requestReturn(b)}
-                    activeOpacity={b.status === "borrowed" ? 0.7 : 1}
                   >
                     {/* รูปหรือ icon */}
                     {img ? (
@@ -149,16 +131,13 @@ export default function Borrow() {
                               : `ครบกำหนด ${formatDate(b.due_date)}`}
                         </Text>
                       )}
-                      {b.status === "borrowed" && !overdue && (
-                        <Text style={s.tapHint}>กดเพื่อขอคืน</Text>
-                      )}
                     </View>
 
                     {/* badge */}
                     <View style={[s.badge, { backgroundColor: cfg.bg }]}>
                       <Text style={[s.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 );
               })}
             </>

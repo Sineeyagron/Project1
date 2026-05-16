@@ -120,7 +120,7 @@ ON CONFLICT DO NOTHING;
 
 ---
 
-## 📊 สถานะปัจจุบัน (อัปเดต 16 พ.ค. 2569 — session 2)
+## 📊 สถานะปัจจุบัน (อัปเดต 17 พ.ค. 2569 — session 3)
 
 ### ✅ เสร็จแล้ว — ทุก feature เสร็จหมดแล้ว
 
@@ -194,11 +194,41 @@ app/
 
 lib/
 ├── supabase.ts
-└── uploadSignature.ts   — helper upload SVG ลายเซ็น → Supabase Storage
+└── uploadSignature.ts   — คืนค่า SVG string โดยตรง (ไม่ upload Storage แล้ว หลีกเลี่ยง RLS)
 
 components/
 └── SignatureCanvas.tsx   — reusable signature pad (PanResponder + react-native-svg)
 ```
+
+---
+
+## 🔧 สิ่งที่แก้ใน Session 3 (17 พ.ค. 2569)
+
+### Codebase cleanup
+- ลบไฟล์เก่า: `loginAdmin.tsx`, `otp.tsx`, `admin/booking.tsx`, `admin/addDevice.tsx`, `admin/device.tsx`
+- `_layout.tsx` — ลงทะเบียน screens ครบ, SIGNED_OUT → redirect /login
+- `admin/home.tsx` — role protection: redirect ถ้าไม่ใช่ admin หรือไม่มี session
+
+### UI redesign (User)
+- `home.tsx` — header navy + stat pill, room cards + shadow, tab bar fixed bottom
+- `profile.tsx` — avatar initial letter, stats cards, menu cards, recent borrow
+- `sittings.tsx` — redesign ใหม่ทั้งหมด ภาษาไทยครบ logout มี confirm dialog
+- `signup.tsx` — subtitle ภาษาไทย, สีปุ่ม navy
+
+### Features ใหม่
+- **Notification system** — table `notifications`, insert เมื่อยืม/คืน, UI timestamp relative
+- **Image upload** — FileSystem.uploadAsync + BINARY_CONTENT + anon key (แก้ 0-byte bug)
+- **กดรูปขยาย** — full-screen modal ใน admin/items
+- **เปลี่ยนสถานะ item** — กด badge ในการ์ดเปลี่ยน available/borrowed/repair
+- **borrow_date column** — เพิ่มใน DB (timestamptz) บันทึกเวลายืมจริง
+- **FK constraint** — borrow_records.item_id เปลี่ยนเป็น ON DELETE SET NULL (ลบ item แล้วประวัติยังอยู่)
+
+### Image upload flow (scan.tsx)
+```
+photoUri → FileSystem.uploadAsync(BINARY_CONTENT) → Supabase Storage item-images
+→ getPublicUrl → เก็บใน items.image_url
+```
+ต้องใช้ anon key (ไม่ใช้ session token) เพราะ INSERT policy ตั้งเป็น public
 
 ---
 

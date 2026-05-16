@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -24,7 +25,17 @@ export default function AdminHome() {
   const [borrowed, setBorrowed] = useState(0);
   const [repair, setRepair] = useState(0);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { checkRoleAndFetch(); }, []);
+
+  const checkRoleAndFetch = async () => {
+    // ตรวจสอบ session และ role ก่อนเข้าหน้า admin
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { router.replace("/login"); return; }
+    const { data: profile } = await supabase
+      .from("profiles").select("role").eq("id", user.id).single();
+    if (profile?.role !== "admin") { router.replace("/home"); return; }
+    fetchData();
+  };
 
   const fetchData = async () => {
     // นับจาก items.status เหมือนหน้าจัดการอุปกรณ์ ให้ตัวเลขตรงกัน
@@ -62,11 +73,20 @@ export default function AdminHome() {
     >
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("/")} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={20} color="#93c5fd" />
-          <Text style={styles.backText}>กลับ</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Admin Dashboard</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.headerTitle}>Admin Dashboard</Text>
+          <TouchableOpacity
+            onPress={() => Alert.alert("ออกจากระบบ", "ต้องการออกจากระบบใช่ไหม?", [
+              { text: "ยกเลิก", style: "cancel" },
+              { text: "ออกจากระบบ", style: "destructive", onPress: async () => {
+                await supabase.auth.signOut();
+                router.replace("/login");
+              }},
+            ])}
+          >
+            <Ionicons name="log-out-outline" size={24} color="#93c5fd" />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.headerSub}>ระบบจัดการห้องแล็บ IoT</Text>
       </View>
 
@@ -126,8 +146,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#1e3a8a",
     paddingTop: 54, paddingBottom: 24, paddingHorizontal: 20,
   },
-  backBtn: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 10 },
-  backText: { color: "#93c5fd", fontSize: 13 },
+  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
   headerTitle: { color: "#fff", fontSize: 22, fontWeight: "bold" },
   headerSub: { color: "#93c5fd", fontSize: 12, marginTop: 4 },
 

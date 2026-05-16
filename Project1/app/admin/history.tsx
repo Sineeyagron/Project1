@@ -29,7 +29,7 @@ function SignaturePreview({ svgString }: { svgString: string }) {
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
   borrowed:       { label: "กำลังยืม",  color: "#b45309", bg: "#fef3c7", border: "#f59e0b", icon: "cube-outline" },
-  pending_return: { label: "รอคืน",     color: "#dc2626", bg: "#fee2e2", border: "#ef4444", icon: "time-outline" },
+  pending_return: { label: "กำลังยืม",  color: "#b45309", bg: "#fef3c7", border: "#f59e0b", icon: "cube-outline" },
   returned:       { label: "คืนแล้ว",   color: "#16a34a", bg: "#dcfce7", border: "#22c55e", icon: "checkmark-circle-outline" },
 };
 
@@ -113,7 +113,9 @@ export default function AdminHistory() {
   }, []);
 
   const applyFilter = (list: any[], filter: string, q: string) => {
-    let result = filter === "all" ? list : list.filter(r => r.status === filter);
+    let result = filter === "all" ? list
+      : filter === "borrowed" ? list.filter(r => r.status === "borrowed" || r.status === "pending_return")
+      : list.filter(r => r.status === filter);
     if (q.trim()) {
       const lq = q.toLowerCase();
       result = result.filter(r =>
@@ -130,15 +132,13 @@ export default function AdminHistory() {
   const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
 
   const total    = records.length;
-  const active   = records.filter(r => r.status === "borrowed").length;
-  const pending  = records.filter(r => r.status === "pending_return").length;
+  const active   = records.filter(r => r.status === "borrowed" || r.status === "pending_return").length;
   const returned = records.filter(r => r.status === "returned").length;
 
   const FILTERS = [
-    { key: "all",            label: "ทั้งหมด" },
-    { key: "borrowed",       label: "กำลังยืม" },
-    { key: "pending_return", label: "รอคืน" },
-    { key: "returned",       label: "คืนแล้ว" },
+    { key: "all",      label: "ทั้งหมด" },
+    { key: "borrowed", label: "กำลังยืม" },
+    { key: "returned", label: "คืนแล้ว" },
   ];
 
   return (
@@ -170,10 +170,6 @@ export default function AdminHistory() {
             <View style={[s.statCard, { borderLeftColor: "#f59e0b" }]}>
               <Text style={[s.statNum, { color: "#b45309" }]}>{active}</Text>
               <Text style={s.statLabel}>กำลังยืม</Text>
-            </View>
-            <View style={[s.statCard, { borderLeftColor: "#ef4444" }]}>
-              <Text style={[s.statNum, { color: "#dc2626" }]}>{pending}</Text>
-              <Text style={s.statLabel}>รอคืน</Text>
             </View>
             <View style={[s.statCard, { borderLeftColor: "#22c55e" }]}>
               <Text style={[s.statNum, { color: "#16a34a" }]}>{returned}</Text>

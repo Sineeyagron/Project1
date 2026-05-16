@@ -84,38 +84,35 @@ export default function Login() {
 
       {/* LOGO */}
       <View style={styles.logoContainer}>
-        <Image
-          source={require("../assets/images/c02.png")}
-          style={styles.logo}
-        />
-        <Text style={styles.title}>Intelligent Ledger</Text>
-        <Text style={styles.subtitle}>IOT INVENTORY MANAGEMENT</Text>
+        <Image source={require("../assets/images/c02.png")} style={styles.logo} />
+        <Text style={styles.title}>IoT Lab Management</Text>
+        <Text style={styles.subtitle}>ระบบจัดการห้องปฏิบัติการ IoT</Text>
       </View>
 
       {/* CARD */}
       <View style={styles.card}>
-        <Text style={styles.welcome}>Welcome Back</Text>
-        <Text style={styles.desc}>Access your secure dashboard</Text>
+        <Text style={styles.welcome}>เข้าสู่ระบบ</Text>
+        <Text style={styles.desc}>กรอกอีเมลและรหัสผ่านของคุณ</Text>
 
         {/* EMAIL */}
-        <Text style={styles.label}>CORPORATE EMAIL</Text>
+        <Text style={styles.label}>อีเมล</Text>
         <View style={styles.inputBox}>
           <Ionicons name="mail-outline" size={18} color="#64748b" />
           <TextInput
-            placeholder="name@company.com"
+            placeholder="example@email.com"
             style={styles.input}
             value={email}
             onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
           />
         </View>
 
         {/* PASSWORD */}
         <View style={styles.passwordHeader}>
-          <Text style={styles.label}>ACCESS KEY</Text>
-
-          {/* 🔥 FIX: Forgot Password กดได้ */}
+          <Text style={styles.label}>รหัสผ่าน</Text>
           <TouchableOpacity onPress={() => router.push("/forgot")}>
-            <Text style={styles.forgot}>Forgot Password?</Text>
+            <Text style={styles.forgot}>ลืมรหัสผ่าน?</Text>
           </TouchableOpacity>
         </View>
 
@@ -129,11 +126,7 @@ export default function Login() {
             onChangeText={setPassword}
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            <Ionicons
-              name={showPassword ? "eye-off-outline" : "eye-outline"}
-              size={18}
-              color="#64748b"
-            />
+            <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={18} color="#64748b" />
           </TouchableOpacity>
         </View>
 
@@ -145,16 +138,16 @@ export default function Login() {
         >
           {isLoading
             ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.loginText}>Log In →</Text>
+            : <Text style={styles.loginText}>เข้าสู่ระบบ</Text>
           }
         </TouchableOpacity>
       </View>
 
       {/* SIGN UP */}
       <View style={styles.signupRow}>
-        <Text>Don't have an account? </Text>
+        <Text style={{ color: "#64748b" }}>ยังไม่มีบัญชี? </Text>
         <TouchableOpacity onPress={() => router.push("/signup")}>
-          <Text style={styles.signup}>Sign Up</Text>
+          <Text style={styles.signup}>สมัครสมาชิก</Text>
         </TouchableOpacity>
       </View>
     </View>

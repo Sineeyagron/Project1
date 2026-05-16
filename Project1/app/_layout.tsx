@@ -15,10 +15,14 @@ export default function Layout() {
     // วิธีนี้น่าเชื่อถือกว่า deep link เพราะ Supabase SDK จัดการ token เอง
     // ────────────────────────────────────────────────────────────────────
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        console.log("AUTH EVENT:", event);
+      async (event, session) => {
         if (event === "PASSWORD_RECOVERY") {
           setTimeout(() => router.replace("/reset-password"), 0);
+          return;
+        }
+        // ถ้า logout → ไปหน้า login
+        if (event === "SIGNED_OUT") {
+          setTimeout(() => router.replace("/login"), 0);
         }
       }
     );
@@ -84,16 +88,33 @@ export default function Layout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      {/* Auth */}
       <Stack.Screen name="login" />
       <Stack.Screen name="signup" />
+      <Stack.Screen name="forgot" />
+      <Stack.Screen name="reset-password" />
+      {/* User */}
       <Stack.Screen name="home" />
+      <Stack.Screen name="equipment" />
       <Stack.Screen name="roommap" />
+      <Stack.Screen name="lanstatus" />
       <Stack.Screen name="profile" />
       <Stack.Screen name="sittings" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="borrow" />
-      <Stack.Screen name="forgot" />
-      <Stack.Screen name="reset-password" />
+      {/* Admin */}
+      <Stack.Screen name="admin/home" />
+      <Stack.Screen name="admin/borrowscan" />
+      <Stack.Screen name="admin/returnscan" />
+      <Stack.Screen name="admin/items" />
+      <Stack.Screen name="admin/history" />
+      <Stack.Screen name="admin/qrgen" />
+      <Stack.Screen name="admin/scan" />
+      <Stack.Screen name="admin/room" />
+      <Stack.Screen name="admin/stations" />
+      <Stack.Screen name="admin/lanports" />
+      <Stack.Screen name="admin/inspection" />
+      <Stack.Screen name="admin/repairs" />
     </Stack>
   );
 }

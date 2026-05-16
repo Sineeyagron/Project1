@@ -152,6 +152,17 @@ export default function ReturnScan() {
       // Update item status
       await supabase.from("items").update({ status: "available" }).eq("id", item.id);
 
+      // ส่ง notification ไปยัง user
+      if (borrowRecord.user_id) {
+        await supabase.from("notifications").insert([{
+          user_id: borrowRecord.user_id,
+          type: "return",
+          title: "คืนอุปกรณ์สำเร็จ",
+          body: `"${item.name}" ได้รับการยืนยันการคืนเรียบร้อยแล้ว`,
+          item_name: item.name,
+        }]);
+      }
+
       Alert.alert("รับคืนสำเร็จ! ✅", `${item.name} คืนเรียบร้อยแล้ว`,
         [{ text: "โอเค", onPress: () => router.back() }]);
     } catch (e: any) {

@@ -52,6 +52,7 @@ export default function Equipment() {
 
   const available = items.filter(i => i.status === "available").length;
   const borrowed  = items.filter(i => i.status === "borrowed").length;
+  const repair    = items.filter(i => i.status === "repair").length;
 
   return (
     <View style={styles.container}>
@@ -71,6 +72,12 @@ export default function Equipment() {
             <View style={[styles.statDot, { backgroundColor: "#fca5a5" }]} />
             <Text style={styles.statText}>ถูกยืม {borrowed}</Text>
           </View>
+          {repair > 0 && (
+            <View style={styles.statChip}>
+              <View style={[styles.statDot, { backgroundColor: "#fde68a" }]} />
+              <Text style={styles.statText}>ซ่อม {repair}</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -157,22 +164,19 @@ export default function Equipment() {
       {/* BOTTOM TAB */}
       <View style={styles.tab}>
         <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/home")}>
-          <Ionicons name="home-outline" size={20} color="#94a3b8" />
-          <Text style={styles.tabText}>หน้าหลัก</Text>
+          <Ionicons name="home-outline" size={22} color="#94a3b8" />
+          <Text style={styles.tabText}>ชั้นเรียน</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="cube" size={20} color="#1e3a8a" />
+          <Ionicons name="cube" size={22} color="#1e3a8a" />
           <Text style={[styles.tabText, styles.tabActive]}>อุปกรณ์</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("./notifications")}>
-          <Ionicons name="notifications-outline" size={20} color="#94a3b8" />
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/notifications")}>
+          <Ionicons name="notifications-outline" size={22} color="#94a3b8" />
           <Text style={styles.tabText}>แจ้งเตือน</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("./profile")}>
-          <Ionicons name="person-outline" size={20} color="#94a3b8" />
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/profile")}>
+          <Ionicons name="person-outline" size={22} color="#94a3b8" />
           <Text style={styles.tabText}>โปรไฟล์</Text>
         </TouchableOpacity>
       </View>
@@ -239,7 +243,8 @@ const styles = StyleSheet.create({
   tab: {
     flexDirection: "row", backgroundColor: "#fff",
     borderTopWidth: 1, borderTopColor: "#e2e8f0",
-    paddingBottom: 20, paddingTop: 10,
+    paddingBottom: 24, paddingTop: 10,
+    position: "absolute", bottom: 0, left: 0, right: 0,
   },
   tabItem: { flex: 1, alignItems: "center", gap: 3 },
   tabText: { fontSize: 10, color: "#94a3b8" },
