@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Project1",
-    "slug": "Project1",
+    "name": "iot-lab-management",
+    "slug": "iot-lab-management",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "project1",
+    "scheme": "iotlab",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {

@@ -23,7 +23,7 @@ export default function ForgotPassword() {
   //
   // Linking.createURL('reset-password') จะสร้าง URL อัตโนมัติ
   // - ถ้ารันบน Expo Go: exp://192.168.x.x:8081/--/reset-password
-  // - ถ้า build จริง: project1://reset-password
+  // - ถ้า build จริง: iotlab://reset-password
   // แทนที่จะ hardcode URL ที่ใช้ได้เฉพาะเครื่องตัวเอง
   // ────────────────────────────────────────────────────────────────────
   const handleReset = async () => {
