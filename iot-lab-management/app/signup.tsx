@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Alert, ActivityIndicator,
+  StyleSheet, Image, Alert, ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -70,105 +70,213 @@ export default function Signup() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>สมัครสมาชิก</Text>
-      <Text style={styles.subtitle}>กรอกข้อมูลเพื่อสร้างบัญชีใหม่</Text>
-
-      {/* อีเมล */}
-      <Text style={styles.label}>อีเมล</Text>
-      <View style={styles.inputBox}>
-        <Ionicons name="mail-outline" size={18} color="#64748b" />
-        <TextInput
-          placeholder="example@email.com"
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
+      {/* LOGO */}
+      <View style={styles.logoContainer}>
+        <Image source={require("../assets/images/c02.png")} style={styles.logo} />
+        <Text style={styles.title}>IoT Lab Management</Text>
+        <Text style={styles.subtitle}>ระบบจัดการห้องปฏิบัติการ IoT</Text>
       </View>
 
-      {/* รหัสผ่าน */}
-      <Text style={styles.label}>รหัสผ่าน (อย่างน้อย 6 ตัว)</Text>
-      <View style={styles.inputBox}>
-        <Ionicons name="lock-closed-outline" size={18} color="#64748b" />
-        <TextInput
-          placeholder="••••••••"
-          secureTextEntry={!showPassword}
-          style={styles.input}
-          value={password}
-          onChangeText={setPassword}
-        />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Ionicons
-            name={showPassword ? "eye-off-outline" : "eye-outline"}
-            size={18} color="#64748b"
+      {/* CARD */}
+      <View style={styles.card}>
+        <Text style={styles.welcome}>สมัครสมาชิก</Text>
+        <Text style={styles.desc}>กรอกข้อมูลเพื่อสร้างบัญชีใหม่</Text>
+
+        {/* EMAIL */}
+        <Text style={styles.label}>อีเมล</Text>
+        <View style={styles.inputBox}>
+          <Ionicons name="mail-outline" size={18} color="#64748b" />
+          <TextInput
+            placeholder="example@email.com"
+            style={styles.input}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
           />
+        </View>
+
+        {/* PASSWORD */}
+        <Text style={styles.label}>รหัสผ่าน</Text>
+        <View style={styles.inputBox}>
+          <Ionicons name="lock-closed-outline" size={18} color="#64748b" />
+          <TextInput
+            placeholder="••••••••"
+            secureTextEntry={!showPassword}
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            autoCapitalize="none"
+          />
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={10}>
+            <Ionicons
+              name={showPassword ? "eye-off-outline" : "eye-outline"}
+              size={18} color="#64748b"
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* CONFIRM PASSWORD */}
+        <Text style={styles.label}>ยืนยันรหัสผ่าน</Text>
+        <View style={styles.inputBox}>
+          <Ionicons name="shield-checkmark-outline" size={18} color="#64748b" />
+          <TextInput
+            placeholder="••••••••"
+            secureTextEntry={!showConfirm}
+            style={styles.input}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            autoCapitalize="none"
+          />
+          <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} hitSlop={10}>
+            <Ionicons
+              name={showConfirm ? "eye-off-outline" : "eye-outline"}
+              size={18} color="#64748b"
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Password match indicator */}
+        {confirmPassword.length > 0 && (
+          <View style={styles.matchRow}>
+            <Ionicons
+              name={password === confirmPassword ? "checkmark-circle" : "close-circle"}
+              size={14}
+              color={password === confirmPassword ? "#16a34a" : "#dc2626"}
+            />
+            <Text style={[
+              styles.matchTxt,
+              { color: password === confirmPassword ? "#16a34a" : "#dc2626" },
+            ]}>
+              {password === confirmPassword ? "รหัสผ่านตรงกัน" : "รหัสผ่านไม่ตรงกัน"}
+            </Text>
+          </View>
+        )}
+
+        {/* SIGNUP */}
+        <TouchableOpacity
+          style={[styles.loginBtn, isLoading && { opacity: 0.6 }]}
+          onPress={handleSignup}
+          disabled={isLoading}
+        >
+          {isLoading
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.loginText}>สมัครสมาชิก</Text>
+          }
         </TouchableOpacity>
       </View>
 
-      {/* ยืนยันรหัสผ่าน */}
-      <Text style={styles.label}>ยืนยันรหัสผ่าน</Text>
-      <View style={styles.inputBox}>
-        <Ionicons name="lock-closed-outline" size={18} color="#64748b" />
-        <TextInput
-          placeholder="••••••••"
-          secureTextEntry={!showConfirm}
-          style={styles.input}
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-        />
-        <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
-          <Ionicons
-            name={showConfirm ? "eye-off-outline" : "eye-outline"}
-            size={18} color="#64748b"
-          />
+      {/* BACK TO LOGIN */}
+      <View style={styles.signupRow}>
+        <Text style={{ color: "#64748b" }}>มีบัญชีอยู่แล้ว? </Text>
+        <TouchableOpacity onPress={() => router.replace("/login")} disabled={isLoading}>
+          <Text style={styles.signup}>เข้าสู่ระบบ</Text>
         </TouchableOpacity>
       </View>
-
-      {/* ปุ่มสมัคร */}
-      <TouchableOpacity
-        style={[styles.btn, isLoading && { opacity: 0.6 }]}
-        onPress={handleSignup}
-        disabled={isLoading}
-      >
-        {isLoading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.btnText}>สมัครสมาชิก</Text>
-        }
-      </TouchableOpacity>
-
-      {/* กลับ login */}
-      <TouchableOpacity style={styles.backBtn} onPress={() => router.replace("/login")}>
-        <Text style={styles.backText}>มีบัญชีแล้ว? <Text style={{ fontWeight: "bold" }}>เข้าสู่ระบบ</Text></Text>
-      </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1, justifyContent: "center",
-    padding: 24, backgroundColor: "#f1f5f9",
+    flex: 1,
+    backgroundColor: "#f1f5f9",
+    padding: 20,
   },
-  title: { fontSize: 26, fontWeight: "bold", color: "#1e3a8a", marginBottom: 4 },
-  subtitle: { fontSize: 14, color: "#64748b", marginBottom: 28 },
+
+  logoContainer: {
+    alignItems: "center",
+    marginTop: 60,
+    marginBottom: 20,
+  },
+
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: 10,
+  },
+
+  title: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#1e3a8a",
+  },
+
+  subtitle: {
+    fontSize: 12,
+    color: "#64748b",
+    letterSpacing: 2,
+  },
+
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    marginTop: 20,
+    elevation: 3,
+  },
+
+  welcome: {
+    fontSize: 20,
+    fontWeight: "bold",
+  },
+
+  desc: {
+    color: "#64748b",
+    marginBottom: 20,
+  },
+
   label: {
-    fontSize: 12, color: "#1e3a8a",
-    marginBottom: 6, fontWeight: "600", marginTop: 4,
+    fontSize: 12,
+    marginBottom: 5,
+    color: "#1e3a8a",
   },
+
   inputBox: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#fff", borderRadius: 12,
-    paddingHorizontal: 12, marginBottom: 14,
-    height: 52, gap: 8,
-    borderWidth: 1, borderColor: "#e2e8f0",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f1f5f9",
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    marginBottom: 15,
+    height: 50,
+    gap: 8,
   },
-  input: { flex: 1, fontSize: 15, color: "#1e293b" },
-  btn: {
-    backgroundColor: "#1e3a8a", padding: 16,
-    borderRadius: 12, alignItems: "center", marginTop: 8,
+
+  input: {
+    flex: 1,
   },
-  btnText: { color: "#fff", fontWeight: "bold", fontSize: 15 },
-  backBtn: { marginTop: 20, alignItems: "center" },
-  backText: { color: "#1e3a8a", fontSize: 14 },
+
+  matchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: -8,
+    marginBottom: 10,
+  },
+  matchTxt: { fontSize: 11, fontWeight: "600" },
+
+  loginBtn: {
+    backgroundColor: "#0f172a",
+    padding: 15,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  loginText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  signupRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 20,
+  },
+
+  signup: {
+    color: "#1e3a8a",
+    fontWeight: "bold",
+  },
 });
