@@ -63,6 +63,7 @@ export default function AdminHome() {
     { icon: "desktop-outline",          label: "จัดการเครื่อง", route: "/admin/stations",          color: "#dc2626" },
     { icon: "git-network-outline",      label: "จัดการแลน",     route: "/admin/lanports",          color: "#7c3aed" },
     { icon: "clipboard-outline",        label: "ตรวจอุปกรณ์",  route: "/admin/inspection",        color: "#0891b2" },
+    { icon: "hardware-chip-outline",    label: "ตรวจสภาพ IoT", route: "/admin/iotinspection",     color: "#7c3aed" },
     { icon: "construct-outline",        label: "ซ่อมบำรุง",    route: "/admin/repairs",           color: "#ea580c" },
   ];
 

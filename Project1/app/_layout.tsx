@@ -114,6 +114,7 @@ export default function Layout() {
       <Stack.Screen name="admin/stations" />
       <Stack.Screen name="admin/lanports" />
       <Stack.Screen name="admin/inspection" />
+      <Stack.Screen name="admin/iotinspection" />
       <Stack.Screen name="admin/repairs" />
     </Stack>
   );

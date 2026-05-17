@@ -33,7 +33,6 @@ export default function InspectionPage() {
   const [term, setTerm] = useState("");
   const [stations, setStations] = useState<any[]>([]);
   const [inspections, setInspections] = useState<any[]>([]);
-  const [borrowHistory, setBorrowHistory] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
