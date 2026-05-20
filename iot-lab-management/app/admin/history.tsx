@@ -349,7 +349,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0",
   },
-  filterBtnActive: { backgroundColor: "#1e3a8a", borderColor: "#1e3a8a" },
+  filterBtnActive: { backgroundColor: "#1e3a8a", bordercolor: "#1e3a8a" },
   filterTxt: { fontSize: 12, fontWeight: "600", color: "#64748b" },
   filterTxtActive: { color: "#fff" },
 

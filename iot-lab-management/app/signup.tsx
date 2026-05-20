@@ -1,7 +1,15 @@
 import React, { useState } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, Image, Alert, ActivityIndicator,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -10,27 +18,35 @@ import supabase from "../lib/supabase";
 export default function Signup() {
   const router = useRouter();
 
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  const canSubmit =
+    fullName.trim().length > 0 &&
+    email.trim().length > 0 &&
+    password.length >= 6 &&
+    !isLoading;
+
   const handleSignup = async () => {
-    if (!email || !password || !confirmPassword) {
-      Alert.alert("กรอกข้อมูลให้ครบ"); return;
+    if (!fullName.trim() || !email.trim() || !password) {
+      Alert.alert("กรอกข้อมูลให้ครบ", "กรุณากรอกชื่อ อีเมล และรหัสผ่านก่อนสมัคร");
+      return;
     }
+
     if (password.length < 6) {
-      Alert.alert("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"); return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert("รหัสผ่านไม่ตรงกัน"); return;
+      Alert.alert("รหัสผ่านสั้นเกินไป", "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+      return;
     }
 
     setIsLoading(true);
 
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+    });
 
     if (error) {
       setIsLoading(false);
@@ -49,234 +65,271 @@ export default function Signup() {
       return;
     }
 
-    // ใช้ upsert แทน insert เพื่อป้องกันกรณี trigger สร้าง profile อัตโนมัติแล้ว
     const { error: profileError } = await supabase
       .from("profiles")
-      .upsert([{ id: userId, role: "user", email }], { onConflict: "id" });
+      .upsert(
+        [{
+          id: userId,
+          role: "user",
+          email: email.trim(),
+          full_name: fullName.trim(),
+        }],
+        { onConflict: "id" }
+      );
 
     setIsLoading(false);
 
     if (profileError) {
       console.log("profile error:", profileError);
-      // แม้ profile error แต่ auth user สร้างสำเร็จแล้ว ให้ไปหน้า login ได้เลย
-      Alert.alert("สมัครสำเร็จ 🎉", "กรุณาเข้าสู่ระบบ");
+      Alert.alert("สมัครสำเร็จ", "กรุณาเข้าสู่ระบบ");
       router.replace("/login");
       return;
     }
 
-    Alert.alert("สมัครสำเร็จ 🎉", "เข้าสู่ระบบได้เลย");
+    Alert.alert("สมัครสำเร็จ", "เข้าสู่ระบบได้เลย");
     router.replace("/login");
   };
 
   return (
-    <View style={styles.container}>
-      {/* LOGO */}
-      <View style={styles.logoContainer}>
-        <Image source={require("../assets/images/c02.png")} style={styles.logo} />
-        <Text style={styles.title}>IoT Lab Management</Text>
-        <Text style={styles.subtitle}>ระบบจัดการห้องปฏิบัติการ IoT</Text>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} disabled={isLoading}>
+          <Ionicons name="arrow-back" size={23} color="#fff" />
+        </TouchableOpacity>
+        <View>
+          <Text style={styles.headerTitle}>สมัครสมาชิก</Text>
+          <Text style={styles.headerSub}>เข้าร่วมชุมชน LabHub</Text>
+        </View>
       </View>
 
-      {/* CARD */}
-      <View style={styles.card}>
-        <Text style={styles.welcome}>สมัครสมาชิก</Text>
-        <Text style={styles.desc}>กรอกข้อมูลเพื่อสร้างบัญชีใหม่</Text>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
+          <Text style={styles.title}>สร้างบัญชีใหม่</Text>
+          <Text style={styles.desc}>กรอกข้อมูลให้ครบเพื่อเริ่มใช้งาน</Text>
 
-        {/* EMAIL */}
-        <Text style={styles.label}>อีเมล</Text>
-        <View style={styles.inputBox}>
-          <Ionicons name="mail-outline" size={18} color="#64748b" />
-          <TextInput
-            placeholder="example@email.com"
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-        </View>
-
-        {/* PASSWORD */}
-        <Text style={styles.label}>รหัสผ่าน</Text>
-        <View style={styles.inputBox}>
-          <Ionicons name="lock-closed-outline" size={18} color="#64748b" />
-          <TextInput
-            placeholder="••••••••"
-            secureTextEntry={!showPassword}
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-            autoCapitalize="none"
-          />
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={10}>
-            <Ionicons
-              name={showPassword ? "eye-off-outline" : "eye-outline"}
-              size={18} color="#64748b"
+          <Text style={styles.label}>ชื่อ-นามสกุล</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="person-outline" size={20} color="#64748b" />
+            <TextInput
+              placeholder="ชื่อจริง นามสกุล"
+              placeholderTextColor="#94a3b8"
+              style={styles.input}
+              value={fullName}
+              onChangeText={setFullName}
+              textContentType="name"
             />
-          </TouchableOpacity>
-        </View>
+          </View>
 
-        {/* CONFIRM PASSWORD */}
-        <Text style={styles.label}>ยืนยันรหัสผ่าน</Text>
-        <View style={styles.inputBox}>
-          <Ionicons name="shield-checkmark-outline" size={18} color="#64748b" />
-          <TextInput
-            placeholder="••••••••"
-            secureTextEntry={!showConfirm}
-            style={styles.input}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            autoCapitalize="none"
-          />
-          <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)} hitSlop={10}>
-            <Ionicons
-              name={showConfirm ? "eye-off-outline" : "eye-outline"}
-              size={18} color="#64748b"
+          <Text style={styles.label}>อีเมล</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="mail-outline" size={20} color="#64748b" />
+            <TextInput
+              placeholder="example@email.com"
+              placeholderTextColor="#94a3b8"
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              textContentType="emailAddress"
             />
-          </TouchableOpacity>
-        </View>
+          </View>
 
-        {/* Password match indicator */}
-        {confirmPassword.length > 0 && (
-          <View style={styles.matchRow}>
-            <Ionicons
-              name={password === confirmPassword ? "checkmark-circle" : "close-circle"}
-              size={14}
-              color={password === confirmPassword ? "#16a34a" : "#dc2626"}
+          <Text style={styles.label}>รหัสผ่าน</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="lock-closed-outline" size={20} color="#64748b" />
+            <TextInput
+              placeholder="อย่างน้อย 6 ตัวอักษร"
+              placeholderTextColor="#94a3b8"
+              secureTextEntry={!showPassword}
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              autoCapitalize="none"
+              textContentType="newPassword"
             />
-            <Text style={[
-              styles.matchTxt,
-              { color: password === confirmPassword ? "#16a34a" : "#dc2626" },
-            ]}>
-              {password === confirmPassword ? "รหัสผ่านตรงกัน" : "รหัสผ่านไม่ตรงกัน"}
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={10}>
+              <Ionicons
+                name={showPassword ? "eye-off-outline" : "eye-outline"}
+                size={20}
+                color="#64748b"
+              />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.termsRow}>
+            <Ionicons name="shield-checkmark-outline" size={17} color="#16a34a" />
+            <Text style={styles.termsText}>
+              เมื่อสมัครคุณยอมรับ <Text style={styles.termsLink}>เงื่อนไขการใช้งาน</Text> ของห้องแล็บ
             </Text>
           </View>
-        )}
 
-        {/* SIGNUP */}
-        <TouchableOpacity
-          style={[styles.loginBtn, isLoading && { opacity: 0.6 }]}
-          onPress={handleSignup}
-          disabled={isLoading}
-        >
-          {isLoading
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.loginText}>สมัครสมาชิก</Text>
-          }
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.primaryBtn, !canSubmit && styles.disabledBtn]}
+            onPress={handleSignup}
+            disabled={!canSubmit}
+            activeOpacity={0.88}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.primaryText}>สมัครและเข้าใช้งาน</Text>
+            )}
+          </TouchableOpacity>
+        </View>
 
-      {/* BACK TO LOGIN */}
-      <View style={styles.signupRow}>
-        <Text style={{ color: "#64748b" }}>มีบัญชีอยู่แล้ว? </Text>
-        <TouchableOpacity onPress={() => router.replace("/login")} disabled={isLoading}>
-          <Text style={styles.signup}>เข้าสู่ระบบ</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+        <View style={styles.footerRow}>
+          <Text style={styles.footerText}>มีบัญชีอยู่แล้ว?</Text>
+          <TouchableOpacity onPress={() => router.replace("/login")} disabled={isLoading}>
+            <Text style={styles.footerLink}>เข้าสู่ระบบ</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: "#f1f5f9",
-    padding: 20,
   },
-
-  logoContainer: {
+  header: {
+    minHeight: 88,
+    backgroundColor: "#2563eb",
+    paddingTop: 10,
+    paddingHorizontal: 26,
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 60,
-    marginBottom: 20,
+    gap: 12,
   },
-
-  logo: {
-    width: 80,
-    height: 80,
-    marginBottom: 10,
+  backBtn: {
+    width: 28,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#1e3a8a",
+  headerTitle: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "900",
+    lineHeight: 28,
   },
-
-  subtitle: {
+  headerSub: {
+    color: "#dbeafe",
     fontSize: 12,
-    color: "#64748b",
-    letterSpacing: 2,
+    fontWeight: "700",
+    marginTop: 5,
   },
-
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: 16,
+    paddingTop: 32,
+    paddingBottom: 28,
+  },
   card: {
+    width: "100%",
+    maxWidth: 430,
+    alignSelf: "center",
     backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    marginTop: 20,
-    elevation: 3,
+    borderRadius: 22,
+    paddingHorizontal: 24,
+    paddingTop: 26,
+    paddingBottom: 22,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
   },
-
-  welcome: {
-    fontSize: 20,
-    fontWeight: "bold",
+  title: {
+    color: "#1e293b",
+    fontSize: 22,
+    fontWeight: "900",
+    textAlign: "center",
   },
-
   desc: {
     color: "#64748b",
-    marginBottom: 20,
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 14,
+    marginBottom: 14,
   },
-
   label: {
-    fontSize: 12,
-    marginBottom: 5,
     color: "#1e3a8a",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 8,
   },
-
   inputBox: {
+    minHeight: 50,
     flexDirection: "row",
     alignItems: "center",
+    gap: 10,
     backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
     borderRadius: 12,
-    paddingHorizontal: 10,
-    marginBottom: 15,
-    height: 50,
-    gap: 8,
+    paddingHorizontal: 13,
+    marginBottom: 14,
   },
-
   input: {
     flex: 1,
+    color: "#0f172a",
+    fontSize: 15,
+    paddingVertical: 12,
   },
-
-  matchRow: {
+  termsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    marginTop: -8,
-    marginBottom: 10,
+    gap: 8,
+    marginBottom: 18,
   },
-  matchTxt: { fontSize: 11, fontWeight: "600" },
-
-  loginBtn: {
-    backgroundColor: "#0f172a",
-    padding: 15,
+  termsText: {
+    flex: 1,
+    color: "#64748b",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 16,
+  },
+  termsLink: {
+    color: "#1e3a8a",
+    fontWeight: "900",
+  },
+  primaryBtn: {
+    minHeight: 50,
     borderRadius: 12,
+    backgroundColor: "#172554",
     alignItems: "center",
-    marginTop: 10,
+    justifyContent: "center",
   },
-
-  loginText: {
-    color: "#fff",
-    fontWeight: "bold",
+  disabledBtn: {
+    opacity: 0.55,
   },
-
-  signupRow: {
+  primaryText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  footerRow: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 20,
+    alignItems: "center",
+    gap: 6,
+    marginTop: 14,
   },
-
-  signup: {
+  footerText: {
+    color: "#64748b",
+    fontSize: 14,
+  },
+  footerLink: {
     color: "#1e3a8a",
-    fontWeight: "bold",
+    fontSize: 14,
+    fontWeight: "900",
   },
 });

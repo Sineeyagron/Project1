@@ -414,7 +414,7 @@ const s = StyleSheet.create({
   selTxtActive: { color: "#fff" },
 
   grpBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0" },
-  grpBtnActive: { backgroundColor: "#1e3a8a", borderColor: "#1e3a8a" },
+  grpBtnActive: { backgroundColor: "#1e3a8a", bordercolor: "#1e3a8a" },
   grpTxt: { fontSize: 12, fontWeight: "600", color: "#64748b" },
   grpTxtActive: { color: "#fff" },
 

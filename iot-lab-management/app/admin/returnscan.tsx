@@ -363,7 +363,7 @@ export default function ReturnScan() {
         {/* STEP INDICATOR */}
         <View style={s.stepRow}>
           <View style={s.stepDone}><Ionicons name="checkmark" size={14} color="#fff" /></View>
-          <View style={[s.stepLine, { backgroundColor: "#f97316" }]} />
+          <View style={[s.stepLine, { backgroundColor: "#1e3a8a" }]} />
           <View style={s.stepActive}><Text style={s.stepActiveTxt}>2</Text></View>
         </View>
         <Text style={s.stepLabel}>ขั้นตอน 2/2 — ลงลายเซ็น</Text>
@@ -427,13 +427,13 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f1f5f9" },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
   header: {
-    backgroundColor: "#f97316", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
+    backgroundColor: "#1e3a8a", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
   headerTxt: { color: "#fff", fontSize: 17, fontWeight: "bold" },
 
   permTxt: { fontSize: 14, color: "#64748b" },
-  permBtn: { backgroundColor: "#f97316", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
+  permBtn: { backgroundColor: "#1e3a8a", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
   permBtnTxt: { color: "#fff", fontWeight: "600" },
 
   cameraWrap: { flex: 1, position: "relative" },
@@ -461,7 +461,7 @@ const s = StyleSheet.create({
   stepRow: { flexDirection: "row", alignItems: "center", marginBottom: 4 },
   stepActive: {
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: "#f97316", justifyContent: "center", alignItems: "center",
+    backgroundColor: "#1e3a8a", justifyContent: "center", alignItems: "center",
   },
   stepActiveTxt: { color: "#fff", fontWeight: "700", fontSize: 13 },
   stepInactive: {
@@ -471,7 +471,7 @@ const s = StyleSheet.create({
   stepInactiveTxt: { color: "#94a3b8", fontWeight: "700", fontSize: 13 },
   stepDone: {
     width: 28, height: 28, borderRadius: 14,
-    backgroundColor: "#f97316", justifyContent: "center", alignItems: "center",
+    backgroundColor: "#1e3a8a", justifyContent: "center", alignItems: "center",
   },
   stepLine: { flex: 1, height: 2, backgroundColor: "#e2e8f0", marginHorizontal: 6 },
   stepLabel: { fontSize: 11, color: "#64748b", marginBottom: 14 },
@@ -535,7 +535,7 @@ const s = StyleSheet.create({
 
   confirmBtn: {
     flexDirection: "row", justifyContent: "center", alignItems: "center",
-    backgroundColor: "#f97316", padding: 16, borderRadius: 14, marginBottom: 10,
+    backgroundColor: "#1e3a8a", padding: 16, borderRadius: 14, marginBottom: 10,
   },
   confirmBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 15 },
   btnDisabled: { backgroundColor: "#94a3b8" },

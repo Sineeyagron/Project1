@@ -84,7 +84,7 @@ export default function ResetPassword() {
     <View style={styles.container}>
       {/* LOGO */}
       <View style={styles.logoContainer}>
-        <Image source={require("../assets/images/c02.png")} style={styles.logo} />
+        <Image source={require("../assets/images/brand-mark.png")} style={styles.logo} />
         <Text style={styles.title}>IoT Lab Management</Text>
         <Text style={styles.subtitle}>ระบบจัดการห้องปฏิบัติการ IoT</Text>
       </View>
@@ -200,7 +200,7 @@ export default function ResetPassword() {
             <TouchableOpacity
               style={[
                 styles.modalBtn,
-                { backgroundColor: result.type === "success" ? "#16a34a" : "#0f172a" },
+                { backgroundColor: result.type === "success" ? "#16a34a" : "#1e3a8a" },
               ]}
               onPress={handleCloseModal}
               activeOpacity={0.85}
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   matchTxt: { fontSize: 11, fontWeight: "600" },
 
   loginBtn: {
-    backgroundColor: "#0f172a",
+    backgroundColor: "#1e3a8a",
     padding: 15,
     borderRadius: 12,
     alignItems: "center",

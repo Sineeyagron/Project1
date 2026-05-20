@@ -153,6 +153,8 @@ const SignatureCanvas = forwardRef<SignatureCanvasRef, Props>(
   }
 );
 
+SignatureCanvas.displayName = "SignatureCanvas";
+
 export default SignatureCanvas;
 
 const styles = StyleSheet.create({

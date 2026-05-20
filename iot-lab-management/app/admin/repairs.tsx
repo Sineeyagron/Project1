@@ -415,7 +415,7 @@ const s = StyleSheet.create({
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0",
     alignSelf: "flex-start",
   },
-  filterBtnActive: { backgroundColor: "#1e3a8a", borderColor: "#1e3a8a" },
+  filterBtnActive: { backgroundColor: "#1e3a8a", bordercolor: "#1e3a8a" },
   filterTxt: { fontSize: 12, fontWeight: "600", color: "#64748b" },
   filterTxtActive: { color: "#fff" },
 
@@ -466,7 +466,7 @@ const s = StyleSheet.create({
     backgroundColor: "#f1f5f9", alignItems: "center",
     borderWidth: 1, borderColor: "#e2e8f0",
   },
-  roomBtnActive: { backgroundColor: "#1e3a8a", borderColor: "#1e3a8a" },
+  roomBtnActive: { backgroundColor: "#1e3a8a", bordercolor: "#1e3a8a" },
   roomBtnTxt: { fontSize: 13, fontWeight: "600", color: "#64748b" },
   roomBtnTxtActive: { color: "#fff" },
 
@@ -475,7 +475,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
     backgroundColor: "#f1f5f9", borderWidth: 1, borderColor: "#e2e8f0",
   },
-  chipActive: { backgroundColor: "#1e3a8a", borderColor: "#1e3a8a" },
+  chipActive: { backgroundColor: "#1e3a8a", bordercolor: "#1e3a8a" },
   chipTxt: { fontSize: 12, fontWeight: "600", color: "#64748b" },
   chipTxtActive: { color: "#fff" },
 

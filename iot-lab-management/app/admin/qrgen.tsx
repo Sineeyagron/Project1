@@ -149,7 +149,7 @@ export default function QRGen() {
               ) : null}
             </View>
 
-            <Text style={s.hint}>สแกน QR นี้ในหน้า "สแกน & เพิ่ม" เพื่อเพิ่มอุปกรณ์เข้าระบบ</Text>
+            <Text style={s.hint}>สแกน QR นี้ในหน้า &quot;สแกน & เพิ่ม&quot; เพื่อเพิ่มอุปกรณ์เข้าระบบ</Text>
 
             {/* ACTIONS */}
             <View style={s.actionRow}>
@@ -226,7 +226,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
     backgroundColor: "#f1f5f9", borderWidth: 1, borderColor: "#e2e8f0",
   },
-  typeBtnActive: { backgroundColor: "#1e3a8a", borderColor: "#1e3a8a" },
+  typeBtnActive: { backgroundColor: "#1e3a8a", bordercolor: "#1e3a8a" },
   typeBtnTxt: { fontSize: 12, fontWeight: "600", color: "#64748b" },
   typeBtnTxtActive: { color: "#fff" },
 

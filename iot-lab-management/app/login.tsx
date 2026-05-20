@@ -1,16 +1,18 @@
 import React, { useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Image,
-  Alert,
-  ActivityIndicator,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 
 export default function Login() {
@@ -20,23 +22,20 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
 
-  // ── อธิบาย ──────────────────────────────────────────────────────────
-  // handleLogin ทำงานแบบนี้:
-  // 1. ส่ง email+password ไปให้ Supabase ตรวจสอบ
-  // 2. ถ้าผ่าน → ดึง "role" ของ user จากตาราง profiles
-  // 3. role="admin" → ไปหน้า admin, อื่นๆ → ไปหน้า home ปกติ
-  // ────────────────────────────────────────────────────────────────────
+  const canSubmit = email.trim().length > 0 && password.length > 0 && !isLoading;
+
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert("กรอกข้อมูลให้ครบ");
+      Alert.alert("กรอกข้อมูลให้ครบ", "กรุณากรอกอีเมลและรหัสผ่านก่อนเข้าสู่ระบบ");
       return;
     }
 
-    setIsLoading(true); // ปิดปุ่มระหว่างรอ ป้องกันกดซ้ำ
+    setIsLoading(true);
 
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.trim(),
       password,
     });
 
@@ -55,7 +54,6 @@ export default function Login() {
       return;
     }
 
-    // ดึง role จากตาราง profiles (ที่เราสร้างตอน signup)
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
@@ -66,11 +64,10 @@ export default function Login() {
 
     if (profileError || !profile) {
       console.log(profileError);
-      Alert.alert("ไม่พบข้อมูล role");
+      Alert.alert("ไม่พบข้อมูลสิทธิ์ผู้ใช้");
       return;
     }
 
-    // แยกทางตาม role
     if (profile.role === "admin") {
       router.replace("/admin/home");
     } else {
@@ -79,182 +76,278 @@ export default function Login() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* ลบปุ่ม ADMIN ที่ข้ามการยืนยันตัวตนออกแล้ว */}
-
-      {/* LOGO */}
-      <View style={styles.logoContainer}>
-        <Image source={require("../assets/images/c02.png")} style={styles.logo} />
-        <Text style={styles.title}>IoT Lab Management</Text>
-        <Text style={styles.subtitle}>ระบบจัดการห้องปฏิบัติการ IoT</Text>
-      </View>
-
-      {/* CARD */}
-      <View style={styles.card}>
-        <Text style={styles.welcome}>เข้าสู่ระบบ</Text>
-        <Text style={styles.desc}>กรอกอีเมลและรหัสผ่านของคุณ</Text>
-
-        {/* EMAIL */}
-        <Text style={styles.label}>อีเมล</Text>
-        <View style={styles.inputBox}>
-          <Ionicons name="mail-outline" size={18} color="#64748b" />
-          <TextInput
-            placeholder="example@email.com"
-            style={styles.input}
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={styles.topBand} />
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.brandBlock}>
+          <View style={styles.logoWrap}>
+            <View style={styles.logoInner}>
+              <Ionicons name="git-network-outline" size={34} color="#ffffff" />
+              <View style={styles.logoDot}>
+                <Text style={styles.logoDotText}>H</Text>
+              </View>
+            </View>
+          </View>
+          <Text style={styles.appName}>
+            Lab<Text style={styles.appNameAccent}>Hub</Text>
+          </Text>
+          <Text style={styles.appSubtitle}>ทุกอุปกรณ์ในห้องแล็บ · รวมไว้ที่เดียว</Text>
         </View>
 
-        {/* PASSWORD */}
-        <View style={styles.passwordHeader}>
-          <Text style={styles.label}>รหัสผ่าน</Text>
-          <TouchableOpacity onPress={() => router.push("/forgot")}>
-            <Text style={styles.forgot}>ลืมรหัสผ่าน?</Text>
+        <View style={styles.card}>
+          <Text style={styles.title}>เข้าสู่ระบบ</Text>
+          <Text style={styles.description}>กรอกอีเมลและรหัสผ่านของคุณ</Text>
+
+          <Text style={styles.label}>อีเมล</Text>
+          <View style={[styles.inputBox, focusedField === "email" && styles.inputBoxFocused]}>
+            <Ionicons name="mail-outline" size={20} color={focusedField === "email" ? "#1e3a8a" : "#64748b"} />
+            <TextInput
+              placeholder="example@email.com"
+              placeholderTextColor="#94a3b8"
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              onFocus={() => setFocusedField("email")}
+              onBlur={() => setFocusedField(null)}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              textContentType="emailAddress"
+            />
+          </View>
+
+          <View style={styles.passwordHeader}>
+            <Text style={styles.label}>รหัสผ่าน</Text>
+            <TouchableOpacity onPress={() => router.push("/forgot")} disabled={isLoading}>
+              <Text style={styles.forgot}>ลืมรหัสผ่าน?</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={[styles.inputBox, focusedField === "password" && styles.inputBoxFocused]}>
+            <Ionicons name="lock-closed-outline" size={20} color={focusedField === "password" ? "#1e3a8a" : "#64748b"} />
+            <TextInput
+              placeholder="กรอกรหัสผ่าน"
+              placeholderTextColor="#94a3b8"
+              secureTextEntry={!showPassword}
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              onFocus={() => setFocusedField("password")}
+              onBlur={() => setFocusedField(null)}
+              textContentType="password"
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={10}>
+              <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.loginBtn, !canSubmit && styles.loginBtnDisabled]}
+            onPress={handleLogin}
+            disabled={!canSubmit}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.loginText}>เข้าสู่ระบบ</Text>
+            )}
           </TouchableOpacity>
         </View>
 
-        <View style={styles.inputBox}>
-          <Ionicons name="lock-closed-outline" size={18} color="#64748b" />
-          <TextInput
-            placeholder="••••••••"
-            secureTextEntry={!showPassword}
-            style={styles.input}
-            value={password}
-            onChangeText={setPassword}
-          />
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={18} color="#64748b" />
+        <View style={styles.signupRow}>
+          <Text style={styles.signupHint}>ยังไม่มีบัญชี?</Text>
+          <TouchableOpacity onPress={() => router.push("/signup")} disabled={isLoading}>
+            <Text style={styles.signup}>สมัครสมาชิก</Text>
           </TouchableOpacity>
         </View>
-
-        {/* LOGIN */}
-        <TouchableOpacity
-          style={[styles.loginBtn, isLoading && { opacity: 0.6 }]}
-          onPress={handleLogin}
-          disabled={isLoading}
-        >
-          {isLoading
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.loginText}>เข้าสู่ระบบ</Text>
-          }
-        </TouchableOpacity>
-      </View>
-
-      {/* SIGN UP */}
-      <View style={styles.signupRow}>
-        <Text style={{ color: "#64748b" }}>ยังไม่มีบัญชี? </Text>
-        <TouchableOpacity onPress={() => router.push("/signup")}>
-          <Text style={styles.signup}>สมัครสมาชิก</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: "#f1f5f9",
-    padding: 20,
+    backgroundColor: "#dbeafe",
   },
-
-  logoContainer: {
+  topBand: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#dbeafe",
+  },
+  content: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingHorizontal: 26,
+    paddingVertical: 34,
+  },
+  brandBlock: {
+    width: "100%",
+    maxWidth: 430,
+    alignSelf: "center",
     alignItems: "center",
-    marginTop: 100,
     marginBottom: 20,
   },
-
-  logo: {
-    width: 80,
-    height: 80,
-    marginBottom: 10,
+  logoWrap: {
+    width: 92,
+    height: 92,
+    borderRadius: 26,
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 22,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.80)",
+    elevation: 6,
   },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#1e3a8a",
+  logoInner: {
+    width: 66,
+    height: 66,
+    borderRadius: 18,
+    backgroundColor: "#2563eb",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#60a5fa",
   },
-
-  subtitle: {
+  logoDot: {
+    position: "absolute",
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#3b82f6",
+    borderWidth: 2,
+    borderColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoDotText: {
+    color: "#ffffff",
     fontSize: 12,
-    color: "#64748b",
-    letterSpacing: 2,
+    fontWeight: "900",
   },
-
+  appName: {
+    color: "#0f172a",
+    fontSize: 32,
+    fontWeight: "900",
+    textAlign: "center",
+    letterSpacing: 0,
+  },
+  appNameAccent: {
+    color: "#1d4ed8",
+  },
+  appSubtitle: {
+    color: "#475569",
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 4,
+    textAlign: "center",
+  },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    marginTop: 20,
-    elevation: 3,
+    width: "100%",
+    maxWidth: 430,
+    alignSelf: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: 22,
+    paddingHorizontal: 24,
+    paddingTop: 26,
+    paddingBottom: 22,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
   },
-
-  welcome: {
-    fontSize: 20,
-    fontWeight: "bold",
+  title: {
+    color: "#0f172a",
+    fontSize: 22,
+    fontWeight: "900",
   },
-
-  desc: {
+  description: {
     color: "#64748b",
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 8,
     marginBottom: 20,
   },
-
   label: {
-    fontSize: 12,
-    marginBottom: 5,
-    color: "#1e3a8a",
+    color: "#334155",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 8,
   },
-
   inputBox: {
+    minHeight: 50,
     flexDirection: "row",
     alignItems: "center",
+    gap: 10,
     backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
     borderRadius: 12,
-    paddingHorizontal: 10,
-    marginBottom: 15,
-    height: 50,
-    gap: 8,
+    paddingHorizontal: 14,
+    marginBottom: 18,
   },
-
+  inputBoxFocused: {
+    borderColor: "#93c5fd",
+    backgroundColor: "#ffffff",
+  },
   input: {
     flex: 1,
+    color: "#0f172a",
+    fontSize: 15,
+    paddingVertical: 13,
   },
-
   passwordHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
-  },
-
-  forgot: {
-    fontSize: 12,
-    color: "#1e3a8a",
-  },
-
-  loginBtn: {
-    backgroundColor: "#0f172a",
-    padding: 15,
-    borderRadius: 12,
     alignItems: "center",
-    marginTop: 10,
   },
-
+  forgot: {
+    color: "#1e3a8a",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 8,
+  },
+  loginBtn: {
+    minHeight: 52,
+    backgroundColor: "#172554",
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 2,
+  },
+  loginBtnDisabled: {
+    opacity: 0.55,
+  },
   loginText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "900",
   },
-
   signupRow: {
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
     marginTop: 20,
   },
-
+  signupHint: {
+    color: "#64748b",
+    fontSize: 14,
+  },
   signup: {
     color: "#1e3a8a",
-    fontWeight: "bold",
+    fontSize: 14,
+    fontWeight: "900",
   },
 });

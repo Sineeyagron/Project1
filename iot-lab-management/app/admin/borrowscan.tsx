@@ -564,7 +564,7 @@ const s = StyleSheet.create({
     flex: 1, paddingVertical: 10, borderRadius: 10,
     backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0", alignItems: "center",
   },
-  durationBtnActive: { backgroundColor: "#1e3a8a", borderColor: "#1e3a8a" },
+  durationBtnActive: { backgroundColor: "#1e3a8a", bordercolor: "#1e3a8a" },
   durationBtnTxt: { fontSize: 12, fontWeight: "600", color: "#64748b" },
   durationBtnTxtActive: { color: "#fff" },
 

@@ -138,7 +138,7 @@ export default function AdminRoom() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f1f5f9" },
   header: {
-    backgroundColor: "#8b5cf6", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
+    backgroundColor: "#1e3a8a", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
   headerTxt: { color: "#fff", fontSize: 17, fontWeight: "bold" },
