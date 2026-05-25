@@ -15,17 +15,17 @@ import Svg, { Polyline } from "react-native-svg";
 import supabase from "../../lib/supabase";
 
 const C = {
-  bg: "#f1f5f9",
-  hero: "#2f63df",
+  bg: "#eef3f8",
+  hero: "#7c3aed",
   ink: "#0f172a",
   text: "#1e293b",
   muted: "#64748b",
   faint: "#94a3b8",
   card: "#ffffff",
   blue: "#1d4ed8",
-  blueDark: "#1e3a8a",
+  blueDark: "#1f3f9e",
   green: "#16a34a",
-  orange: "#f97316",
+  orange: "#fb5a0a",
   orangeDark: "#ea580c",
   red: "#dc2626",
   purple: "#7c3aed",
@@ -33,7 +33,7 @@ const C = {
 };
 
 const PRIMARY = [
-  { icon: "barcode-outline", title: "สแกนยืม", route: "/admin/borrowscan", bg: C.blueDark },
+  { icon: "barcode-outline", title: "สแกนยืม", route: "/admin/borrowscan", bg: "#2347ae" },
   { icon: "return-down-back-outline", title: "สแกนคืน", route: "/admin/returnscan", bg: C.orange },
 ] as const;
 
@@ -452,9 +452,9 @@ const s = StyleSheet.create({
   },
   hero: {
     backgroundColor: C.hero,
-    paddingTop: 40,
-    paddingHorizontal: 30,
-    paddingBottom: 22,
+    paddingTop: 42,
+    paddingHorizontal: 22,
+    paddingBottom: 20,
   },
   heroTop: {
     flexDirection: "row",
@@ -494,12 +494,12 @@ const s = StyleSheet.create({
   todayCard: {
     flexDirection: "row",
     alignItems: "stretch",
-    marginTop: 18,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    marginTop: 16,
+    backgroundColor: "rgba(255,255,255,0.16)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.16)",
-    borderRadius: 16,
-    paddingHorizontal: 13,
+    borderRadius: 14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
   },
   todayItem: {
@@ -531,8 +531,8 @@ const s = StyleSheet.create({
     marginHorizontal: 10,
   },
   body: {
-    paddingHorizontal: 30,
-    paddingTop: 17,
+    paddingHorizontal: 16,
+    paddingTop: 14,
   },
   loadingCard: {
     backgroundColor: C.card,
@@ -550,17 +550,17 @@ const s = StyleSheet.create({
   },
   primaryGrid: {
     flexDirection: "row",
-    gap: 10,
+    gap: 12,
     marginBottom: 16,
   },
   primaryTile: {
     flex: 1,
-    height: 122,
+    height: 124,
     borderRadius: 14,
     padding: 14,
     justifyContent: "space-between",
     overflow: "hidden",
-    elevation: 9,
+    elevation: 10,
   },
   tileOrb: {
     position: "absolute",
@@ -601,7 +601,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    marginBottom: 10,
+    marginBottom: 9,
   },
   sectionRowCompact: {
     marginBottom: 0,
@@ -615,18 +615,18 @@ const s = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 18,
   },
   statCard: {
     width: "48.4%",
-    height: 136,
+    height: 124,
     backgroundColor: C.card,
     borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
     borderWidth: 1,
     borderColor: "rgba(15,23,42,0.05)",
-    elevation: 2,
+    elevation: 3,
   },
   statTop: {
     flexDirection: "row",
@@ -634,8 +634,8 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
   },
   statIcon: {
-    width: 30,
-    height: 30,
+    width: 29,
+    height: 29,
     borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
@@ -653,10 +653,10 @@ const s = StyleSheet.create({
     fontWeight: "900",
   },
   statNum: {
-    fontSize: 29,
+    fontSize: 28,
     fontWeight: "900",
     lineHeight: 32,
-    marginTop: 8,
+    marginTop: 7,
   },
   statLabel: {
     color: C.faint,
@@ -666,9 +666,9 @@ const s = StyleSheet.create({
   },
   lineChart: {
     alignSelf: "stretch",
-    height: 30,
-    marginTop: 5,
-    marginHorizontal: -1,
+    height: 25,
+    marginTop: 4,
+    marginHorizontal: -2,
     overflow: "hidden",
   },
   toolGrid: {
@@ -679,7 +679,7 @@ const s = StyleSheet.create({
   },
   toolBtn: {
     width: "31.4%",
-    height: 83,
+    height: 86,
     backgroundColor: C.card,
     borderRadius: 12,
     paddingHorizontal: 6,
@@ -735,11 +735,11 @@ const s = StyleSheet.create({
     gap: 10,
   },
   activityCard: {
-    minHeight: 60,
+    minHeight: 58,
     backgroundColor: C.card,
     borderRadius: 14,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,

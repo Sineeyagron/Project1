@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
   ScrollView, Alert, ActivityIndicator,
@@ -34,6 +34,14 @@ export default function Scan() {
   const [photoUri, setPhotoUri] = useState("");
 
   const [saving, setSaving] = useState(false);
+  const [cameraRequested, setCameraRequested] = useState(false);
+
+  useEffect(() => {
+    if (step !== "scan" || cameraRequested || permission?.granted) return;
+    if (permission && !permission.canAskAgain) return;
+    setCameraRequested(true);
+    requestPermission();
+  }, [cameraRequested, permission, requestPermission, step]);
 
   // ── สแกน QR → parse JSON ──
   const handleBarcodeScan = ({ data }: { data: string }) => {
@@ -157,6 +165,20 @@ export default function Scan() {
     setQuantity("1"); setPhotoUri("");
   };
 
+  const goBack = () => {
+    router.replace("/admin/home");
+  };
+
+  const startManualAdd = () => {
+    setScanned(false);
+    setName("");
+    setType("");
+    setDescription("");
+    setQuantity("1");
+    setPhotoUri("");
+    setStep("details");
+  };
+
   // ── STEP INDICATOR ──
   const StepBar = () => (
     <View style={si.row}>
@@ -185,65 +207,58 @@ export default function Scan() {
 
   // ── RENDER: Step 1 — Scan ──
   if (step === "scan") {
-    if (!permission) return <View style={styles.center}><ActivityIndicator /></View>;
-
-    if (!permission.granted) {
-      return (
-        <View style={styles.center}>
-          <Ionicons name="camera-outline" size={48} color="#94a3b8" />
-          <Text style={styles.permText}>ต้องการสิทธิ์เข้าถึงกล้อง</Text>
-          <TouchableOpacity style={styles.permBtn} onPress={requestPermission}>
-            <Text style={styles.permBtnText}>อนุญาตให้เข้าถึงกล้อง</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+        <View style={styles.scanHeader}>
+          <TouchableOpacity style={styles.scanBackBtn} onPress={goBack} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerText}>สแกน QR อุปกรณ์</Text>
-          <View style={{ width: 22 }} />
+          <View style={styles.scanHeaderTitleWrap}>
+            <Text style={styles.scanHeaderTitle}>สแกน & เพิ่มอุปกรณ์</Text>
+            <Text style={styles.scanHeaderSub}>สแกนแล้วเพิ่มเข้าระบบ</Text>
+          </View>
         </View>
 
-        <StepBar />
+        <View style={styles.scanBody}>
+          <View style={styles.scannerPanel}>
+            {permission?.granted ? (
+              <CameraView
+                style={styles.camera}
+                facing="back"
+                onBarcodeScanned={handleBarcodeScan}
+                barcodeScannerSettings={{
+                  barcodeTypes: ["qr", "ean13", "ean8", "code128", "code39"],
+                }}
+              >
+                <View style={styles.cameraOverlay}>
+                  <View style={styles.scanLine} />
+                </View>
+              </CameraView>
+            ) : (
+              <TouchableOpacity style={styles.permissionPanel} onPress={requestPermission} activeOpacity={0.84}>
+                <Ionicons name="qr-code-outline" size={58} color="rgba(15,118,110,0.18)" />
+                <Text style={styles.permissionText}>
+                  {permission ? "แตะเพื่ออนุญาตกล้อง" : "กำลังเชื่อมต่อกล้อง..."}
+                </Text>
+                <View style={styles.scanLine} />
+              </TouchableOpacity>
+            )}
+          </View>
 
-        <View style={styles.scanWrap}>
-          <CameraView
-            style={styles.camera}
-            onBarcodeScanned={handleBarcodeScan}
-            barcodeScannerSettings={{
-              barcodeTypes: ["qr", "ean13", "ean8", "code128", "code39"],
-            }}
-          >
-            {/* กรอบสแกน */}
-            <View style={styles.overlay}>
-              <View style={styles.frameBox}>
-                <View style={[styles.corner, styles.cTL]} />
-                <View style={[styles.corner, styles.cTR]} />
-                <View style={[styles.corner, styles.cBL]} />
-                <View style={[styles.corner, styles.cBR]} />
-                <Text style={styles.frameHint}>จ่อ QR ให้อยู่ในกรอบ</Text>
-              </View>
+          <Text style={styles.scanTitle}>ส่องบาร์โค้ดหรือ QR code</Text>
+          <Text style={styles.scanDesc}>สแกนบาร์โค้ดจากคู่มือ — ระบบจะแสดงฟอร์มกรอกข้อมูล</Text>
+
+          <View style={styles.autoInfo}>
+            <Ionicons name="information-circle-outline" size={20} color="#0891b2" />
+            <View style={styles.autoInfoTextWrap}>
+              <Text style={styles.autoInfoTitle}>ระบบจะเปิดฟอร์มอัตโนมัติ</Text>
+              <Text style={styles.autoInfoText}>ใส่ ชื่อ ประเภท คำอธิบาย และรูป — บันทึกลงระบบทันที</Text>
             </View>
-          </CameraView>
-        </View>
+          </View>
 
-        <View style={styles.scanBottom}>
-          <Text style={styles.scanDesc}>
-            สแกน QR Code ที่แปะบนอุปกรณ์{"\n"}ข้อมูลจะขึ้นมาอัตโนมัติ
-          </Text>
-
-          {/* ปุ่มไปหน้า QR Generator */}
-          <TouchableOpacity
-            style={styles.qrGenBtn}
-            onPress={() => router.push("/admin/qrgen")}
-          >
-            <Ionicons name="qr-code-outline" size={16} color="#7c3aed" />
-            <Text style={styles.qrGenText}>ยังไม่มี QR? กดสร้าง QR ที่นี่</Text>
+          <TouchableOpacity style={styles.manualBtn} onPress={startManualAdd} activeOpacity={0.9}>
+            <Ionicons name="add-circle-outline" size={16} color="#ffffff" />
+            <Text style={styles.manualBtnText}>เพิ่มด้วยตนเอง</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -425,21 +440,174 @@ const si = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+  container: { flex: 1, backgroundColor: "#eef3f8" },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, padding: 20 },
   header: {
-    backgroundColor: "#1e3a8a", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
+    backgroundColor: "#7c3aed", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
   headerText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
 
   permText: { fontSize: 14, color: "#64748b", textAlign: "center" },
-  permBtn: { backgroundColor: "#1e3a8a", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
+  permBtn: { backgroundColor: "#7c3aed", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
   permBtnText: { color: "#fff", fontWeight: "600" },
 
   // Scan
+  scanHeader: {
+    minHeight: 114,
+    backgroundColor: "#7c3aed",
+    paddingTop: 54,
+    paddingHorizontal: 30,
+    paddingBottom: 17,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  scanBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scanHeaderTitleWrap: {
+    flex: 1,
+  },
+  scanHeaderTitle: {
+    color: "#fff",
+    fontSize: 25,
+    fontWeight: "900",
+    lineHeight: 29,
+  },
+  scanHeaderSub: {
+    color: "#ddd6fe",
+    fontSize: 12,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  scanBody: {
+    flex: 1,
+    paddingHorizontal: 30,
+    paddingTop: 21,
+    alignItems: "center",
+  },
+  scannerPanel: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "#0d9488",
+    backgroundColor: "#f8fafc",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#94a3b8",
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
+  },
+  camera: {
+    width: "100%",
+    height: "100%",
+  },
+  cameraOverlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  permissionPanel: {
+    flex: 1,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  permissionText: {
+    color: "#0d9488",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  scanLine: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 31,
+    height: 1,
+    backgroundColor: "#14b8a6",
+    opacity: 0.7,
+  },
+  scanTitle: {
+    color: "#0f172a",
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: 12,
+  },
+  scanDesc: {
+    color: "#64748b",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 17,
+    textAlign: "center",
+    marginTop: 7,
+  },
+  autoInfo: {
+    width: "100%",
+    maxWidth: 420,
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    backgroundColor: "#cffafe",
+    borderWidth: 1,
+    borderColor: "#67e8f9",
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    marginTop: 20,
+  },
+  autoInfoTextWrap: {
+    flex: 1,
+  },
+  autoInfoTitle: {
+    color: "#0f766e",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  autoInfoText: {
+    color: "#0f766e",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  manualBtn: {
+    width: "100%",
+    maxWidth: 420,
+    minHeight: 42,
+    borderRadius: 10,
+    backgroundColor: "#7c3aed",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 19,
+    shadowColor: "#7c3aed",
+    shadowOpacity: 0.35,
+    shadowRadius: 13,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 7,
+  },
+  manualBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900",
+  },
   scanWrap: { flex: 1 },
-  camera: { flex: 1 },
   overlay: { flex: 1, justifyContent: "center", alignItems: "center" },
   frameBox: {
     width: 240, height: 240, position: "relative",
@@ -453,7 +621,6 @@ const styles = StyleSheet.create({
   frameHint: { color: "#fff", fontSize: 12, marginBottom: 8, backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
 
   scanBottom: { padding: 20, alignItems: "center", gap: 12, backgroundColor: "#f1f5f9" },
-  scanDesc: { fontSize: 13, color: "#64748b", textAlign: "center", lineHeight: 20 },
   qrGenBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: "#ede9fe", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10,

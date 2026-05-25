@@ -1,65 +1,108 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, TextInput,
+  ActivityIndicator,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
 
-// render SVG string ที่เก็บใน DB โดยตรง
 function SignaturePreview({ svgString }: { svgString: string }) {
   if (!svgString || !svgString.startsWith("<svg")) return null;
   const paths: { d: string; stroke: string; sw: number }[] = [];
   const re = /d="([^"]+)"[^/]*stroke="([^"]+)"[^/]*stroke-width="([^"]+)"/g;
-  let m;
-  while ((m = re.exec(svgString)) !== null) {
-    paths.push({ d: m[1], stroke: m[2], sw: parseFloat(m[3]) });
+  let match;
+  while ((match = re.exec(svgString)) !== null) {
+    paths.push({ d: match[1], stroke: match[2], sw: parseFloat(match[3]) });
   }
   return (
-    <Svg width="100%" height={90} viewBox="0 0 320 180" style={{ backgroundColor: "#f8f9ff", borderRadius: 10 }}>
-      {paths.map((p, i) => (
-        <Path key={i} d={p.d} stroke={p.stroke} strokeWidth={p.sw}
-          fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    <Svg width="100%" height={72} viewBox="0 0 320 180" style={s.signatureCanvas}>
+      {paths.map((path, index) => (
+        <Path
+          key={index}
+          d={path.d}
+          stroke={path.stroke}
+          strokeWidth={path.sw}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       ))}
     </Svg>
   );
 }
 
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
-  borrowed:       { label: "กำลังยืม",  color: "#b45309", bg: "#fef3c7", border: "#f59e0b", icon: "cube-outline" },
-  pending_return: { label: "กำลังยืม",  color: "#b45309", bg: "#fef3c7", border: "#f59e0b", icon: "cube-outline" },
-  returned:       { label: "คืนแล้ว",   color: "#16a34a", bg: "#dcfce7", border: "#22c55e", icon: "checkmark-circle-outline" },
+const C = {
+  bg: "#eef3f8",
+  purple: "#7c3aed",
+  blue: "#1e4fae",
+  ink: "#0f172a",
+  muted: "#64748b",
+  faint: "#94a3b8",
+  card: "#ffffff",
+  orange: "#f59e0b",
+  red: "#ef4444",
+  green: "#22c55e",
 };
 
-const formatDate = (d: string) => {
-  if (!d) return "-";
-  return new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
-};
+const FILTERS = [
+  { key: "all", label: "ทั้งหมด", color: C.blue },
+  { key: "borrowed", label: "กำลังยืม", color: C.orange },
+  { key: "overdue", label: "เกินกำหนด", color: C.red },
+  { key: "returned", label: "คืนแล้ว", color: C.green },
+] as const;
 
-const formatDateTime = (d: string) => {
-  if (!d) return "-";
-  return new Date(d).toLocaleString("th-TH", {
-    day: "numeric", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit",
-  });
-};
+function formatDate(value?: string) {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
+}
 
-const getDaysLeft = (due: string) => {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+function daysLeft(due?: string) {
+  if (!due) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   return Math.ceil((new Date(due).getTime() - today.getTime()) / 86400000);
-};
+}
 
+function isActiveBorrow(record: any) {
+  return record.status === "borrowed" || record.status === "pending_return";
+}
+
+function isOverdue(record: any) {
+  const left = daysLeft(record.due_date);
+  return isActiveBorrow(record) && left !== null && left < 0;
+}
+
+function statusConfig(record: any) {
+  if (record.status === "returned") {
+    return { label: "คืนแล้ว", color: "#16a34a", bg: "#dcfce7", icon: "server-outline", iconBg: "#dcfce7" };
+  }
+  if (isOverdue(record)) {
+    return { label: "เกินกำหนด", color: "#dc2626", bg: "#fee2e2", icon: "hardware-chip-outline", iconBg: "#fef3c7" };
+  }
+  return { label: "กำลังยืม", color: "#b45309", bg: "#fef3c7", icon: "hardware-chip-outline", iconBg: "#fef3c7" };
+}
+
+function itemIcon(name: string, status: string) {
+  const key = (name || "").toLowerCase();
+  if (status === "returned" && key.includes("rasp")) return "server-outline";
+  if (key.includes("sensor")) return "pulse-outline";
+  if (key.includes("servo")) return "flash-outline";
+  return "hardware-chip-outline";
+}
 
 export default function AdminHistory() {
   const router = useRouter();
   const [records, setRecords] = useState<any[]>([]);
-  const [filtered, setFiltered] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch] = useState("");
-  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [activeFilter, setActiveFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchHistory = useCallback(async () => {
@@ -69,251 +112,187 @@ export default function AdminHistory() {
 
     if (error) {
       console.error("history fetch error:", error.message);
-      setLoading(false); setRefreshing(false); return;
+      setLoading(false);
+      setRefreshing(false);
+      return;
     }
 
-    // ดึง item names แยก
-    const itemIds = [...new Set((data || []).map((r: any) => r.item_id).filter(Boolean))];
-    let itemMap: Record<string, string> = {};
+    const rows = data || [];
+    const itemIds = [...new Set(rows.map((row: any) => row.item_id).filter(Boolean))];
+    const userIds = [...new Set(rows.map((row: any) => row.user_id).filter(Boolean))];
+    const itemMap: Record<string, string> = {};
+    const emailMap: Record<string, string> = {};
+
     if (itemIds.length > 0) {
-      const { data: items } = await supabase
-        .from("items").select("id, name").in("id", itemIds);
-      (items || []).forEach((it: any) => { itemMap[it.id] = it.name; });
+      const { data: items } = await supabase.from("items").select("id, name").in("id", itemIds);
+      (items || []).forEach((item: any) => { itemMap[item.id] = item.name; });
     }
 
-    // ดึง emails แยก
-    const userIds = [...new Set((data || []).map((r: any) => r.user_id).filter(Boolean))];
-    let emailMap: Record<string, string> = {};
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles").select("id, email").in("id", userIds);
-      (profiles || []).forEach((p: any) => { emailMap[p.id] = p.email; });
+      const { data: profiles } = await supabase.from("profiles").select("id, email").in("id", userIds);
+      (profiles || []).forEach((profile: any) => { emailMap[profile.id] = profile.email; });
     }
 
-    const merged = (data || []).map((r: any) => ({
-      ...r,
-      email: emailMap[r.user_id] || "-",
-      itemName: itemMap[r.item_id] || "อุปกรณ์",
+    const merged = rows.map((row: any) => ({
+      ...row,
+      itemName: itemMap[row.item_id] || "อุปกรณ์",
+      email: emailMap[row.user_id] || "-",
     }));
 
-    // sort: borrow_date ล่าสุดก่อน, fallback due_date
     merged.sort((a: any, b: any) => {
-      const aDate = a.borrow_date || a.due_date || "";
-      const bDate = b.borrow_date || b.due_date || "";
-      if (!aDate && !bDate) return 0;
-      if (!aDate) return 1;
-      if (!bDate) return -1;
+      const aDate = a.borrow_date || a.created_at || a.due_date || "";
+      const bDate = b.borrow_date || b.created_at || b.due_date || "";
       return new Date(bDate).getTime() - new Date(aDate).getTime();
     });
 
     setRecords(merged);
-    applyFilter(merged, activeFilter, search);
     setLoading(false);
     setRefreshing(false);
   }, []);
 
-  const applyFilter = (list: any[], filter: string, q: string) => {
-    let result = filter === "all" ? list
-      : filter === "borrowed" ? list.filter(r => r.status === "borrowed" || r.status === "pending_return")
-      : list.filter(r => r.status === filter);
-    if (q.trim()) {
-      const lq = q.toLowerCase();
-      result = result.filter(r =>
-        r.itemName.toLowerCase().includes(lq) || r.email.toLowerCase().includes(lq)
-      );
-    }
-    setFiltered(result);
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
+
+  const filtered = useMemo(() => {
+    if (activeFilter === "all") return records;
+    if (activeFilter === "borrowed") return records.filter((record) => isActiveBorrow(record) && !isOverdue(record));
+    if (activeFilter === "overdue") return records.filter(isOverdue);
+    return records.filter((record) => record.status === "returned");
+  }, [activeFilter, records]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchHistory();
   };
 
-  useEffect(() => { fetchHistory(); }, [fetchHistory]);
-  useEffect(() => { applyFilter(records, activeFilter, search); }, [activeFilter, search, records]);
-
-  const onRefresh = () => { setRefreshing(true); fetchHistory(); };
-  const toggleExpand = (id: string) => setExpandedId(prev => prev === id ? null : id);
-
-  const total    = records.length;
-  const active   = records.filter(r => r.status === "borrowed" || r.status === "pending_return").length;
-  const returned = records.filter(r => r.status === "returned").length;
-
-  const FILTERS = [
-    { key: "all",      label: "ทั้งหมด" },
-    { key: "borrowed", label: "กำลังยืม" },
-    { key: "returned", label: "คืนแล้ว" },
-  ];
+  const goBack = () => router.replace("/admin/home");
 
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity style={s.backBtn} onPress={goBack} activeOpacity={0.82}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View>
-          <Text style={s.headerTitle}>ประวัติการยืม</Text>
-          <Text style={s.headerSub}>จัดการรายการยืม-คืนทั้งหมด</Text>
+          <Text style={s.headerTitle}>ประวัติยืม-คืน</Text>
+          <Text style={s.headerSub}>{records.length} รายการทั้งหมด</Text>
         </View>
-        <View style={{ width: 22 }} />
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 60 }} />
+        <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 60 }} />
       ) : (
         <ScrollView
           contentContainerStyle={s.body}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
+          showsVerticalScrollIndicator={false}
         >
-          {/* STATS */}
-          <View style={s.statsRow}>
-            <View style={[s.statCard, { borderLeftColor: "#3b82f6" }]}>
-              <Text style={s.statNum}>{total}</Text>
-              <Text style={s.statLabel}>ทั้งหมด</Text>
-            </View>
-            <View style={[s.statCard, { borderLeftColor: "#f59e0b" }]}>
-              <Text style={[s.statNum, { color: "#b45309" }]}>{active}</Text>
-              <Text style={s.statLabel}>กำลังยืม</Text>
-            </View>
-            <View style={[s.statCard, { borderLeftColor: "#22c55e" }]}>
-              <Text style={[s.statNum, { color: "#16a34a" }]}>{returned}</Text>
-              <Text style={s.statLabel}>คืนแล้ว</Text>
-            </View>
-          </View>
-
-          {/* SEARCH */}
-          <View style={s.searchBox}>
-            <Ionicons name="search-outline" size={16} color="#94a3b8" />
-            <TextInput
-              style={s.searchInput}
-              placeholder="ค้นหาชื่ออุปกรณ์หรืออีเมล..."
-              placeholderTextColor="#94a3b8"
-              value={search}
-              onChangeText={setSearch}
-            />
-            {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch("")}>
-                <Ionicons name="close-circle" size={16} color="#94a3b8" />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* FILTER TABS */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={s.filterRow}>
-            {FILTERS.map(f => (
-              <TouchableOpacity
-                key={f.key}
-                style={[s.filterBtn, activeFilter === f.key && s.filterBtnActive]}
-                onPress={() => setActiveFilter(f.key)}
-              >
-                <Text style={[s.filterTxt, activeFilter === f.key && s.filterTxtActive]}>{f.label}</Text>
-              </TouchableOpacity>
-            ))}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
+            {FILTERS.map((filter) => {
+              const active = activeFilter === filter.key;
+              return (
+                <TouchableOpacity
+                  key={filter.key}
+                  style={[
+                    s.filterBtn,
+                    { borderColor: filter.color },
+                    active && { backgroundColor: filter.color },
+                  ]}
+                  onPress={() => setActiveFilter(filter.key)}
+                  activeOpacity={0.82}
+                >
+                  <Text style={[s.filterText, { color: active ? "#fff" : filter.color }]}>{filter.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
-          {/* LIST */}
           {filtered.length === 0 ? (
             <View style={s.empty}>
-              <Ionicons name="document-outline" size={48} color="#cbd5e1" />
-              <Text style={s.emptyTitle}>ไม่พบรายการ</Text>
+              <Ionicons name="document-outline" size={42} color="#cbd5e1" />
+              <Text style={s.emptyText}>ไม่พบรายการ</Text>
             </View>
           ) : (
-            <>
-              <Text style={s.sectionLabel}>แสดง {filtered.length} รายการ</Text>
-              {filtered.map((r) => {
-                const cfg = STATUS_CFG[r.status] ?? STATUS_CFG.returned;
-                const bDate = r.borrow_date || r.due_date;
-                const days = r.due_date ? getDaysLeft(r.due_date) : null;
-                const overdue = days !== null && days < 0 && r.status === "borrowed";
-                const isExpanded = expandedId === r.id;
-                const borrowSig = r.borrow_signature_url || "";
-                const returnSig = r.return_signature_url || "";
+            filtered.map((record) => {
+              const cfg = statusConfig(record);
+              const left = daysLeft(record.due_date);
+              const expanded = expandedId === record.id;
+              const icon = itemIcon(record.itemName, record.status);
 
-                return (
-                  <TouchableOpacity
-                    key={r.id}
-                    style={[s.card, { borderLeftColor: cfg.border }, overdue && s.cardOverdue]}
-                    onPress={() => toggleExpand(r.id)}
-                    activeOpacity={0.85}
-                  >
-                    {/* ROW หลัก */}
-                    <View style={s.cardMain}>
-                      <View style={[s.iconBox, { backgroundColor: cfg.bg }]}>
-                        <Ionicons name={cfg.icon} size={22} color={cfg.color} />
-                      </View>
-                      <View style={s.cardBody}>
-                        <Text style={s.cardName} numberOfLines={1}>{r.itemName}</Text>
-                        <View style={s.cardRow}>
-                          <Ionicons name="person-outline" size={11} color="#94a3b8" />
-                          <Text style={s.cardEmail} numberOfLines={1}>{r.email}</Text>
-                        </View>
-                        {r.borrow_date && (
-                        <View style={s.cardRow}>
-                          <Ionicons name="time-outline" size={11} color="#94a3b8" />
-                          <Text style={s.cardDate}>ยืม {formatDateTime(r.borrow_date)}</Text>
-                        </View>
+              return (
+                <TouchableOpacity
+                  key={record.id}
+                  style={s.card}
+                  activeOpacity={0.88}
+                  onPress={() => setExpandedId((current) => current === record.id ? null : record.id)}
+                >
+                  <View style={s.cardMain}>
+                    <View style={[s.iconBox, { backgroundColor: cfg.iconBg }]}>
+                      <Ionicons name={icon as any} size={24} color={cfg.color} />
+                    </View>
+                    <View style={s.cardBody}>
+                      <Text style={s.cardName} numberOfLines={1}>{record.itemName}</Text>
+                      <Text style={s.cardEmail} numberOfLines={1}>{record.email}</Text>
+                    </View>
+                    <View style={[s.statusPill, { backgroundColor: cfg.bg }]}>
+                      <Text style={[s.statusText, { color: cfg.color }]}>{cfg.label}</Text>
+                    </View>
+                  </View>
+
+                  {isOverdue(record) ? (
+                    <View style={s.overdueBox}>
+                      <Ionicons name="alert-circle-outline" size={14} color="#b45309" />
+                      <Text style={s.overdueText}>เกินกำหนดคืน — ยืม {Math.abs(left || 0)} วัน</Text>
+                    </View>
+                  ) : (
+                    <View style={s.dateRow}>
+                      <Ionicons name="calendar-outline" size={13} color={C.faint} />
+                      <Text style={s.dateText}>ยืม {formatDate(record.borrow_date || record.created_at)}</Text>
+                      {record.status === "returned" && (
+                        <>
+                          <Ionicons name="checkmark" size={13} color={C.green} />
+                          <Text style={s.dateText}>คืน {formatDate(record.returned_at)}</Text>
+                        </>
                       )}
-                      <View style={s.cardRow}>
-                          <Ionicons name="calendar-outline" size={11} color="#94a3b8" />
-                          {r.due_date && (
-                            <Text style={[s.cardDate, overdue && { color: "#dc2626", fontWeight: "700" }]}>
-                              {overdue
-                                ? `⚠️ เกิน ${Math.abs(days!)} วัน`
-                                : `ครบ ${formatDate(r.due_date)}`}
-                            </Text>
+                    </View>
+                  )}
+
+                  {expanded && (
+                    <View style={s.expanded}>
+                      <View style={s.expandedLine} />
+                      <View style={s.detailRow}>
+                        <Text style={s.detailLabel}>กำหนดคืน</Text>
+                        <Text style={s.detailValue}>{formatDate(record.due_date)}</Text>
+                      </View>
+                      <View style={s.detailRow}>
+                        <Text style={s.detailLabel}>สถานะ</Text>
+                        <Text style={[s.detailValue, { color: cfg.color }]}>{cfg.label}</Text>
+                      </View>
+                      <View style={s.signatureRow}>
+                        <View style={s.signatureBox}>
+                          <Text style={s.signatureLabel}>ลายเซ็นยืม</Text>
+                          {record.borrow_signature_url?.startsWith("<svg") ? (
+                            <SignaturePreview svgString={record.borrow_signature_url} />
+                          ) : (
+                            <Text style={s.signatureEmpty}>ไม่มีลายเซ็น</Text>
+                          )}
+                        </View>
+                        <View style={s.signatureBox}>
+                          <Text style={s.signatureLabel}>ลายเซ็นคืน</Text>
+                          {record.return_signature_url?.startsWith("<svg") ? (
+                            <SignaturePreview svgString={record.return_signature_url} />
+                          ) : (
+                            <Text style={s.signatureEmpty}>{record.status === "returned" ? "ไม่มีลายเซ็น" : "ยังไม่ได้คืน"}</Text>
                           )}
                         </View>
                       </View>
-                      <View style={{ alignItems: "flex-end", gap: 6 }}>
-                        <View style={[s.badge, { backgroundColor: cfg.bg }]}>
-                          <Text style={[s.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
-                        </View>
-                        <Ionicons
-                          name={isExpanded ? "chevron-up" : "chevron-down"}
-                          size={14} color="#94a3b8"
-                        />
-                      </View>
                     </View>
-
-                    {/* EXPANDED: ลายเซ็น */}
-                    {isExpanded && (
-                      <View style={s.sigSection}>
-                        <View style={s.sigDivider} />
-                        <View style={s.sigRow}>
-                          {/* ลายเซ็นยืม */}
-                          <View style={s.sigBox}>
-                            <Text style={s.sigLabel}>✍️ ลายเซ็นยืม</Text>
-                            {borrowSig.startsWith("<svg") ? (
-                              <View style={s.sigImgWrap}>
-                                <SignaturePreview svgString={borrowSig} />
-                              </View>
-                            ) : (
-                              <View style={s.sigEmpty}>
-                                <Text style={s.sigEmptyTxt}>ไม่มีลายเซ็น</Text>
-                              </View>
-                            )}
-                          </View>
-                          {/* ลายเซ็นคืน */}
-                          <View style={s.sigBox}>
-                            <Text style={s.sigLabel}>✍️ ลายเซ็นคืน</Text>
-                            {returnSig.startsWith("<svg") ? (
-                              <View style={s.sigImgWrap}>
-                                <SignaturePreview svgString={returnSig} />
-                              </View>
-                            ) : (
-                              <View style={s.sigEmpty}>
-                                <Text style={s.sigEmptyTxt}>
-                                  {r.status === "returned" ? "ไม่มีลายเซ็น" : "ยังไม่ได้คืน"}
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-                        </View>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </>
+                  )}
+                </TouchableOpacity>
+              );
+            })
           )}
-
-          <View style={{ height: 40 }} />
         </ScrollView>
       )}
     </View>
@@ -321,74 +300,202 @@ export default function AdminHistory() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+  container: {
+    flex: 1,
+    backgroundColor: C.bg,
+  },
   header: {
-    backgroundColor: "#1e3a8a",
-    paddingTop: 54, paddingBottom: 20, paddingHorizontal: 20,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    minHeight: 122,
+    backgroundColor: C.purple,
+    paddingTop: 58,
+    paddingHorizontal: 35,
+    paddingBottom: 17,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", textAlign: "center" },
-  headerSub:   { color: "#93c5fd", fontSize: 12, textAlign: "center", marginTop: 2 },
-  body: { padding: 16 },
-
-  statsRow: { flexDirection: "row", gap: 6, marginBottom: 16 },
-  statCard: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 10, borderLeftWidth: 4 },
-  statNum:  { fontSize: 20, fontWeight: "800", color: "#1e293b" },
-  statLabel:{ fontSize: 10, color: "#94a3b8", marginTop: 2 },
-
-  searchBox: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    backgroundColor: "#fff", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-    marginBottom: 10, borderWidth: 1, borderColor: "#e2e8f0",
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.16)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    alignItems: "center",
+    justifyContent: "center",
   },
-  searchInput: { flex: 1, fontSize: 13, color: "#1e293b" },
-
-  filterScroll: { marginBottom: 14 },
-  filterRow: { flexDirection: "row", gap: 8, paddingRight: 4 },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 25,
+    fontWeight: "900",
+    lineHeight: 29,
+  },
+  headerSub: {
+    color: "#ddd6fe",
+    fontSize: 12,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  body: {
+    paddingHorizontal: 35,
+    paddingTop: 18,
+    paddingBottom: 34,
+  },
+  filterRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingRight: 10,
+    marginBottom: 16,
+  },
   filterBtn: {
-    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0",
+    minHeight: 32,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    paddingHorizontal: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
   },
-  filterBtnActive: { backgroundColor: "#1e3a8a", bordercolor: "#1e3a8a" },
-  filterTxt: { fontSize: 12, fontWeight: "600", color: "#64748b" },
-  filterTxtActive: { color: "#fff" },
-
-  sectionLabel: {
-    fontSize: 11, fontWeight: "700", color: "#64748b",
-    textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10,
+  filterText: {
+    fontSize: 13,
+    fontWeight: "900",
   },
-
   card: {
-    backgroundColor: "#fff", borderRadius: 14, marginBottom: 10,
-    borderLeftWidth: 4, overflow: "hidden",
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    backgroundColor: C.card,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    shadowColor: "#94a3b8",
+    shadowOpacity: 0.16,
+    shadowRadius: 11,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
-  cardOverdue: { borderColor: "#fca5a5", borderWidth: 1.5, borderLeftWidth: 4 },
-  cardMain: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
-  iconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center" },
-  cardBody: { flex: 1 },
-  cardName:  { fontSize: 14, fontWeight: "700", color: "#1e293b", marginBottom: 4 },
-  cardRow:   { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
-  cardEmail: { fontSize: 11, color: "#64748b", flex: 1 },
-  cardDate:  { fontSize: 11, color: "#94a3b8" },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  badgeText: { fontSize: 10, fontWeight: "700" },
-
-  // Expanded signature section
-  sigSection: { paddingHorizontal: 14, paddingBottom: 14 },
-  sigDivider: { height: 1, backgroundColor: "#f1f5f9", marginBottom: 12 },
-  sigRow: { flexDirection: "row", gap: 10 },
-  sigBox: { flex: 1 },
-  sigLabel: { fontSize: 11, fontWeight: "700", color: "#64748b", marginBottom: 6 },
-  sigImgWrap: { borderRadius: 10, borderWidth: 1, borderColor: "#e2e8f0", overflow: "hidden" },
-  sigEmpty: {
-    height: 100, backgroundColor: "#f8fafc", borderRadius: 10,
-    borderWidth: 1, borderColor: "#e2e8f0", borderStyle: "dashed",
-    justifyContent: "center", alignItems: "center",
+  cardMain: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
-  sigEmptyTxt: { fontSize: 11, color: "#94a3b8" },
-
-  empty: { alignItems: "center", paddingTop: 60, gap: 10 },
-  emptyTitle: { fontSize: 15, fontWeight: "600", color: "#94a3b8" },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  cardName: {
+    color: C.ink,
+    fontSize: 14.5,
+    fontWeight: "900",
+  },
+  cardEmail: {
+    color: C.muted,
+    fontSize: 11.5,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  statusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  statusText: {
+    fontSize: 10.5,
+    fontWeight: "900",
+  },
+  overdueBox: {
+    minHeight: 31,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 8,
+    backgroundColor: "#fef3c7",
+    borderWidth: 1,
+    borderColor: "#fbbf24",
+    paddingHorizontal: 12,
+    marginTop: 10,
+  },
+  overdueText: {
+    color: "#b45309",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  dateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 11,
+  },
+  dateText: {
+    color: C.muted,
+    fontSize: 11.5,
+    fontWeight: "800",
+  },
+  expanded: {
+    marginTop: 12,
+  },
+  expandedLine: {
+    height: 1,
+    backgroundColor: "#e2e8f0",
+    marginBottom: 10,
+  },
+  detailRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 4,
+  },
+  detailLabel: {
+    color: C.faint,
+    fontSize: 11.5,
+    fontWeight: "800",
+  },
+  detailValue: {
+    color: C.ink,
+    fontSize: 11.5,
+    fontWeight: "900",
+  },
+  signatureRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+  },
+  signatureBox: {
+    flex: 1,
+    minHeight: 84,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    padding: 8,
+    justifyContent: "center",
+  },
+  signatureLabel: {
+    color: C.muted,
+    fontSize: 10.5,
+    fontWeight: "900",
+    marginBottom: 5,
+  },
+  signatureEmpty: {
+    color: C.faint,
+    fontSize: 10.5,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  signatureCanvas: {
+    backgroundColor: "#f8fafc",
+    borderRadius: 8,
+  },
+  empty: {
+    alignItems: "center",
+    paddingTop: 70,
+    gap: 10,
+  },
+  emptyText: {
+    color: C.faint,
+    fontSize: 14,
+    fontWeight: "800",
+  },
 });
