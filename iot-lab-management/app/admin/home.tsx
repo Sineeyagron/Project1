@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -60,6 +61,16 @@ type ActivityItem = {
   time: string;
 };
 
+function getGreeting(date = new Date()) {
+  const hour = date.getHours();
+  if (hour >= 5 && hour < 8) return { text: "สวัสดีตอนเช้า", icon: "sunny-outline", color: "#fde68a" };
+  if (hour >= 8 && hour < 12) return { text: "สวัสดีตอนสาย", icon: "partly-sunny-outline", color: "#fcd34d" };
+  if (hour >= 12 && hour < 16) return { text: "สวัสดีตอนบ่าย", icon: "sunny-outline", color: "#fb923c" };
+  if (hour >= 16 && hour < 19) return { text: "สวัสดีตอนเย็น", icon: "partly-sunny-outline", color: "#fdba74" };
+  if (hour >= 19 && hour < 22) return { text: "สวัสดีตอนค่ำ", icon: "moon-outline", color: "#c4b5fd" };
+  return { text: "สวัสดีตอนดึก", icon: "moon-outline", color: "#bfdbfe" };
+}
+
 export default function AdminHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -76,6 +87,8 @@ export default function AdminHome() {
   useEffect(() => {
     checkRoleAndFetch();
   }, []);
+
+  const greeting = useMemo(() => getGreeting(), []);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -196,16 +209,28 @@ export default function AdminHome() {
     await fetchDashboard();
   };
 
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      Alert.alert("ออกจากระบบไม่สำเร็จ", error.message);
+      return;
+    }
+    router.replace("/login");
+  };
+
   const confirmLogout = () => {
+    if (Platform.OS === "web") {
+      const ok = window.confirm("ต้องการออกจากระบบใช่ไหม?");
+      if (ok) handleLogout();
+      return;
+    }
+
     Alert.alert("ออกจากระบบ", "ต้องการออกจากระบบใช่ไหม?", [
       { text: "ยกเลิก", style: "cancel" },
       {
         text: "ออกจากระบบ",
         style: "destructive",
-        onPress: async () => {
-          await supabase.auth.signOut();
-          router.replace("/login");
-        },
+        onPress: handleLogout,
       },
     ]);
   };
@@ -228,8 +253,8 @@ export default function AdminHome() {
         <View style={s.heroTop}>
           <View>
             <View style={s.greetRow}>
-              <Ionicons name="sunny-outline" size={13} color="#fcd34d" />
-              <Text style={s.greet}>สวัสดีตอนเช้า · admin</Text>
+              <Ionicons name={greeting.icon as any} size={13} color={greeting.color} />
+              <Text style={s.greet}>{greeting.text} · admin</Text>
             </View>
             <Text style={s.heroTitle}>
               Admin <Text style={s.heroTitleAccent}>Dashboard</Text>
@@ -388,21 +413,20 @@ function TodayItem({ icon, color, num, label, date }: { icon: any; color: string
 }
 
 function MiniLine({ color, value }: { color: string; value: number }) {
-  const active = value > 0
-    ? "0,23 18,20 36,21 54,17 72,18 90,14 108,16 126,12"
-    : "0,21 18,22 36,21 54,22 72,21 90,22 108,21 126,22";
+  const points = "0,15 18,13 36,14 54,11 72,12 90,9 108,10 126,7";
 
   return (
     <View style={s.lineChart}>
-      <Svg width="100%" height="30" viewBox="0 0 126 28" preserveAspectRatio="none">
+      <Svg width="100%" height="22" viewBox="0 0 126 22" preserveAspectRatio="none">
         <Polyline
-          points={active}
+          points={points}
           fill="none"
           stroke={color}
-          strokeWidth="2"
+          strokeWidth={value > 0 ? "2.3" : "2"}
+          strokeDasharray={value > 0 ? undefined : "5 5"}
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity={value > 0 ? 0.9 : 0.22}
+          opacity={value > 0 ? 0.95 : 0.38}
         />
       </Svg>
     </View>
@@ -428,7 +452,7 @@ function StatCard({
     <View style={s.statCard}>
       <View style={s.statTop}>
         <View style={[s.statIcon, { backgroundColor: iconBg }]}>
-          <Ionicons name={icon} size={17} color={color} />
+          <Ionicons name={icon} size={20} color={color} />
         </View>
         <View style={[s.trendPill, { backgroundColor: iconBg }]}>
           <Ionicons name={trend.startsWith("-") ? "trending-down" : trend === "0" ? "remove" : "trending-up"} size={10} color={color} />
@@ -614,19 +638,24 @@ const s = StyleSheet.create({
   statGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 18,
+    justifyContent: "space-between",
+    rowGap: 12,
+    marginBottom: 20,
   },
   statCard: {
-    width: "48.4%",
-    height: 124,
+    width: "48.2%",
+    height: 138,
     backgroundColor: C.card,
-    borderRadius: 14,
-    paddingHorizontal: 13,
-    paddingVertical: 11,
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     borderWidth: 1,
     borderColor: "rgba(15,23,42,0.05)",
-    elevation: 3,
+    shadowColor: "#94a3b8",
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 4,
   },
   statTop: {
     flexDirection: "row",
@@ -634,9 +663,9 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
   },
   statIcon: {
-    width: 29,
-    height: 29,
-    borderRadius: 9,
+    width: 36,
+    height: 36,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -644,19 +673,21 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 2,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    minWidth: 38,
+    justifyContent: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 999,
   },
   trendText: {
-    fontSize: 10,
+    fontSize: 10.5,
     fontWeight: "900",
   },
   statNum: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "900",
-    lineHeight: 32,
-    marginTop: 7,
+    lineHeight: 35,
+    marginTop: 8,
   },
   statLabel: {
     color: C.faint,
@@ -666,44 +697,49 @@ const s = StyleSheet.create({
   },
   lineChart: {
     alignSelf: "stretch",
-    height: 25,
-    marginTop: 4,
-    marginHorizontal: -2,
+    height: 24,
+    marginTop: 5,
+    marginHorizontal: 0,
     overflow: "hidden",
   },
   toolGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 22,
+    justifyContent: "space-between",
+    rowGap: 12,
+    marginBottom: 24,
   },
   toolBtn: {
-    width: "31.4%",
-    height: 86,
+    width: "48.2%",
+    minHeight: 96,
     backgroundColor: C.card,
-    borderRadius: 12,
-    paddingHorizontal: 6,
-    paddingVertical: 10,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 13,
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 8,
     borderWidth: 1,
     borderColor: "rgba(15,23,42,0.05)",
-    elevation: 2,
+    shadowColor: "#94a3b8",
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
   toolIcon: {
-    width: 39,
-    height: 39,
-    borderRadius: 11,
+    width: 44,
+    height: 44,
+    borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
   },
   toolText: {
     color: C.text,
-    fontSize: 10.5,
+    fontSize: 12,
     fontWeight: "900",
     textAlign: "center",
-    lineHeight: 14,
+    lineHeight: 16,
   },
   activityHeader: {
     flexDirection: "row",

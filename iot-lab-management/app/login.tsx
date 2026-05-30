@@ -24,17 +24,46 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
+  const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isLoading;
+
+  const showPopup = (title: string, message: string) => {
+    if (Platform.OS === "web") {
+      window.alert(`${title}\n\n${message}`);
+      return;
+    }
+    Alert.alert(title, message);
+  };
+
+  const updateEmail = (value: string) => {
+    setEmail(value);
+    if (fieldErrors.email || fieldErrors.password) {
+      setFieldErrors({ email: "", password: "" });
+    }
+  };
+
+  const updatePassword = (value: string) => {
+    setPassword(value);
+    if (fieldErrors.email || fieldErrors.password) {
+      setFieldErrors({ email: "", password: "" });
+    }
+  };
 
   const handleLogin = async () => {
     const normalizedEmail = email.trim();
 
     if (!normalizedEmail || !password) {
-      Alert.alert("กรอกข้อมูลให้ครบ", "กรุณากรอกอีเมลและรหัสผ่านก่อนเข้าสู่ระบบ");
+      const nextErrors = {
+        email: !normalizedEmail ? "กรุณากรอกอีเมล" : "",
+        password: !password ? "กรุณากรอกรหัสผ่าน" : "",
+      };
+      setFieldErrors(nextErrors);
+      showPopup("กรอกข้อมูลให้ครบ", "กรุณากรอกอีเมลและรหัสผ่านก่อนเข้าสู่ระบบ");
       return;
     }
 
+    setFieldErrors({ email: "", password: "" });
     setIsLoading(true);
 
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -44,10 +73,11 @@ export default function Login() {
 
     if (error) {
       console.log(error);
-      Alert.alert(
-        "เข้าสู่ระบบไม่สำเร็จ",
-        error.message || "กรุณาตรวจสอบอีเมลและรหัสผ่านอีกครั้ง"
-      );
+      setFieldErrors({
+        email: "อีเมลอาจไม่ถูกต้อง",
+        password: "รหัสผ่านอาจไม่ถูกต้อง",
+      });
+      showPopup("เข้าสู่ระบบไม่สำเร็จ", "อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบแล้วลองใหม่อีกครั้ง");
       setIsLoading(false);
       return;
     }
@@ -55,7 +85,11 @@ export default function Login() {
     const user = data.user;
 
     if (!user) {
-      Alert.alert("ไม่พบผู้ใช้");
+      setFieldErrors({
+        email: "ไม่พบบัญชีผู้ใช้นี้",
+        password: "กรุณาตรวจสอบรหัสผ่าน",
+      });
+      showPopup("ไม่พบผู้ใช้", "ไม่พบบัญชีผู้ใช้ หรือข้อมูลเข้าสู่ระบบไม่ถูกต้อง");
       setIsLoading(false);
       return;
     }
@@ -146,23 +180,30 @@ export default function Login() {
           <Text style={styles.description}>ยินดีต้อนรับกลับ! กรุณาเข้าสู่ระบบเพื่อใช้งาน</Text>
 
           <Text style={styles.label}>อีเมล</Text>
-          <View style={[styles.inputBox, focusedField === "email" && styles.inputBoxFocused]}>
+          <View style={[styles.inputBox, fieldErrors.email && styles.inputBoxError, focusedField === "email" && styles.inputBoxFocused]}>
             <View style={styles.inputIconBox}>
-              <Ionicons name="mail-outline" size={19} color={focusedField === "email" ? "#7c3aed" : "#64748b"} />
+              <Ionicons name="mail-outline" size={18} color={focusedField === "email" ? "#7c3aed" : "#7f8ea3"} />
             </View>
             <TextInput
-              placeholder="student@iotlab.ac.th"
-              placeholderTextColor="#334155"
+              placeholder={focusedField === "email" ? "" : "student@iotlab.ac.th"}
+              placeholderTextColor="#94a3b8"
               style={styles.input}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={updateEmail}
               onFocus={() => setFocusedField("email")}
               onBlur={() => setFocusedField(null)}
               autoCapitalize="none"
               keyboardType="email-address"
               textContentType="emailAddress"
+              selectionColor="#7c3aed"
             />
           </View>
+          {!!fieldErrors.email && (
+            <View style={styles.errorRow}>
+              <Ionicons name="alert-circle-outline" size={14} color="#ef4444" />
+              <Text style={styles.errorText}>{fieldErrors.email}</Text>
+            </View>
+          )}
 
           <View style={styles.passwordHeader}>
             <Text style={styles.label}>รหัสผ่าน</Text>
@@ -171,25 +212,32 @@ export default function Login() {
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.inputBox, focusedField === "password" && styles.inputBoxFocused]}>
+          <View style={[styles.inputBox, fieldErrors.password && styles.inputBoxError, focusedField === "password" && styles.inputBoxFocused]}>
             <View style={styles.inputIconBox}>
-              <Ionicons name="lock-closed-outline" size={19} color={focusedField === "password" ? "#7c3aed" : "#64748b"} />
+              <Ionicons name="lock-closed-outline" size={18} color={focusedField === "password" ? "#7c3aed" : "#7f8ea3"} />
             </View>
             <TextInput
-              placeholder="กรอกรหัสผ่าน"
+              placeholder={focusedField === "password" ? "" : "กรอกรหัสผ่าน"}
               placeholderTextColor="#94a3b8"
               secureTextEntry={!showPassword}
               style={styles.input}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={updatePassword}
               onFocus={() => setFocusedField("password")}
               onBlur={() => setFocusedField(null)}
               textContentType="password"
+              selectionColor="#7c3aed"
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={10}>
-              <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#64748b" />
+              <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#7f8ea3" />
             </TouchableOpacity>
           </View>
+          {!!fieldErrors.password && (
+            <View style={styles.errorRow}>
+              <Ionicons name="alert-circle-outline" size={14} color="#ef4444" />
+              <Text style={styles.errorText}>{fieldErrors.password}</Text>
+            </View>
+          )}
 
           <TouchableOpacity
             style={styles.rememberRow}
@@ -350,59 +398,83 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   description: {
-    color: "#64748b",
+    color: "#7b8aa0",
     fontSize: 12.5,
     lineHeight: 19,
     marginTop: 7,
     marginBottom: 17,
-    fontWeight: "600",
+    fontWeight: "500",
   },
   label: {
-    color: "#1e3a8a",
+    color: "#334155",
     fontSize: 12.5,
-    fontWeight: "800",
-    marginBottom: 7,
+    fontWeight: "700",
+    marginBottom: 8,
   },
   inputBox: {
-    minHeight: 44,
+    minHeight: 47,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: "#f1f5f9",
+    gap: 9,
+    backgroundColor: "#f8fafc",
     borderWidth: 1,
-    borderColor: "#cbd5e1",
-    borderRadius: 10,
-    paddingHorizontal: 10,
+    borderColor: "#d6e0ec",
+    borderRadius: 11,
+    paddingHorizontal: 11,
     marginBottom: 16,
+    shadowColor: "#0f172a",
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
   inputBoxFocused: {
     borderColor: "#7c3aed",
     backgroundColor: "#ffffff",
+    shadowColor: "#7c3aed",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  inputBoxError: {
+    borderColor: "#fca5a5",
+    backgroundColor: "#fff7f7",
   },
   inputIconBox: {
-    width: 29,
-    height: 29,
+    width: 31,
+    height: 31,
     borderRadius: 8,
-    backgroundColor: "#ede9fe",
+    backgroundColor: "#f1eefb",
     alignItems: "center",
     justifyContent: "center",
   },
   input: {
     flex: 1,
-    color: "#0f172a",
+    color: "#1f2937",
     fontSize: 14,
-    paddingVertical: 11,
-    fontWeight: "600",
+    paddingVertical: 12,
+    fontWeight: "500",
   },
   passwordHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: -10,
+    marginBottom: 12,
+  },
+  errorText: {
+    color: "#ef4444",
+    fontSize: 11.5,
+    fontWeight: "700",
+  },
   forgot: {
-    color: "#1e3a8a",
+    color: "#475569",
     fontSize: 12,
-    fontWeight: "800",
+    fontWeight: "700",
     marginBottom: 7,
   },
   rememberRow: {
@@ -426,9 +498,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#7c3aed",
   },
   rememberText: {
-    color: "#334155",
+    color: "#475569",
     fontSize: 12.5,
-    fontWeight: "800",
+    fontWeight: "700",
   },
   loginBtn: {
     minHeight: 44,
@@ -465,9 +537,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#e2e8f0",
   },
   dividerText: {
-    color: "#94a3b8",
+    color: "#a2aec0",
     fontSize: 11,
-    fontWeight: "800",
+    fontWeight: "700",
   },
   signupRow: {
     flexDirection: "row",

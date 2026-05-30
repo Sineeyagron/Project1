@@ -53,7 +53,7 @@ export default function Borrow() {
     <View style={s.container}>
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity style={s.backBtn} onPress={() => router.replace("/home")} activeOpacity={0.84}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View>
@@ -154,9 +154,19 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f1f5f9" },
 
   header: {
-    backgroundColor: "#1e3a8a",
+    backgroundColor: "#2563eb",
     paddingTop: 54, paddingBottom: 20, paddingHorizontal: 20,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  },
+  backBtn: {
+    width: 39,
+    height: 39,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.23)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", textAlign: "center" },
   headerSub:   { color: "#93c5fd", fontSize: 12, textAlign: "center", marginTop: 2 },

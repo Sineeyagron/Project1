@@ -126,10 +126,6 @@ export default function AdminItems() {
   }, []);
 
   const goBack = () => {
-    if (router.canGoBack()) {
-      router.back();
-      return;
-    }
     router.replace("/admin/home");
   };
 
@@ -393,9 +389,9 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.18)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.20)",
     alignItems: "center",
     justifyContent: "center",
   },

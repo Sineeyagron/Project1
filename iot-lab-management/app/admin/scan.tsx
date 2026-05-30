@@ -149,7 +149,7 @@ export default function Scan() {
       Alert.alert(
         "บันทึกสำเร็จ! 🎉",
         `เพิ่ม "${name}" จำนวน ${qty} ชิ้นเข้าระบบแล้ว`,
-        [{ text: "โอเค", onPress: () => router.back() }]
+        [{ text: "โอเค", onPress: () => router.replace("/admin/home") }]
       );
     } catch (e: any) {
       Alert.alert("เกิดข้อผิดพลาด", e.message);
@@ -273,7 +273,7 @@ export default function Scan() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={resetAll}>
+          <TouchableOpacity style={styles.scanBackBtn} onPress={resetAll} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerText}>ตรวจสอบข้อมูล</Text>
@@ -362,7 +362,7 @@ export default function Scan() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => setStep("details")}>
+        <TouchableOpacity style={styles.scanBackBtn} onPress={() => setStep("details")} activeOpacity={0.82}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerText}>ยืนยัน & บันทึก</Text>
@@ -467,9 +467,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.18)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.20)",
     alignItems: "center",
     justifyContent: "center",
   },

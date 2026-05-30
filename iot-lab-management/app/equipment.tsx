@@ -1,252 +1,479 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import supabase from "../lib/supabase";
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, TextInput, Image, ActivityIndicator, RefreshControl,
+  ActivityIndicator,
+  Alert,
+  Image,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-const TYPE_ICONS: { [key: string]: any } = {
-  Microcontroller: "hardware-chip-outline",
-  SBC:             "server-outline",
-  Sensor:          "pulse-outline",
-  Actuator:        "flash-outline",
-  Module:          "cube-outline",
-  Kit:             "color-wand-outline",
-  Cable:           "git-branch-outline",
-  Other:           "ellipsis-horizontal-outline",
+const C = {
+  bg: "#edf5ff",
+  header: "#2563eb",
+  headerDark: "#1d4ed8",
+  purple: "#7c3aed",
+  ink: "#0f172a",
+  muted: "#64748b",
+  faint: "#94a3b8",
+  green: "#16a34a",
+  orange: "#d97706",
+  red: "#ef4444",
 };
 
-const STATUS_BADGE: { [key: string]: { label: string; bg: string; color: string } } = {
-  available: { label: "ว่าง",      bg: "#dcfce7", color: "#16a34a" },
-  borrowed:  { label: "ถูกยืม",    bg: "#fee2e2", color: "#dc2626" },
-  repair:    { label: "ซ่อมบำรุง", bg: "#fef3c7", color: "#b45309" },
+const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Microcontroller: "hardware-chip-outline",
+  SBC: "server-outline",
+  Sensor: "pulse-outline",
+  Actuator: "flash-outline",
+  Module: "cube-outline",
+  Kit: "color-wand-outline",
+  Cable: "git-branch-outline",
+  Other: "ellipsis-horizontal-outline",
+};
+
+const STATUS_BADGE: Record<string, { label: string; bg: string; color: string; border: string; action: keyof typeof Ionicons.glyphMap }> = {
+  available: { label: "ว่าง", bg: "#dcfce7", color: C.green, border: "#22c55e", action: "add" },
+  borrowed: { label: "ถูกยืม", bg: "#fee2e2", color: C.red, border: "#f87171", action: "information-outline" },
+  repair: { label: "ซ่อมบำรุง", bg: "#fef3c7", color: C.orange, border: "#f59e0b", action: "information-outline" },
 };
 
 export default function Equipment() {
   const router = useRouter();
-
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
+  const [activeType, setActiveType] = useState("ทั้งหมด");
 
-  useEffect(() => { fetchItems(); }, []);
+  useEffect(() => {
+    fetchItems();
+  }, []);
 
   const fetchItems = async () => {
     setLoading(true);
     const { data, error } = await supabase.from("items").select("*").order("name");
-    if (error) console.log(error);
-    else setItems(data || []);
+    if (error) {
+      console.log(error);
+      setItems([]);
+    } else {
+      setItems(data || []);
+    }
     setLoading(false);
     setRefreshing(false);
   };
 
-  const onRefresh = () => { setRefreshing(true); fetchItems(); };
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchItems();
+  };
 
-  const filtered = items.filter((item) =>
-    item.name?.toLowerCase().includes(search.toLowerCase()) ||
-    item.type?.toLowerCase().includes(search.toLowerCase())
-  );
+  const types = useMemo(() => {
+    const unique = Array.from(new Set(items.map((item) => item.type || "Other").filter(Boolean)));
+    return ["ทั้งหมด", ...unique];
+  }, [items]);
 
-  const available = items.filter(i => i.status === "available").length;
-  const borrowed  = items.filter(i => i.status === "borrowed").length;
-  const repair    = items.filter(i => i.status === "repair").length;
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return items
+      .filter((item) => activeType === "ทั้งหมด" || (item.type || "Other") === activeType)
+      .filter((item) => {
+        if (!query) return true;
+        return `${item.name || ""} ${item.type || ""} ${item.description || ""}`.toLowerCase().includes(query);
+      })
+      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "th"));
+  }, [items, search, activeType]);
+
+  const available = items.filter((item) => item.status === "available").length;
+  const borrowed = items.filter((item) => item.status === "borrowed").length;
+  const repair = items.filter((item) => item.status === "repair").length;
+  const problem = borrowed + repair;
+
+  const openItemAction = (item: any) => {
+    const status = STATUS_BADGE[item.status] || STATUS_BADGE.available;
+    if (item.status === "available") {
+      Alert.alert("พร้อมให้ยืม", `${item.name}\nกรุณาติดต่อผู้ดูแลหรือสแกน QR กับเจ้าหน้าที่เพื่อยืมอุปกรณ์`);
+      return;
+    }
+    Alert.alert(status.label, `${item.name}\nสถานะปัจจุบัน: ${status.label}`);
+  };
 
   return (
     <View style={styles.container}>
-
-      {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>อุปกรณ์ IoT</Text>
-        <Text style={styles.headerSub}>{items.length} รายการทั้งหมด</Text>
+        <View style={styles.headerTop}>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => router.replace("/home")} activeOpacity={0.84}>
+            <Ionicons name="arrow-back" size={22} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={() => {
+              setSearch("");
+              setActiveType("ทั้งหมด");
+            }}
+            activeOpacity={0.84}
+          >
+            <Ionicons name="options-outline" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
-        {/* สรุปสถิติ */}
+        <Text style={styles.headerSub}>คลังอุปกรณ์สำหรับนักเรียน</Text>
+        <Text style={styles.headerTitle}>อุปกรณ์ IoT</Text>
+
         <View style={styles.statsRow}>
-          <View style={styles.statChip}>
-            <View style={[styles.statDot, { backgroundColor: "#86efac" }]} />
-            <Text style={styles.statText}>ว่าง {available}</Text>
-          </View>
-          <View style={styles.statChip}>
-            <View style={[styles.statDot, { backgroundColor: "#fca5a5" }]} />
-            <Text style={styles.statText}>ถูกยืม {borrowed}</Text>
-          </View>
-          {repair > 0 && (
-            <View style={styles.statChip}>
-              <View style={[styles.statDot, { backgroundColor: "#fde68a" }]} />
-              <Text style={styles.statText}>ซ่อม {repair}</Text>
+          <HeaderStat icon="cube-outline" label="ทั้งหมด" value={items.length} />
+          <HeaderStat dot="#22c55e" label="พร้อมใช้" value={available} />
+          <HeaderStat dot="#facc15" label="ถูกยืม/ซ่อม" value={problem} />
+        </View>
+
+        <View style={styles.searchBox}>
+          <Ionicons name="search-outline" size={18} color={C.faint} />
+          <TextInput
+            placeholder="ค้นหาชื่อ หรือ ประเภท..."
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholderTextColor={C.faint}
+          />
+          {search ? (
+            <TouchableOpacity style={styles.searchAction} onPress={() => setSearch("")} activeOpacity={0.82}>
+              <Ionicons name="close" size={17} color={C.purple} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.searchAction}>
+              <Ionicons name="scan-outline" size={17} color={C.purple} />
             </View>
           )}
         </View>
       </View>
 
-      {/* SEARCH */}
-      <View style={styles.searchBox}>
-        <Ionicons name="search-outline" size={18} color="#94a3b8" />
-        <TextInput
-          placeholder="ค้นหาชื่อหรือประเภท..."
-          style={styles.searchInput}
-          value={search}
-          onChangeText={setSearch}
-          placeholderTextColor="#94a3b8"
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch("")}>
-            <Ionicons name="close-circle" size={18} color="#94a3b8" />
-          </TouchableOpacity>
-        )}
+      <View style={styles.filterWrap}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+          {types.map((type) => {
+            const active = activeType === type;
+            const count = type === "ทั้งหมด" ? items.length : items.filter((item) => (item.type || "Other") === type).length;
+            return (
+              <TouchableOpacity
+                key={type}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => setActiveType(type)}
+                activeOpacity={0.84}
+              >
+                {type === "ทั้งหมด" ? (
+                  <Text style={[styles.filterText, active && styles.filterTextActive]}>ทั้งหมด</Text>
+                ) : (
+                  <>
+                    <Ionicons
+                      name={TYPE_ICONS[type] || TYPE_ICONS.Other}
+                      size={13}
+                      color={active ? "#fff" : C.muted}
+                    />
+                    <Text style={[styles.filterText, active && styles.filterTextActive]} numberOfLines={1}>
+                      {type}
+                    </Text>
+                  </>
+                )}
+                <View style={[styles.filterCount, active && styles.filterCountActive]}>
+                  <Text style={[styles.filterCountText, active && styles.filterCountTextActive]}>{count}</Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
-      {/* TITLE ROW */}
       <View style={styles.titleRow}>
         <Text style={styles.sectionTitle}>รายการอุปกรณ์</Text>
-        {search.length > 0 && (
-          <Text style={styles.resultCount}>{filtered.length} รายการ</Text>
-        )}
+        <TouchableOpacity activeOpacity={0.82}>
+          <Text style={styles.sortText}>เรียงตาม ชื่อ A-Z⌄</Text>
+        </TouchableOpacity>
       </View>
 
-      {/* LIST */}
       {loading ? (
-        <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color={C.header} style={{ marginTop: 40 }} />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          style={styles.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.header} />}
         >
           {filtered.length === 0 ? (
             <View style={styles.empty}>
-              <Ionicons name="search-outline" size={40} color="#cbd5e1" />
+              <Ionicons name="search-outline" size={44} color="#bfdbfe" />
               <Text style={styles.emptyText}>ไม่พบอุปกรณ์ที่ค้นหา</Text>
             </View>
           ) : (
             filtered.map((item: any) => {
               const badge = STATUS_BADGE[item.status] || STATUS_BADGE.available;
-              const iconName = TYPE_ICONS[item.type] || "cube-outline";
+              const iconName = TYPE_ICONS[item.type] || TYPE_ICONS.Other;
+              const isAvailable = item.status === "available";
 
               return (
-                <View key={item.id} style={styles.item}>
-                  {/* รูปภาพ หรือ icon */}
+                <TouchableOpacity
+                  key={item.id}
+                  style={[styles.itemCard, { borderLeftColor: badge.border }]}
+                  onPress={() => openItemAction(item)}
+                  activeOpacity={0.88}
+                >
                   {item.image_url ? (
-                    <Image
-                      source={{ uri: item.image_url }}
-                      style={styles.itemImage}
-                      resizeMode="cover"
-                    />
+                    <Image source={{ uri: item.image_url }} style={styles.itemImage} resizeMode="cover" />
                   ) : (
-                    <View style={styles.iconBox}>
-                      <Ionicons name={iconName} size={22} color="#1e3a8a" />
+                    <View style={[styles.iconBox, { backgroundColor: isAvailable ? "#bbf7d0" : badge.bg }]}>
+                      <Ionicons name={iconName} size={24} color={badge.color} />
                     </View>
                   )}
 
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-                    {item.type ? (
-                      <Text style={styles.itemType}>{item.type}</Text>
-                    ) : null}
-                    {item.description ? (
-                      <Text style={styles.itemDesc} numberOfLines={1}>{item.description}</Text>
-                    ) : null}
+                    <Text style={styles.itemType} numberOfLines={1}>
+                      {item.type || "อุปกรณ์"}{item.description ? ` · ${item.description}` : ""}
+                    </Text>
+                    <View style={styles.itemMetaRow}>
+                      <View style={[styles.statusPill, { backgroundColor: badge.bg }]}>
+                        <View style={[styles.statusDot, { backgroundColor: badge.color }]} />
+                        <Text style={[styles.statusText, { color: badge.color }]}>{badge.label}</Text>
+                      </View>
+                      {item.quantity ? (
+                        <Text style={styles.qtyText}>มี {item.quantity} ชิ้น</Text>
+                      ) : null}
+                    </View>
                   </View>
 
-                  <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-                    <Text style={[styles.badgeText, { color: badge.color }]}>{badge.label}</Text>
+                  <View style={[styles.actionBtn, !isAvailable && styles.actionBtnMuted]}>
+                    <Ionicons name={badge.action} size={22} color={isAvailable ? "#fff" : C.muted} />
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })
           )}
-          <View style={{ height: 20 }} />
+          <View style={{ height: 92 }} />
         </ScrollView>
       )}
 
-      {/* BOTTOM TAB */}
       <View style={styles.tab}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/home")}>
-          <Ionicons name="home-outline" size={22} color="#94a3b8" />
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/home")} activeOpacity={0.82}>
+          <Ionicons name="home-outline" size={22} color={C.faint} />
           <Text style={styles.tabText}>ชั้นเรียน</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem}>
-          <Ionicons name="cube" size={22} color="#1e3a8a" />
+        <TouchableOpacity style={styles.tabItem} activeOpacity={0.82}>
+          <Ionicons name="cube" size={22} color={C.purple} />
           <Text style={[styles.tabText, styles.tabActive]}>อุปกรณ์</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/notifications")}>
-          <Ionicons name="notifications-outline" size={22} color="#94a3b8" />
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/notifications")} activeOpacity={0.82}>
+          <Ionicons name="notifications-outline" size={22} color={C.faint} />
           <Text style={styles.tabText}>แจ้งเตือน</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/profile")}>
-          <Ionicons name="person-outline" size={22} color="#94a3b8" />
+        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/profile")} activeOpacity={0.82}>
+          <Ionicons name="person-outline" size={22} color={C.faint} />
           <Text style={styles.tabText}>โปรไฟล์</Text>
         </TouchableOpacity>
       </View>
+    </View>
+  );
+}
 
+function HeaderStat({
+  icon,
+  dot,
+  label,
+  value,
+}: {
+  icon?: keyof typeof Ionicons.glyphMap;
+  dot?: string;
+  label: string;
+  value: number;
+}) {
+  return (
+    <View style={styles.statCard}>
+      {icon ? <Ionicons name={icon} size={14} color="#dbeafe" /> : <View style={[styles.statDot, { backgroundColor: dot }]} />}
+      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statNumber}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
-
+  container: { flex: 1, backgroundColor: C.bg },
   header: {
-    backgroundColor: "#1e3a8a",
-    paddingTop: 54, paddingBottom: 16, paddingHorizontal: 20,
+    backgroundColor: C.header,
+    paddingHorizontal: 25,
+    paddingTop: 35,
+    paddingBottom: 30,
   },
-  headerTitle: { color: "#fff", fontSize: 22, fontWeight: "bold" },
-  headerSub: { color: "#93c5fd", fontSize: 12, marginTop: 2 },
-  statsRow: { flexDirection: "row", gap: 12, marginTop: 10 },
-  statChip: { flexDirection: "row", alignItems: "center", gap: 5 },
-  statDot: { width: 8, height: 8, borderRadius: 4 },
-  statText: { color: "#e0f2fe", fontSize: 11, fontWeight: "600" },
-
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 9,
+  },
+  headerBtn: {
+    width: 37,
+    height: 37,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.23)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerSub: { color: "#dbeafe", fontSize: 11, fontWeight: "800", marginLeft: 58 },
+  headerTitle: { color: "#fff", fontSize: 24, fontWeight: "900", marginLeft: 58, marginTop: 1, marginBottom: 12 },
+  statsRow: { flexDirection: "row", gap: 9, marginBottom: 14 },
+  statCard: {
+    flex: 1,
+    minHeight: 66,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.19)",
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+  },
+  statDot: { width: 7, height: 7, borderRadius: 99, marginBottom: 5 },
+  statLabel: { color: "#e0ecff", fontSize: 10, fontWeight: "800" },
+  statNumber: { color: "#fff", fontSize: 22, fontWeight: "900", marginTop: 3 },
   searchBox: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#fff", borderRadius: 12,
-    margin: 16, paddingHorizontal: 14, paddingVertical: 10,
-    gap: 8, borderWidth: 1, borderColor: "#e2e8f0",
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingLeft: 14,
+    paddingRight: 7,
   },
-  searchInput: { flex: 1, fontSize: 14, color: "#1e293b" },
-
+  searchInput: { flex: 1, color: C.ink, fontSize: 13, fontWeight: "700" },
+  searchAction: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#f3e8ff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterWrap: { marginTop: -1, paddingVertical: 11 },
+  filterRow: { gap: 8, paddingHorizontal: 24 },
+  filterChip: {
+    minHeight: 32,
+    borderRadius: 999,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#dbe4f0",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    shadowColor: "#1e3a8a",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  filterChipActive: { backgroundColor: C.purple, borderColor: C.purple },
+  filterText: { color: C.muted, fontSize: 12, fontWeight: "900", maxWidth: 118 },
+  filterTextActive: { color: "#fff" },
+  filterCount: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 999,
+    backgroundColor: "#eef2ff",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 5,
+  },
+  filterCountActive: { backgroundColor: "rgba(255,255,255,0.2)" },
+  filterCountText: { color: C.purple, fontSize: 10, fontWeight: "900" },
+  filterCountTextActive: { color: "#fff" },
   titleRow: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "center", paddingHorizontal: 16, marginBottom: 8,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    marginBottom: 8,
   },
-  sectionTitle: { fontSize: 15, fontWeight: "700", color: "#1e293b" },
-  resultCount: { fontSize: 12, color: "#94a3b8" },
-
-  list: { flex: 1, paddingHorizontal: 16 },
-
+  sectionTitle: { fontSize: 14, fontWeight: "900", color: C.ink },
+  sortText: { fontSize: 11, color: C.purple, fontWeight: "900" },
+  list: { paddingHorizontal: 24 },
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
-  emptyText: { color: "#94a3b8", fontSize: 14 },
-
-  item: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 12,
-    marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12,
-    borderWidth: 1, borderColor: "#f1f5f9",
+  emptyText: { color: C.faint, fontSize: 14, fontWeight: "800" },
+  itemCard: {
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    borderLeftWidth: 3,
+    shadowColor: "#1e3a8a",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
   },
-
-  itemImage: { width: 52, height: 52, borderRadius: 10, backgroundColor: "#f1f5f9" },
+  itemImage: { width: 55, height: 55, borderRadius: 14, backgroundColor: "#f1f5f9" },
   iconBox: {
-    width: 52, height: 52, borderRadius: 10,
-    backgroundColor: "#eff6ff",
-    justifyContent: "center", alignItems: "center",
+    width: 55,
+    height: 55,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
   },
-
-  itemInfo: { flex: 1 },
-  itemName: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
-  itemType: { fontSize: 11, color: "#64748b", marginTop: 2 },
-  itemDesc: { fontSize: 10, color: "#94a3b8", marginTop: 2 },
-
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  badgeText: { fontSize: 10, fontWeight: "700" },
-
+  itemInfo: { flex: 1, minWidth: 0 },
+  itemName: { fontSize: 14, fontWeight: "900", color: C.ink },
+  itemType: { fontSize: 10, color: C.muted, marginTop: 2, fontWeight: "700" },
+  itemMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 7, flexWrap: "wrap" },
+  statusPill: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  statusDot: { width: 5, height: 5, borderRadius: 99 },
+  statusText: { fontSize: 10, fontWeight: "900" },
+  qtyText: { color: C.faint, fontSize: 10, fontWeight: "800" },
+  actionBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: C.purple,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: C.purple,
+    shadowOpacity: 0.26,
+    shadowRadius: 9,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 4,
+  },
+  actionBtnMuted: {
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#dbe4f0",
+    shadowOpacity: 0,
+  },
   tab: {
-    flexDirection: "row", backgroundColor: "#fff",
-    borderTopWidth: 1, borderTopColor: "#e2e8f0",
-    paddingBottom: 24, paddingTop: 10,
-    position: "absolute", bottom: 0, left: 0, right: 0,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    minHeight: 65,
+    paddingTop: 8,
+    paddingBottom: 12,
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: "#dbe4f0",
+    flexDirection: "row",
   },
-  tabItem: { flex: 1, alignItems: "center", gap: 3 },
-  tabText: { fontSize: 10, color: "#94a3b8" },
-  tabActive: { color: "#1e3a8a", fontWeight: "700" },
+  tabItem: { flex: 1, alignItems: "center", justifyContent: "center", gap: 3 },
+  tabText: { fontSize: 10, color: C.faint, fontWeight: "800" },
+  tabActive: { color: C.purple },
 });

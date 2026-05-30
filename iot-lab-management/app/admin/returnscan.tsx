@@ -164,7 +164,7 @@ export default function ReturnScan() {
       }
 
       Alert.alert("รับคืนสำเร็จ! ✅", `${item.name} คืนเรียบร้อยแล้ว`,
-        [{ text: "โอเค", onPress: () => router.back() }]);
+        [{ text: "โอเค", onPress: () => router.replace("/admin/home") }]);
     } catch (e: any) {
       Alert.alert("เกิดข้อผิดพลาด", e.message);
     } finally {
@@ -202,7 +202,7 @@ export default function ReturnScan() {
     return (
       <View style={s.container}>
         <View style={s.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity style={s.backBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={s.headerTxt}>สแกน Barcode คืนของ</Text>
@@ -249,7 +249,7 @@ export default function ReturnScan() {
     return (
       <View style={s.container}>
         <View style={s.header}>
-          <TouchableOpacity onPress={reset}>
+          <TouchableOpacity style={s.backBtn} onPress={reset} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={s.headerTxt}>ยืนยันการคืน</Text>
@@ -352,7 +352,7 @@ export default function ReturnScan() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity onPress={() => setStep("confirm")}>
+        <TouchableOpacity style={s.backBtn} onPress={() => setStep("confirm")} activeOpacity={0.82}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={s.headerTxt}>ลายเซ็นผู้คืน</Text>
@@ -427,8 +427,18 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f1f5f9" },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
   header: {
-    backgroundColor: "#1e3a8a", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
+    backgroundColor: "#7c3aed", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.20)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTxt: { color: "#fff", fontSize: 17, fontWeight: "bold" },
 
