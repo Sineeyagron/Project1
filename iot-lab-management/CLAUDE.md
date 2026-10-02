@@ -40,6 +40,19 @@
 | `repair_records` | ติดตามการซ่อม (station_id, description, status: pending/in-repair/done) |
 | `room_bookings` | ไม่ได้ใช้แล้ว (ระบบจองถูกเอาออก) |
 | `lan_ports` | LAN port ของ server แต่ละกลุ่ม (room_id, group_no, port_no, label, status) |
+| `categories` | หมวดหมู่อุปกรณ์ (Admin แก้ได้) — เฟส 1 |
+| `borrow_locations` | ห้องยืมของ (แยกจากห้องคอม) ตอนนี้มี "IoT Lab" ห้องเดียว — เฟส 1 |
+| `app_settings` | ค่าตั้งระบบ key/value (request_expiry_minutes, age_warn_years, age_replace_years) — เฟส 1 |
+| `item_code_counters` | ตัวนับรหัสเรียกต่อชื่อ แอปเข้าไม่ได้ (RLS ไม่มี policy) ใช้ผ่าน trigger — เฟส 1 |
+
+### เฟส 1 (2 ต.ค. 2569) — รหัสเรียกอุปกรณ์
+- SQL อยู่ใน `supabase/migrations/` (รันแล้ว: `phase1_items`, `phase1_hardening`)
+- `items` เพิ่ม: `item_prefix`, `item_no`, `item_code` (เช่น `NodeMCU 001`, unique), `short_name`, `manufacturer_serial`, `warranty_expires_at`, `retired_at`, `retire_reason`, `category_id`, `location_id`
+- `items.status` ใส่ได้แค่ `available | borrowed | repair | retired` (default `available`)
+- **Trigger `items_before_insert`** ออก `item_code` + `barcode` 4 ตัว + `location_id` ให้เองทุกครั้งที่ insert (ไม่รับค่าจากแอป) / `items_before_update` ล็อกรหัสและห้องไม่ให้เปลี่ยน
+- ⚠️ โปรเจกต์มี event trigger `ensure_rls` เปิด RLS ให้ตารางใหม่อัตโนมัติ → สร้างตารางใหม่ต้องเขียน policy ในไฟล์เดียวกัน
+- `borrow_records` **ไม่มี** `created_at` → เรียงด้วย `borrow_date`
+- `lib/notify.ts` ใช้แทน `Alert.alert` (Alert ไม่ทำงานบนเว็บ), `lib/labels.ts` สร้างป้าย QR 6×2.8 ซม. (A4 27 ชิ้น)
 
 ### RLS — DISABLED สำหรับ:
 - `computer_stations`, `room_bookings`, `lan_ports`

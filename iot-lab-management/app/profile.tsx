@@ -105,9 +105,9 @@ export default function Profile() {
     const itemIds = Array.from(new Set((borrows || []).map((record: any) => record.item_id).filter(Boolean)));
     const itemMap: Record<string, string> = {};
     if (itemIds.length > 0) {
-      const { data: items } = await supabase.from("items").select("id, name, type").in("id", itemIds);
+      const { data: items } = await supabase.from("items").select("id, name, item_code, type").in("id", itemIds);
       (items || []).forEach((item: any) => {
-        itemMap[item.id] = item.name;
+        itemMap[item.id] = item.item_code || item.name;
       });
     }
 

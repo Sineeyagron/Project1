@@ -132,8 +132,9 @@ export default function AdminHome() {
       returnedCount,
       activeRepairCount,
     ] = await Promise.all([
-      supabase.from("items").select("id, name, status"),
-      supabase.from("borrow_records").select("*").order("created_at", { ascending: false }).limit(12),
+      // ของที่จำหน่ายแล้วไม่นับในสต็อก แต่ยังต้องใช้ชื่อในกิจกรรมล่าสุด
+      supabase.from("items").select("id, name, item_code, status"),
+      supabase.from("borrow_records").select("*").order("borrow_date", { ascending: false }).limit(12),
       supabase.from("repair_records").select("*").order("reported_at", { ascending: false }).limit(6),
       supabase.from("computer_stations").select("id, room_id, group_no, name"),
       supabase.from("borrow_records").select("id", { count: "exact", head: true }).in("status", ["borrowed", "pending_return"]),
@@ -142,18 +143,19 @@ export default function AdminHome() {
     ]);
 
     const safeItems = items || [];
+    const stockItems = safeItems.filter((i: any) => i.status !== "retired");
     const safeBorrows = borrowRecords || [];
     const safeRepairs = repairRecords || [];
 
-    setTotal(safeItems.length);
-    setAvailable(safeItems.filter((i: any) => i.status === "available").length);
-    setBorrowed(safeItems.filter((i: any) => i.status === "borrowed").length);
-    setRepair(safeItems.filter((i: any) => i.status === "repair").length);
+    setTotal(stockItems.length);
+    setAvailable(stockItems.filter((i: any) => i.status === "available").length);
+    setBorrowed(stockItems.filter((i: any) => i.status === "borrowed").length);
+    setRepair(stockItems.filter((i: any) => i.status === "repair").length);
     setStatusBorrowed(activeBorrowCount.count || 0);
     setStatusReturned(returnedCount.count || 0);
     setStatusRepair(activeRepairCount.count || 0);
 
-    const itemMap = new Map(safeItems.map((item: any) => [item.id, item.name || "อุปกรณ์"]));
+    const itemMap = new Map(safeItems.map((item: any) => [item.id, item.item_code || item.name || "อุปกรณ์"]));
     const userIds = [...new Set(safeBorrows.map((r: any) => r.user_id).filter(Boolean))];
     let emailMap: Record<string, string> = {};
 

@@ -64,10 +64,12 @@ export default function ReturnScan() {
       try {
         const parsed = JSON.parse(data);
         if (parsed?.name) {
+          // QR รุ่นเก่าเก็บแค่ชื่อ: เลือกชิ้นที่ถูกยืมอยู่ก่อน
           const { data: byName } = await supabase
             .from("items").select("*")
             .ilike("name", parsed.name.trim())
-            .limit(1).single();
+            .eq("status", "borrowed")
+            .limit(1).maybeSingle();
           foundItem = byName;
         }
       } catch (_) { /* ไม่ใช่ JSON */ }
@@ -82,7 +84,7 @@ export default function ReturnScan() {
 
     if (foundItem.status !== "borrowed") {
       setLoading(false);
-      Alert.alert("ไม่ได้ถูกยืม", `${foundItem.name} ไม่ได้อยู่ในสถานะถูกยืม`,
+      Alert.alert("ไม่ได้ถูกยืม", `${foundItem.item_code || foundItem.name} ไม่ได้อยู่ในสถานะถูกยืม`,
         [{ text: "สแกนใหม่", onPress: () => { scanLock.current = false; } }]);
       return;
     }
@@ -90,7 +92,7 @@ export default function ReturnScan() {
     const { data: record } = await supabase
       .from("borrow_records").select("*")
       .eq("item_id", foundItem.id).eq("status", "borrowed")
-      .order("created_at", { ascending: false }).limit(1).single();
+      .order("borrow_date", { ascending: false }).limit(1).single();
 
     let finalRecord = record;
     if (!finalRecord) {
@@ -153,17 +155,18 @@ export default function ReturnScan() {
       await supabase.from("items").update({ status: "available" }).eq("id", item.id);
 
       // ส่ง notification ไปยัง user
+      const label = item.item_code || item.name;
       if (borrowRecord.user_id) {
         await supabase.from("notifications").insert([{
           user_id: borrowRecord.user_id,
           type: "return",
           title: "คืนอุปกรณ์สำเร็จ",
-          body: `"${item.name}" ได้รับการยืนยันการคืนเรียบร้อยแล้ว`,
-          item_name: item.name,
+          body: `"${label}" ได้รับการยืนยันการคืนเรียบร้อยแล้ว`,
+          item_name: label,
         }]);
       }
 
-      Alert.alert("รับคืนสำเร็จ! ✅", `${item.name} คืนเรียบร้อยแล้ว`,
+      Alert.alert("รับคืนสำเร็จ! ✅", `${label} คืนเรียบร้อยแล้ว`,
         [{ text: "โอเค", onPress: () => router.replace("/admin/home") }]);
     } catch (e: any) {
       Alert.alert("เกิดข้อผิดพลาด", e.message);
@@ -275,8 +278,8 @@ export default function ReturnScan() {
               </View>
             )}
             <View style={{ flex: 1 }}>
-              <Text style={s.itemName}>{item?.name}</Text>
-              {item?.type ? <Text style={s.itemType}>{item.type}</Text> : null}
+              <Text style={s.itemName}>{item?.item_code || item?.name}</Text>
+              <Text style={s.itemType}>{[item?.name, item?.type].filter(Boolean).join(" · ")}</Text>
               <View style={s.borrowedBadge}>
                 <Text style={s.borrowedBadgeTxt}>📤 กำลังถูกยืม</Text>
               </View>
@@ -370,7 +373,7 @@ export default function ReturnScan() {
 
         {/* SUMMARY */}
         <View style={s.summaryBox}>
-          <Text style={s.summaryTitle}>{item?.name}</Text>
+          <Text style={s.summaryTitle}>{item?.item_code || item?.name}</Text>
           <Text style={s.summaryLine}>
             <Text style={s.summaryKey}>ผู้คืน: </Text>{borrowerEmail}
           </Text>

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import supabase from "../lib/supabase";
+import { notify } from "../lib/notify";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   RefreshControl,
   ScrollView,
@@ -14,6 +14,9 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+
+const formatDue = (value: string) =>
+  new Date(value).toLocaleDateString("th-TH", { day: "numeric", month: "short" });
 
 const C = {
   bg: "#edf5ff",
@@ -59,12 +62,18 @@ export default function Equipment() {
 
   const fetchItems = async () => {
     setLoading(true);
-    const { data, error } = await supabase.from("items").select("*").order("name");
+    // ของที่จำหน่ายแล้วไม่แสดงในหน้ายืม (แผน 2.3)
+    const [{ data, error }, { data: loans }] = await Promise.all([
+      supabase.from("items").select("*").neq("status", "retired"),
+      supabase.from("borrow_records").select("item_id, due_date").in("status", ["borrowed", "pending_return"]),
+    ]);
     if (error) {
       console.log(error);
       setItems([]);
     } else {
-      setItems(data || []);
+      const dueMap: Record<string, string> = {};
+      (loans || []).forEach((r: any) => { if (r.item_id && r.due_date) dueMap[r.item_id] = r.due_date; });
+      setItems((data || []).map((item: any) => ({ ...item, due_date: dueMap[item.id] })));
     }
     setLoading(false);
     setRefreshing(false);
@@ -86,9 +95,13 @@ export default function Equipment() {
       .filter((item) => activeType === "ทั้งหมด" || (item.type || "Other") === activeType)
       .filter((item) => {
         if (!query) return true;
-        return `${item.name || ""} ${item.type || ""} ${item.description || ""}`.toLowerCase().includes(query);
+        return `${item.item_code || ""} ${item.barcode || ""} ${item.name || ""} ${item.type || ""} ${item.description || ""}`
+          .toLowerCase().includes(query);
       })
-      .sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "th"));
+      .sort((a, b) => {
+        const byPrefix = String(a.item_prefix || a.name || "").localeCompare(String(b.item_prefix || b.name || ""), "th");
+        return byPrefix !== 0 ? byPrefix : (a.item_no || 0) - (b.item_no || 0);
+      });
   }, [items, search, activeType]);
 
   const available = items.filter((item) => item.status === "available").length;
@@ -98,11 +111,13 @@ export default function Equipment() {
 
   const openItemAction = (item: any) => {
     const status = STATUS_BADGE[item.status] || STATUS_BADGE.available;
+    const label = item.item_code || item.name;
     if (item.status === "available") {
-      Alert.alert("พร้อมให้ยืม", `${item.name}\nกรุณาติดต่อผู้ดูแลหรือสแกน QR กับเจ้าหน้าที่เพื่อยืมอุปกรณ์`);
+      notify("พร้อมให้ยืม", `${label}\nกรุณาติดต่อผู้ดูแลหรือสแกน QR กับเจ้าหน้าที่เพื่อยืมอุปกรณ์`);
       return;
     }
-    Alert.alert(status.label, `${item.name}\nสถานะปัจจุบัน: ${status.label}`);
+    const due = item.due_date ? `\nกำหนดคืน ${formatDue(item.due_date)}` : "";
+    notify(status.label, `${label}\nสถานะปัจจุบัน: ${status.label}${due}`);
   };
 
   return (
@@ -218,7 +233,7 @@ export default function Equipment() {
               return (
                 <TouchableOpacity
                   key={item.id}
-                  style={[styles.itemCard, { borderLeftColor: badge.border }]}
+                  style={[styles.itemCard, { borderLeftColor: badge.border }, !isAvailable && styles.itemCardDim]}
                   onPress={() => openItemAction(item)}
                   activeOpacity={0.88}
                 >
@@ -231,17 +246,17 @@ export default function Equipment() {
                   )}
 
                   <View style={styles.itemInfo}>
-                    <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+                    <Text style={styles.itemName} numberOfLines={1}>{item.item_code || item.name}</Text>
                     <Text style={styles.itemType} numberOfLines={1}>
-                      {item.type || "อุปกรณ์"}{item.description ? ` · ${item.description}` : ""}
+                      {[item.name, item.type || "อุปกรณ์", item.description].filter(Boolean).join(" · ")}
                     </Text>
                     <View style={styles.itemMetaRow}>
                       <View style={[styles.statusPill, { backgroundColor: badge.bg }]}>
                         <View style={[styles.statusDot, { backgroundColor: badge.color }]} />
                         <Text style={[styles.statusText, { color: badge.color }]}>{badge.label}</Text>
                       </View>
-                      {item.quantity ? (
-                        <Text style={styles.qtyText}>มี {item.quantity} ชิ้น</Text>
+                      {item.status === "borrowed" && item.due_date ? (
+                        <Text style={styles.qtyText}>คืน {formatDue(item.due_date)}</Text>
                       ) : null}
                     </View>
                   </View>
@@ -403,6 +418,7 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 24 },
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
   emptyText: { color: C.faint, fontSize: 14, fontWeight: "800" },
+  itemCardDim: { opacity: 0.6 },
   itemCard: {
     backgroundColor: "#fff",
     borderRadius: 14,

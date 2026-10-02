@@ -125,7 +125,7 @@ export default function IotInspectionPage() {
     setLoading(true);
 
     const [{ data: allItems, error: itemsError }, { data: inspectionRows, error: inspectionError }] = await Promise.all([
-      supabase.from("items").select("*").order("name"),
+      supabase.from("items").select("*").neq("status", "retired").order("item_prefix").order("item_no"),
       supabase
         .from("item_inspections")
         .select("*")
@@ -288,7 +288,7 @@ export default function IotInspectionPage() {
                     </View>
 
                     <View style={s.itemMiddle}>
-                      <Text style={s.itemName} numberOfLines={1}>{item.name || "อุปกรณ์"}</Text>
+                      <Text style={s.itemName} numberOfLines={1}>{item.item_code || item.name || "อุปกรณ์"}</Text>
                       <Text style={s.itemLocation} numberOfLines={1}>{itemLocation(item)}</Text>
                       <View style={s.inlineStatus}>
                         <View style={[s.statusDot, { backgroundColor: cfg.color }]} />

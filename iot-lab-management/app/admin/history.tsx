@@ -124,8 +124,8 @@ export default function AdminHistory() {
     const emailMap: Record<string, string> = {};
 
     if (itemIds.length > 0) {
-      const { data: items } = await supabase.from("items").select("id, name").in("id", itemIds);
-      (items || []).forEach((item: any) => { itemMap[item.id] = item.name; });
+      const { data: items } = await supabase.from("items").select("id, name, item_code").in("id", itemIds);
+      (items || []).forEach((item: any) => { itemMap[item.id] = item.item_code || item.name; });
     }
 
     if (userIds.length > 0) {

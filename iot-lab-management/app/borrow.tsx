@@ -34,9 +34,10 @@ export default function Borrow() {
     if (!user) { setLoading(false); return; }
     const { data } = await supabase
       .from("borrow_records")
-      .select("id, status, borrow_date, due_date, created_at, item_id, items(name, image_url)")
+      // borrow_records ไม่มีคอลัมน์ created_at (ใช้ borrow_date)
+      .select("id, status, borrow_date, due_date, item_id, items(name, item_code, image_url)")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+      .order("borrow_date", { ascending: false });
     setBorrows(data || []);
     setLoading(false);
     setRefreshing(false);
@@ -98,7 +99,7 @@ export default function Borrow() {
               <Text style={s.sectionLabel}>รายการทั้งหมด ({borrows.length})</Text>
               {borrows.map((b) => {
                 const cfg   = STATUS_CFG[b.status] ?? STATUS_CFG.returned;
-                const name  = b.items?.name || b.items?.[0]?.name || "อุปกรณ์";
+                const name  = b.items?.item_code || b.items?.name || b.items?.[0]?.item_code || b.items?.[0]?.name || "อุปกรณ์";
                 const img   = b.items?.image_url || b.items?.[0]?.image_url || null;
                 const bDate = b.borrow_date || b.created_at;
                 const days  = b.due_date ? getDaysLeft(b.due_date) : null;

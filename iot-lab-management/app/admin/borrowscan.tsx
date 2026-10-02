@@ -75,10 +75,13 @@ export default function BorrowScan() {
       try {
         const parsed = JSON.parse(data);
         if (parsed?.name) {
+          // QR รุ่นเก่าเก็บแค่ชื่อ: เลือกชิ้นที่ว่างก่อน ถ้าไม่มีค่อยเอาชิ้นใดก็ได้มาแจ้งสถานะ
           const { data: byName } = await supabase
             .from("items").select("*")
             .ilike("name", parsed.name.trim())
-            .limit(1).single();
+            .neq("status", "retired")
+            .order("status", { ascending: true })
+            .limit(1).maybeSingle();
           found = byName;
         }
       } catch (_) { /* ไม่ใช่ JSON */ }
@@ -95,10 +98,15 @@ export default function BorrowScan() {
       return;
     }
 
-    if (found.status === "borrowed") {
+    if (found.status !== "available") {
+      const reason: Record<string, string> = {
+        borrowed: "กำลังถูกยืมอยู่",
+        repair: "อยู่ระหว่างซ่อมบำรุง ยืมไม่ได้",
+        retired: "ถูกจำหน่ายออกแล้ว ยืมไม่ได้",
+      };
       Alert.alert(
-        "อุปกรณ์ถูกยืมแล้ว",
-        `${found.name} กำลังถูกยืมอยู่`,
+        "ยืมไม่ได้",
+        `${found.item_code || found.name} ${reason[found.status] || `สถานะ ${found.status}`}`,
         [{ text: "สแกนใหม่", onPress: () => { scanLock.current = false; } }]
       );
       return;
@@ -177,17 +185,18 @@ export default function BorrowScan() {
       await supabase.from("items").update({ status: "borrowed" }).eq("id", item.id);
 
       // ส่ง notification ไปยัง user
+      const label = item.item_code || item.name;
       await supabase.from("notifications").insert([{
         user_id: selectedUser.id,
         type: "borrow",
         title: "ยืมอุปกรณ์สำเร็จ",
-        body: `คุณได้ยืม "${item.name}" ครบกำหนดคืน ${formatDate(dueDate)}`,
-        item_name: item.name,
+        body: `คุณได้ยืม "${label}" ครบกำหนดคืน ${formatDate(dueDate)}`,
+        item_name: label,
       }]);
 
       Alert.alert(
         "ยืมสำเร็จ! ✅",
-        `${item.name}\nผู้ยืม: ${selectedUser.email}\nครบกำหนด: ${formatDate(dueDate)}`,
+        `${label}\nผู้ยืม: ${selectedUser.email}\nครบกำหนด: ${formatDate(dueDate)}`,
         [{ text: "โอเค", onPress: () => router.replace("/admin/home") }]
       );
     } catch (e: any) {
@@ -303,8 +312,8 @@ export default function BorrowScan() {
               </View>
             )}
             <View style={{ flex: 1 }}>
-              <Text style={s.itemName}>{item?.name}</Text>
-              {item?.type ? <Text style={s.itemType}>{item.type}</Text> : null}
+              <Text style={s.itemName}>{item?.item_code || item?.name}</Text>
+              <Text style={s.itemType}>{[item?.name, item?.type].filter(Boolean).join(" · ")}</Text>
               {item?.description ? <Text style={s.itemDesc} numberOfLines={2}>{item.description}</Text> : null}
               <View style={s.availBadge}>
                 <Text style={s.availBadgeTxt}>✅ พร้อมให้ยืม</Text>
@@ -408,7 +417,7 @@ export default function BorrowScan() {
 
         {/* SUMMARY */}
         <View style={s.summaryBox}>
-          <Text style={s.summaryTitle}>{item?.name}</Text>
+          <Text style={s.summaryTitle}>{item?.item_code || item?.name}</Text>
           <Text style={s.summaryLine}>
             <Text style={s.summaryKey}>ผู้ยืม: </Text>{selectedUser?.email}
           </Text>
