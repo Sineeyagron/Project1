@@ -54,8 +54,15 @@
 - `borrow_records` **ไม่มี** `created_at` → เรียงด้วย `borrow_date`
 - `lib/notify.ts` ใช้แทน `Alert.alert` (Alert ไม่ทำงานบนเว็บ), `lib/labels.ts` สร้างป้าย QR 6×2.8 ซม. (A4 27 ชิ้น)
 
-### RLS — DISABLED สำหรับ:
-- `computer_stations`, `room_bookings`, `lan_ports`
+### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
+- ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)
+- ผู้ใช้อ่านได้: `items`, `categories`, `borrow_locations`, `app_settings`, `computer_stations`, `lan_ports`, `station_equipment` + `profiles` / `borrow_records` / `notifications` ของตัวเอง (กด "อ่านแล้ว" ได้)
+- admin เท่านั้น: เขียนทุกตาราง, `repair_records`, `equipment_inspections`, `item_inspections`, `room_bookings`
+- `profiles`: trigger `profiles_protect` กันผู้ใช้เปลี่ยน `role` / `email` ของตัวเอง (admin เปลี่ยนได้)
+- RPC `item_active_loans()` = วันคืนของที่ถูกยืม (ไม่บอกผู้ยืม) ใช้ในหน้า equipment
+- Storage `item-images`: อัปโหลด/แก้/ลบ เฉพาะ admin → มือถือต้องส่ง `session.access_token` ไม่ใช่ anon key
+- หน้าใน `app/admin/` ผ่านด่าน `app/admin/_layout.tsx` (ไม่ใช่ admin → /home)
+- **เพิ่มตารางหรือหน้าใหม่ ต้องเขียน policy ให้ครบ** ไม่งั้นแอปอ่าน/เขียนไม่ได้
 
 ### Supabase Storage
 - Bucket: **`item-images`** — รูปอุปกรณ์ (public)

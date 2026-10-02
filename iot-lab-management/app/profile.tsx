@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
+import { confirmAction, notify } from "../lib/notify";
 
 const C = {
   bg: "#edf5ff",
@@ -126,17 +126,10 @@ export default function Profile() {
   };
 
   const logout = () => {
-    Alert.alert("ออกจากระบบ", "ต้องการออกจากระบบหรือไม่?", [
-      { text: "ยกเลิก", style: "cancel" },
-      {
-        text: "ออกจากระบบ",
-        style: "destructive",
-        onPress: async () => {
-          await supabase.auth.signOut();
-          router.replace("/login");
-        },
-      },
-    ]);
+    confirmAction("ออกจากระบบ", "ต้องการออกจากระบบหรือไม่?", "ออกจากระบบ", async () => {
+      await supabase.auth.signOut();
+      router.replace("/login");
+    }, true);
   };
 
   const username = email.split("@")[0] || "student";
@@ -269,7 +262,7 @@ export default function Profile() {
         <View style={s.menuList}>
           <MenuRow icon="person-circle-outline" iconBg="#ede9fe" iconColor={C.purple} title="แก้ไขข้อมูลส่วนตัว" sub="ชื่อ อีเมล รหัสนักศึกษา" onPress={() => router.push("/sittings")} />
           <MenuRow icon="shield-checkmark-outline" iconBg="#dcfce7" iconColor={C.green} title="ความปลอดภัย" sub="เปลี่ยนรหัสผ่าน" onPress={() => router.push("/sittings")} />
-          <MenuRow icon="help-circle-outline" iconBg="#fce7f3" iconColor="#db2777" title="ช่วยเหลือ" sub="คำถามที่พบบ่อย" onPress={() => Alert.alert("ช่วยเหลือ", "ติดต่อผู้ดูแลห้องแล็บ IoT")} />
+          <MenuRow icon="help-circle-outline" iconBg="#fce7f3" iconColor="#db2777" title="ช่วยเหลือ" sub="คำถามที่พบบ่อย" onPress={() => notify("ช่วยเหลือ", "ติดต่อผู้ดูแลห้องแล็บ IoT")} />
           <MenuRow icon="log-out-outline" iconBg="#fee2e2" iconColor={C.red} title="ออกจากระบบ" sub="" danger onPress={logout} />
         </View>
 

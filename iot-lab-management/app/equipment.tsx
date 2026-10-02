@@ -65,7 +65,8 @@ export default function Equipment() {
     // ของที่จำหน่ายแล้วไม่แสดงในหน้ายืม (แผน 2.3)
     const [{ data, error }, { data: loans }] = await Promise.all([
       supabase.from("items").select("*").neq("status", "retired"),
-      supabase.from("borrow_records").select("item_id, due_date").in("status", ["borrowed", "pending_return"]),
+      // RLS: นักศึกษาเห็นแค่ประวัติของตัวเอง → ใช้ RPC ที่คืนแค่ ชิ้นไหน + วันคืน (ไม่บอกผู้ยืม)
+      supabase.rpc("item_active_loans"),
     ]);
     if (error) {
       console.log(error);

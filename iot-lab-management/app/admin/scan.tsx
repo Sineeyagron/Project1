@@ -179,6 +179,8 @@ export default function Scan() {
           const ext = photoUri.split(".").pop()?.split("?")[0]?.toLowerCase() || "jpg";
           fileName = `${fileBase}.${ext}`;
           const contentType = ext === "png" ? "image/png" : "image/jpeg";
+          // Storage อนุญาตเฉพาะ admin → ต้องส่ง token ของผู้ใช้ที่ล็อกอิน ไม่ใช่ anon key
+          const { data: { session } } = await supabase.auth.getSession();
 
           const uploadRes = await FS.uploadAsync(
             `${SUPABASE_URL}/storage/v1/object/item-images/${fileName}`,
@@ -188,7 +190,8 @@ export default function Scan() {
               mimeType: contentType,
               httpMethod: "POST",
               headers: {
-                Authorization: `Bearer ${SUPABASE_ANON}`,
+                Authorization: `Bearer ${session?.access_token ?? SUPABASE_ANON}`,
+                apikey: SUPABASE_ANON,
                 "Content-Type": contentType,
                 "x-upsert": "true",
               },

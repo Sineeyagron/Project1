@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Svg, { Polyline } from "react-native-svg";
 import supabase from "../../lib/supabase";
+import { confirmAction, notify } from "../../lib/notify";
 
 const C = {
   bg: "#eef3f8",
@@ -214,27 +213,14 @@ export default function AdminHome() {
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      Alert.alert("ออกจากระบบไม่สำเร็จ", error.message);
+      notify("ออกจากระบบไม่สำเร็จ", error.message);
       return;
     }
     router.replace("/login");
   };
 
   const confirmLogout = () => {
-    if (Platform.OS === "web") {
-      const ok = window.confirm("ต้องการออกจากระบบใช่ไหม?");
-      if (ok) handleLogout();
-      return;
-    }
-
-    Alert.alert("ออกจากระบบ", "ต้องการออกจากระบบใช่ไหม?", [
-      { text: "ยกเลิก", style: "cancel" },
-      {
-        text: "ออกจากระบบ",
-        style: "destructive",
-        onPress: handleLogout,
-      },
-    ]);
+    confirmAction("ออกจากระบบ", "ต้องการออกจากระบบใช่ไหม?", "ออกจากระบบ", handleLogout, true);
   };
 
   const stats = [
