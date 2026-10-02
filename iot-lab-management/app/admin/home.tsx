@@ -41,7 +41,7 @@ const TOOLS = [
   { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room", color: "#8b5cf6", bg: "#ede9fe" },
   { icon: "cube-outline", label: "จัดการอุปกรณ์", route: "/admin/items", color: "#0ea5e9", bg: "#e0f2fe" },
   { icon: "qr-code-outline", label: "สร้าง QR", route: "/admin/qrgen", color: "#6366f1", bg: "#ede9fe" },
-  { icon: "scan-outline", label: "สแกน & เพิ่ม", route: "/admin/scan", color: C.cyan, bg: "#cffafe" },
+  { icon: "add-circle-outline", label: "เพิ่มอุปกรณ์", route: "/admin/scan", color: C.cyan, bg: "#cffafe" },
   { icon: "receipt-outline", label: "ประวัติยืม", route: "/admin/history", color: C.muted, bg: "#f1f5f9" },
   { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations", color: C.red, bg: "#fee2e2" },
   { icon: "git-network-outline", label: "จัดการแลน", route: "/admin/lanports", color: C.purple, bg: "#ede9fe" },

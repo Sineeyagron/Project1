@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator,
+  ScrollView, ActivityIndicator,
   Image, KeyboardAvoidingView, Platform, TextInput,
 } from "react-native";
-import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,7 +15,8 @@ const FS = FileSystem as any;
 const SUPABASE_URL = "https://enupmlxmajjwskvzgcdq.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVudXBtbHhtYWpqd3NrdnpnY2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDIxMDUsImV4cCI6MjA4OTMxODEwNX0.px5ah-o_guGnQ8lTP7oJIwZXJEDiAcicuQTo3A_4aqE";
 
-type Step = "scan" | "details" | "preview";
+// เพิ่มอุปกรณ์: กรอก → ยืนยัน (QR ป้ายสร้างทีหลังที่หน้า qrgen ไม่ได้สแกนตอนเพิ่มแล้ว)
+type Step = "details" | "preview";
 type Category = { id: string; name: string };
 
 // ตัดช่องว่าง/สัญลักษณ์แบบเดียวกับ alloc_item_code() ในฐานข้อมูล ใช้แค่แสดงตัวอย่างรหัส
@@ -44,12 +44,9 @@ const formatThaiDate = (value: string) =>
 
 export default function Scan() {
   const router = useRouter();
-  const [permission, requestPermission] = useCameraPermissions();
 
-  const [step, setStep] = useState<Step>("scan");
-  const [scanned, setScanned] = useState(false);
+  const [step, setStep] = useState<Step>("details");
 
-  // ข้อมูลที่ได้จาก QR
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState("1");
@@ -65,14 +62,6 @@ export default function Scan() {
   const [photoUri, setPhotoUri] = useState("");
 
   const [saving, setSaving] = useState(false);
-  const [cameraRequested, setCameraRequested] = useState(false);
-
-  useEffect(() => {
-    if (step !== "scan" || cameraRequested || permission?.granted) return;
-    if (permission && !permission.canAskAgain) return;
-    setCameraRequested(true);
-    requestPermission();
-  }, [cameraRequested, permission, requestPermission, step]);
 
   useEffect(() => {
     supabase
@@ -83,45 +72,15 @@ export default function Scan() {
       .then(({ data }) => setCategories(data || []));
   }, []);
 
-  const findCategoryId = (typeName?: string) => {
-    const key = (typeName || "").trim().toLowerCase();
-    if (!key) return "";
-    return categories.find((c) => c.name.toLowerCase() === key)?.id || "";
-  };
-
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const warrantyInvalid = !!warranty.trim() && !isValidDate(warranty.trim());
   const canContinue = !!name.trim() && !warrantyInvalid;
-
-  // ── สแกน QR → parse JSON ──
-  const handleBarcodeScan = ({ data }: { data: string }) => {
-    if (scanned) return;
-    setScanned(true);
-
-    try {
-      const parsed = JSON.parse(data);
-      // เป็น QR ที่สร้างจากระบบ (มี name field)
-      if (parsed.name) {
-        setName(parsed.name || "");
-        setCategoryId(findCategoryId(parsed.type));
-        setDescription(parsed.description || "");
-        setStep("details");
-        return;
-      }
-    } catch {
-      // ไม่ใช่ JSON → ใช้ค่าดิบเป็นชื่อ
-    }
-
-    // QR ทั่วไป → ใช้ค่าเป็นชื่อเริ่มต้น
-    setName(data);
-    setStep("details");
-  };
 
   // ── ถ่ายรูปอุปกรณ์ ──
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("ต้องการสิทธิ์กล้อง");
+      notify("ต้องการสิทธิ์กล้อง");
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -259,8 +218,7 @@ export default function Scan() {
   };
 
   const resetAll = () => {
-    setStep("scan");
-    setScanned(false);
+    setStep("details");
     clearForm();
   };
 
@@ -268,18 +226,12 @@ export default function Scan() {
     router.replace("/admin/home");
   };
 
-  const startManualAdd = () => {
-    setScanned(false);
-    clearForm();
-    setStep("details");
-  };
-
   // ── STEP INDICATOR ──
   const StepBar = () => (
     <View style={si.row}>
-      {["สแกน QR", "รายละเอียด", "บันทึก"].map((label, i) => {
+      {["รายละเอียด", "ยืนยัน & บันทึก"].map((label, i) => {
         const num = i + 1;
-        const current = step === "scan" ? 1 : step === "details" ? 2 : 3;
+        const current = step === "details" ? 1 : 2;
         const done = num < current;
         const active = num === current;
         return (
@@ -293,74 +245,14 @@ export default function Scan() {
               </View>
               <Text style={[si.label, active && si.labelActive]}>{label}</Text>
             </View>
-            {i < 2 && <View style={[si.line, done && si.lineDone]} />}
+            {i < 1 && <View style={[si.line, done && si.lineDone]} />}
           </React.Fragment>
         );
       })}
     </View>
   );
 
-  // ── RENDER: Step 1 — Scan ──
-  if (step === "scan") {
-    return (
-      <View style={styles.container}>
-        <View style={styles.scanHeader}>
-          <TouchableOpacity style={styles.scanBackBtn} onPress={goBack} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <View style={styles.scanHeaderTitleWrap}>
-            <Text style={styles.scanHeaderTitle}>สแกน & เพิ่มอุปกรณ์</Text>
-            <Text style={styles.scanHeaderSub}>สแกนแล้วเพิ่มเข้าระบบ</Text>
-          </View>
-        </View>
-
-        <View style={styles.scanBody}>
-          <View style={styles.scannerPanel}>
-            {permission?.granted ? (
-              <CameraView
-                style={styles.camera}
-                facing="back"
-                onBarcodeScanned={handleBarcodeScan}
-                barcodeScannerSettings={{
-                  barcodeTypes: ["qr", "ean13", "ean8", "code128", "code39"],
-                }}
-              >
-                <View style={styles.cameraOverlay}>
-                  <View style={styles.scanLine} />
-                </View>
-              </CameraView>
-            ) : (
-              <TouchableOpacity style={styles.permissionPanel} onPress={requestPermission} activeOpacity={0.84}>
-                <Ionicons name="qr-code-outline" size={58} color="rgba(15,118,110,0.18)" />
-                <Text style={styles.permissionText}>
-                  {permission ? "แตะเพื่ออนุญาตกล้อง" : "กำลังเชื่อมต่อกล้อง..."}
-                </Text>
-                <View style={styles.scanLine} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <Text style={styles.scanTitle}>ส่องบาร์โค้ดหรือ QR code</Text>
-          <Text style={styles.scanDesc}>สแกนบาร์โค้ดจากคู่มือ — ระบบจะแสดงฟอร์มกรอกข้อมูล</Text>
-
-          <View style={styles.autoInfo}>
-            <Ionicons name="information-circle-outline" size={20} color="#0891b2" />
-            <View style={styles.autoInfoTextWrap}>
-              <Text style={styles.autoInfoTitle}>ระบบจะเปิดฟอร์มอัตโนมัติ</Text>
-              <Text style={styles.autoInfoText}>ใส่ ชื่อ ประเภท คำอธิบาย และรูป — บันทึกลงระบบทันที</Text>
-            </View>
-          </View>
-
-          <TouchableOpacity style={styles.manualBtn} onPress={startManualAdd} activeOpacity={0.9}>
-            <Ionicons name="add-circle-outline" size={16} color="#ffffff" />
-            <Text style={styles.manualBtnText}>เพิ่มด้วยตนเอง</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // ── RENDER: Step 2 — Details + Photo ──
+  // ── RENDER: Step 1 — Details + Photo ──
   if (step === "details") {
     return (
       <KeyboardAvoidingView
@@ -368,10 +260,10 @@ export default function Scan() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.header}>
-          <TouchableOpacity style={styles.scanBackBtn} onPress={resetAll} activeOpacity={0.82}>
+          <TouchableOpacity style={styles.scanBackBtn} onPress={goBack} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerText}>ตรวจสอบข้อมูล</Text>
+          <Text style={styles.headerText}>เพิ่มอุปกรณ์</Text>
           <View style={{ width: 22 }} />
         </View>
 
@@ -379,10 +271,11 @@ export default function Scan() {
 
         <ScrollView contentContainerStyle={styles.form}>
 
-          {/* auto-fill badge */}
           <View style={styles.autoFillBadge}>
-            <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
-            <Text style={styles.autoFillText}>ข้อมูลจาก QR Code ขึ้นอัตโนมัติ — แก้ไขได้</Text>
+            <Ionicons name="information-circle" size={16} color="#16a34a" />
+            <Text style={styles.autoFillText}>
+              ระบบออกรหัสเรียกและรหัสสแกนให้เองตอนบันทึก — พิมพ์ป้าย QR ได้ที่เมนู "สร้าง QR"
+            </Text>
           </View>
 
           <Text style={styles.fieldLabel}>ชื่ออุปกรณ์ *</Text>
@@ -511,7 +404,7 @@ export default function Scan() {
     );
   }
 
-  // ── RENDER: Step 3 — Preview & Save ──
+  // ── RENDER: Step 2 — Preview & Save ──
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -572,7 +465,7 @@ export default function Scan() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.cancelBtn} onPress={resetAll}>
-          <Text style={styles.cancelBtnText}>← สแกนใหม่</Text>
+          <Text style={styles.cancelBtnText}>ล้างฟอร์ม เริ่มใหม่</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />

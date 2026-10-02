@@ -367,7 +367,7 @@ export default function AdminItems() {
             onChangeText={setSearch}
           />
           <TouchableOpacity style={s.scanBtn} onPress={() => router.push("/admin/scan" as any)} activeOpacity={0.82}>
-            <Ionicons name="scan-outline" size={20} color={C.purple} />
+            <Ionicons name="add" size={22} color={C.purple} />
           </TouchableOpacity>
         </View>
       </View>
