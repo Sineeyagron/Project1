@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   AppState,
@@ -86,6 +86,8 @@ export default function AdminRequests() {
   const [decision, setDecision] = useState<Decision | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const signedRef = useRef<Record<string, string>>({});
+
   const load = useCallback(async () => {
     // ปล่อยคำขอที่หมดเวลาก่อน จะได้ไม่เห็นรายการที่ตัดสินไม่ได้แล้ว
     await supabase.rpc("expire_requests");
@@ -101,11 +103,12 @@ export default function AdminRequests() {
         all.flatMap((r: any) => [r.photo_path, r.record?.borrow_photo_path]).filter(Boolean) as string[]
       ),
     ];
-    if (paths.length > 0) {
-      const { data: signed } = await supabase.storage.from("borrow-photos").createSignedUrls(paths, 60 * 60);
-      const map: Record<string, string> = {};
-      (signed || []).forEach((s: any) => { if (s.path && s.signedUrl) map[s.path] = s.signedUrl; });
-      setPhotoUrls(map);
+    // ขอลิงก์รูปเฉพาะรูปใหม่ (ลิงก์อายุ 1 ชม. ใช้ซ้ำได้) — ลดงานฐานข้อมูลตอนรีเฟรชอัตโนมัติ
+    const fresh = paths.filter((path) => !signedRef.current[path]);
+    if (fresh.length > 0) {
+      const { data: signed } = await supabase.storage.from("borrow-photos").createSignedUrls(fresh, 60 * 60);
+      (signed || []).forEach((s: any) => { if (s.path && s.signedUrl) signedRef.current[s.path] = s.signedUrl; });
+      setPhotoUrls({ ...signedRef.current });
     }
 
     // คำขอที่เปิดมาจากแจ้งเตือนขึ้นก่อน
@@ -118,9 +121,9 @@ export default function AdminRequests() {
 
   useEffect(() => { load(); }, [load]);
 
-  // คำขอใหม่เข้ามาได้ตลอด → รีเฟรชทุก 15 วินาที และตอนกลับเข้าแอป
+  // คำขอใหม่เข้ามาได้ตลอด → รีเฟรชทุก 30 วินาที (ข้ามตอนแอป/แท็บอยู่เบื้องหลัง) และตอนกลับเข้าแอป
   useEffect(() => {
-    const t = setInterval(load, 15000);
+    const t = setInterval(() => { if (AppState.currentState === "active") load(); }, 30000);
     const sub = AppState.addEventListener("change", (st) => { if (st === "active") load(); });
     return () => { clearInterval(t); sub.remove(); };
   }, [load]);

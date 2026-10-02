@@ -137,7 +137,7 @@ ON CONFLICT DO NOTHING;
 2. ขอยืม / ขอคืน: ถ่ายรูปสด (`lib/borrowPhotos.ts` → bucket `borrow-photos/<user_id>/`) + ตรวจสภาพ → RPC `request_borrow` / `request_return` / `request_renew`
 3. ของถูกกันไว้ (`items.status = reserved` / `borrow_records.status = pending_return`) → คำขอขึ้นใน **กล่องคำขอ** อย่างเดียว (migration `staff_inbox_split`: `_notify_staff` ไม่ส่ง `request_*` เข้ากระดิ่ง; กระดิ่งผู้ดูแล = ประกัน/อายุ/เกินกำหนด/คืนอัตโนมัติ, ปุ่มกระดิ่งอยู่หน้า `admin/home`)
 4. Admin อนุมัติ/ปฏิเสธใน `app/admin/requests.tsx` → RPC `decide_request` (คืน: ตรวจสภาพ ชำรุด → `repair` + ค่าเสียหาย)
-5. ไม่มีใครตอบใน `app_settings.request_expiry_minutes` (30) → pg_cron `expire_requests` ทุกนาที: ยืม = หมดอายุ / คืน = คืนอัตโนมัติ
+5. ไม่มีใครตอบใน `app_settings.request_expiry_minutes` (30) → pg_cron `expire_requests` ทุก 5 นาที (เดิมทุกนาที เปลี่ยนเพราะ Disk IO ของแพ็กเกจฟรี — migration `reduce_disk_io` + `cleanup-cron-history` ลบบันทึก cron เก่ากว่า 7 วัน; หน้าแจ้งเตือน/กล่องคำขอรีเฟรชทุก 30 วิ เฉพาะตอนแอปเปิดอยู่): ยืม = หมดอายุ / คืน = คืนอัตโนมัติ
 6. pg_cron `send_due_reminders` 08:00 ไทย: แจ้ง "พรุ่งนี้ครบกำหนด" + "เกินกำหนด"
 - กติกาทั้งหมดอยู่ใน RPC (security definer + ล็อกแถว) แอปเรียกอย่างเดียว — SQL: `supabase/migrations/2026100309*_phase3_*.sql`
 - Admin สแกน = ดูสถานะอย่างเดียว (`app/admin/lookup.tsx`)

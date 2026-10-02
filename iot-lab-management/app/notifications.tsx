@@ -110,7 +110,8 @@ export default function Notifications() {
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
   useEffect(() => {
-    const interval = setInterval(() => fetchNotifications(true), 15000);
+    // ทุก 30 วินาที ข้ามตอนแอป/แท็บอยู่เบื้องหลัง (ประหยัด Disk IO ของ Supabase)
+    const interval = setInterval(() => { if (AppState.currentState === "active") fetchNotifications(true); }, 30000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
