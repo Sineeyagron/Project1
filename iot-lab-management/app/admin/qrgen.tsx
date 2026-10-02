@@ -1,13 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  Image,
   Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -17,7 +14,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as MediaLibrary from "expo-media-library/legacy";
 import * as FileSystem from "expo-file-system/legacy";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
+import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
+import { notify } from "../../lib/notify";
+import { LABELS_PER_SHEET, buildLabelSheetHtml, formatItemNo, qrMatrix } from "../../lib/labels";
 
 const FS = FileSystem as any;
 
@@ -34,21 +36,6 @@ const C = {
   greenBg: "#dcfce7",
   green: "#16a34a",
 };
-
-const SIZE_OPTIONS = [
-  { key: "small", label: "เล็ก", detail: "2x2 cm", px: 220 },
-  { key: "medium", label: "กลาง", detail: "4x4 cm", px: 320 },
-  { key: "large", label: "ใหญ่", detail: "6x6 cm", px: 420 },
-] as const;
-
-const FORMAT_OPTIONS = [
-  { key: "png", label: "PNG", icon: "image-outline" },
-  { key: "pdf", label: "PDF", icon: "document-text-outline" },
-  { key: "svg", label: "SVG", icon: "crop-outline" },
-] as const;
-
-type SizeKey = typeof SIZE_OPTIONS[number]["key"];
-type FormatKey = typeof FORMAT_OPTIONS[number]["key"];
 
 function normalize(value?: string) {
   return (value || "").trim().toLowerCase();
@@ -99,9 +86,9 @@ function itemCode(item?: any) {
   return isValidDeviceCode(code) ? code : "----";
 }
 
-function qrImageUrl(value: string, size: number, format: FormatKey = "png") {
-  const fmt = format === "svg" ? "&format=svg" : "";
-  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=8&data=${encodeURIComponent(value)}${fmt}`;
+// ใช้เฉพาะปุ่มบันทึก QR ลงแกลเลอรี่ในมือถือ (ป้ายพิมพ์สร้าง QR เองใน lib/labels.ts)
+function qrImageUrl(value: string, size: number) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=8&data=${encodeURIComponent(value)}`;
 }
 
 function typeIcon(type?: string) {
@@ -111,9 +98,9 @@ function typeIcon(type?: string) {
   return "hardware-chip-outline";
 }
 
-function typeShort(type?: string) {
-  const key = (type || "Mic").trim();
-  return key.length > 8 ? key.slice(0, 3) : key;
+function compareItems(a: any, b: any) {
+  const byPrefix = (a.item_prefix || a.name || "").localeCompare(b.item_prefix || b.name || "", "th");
+  return byPrefix !== 0 ? byPrefix : (a.item_no || 0) - (b.item_no || 0);
 }
 
 export default function QRGen() {
@@ -123,11 +110,7 @@ export default function QRGen() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [mode, setMode] = useState<"single" | "batch">("batch");
   const [search, setSearch] = useState("");
-  const [sizeKey, setSizeKey] = useState<SizeKey>("medium");
-  const [format, setFormat] = useState<FormatKey>("pdf");
-  const [includeName, setIncludeName] = useState(true);
-  const [includeCode, setIncludeCode] = useState(true);
-  const [includeLocation, setIncludeLocation] = useState(true);
+  const [startAt, setStartAt] = useState(1);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -139,13 +122,16 @@ export default function QRGen() {
   const fetchItems = async () => {
     const { data, error } = await supabase
       .from("items")
-      .select("*")
-      .order("name");
+      .select("*, borrow_locations(name)")
+      .neq("status", "retired");
 
     if (error) {
-      Alert.alert("โหลดอุปกรณ์ไม่สำเร็จ", error.message);
+      notify("โหลดอุปกรณ์ไม่สำเร็จ", error.message);
     } else {
-      const list = await ensureDeviceCodes(data || []);
+      const rows = (data || [])
+        .map((row: any) => ({ ...row, location_name: row.borrow_locations?.name || "" }))
+        .sort(compareItems);
+      const list = await ensureDeviceCodes(rows);
       setItems(list);
       setSelectedId((current) => current || list[0]?.id || "");
       setSelectedIds((current) => current.length > 0 ? current : list[0]?.id ? [list[0].id] : []);
@@ -203,6 +189,7 @@ export default function QRGen() {
     const q = normalize(search);
     if (!q) return items;
     return items.filter((item) =>
+      normalize(item.item_code).includes(q) ||
       normalize(item.name).includes(q) ||
       normalize(item.type).includes(q) ||
       normalize(item.description).includes(q) ||
@@ -210,9 +197,7 @@ export default function QRGen() {
     );
   }, [items, search]);
 
-  const size = SIZE_OPTIONS.find((option) => option.key === sizeKey) || SIZE_OPTIONS[1];
-  const qrUrl = previewItem ? qrImageUrl(qrValue(previewItem), size.px, format) : "";
-  const selectedIndex = Math.max(0, items.findIndex((item) => item.id === previewItem?.id));
+  const sheetCount = Math.ceil((startAt - 1 + printTargets.length) / LABELS_PER_SHEET);
 
   const goBack = () => router.replace("/admin/home");
 
@@ -239,99 +224,75 @@ export default function QRGen() {
     });
   };
 
-  const downloadWeb = (url: string, filename: string) => {
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = filename;
-    anchor.target = "_blank";
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
+  const selectAllShown = () => {
+    setMode("batch");
+    setSelectedIds(filtered.map((item) => item.id));
+    if (filtered[0]) setSelectedId(filtered[0].id);
   };
 
-  const buildPrintHtml = (targets: any[]) => {
-    const cards = targets.map((item, index) => {
-      const code = itemCode(item);
-      const image = qrImageUrl(qrValue(item), size.px, "png");
-      return `
-        <section class="label">
-          <div class="brand">LABHUB</div>
-          ${includeName ? `<h2>${item.name || "ไม่มีชื่ออุปกรณ์"}</h2>` : ""}
-          ${includeCode ? `<p># ${code}</p>` : ""}
-          <img src="${image}" />
-          ${includeLocation ? `<small>CP9524 · ชั้น 5</small>` : ""}
-          <footer>สแกนเพื่อยืม-คืน</footer>
-        </section>
-      `;
-    }).join("");
-
-    return `<!doctype html>
-      <html>
-        <head>
-          <title>LabHub QR Labels</title>
-          <style>
-            body { margin: 0; padding: 24px; font-family: Arial, sans-serif; background: #fff; color: #0f172a; }
-            .sheet { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; }
-            .label { border: 1px dashed #c4b5fd; border-radius: 18px; padding: 18px; text-align: center; page-break-inside: avoid; }
-            .brand { text-align: left; color: #94a3b8; font-size: 11px; font-weight: 800; letter-spacing: .08em; }
-            h2 { margin: 4px 0 0; font-size: 18px; }
-            p { margin: 4px 0 10px; color: #64748b; font-size: 13px; font-weight: 700; }
-            img { width: 170px; height: 170px; object-fit: contain; }
-            small { display: block; color: #64748b; font-size: 12px; margin-top: 8px; }
-            footer { border-top: 1px dashed #e2e8f0; margin-top: 12px; padding-top: 10px; color: #94a3b8; font-size: 12px; font-weight: 700; }
-          </style>
-        </head>
-        <body><main class="sheet">${cards}</main><script>window.onload = () => window.print();</script></body>
-      </html>`;
-  };
-
+  // มือถือ: บันทึกรูป QR ของชิ้นที่เลือกลงแกลเลอรี่
   const handleDownload = async () => {
-    if (printTargets.length === 0 || !previewItem || !qrUrl) return;
+    if (!previewItem) return;
     const code = itemCode(previewItem);
-    const filename = `LabHub_QR_${code}.${format === "pdf" ? "html" : format}`;
-
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      if (format === "pdf") {
-        const win = window.open("", "_blank");
-        if (win) {
-          win.document.write(buildPrintHtml(printTargets));
-          win.document.close();
-        } else {
-          window.print();
-        }
-        return;
-      }
-      downloadWeb(qrUrl, filename);
-      return;
-    }
-
     setSaving(true);
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== "granted") {
-        Alert.alert("ต้องการสิทธิ์เข้าถึง Gallery", "กรุณาอนุญาตเพื่อบันทึก QR Code ลงเครื่อง");
+        notify("ต้องการสิทธิ์เข้าถึง Gallery", "กรุณาอนุญาตเพื่อบันทึก QR Code ลงเครื่อง");
         return;
       }
       const fileUri = (FS.documentDirectory ?? "") + `LabHub_QR_${code}.png`;
-      const { uri } = await FS.downloadAsync(qrImageUrl(qrValue(previewItem), size.px, "png"), fileUri);
+      const { uri } = await FS.downloadAsync(qrImageUrl(qrValue(previewItem), 420), fileUri);
       await MediaLibrary.saveToLibraryAsync(uri);
-      Alert.alert("บันทึกสำเร็จ", "QR Code ถูกบันทึกลง Gallery แล้ว");
+      notify("บันทึกสำเร็จ", "QR Code ถูกบันทึกลง Gallery แล้ว");
     } catch (e: any) {
-      Alert.alert("บันทึกไม่สำเร็จ", e.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+      notify("บันทึกไม่สำเร็จ", e.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     } finally {
       setSaving(false);
     }
   };
 
-  const handlePrint = () => {
-    if (printTargets.length === 0 || typeof window === "undefined") return;
-    const win = window.open("", "_blank");
-    if (win) {
-      win.document.write(buildPrintHtml(printTargets));
-      win.document.close();
-    } else {
-      window.print();
+  // มือถือ: สร้างแผ่นป้าย A4 เป็น PDF แล้วเปิดเมนูแชร์ (LINE, อีเมล, Drive, บันทึกลงเครื่อง)
+  const handleSharePdf = async () => {
+    if (printTargets.length === 0) return;
+    setSaving(true);
+    try {
+      const { uri } = await Print.printToFileAsync({
+        html: buildLabelSheetHtml(printTargets, startAt, false),
+        width: 595,   // A4 = 595 × 842 pt
+        height: 842,
+        margins: { top: 23, bottom: 23, left: 28, right: 28 }, // 8 มม. / 10 มม. (iOS)
+      });
+      if (!(await Sharing.isAvailableAsync())) {
+        notify("แชร์ไม่ได้ในเครื่องนี้", `ไฟล์อยู่ที่ ${uri}`);
+        return;
+      }
+      await Sharing.shareAsync(uri, {
+        mimeType: "application/pdf",
+        UTI: "com.adobe.pdf",
+        dialogTitle: `ป้าย QR ${printTargets.length} ชิ้น`,
+      });
+    } catch (e: any) {
+      notify("สร้าง PDF ไม่สำเร็จ", e.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
+    } finally {
+      setSaving(false);
     }
+  };
+
+  // เว็บ: เปิดแผ่นป้าย A4 แล้วเด้งกล่องพิมพ์ (เลือก Save as PDF ได้)
+  const handlePrint = () => {
+    if (printTargets.length === 0) return;
+    if (Platform.OS !== "web" || typeof window === "undefined") {
+      handleSharePdf();
+      return;
+    }
+    const win = window.open("", "_blank");
+    if (!win) {
+      notify("เปิดหน้าพิมพ์ไม่ได้", "เบราว์เซอร์บล็อกหน้าต่างใหม่ อนุญาต pop-up ให้เว็บนี้แล้วลองอีกครั้ง");
+      return;
+    }
+    win.document.write(buildLabelSheetHtml(printTargets, startAt));
+    win.document.close();
   };
 
   return (
@@ -388,7 +349,14 @@ export default function QRGen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
           showsVerticalScrollIndicator
         >
-          <Section index={1} title="เลือกอุปกรณ์" right={`เลือก ${printTargets.length} รายการ`} />
+          <View style={s.sectionWithAction}>
+            <Section index={1} title="เลือกอุปกรณ์" right={`เลือก ${printTargets.length} รายการ`} />
+            {filtered.length > 1 && (
+              <TouchableOpacity onPress={selectAllShown} activeOpacity={0.8}>
+                <Text style={s.selectAllText}>เลือกทั้งหมดที่แสดง ({filtered.length})</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           <View style={s.searchBox}>
             <Ionicons name="search-outline" size={18} color={C.faint} />
@@ -411,7 +379,6 @@ export default function QRGen() {
               </View>
             ) : filtered.map((item) => {
               const active = mode === "batch" ? selectedIds.includes(item.id) : item.id === selectedItem?.id;
-              const index = items.findIndex((i) => i.id === item.id);
               return (
                 <TouchableOpacity
                   key={item.id}
@@ -423,8 +390,8 @@ export default function QRGen() {
                     <Ionicons name={typeIcon(item.type || item.description) as any} size={23} color={C.green} />
                   </View>
                   <View style={s.itemTextWrap}>
-                    <Text style={s.itemName} numberOfLines={1}>{item.name || "ไม่มีชื่ออุปกรณ์"}</Text>
-                  <Text style={s.itemMeta} numberOfLines={1}>{item.type || "อุปกรณ์"} · รหัส #{itemCode(item)}</Text>
+                    <Text style={s.itemName} numberOfLines={1}>{item.item_code || item.name || "ไม่มีชื่ออุปกรณ์"}</Text>
+                    <Text style={s.itemMeta} numberOfLines={1}>{item.name} · สแกน {itemCode(item)}</Text>
                   </View>
                   <View style={[s.checkBox, active && s.checkBoxActive]}>
                     {active && <Ionicons name="checkmark" size={15} color="#fff" />}
@@ -434,63 +401,44 @@ export default function QRGen() {
             })}
           </View>
 
-          <Section index={2} title="ตั้งค่ารูปแบบ" />
+          <Section index={2} title="แผ่นสติกเกอร์" />
           <View style={s.settingsCard}>
             <View style={s.settingHeader}>
-              <Text style={s.settingTitle}>ขนาด QR Code</Text>
-              <Text style={s.settingHint}>{size.label} · {size.detail}</Text>
+              <Text style={s.settingTitle}>ป้าย 6 × 2.8 ซม. · A4 แผ่นละ {LABELS_PER_SHEET} ชิ้น</Text>
             </View>
-            <View style={s.optionRow}>
-              {SIZE_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.key}
-                  style={[s.optionBox, sizeKey === option.key && s.optionBoxActive]}
-                  onPress={() => setSizeKey(option.key)}
-                  activeOpacity={0.84}
-                >
-                  <Text style={[s.optionLabel, sizeKey === option.key && s.optionLabelActive]}>{option.label}</Text>
-                  <Text style={s.optionDetail}>{option.detail}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Text style={s.settingHint}>พิมพ์ที่ขนาด 100% ห้ามเลือก "ย่อให้พอดีหน้า"</Text>
 
             <View style={s.divider} />
-            <Text style={s.settingTitle}>รวมข้อมูลในป้าย</Text>
-            <ToggleRow icon="pricetag-outline" label="ชื่ออุปกรณ์" value={includeName} onChange={setIncludeName} />
-            <ToggleRow icon="barcode-outline" label="รหัสอุปกรณ์" value={includeCode} onChange={setIncludeCode} />
-            <ToggleRow icon="business-outline" label="ห้อง/ตำแหน่ง" value={includeLocation} onChange={setIncludeLocation} />
-
-            <View style={s.divider} />
-            <Text style={s.settingTitle}>รูปแบบไฟล์</Text>
-            <View style={s.optionRow}>
-              {FORMAT_OPTIONS.map((option) => (
+            <View style={s.settingHeader}>
+              <Text style={s.settingTitle}>เริ่มพิมพ์ที่ช่องที่</Text>
+              <View style={s.stepper}>
                 <TouchableOpacity
-                  key={option.key}
-                  style={[s.formatBox, format === option.key && s.optionBoxActive]}
-                  onPress={() => setFormat(option.key)}
-                  activeOpacity={0.84}
+                  style={s.stepperBtn}
+                  onPress={() => setStartAt((n) => Math.max(1, n - 1))}
+                  activeOpacity={0.8}
                 >
-                  <Ionicons name={option.icon as any} size={20} color={format === option.key ? C.purple : C.muted} />
-                  <Text style={[s.formatText, format === option.key && s.optionLabelActive]}>{option.label}</Text>
+                  <Ionicons name="remove" size={16} color={C.purple} />
                 </TouchableOpacity>
-              ))}
+                <Text style={s.stepperValue}>{startAt}</Text>
+                <TouchableOpacity
+                  style={s.stepperBtn}
+                  onPress={() => setStartAt((n) => Math.min(LABELS_PER_SHEET, n + 1))}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="add" size={16} color={C.purple} />
+                </TouchableOpacity>
+              </View>
             </View>
+            <Text style={s.settingHint}>
+              ใช้กับแผ่นที่ลอกไปแล้วบางส่วน นับซ้ายไปขวา บนลงล่าง (แถวละ 3 ช่อง)
+              {printTargets.length > 0 ? ` · ใช้ ${sheetCount} แผ่น` : ""}
+            </Text>
           </View>
 
           <Section index={3} title="Preview ก่อนพิมพ์" />
           <View style={s.previewList}>
             {printTargets.length > 0 ? (
-              printTargets.map((target) => (
-                <QrPreviewCard
-                  key={target.id}
-                  item={target}
-                  index={items.findIndex((item) => item.id === target.id)}
-                  imageUrl={qrImageUrl(qrValue(target), size.px, format)}
-                  includeName={includeName}
-                  includeCode={includeCode}
-                  includeLocation={includeLocation}
-                />
-              ))
+              printTargets.map((target) => <LabelPreview key={target.id} item={target} />)
             ) : (
               <View style={s.previewCard}>
                 <Text style={s.emptyText}>เลือกอุปกรณ์เพื่อสร้าง QR</Text>
@@ -499,15 +447,29 @@ export default function QRGen() {
           </View>
 
           <View style={s.actionRow}>
-            <TouchableOpacity style={s.downloadBtn} onPress={handleDownload} disabled={printTargets.length === 0 || saving} activeOpacity={0.84}>
-              {saving ? <ActivityIndicator color={C.muted} /> : <Ionicons name="download-outline" size={22} color={C.muted} />}
-            </TouchableOpacity>
-            <TouchableOpacity style={[s.printBtn, printTargets.length === 0 && s.disabledBtn]} onPress={handlePrint} disabled={printTargets.length === 0} activeOpacity={0.9}>
-              <Ionicons name="print-outline" size={18} color="#fff" />
-              <Text style={s.printText}>พิมพ์ QR Code</Text>
+            {Platform.OS !== "web" && (
+              <TouchableOpacity style={s.downloadBtn} onPress={handleDownload} disabled={!previewItem || saving} activeOpacity={0.84}>
+                {saving ? <ActivityIndicator color={C.muted} /> : <Ionicons name="download-outline" size={22} color={C.muted} />}
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={[s.printBtn, (printTargets.length === 0 || saving) && s.disabledBtn]}
+              onPress={handlePrint}
+              disabled={printTargets.length === 0 || saving}
+              activeOpacity={0.9}
+            >
+              <Ionicons name={Platform.OS === "web" ? "print-outline" : "share-outline"} size={18} color="#fff" />
+              <Text style={s.printText}>
+                {Platform.OS === "web" ? "พิมพ์ป้าย" : "บันทึก / แชร์ PDF"}
+                {printTargets.length > 0 ? ` ${printTargets.length} ชิ้น` : ""}
+              </Text>
             </TouchableOpacity>
           </View>
-          <Text style={s.noteText}>รองรับเครื่องพิมพ์ Label · A4 และ Thermal Printer</Text>
+          <Text style={s.noteText}>
+            {Platform.OS === "web"
+              ? "เลือก Save as PDF ในหน้าพิมพ์ได้ · พิมพ์ที่ 100% บน A4"
+              : "ส่ง PDF ไป LINE / อีเมล / Drive แล้วพิมพ์ที่ 100% บน A4"}
+          </Text>
         </ScrollView>
       )}
     </View>
@@ -526,74 +488,53 @@ function Section({ index, title, right }: { index: number; title: string; right?
   );
 }
 
-function ToggleRow({
-  icon,
-  label,
-  value,
-  onChange,
-}: {
-  icon: any;
-  label: string;
-  value: boolean;
-  onChange: (value: boolean) => void;
-}) {
+// ตัวอย่างป้ายบนจอ สัดส่วนเดียวกับป้ายจริง (60×28 มม. → 1 มม. = 5 px)
+function LabelPreview({ item }: { item: any }) {
+  const { size, path } = useMemo(() => qrMatrix(qrValue(item)), [item]);
+  const room = item.location_name ? `ห้อง ${item.location_name}` : "";
   return (
-    <View style={s.toggleRow}>
-      <View style={s.toggleLabelRow}>
-        <Ionicons name={icon} size={17} color={C.muted} />
-        <Text style={s.toggleLabel}>{label}</Text>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: "#e2e8f0", true: C.purple }}
-        thumbColor="#ffffff"
-      />
-    </View>
-  );
-}
-
-function QrPreviewCard({
-  item,
-  index,
-  imageUrl,
-  includeName,
-  includeCode,
-  includeLocation,
-}: {
-  item: any;
-  index: number;
-  imageUrl: string;
-  includeName: boolean;
-  includeCode: boolean;
-  includeLocation: boolean;
-}) {
-  return (
-    <View style={s.previewCard}>
-      <View style={s.previewTop}>
-        <View>
-          <Text style={s.brandText}>LABHUB</Text>
-          {includeName && <Text style={s.previewName} numberOfLines={1}>{item.name}</Text>}
-          {includeCode && <Text style={s.previewCode}># {itemCode(item)}</Text>}
-        </View>
-        <View style={s.typeBadge}><Text style={s.typeBadgeText}>{typeShort(item.type)}</Text></View>
-      </View>
-      <Image source={{ uri: imageUrl }} style={s.qrImage} resizeMode="contain" />
-      {includeLocation && (
-        <View style={s.locationRow}>
-          <Ionicons name="pin" size={11} color="#ef4444" />
-          <Text style={s.locationText}>CP9524 · ชั้น 5</Text>
-        </View>
-      )}
-      <View style={s.previewFooter}>
-        <Ionicons name="scan-outline" size={12} color={C.faint} />
-        <Text style={s.previewFooterText}>สแกนเพื่อยืม-คืน · ใบที่ {index + 1}</Text>
+    <View style={s.label}>
+      <Svg width={120} height={120} viewBox={`-1 -1 ${size + 2} ${size + 2}`}>
+        <Path d={path} fill="#000" />
+      </Svg>
+      <View style={s.labelText}>
+        <Text style={s.labelPrefix} numberOfLines={1}>{item.item_prefix || item.name}</Text>
+        <Text style={s.labelNo}>{formatItemNo(item.item_no)}</Text>
+        <Text style={s.labelName} numberOfLines={1}>{item.name}</Text>
+        <Text style={s.labelSub} numberOfLines={1}>{[itemCode(item), room].filter(Boolean).join(" · ")}</Text>
       </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
+  label: {
+    width: 300,
+    height: 140,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 8,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#aaa",
+    overflow: "hidden",
+  },
+  labelText: { flex: 1, minWidth: 0 },
+  labelPrefix: { fontSize: 21, fontWeight: "700", color: "#000", lineHeight: 23 },
+  labelNo: { fontSize: 32, fontWeight: "700", color: "#000", lineHeight: 34 },
+  labelName: { fontSize: 13, color: "#000", marginTop: 4 },
+  labelSub: { fontSize: 12, color: "#444", marginTop: 3 },
+  sectionWithAction: { gap: 2 },
+  selectAllText: { color: C.purple, fontSize: 12, fontWeight: "800", textAlign: "right", marginBottom: 8 },
+  stepper: { flexDirection: "row", alignItems: "center", gap: 10 },
+  stepperBtn: {
+    width: 30, height: 30, borderRadius: 8,
+    borderWidth: 1, borderColor: C.line, alignItems: "center", justifyContent: "center",
+  },
+  stepperValue: { minWidth: 24, textAlign: "center", fontSize: 15, fontWeight: "900", color: C.ink },
   container: { flex: 1, backgroundColor: C.bg },
   header: {
     backgroundColor: C.purple,
