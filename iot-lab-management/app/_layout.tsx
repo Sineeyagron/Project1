@@ -104,6 +104,7 @@ export default function Layout() {
       <Stack.Screen name="sittings" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="borrow" />
+      <Stack.Screen name="scan" />
       {/* Admin — ทุกหน้าใน app/admin/ ผ่านด่านเช็กสิทธิ์ใน app/admin/_layout.tsx */}
       <Stack.Screen name="admin" />
     </Stack>

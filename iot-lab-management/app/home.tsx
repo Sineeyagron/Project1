@@ -270,6 +270,17 @@ export default function Home() {
             ) : null}
 
             <Text style={s.quickTitle}>ลิงก์ด่วน</Text>
+            {/* ทางเข้าหลักของการยืม-คืน (แผน 2.6: ยืม/คืนได้ทางเดียวคือสแกน QR ที่ตัวของ) */}
+            <TouchableOpacity style={s.scanCard} onPress={() => router.push("/scan")} activeOpacity={0.88}>
+              <View style={s.scanCardIcon}>
+                <Ionicons name="scan" size={26} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.scanCardTitle}>สแกนยืม / คืนอุปกรณ์</Text>
+                <Text style={s.scanCardSub}>สแกน QR ที่ติดบนอุปกรณ์ในห้อง</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={22} color="#fff" />
+            </TouchableOpacity>
             <View style={s.quickGrid}>
               <TouchableOpacity style={[s.quickCard, s.quickPurple]} onPress={() => router.push("/lanstatus")} activeOpacity={0.88}>
                 <View style={s.quickIcon}>
@@ -330,6 +341,31 @@ export default function Home() {
 }
 
 const s = StyleSheet.create({
+  scanCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    backgroundColor: BLUE.header,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    shadowColor: BLUE.header,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 5,
+  },
+  scanCardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scanCardTitle: { color: "#fff", fontSize: 16, fontWeight: "900" },
+  scanCardSub: { color: "#dbeafe", fontSize: 12, fontWeight: "700", marginTop: 2 },
   container: { flex: 1, backgroundColor: BLUE.bg },
   header: {
     backgroundColor: BLUE.header,

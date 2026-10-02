@@ -31,6 +31,7 @@ const C = {
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; cta: "add" | "info" }> = {
   available: { label: "ว่าง", color: "#16a34a", bg: "#dcfce7", border: "#22c55e", cta: "add" },
+  reserved: { label: "รออนุมัติยืม", color: "#c2410c", bg: "#ffedd5", border: "#fb923c", cta: "info" },
   borrowed: { label: "ถูกยืม", color: "#b45309", bg: "#fef3c7", border: "#f59e0b", cta: "info" },
   repair: { label: "ซ่อมบำรุง", color: "#dc2626", bg: "#fee2e2", border: "#ef4444", cta: "info" },
   retired: { label: "จำหน่ายแล้ว", color: "#64748b", bg: "#e2e8f0", border: "#94a3b8", cta: "info" },
@@ -301,12 +302,15 @@ export default function AdminItems() {
       .eq("item_id", item.id);
     setBusy(false);
 
-    const onLoan = item.status === "borrowed" ||
+    // reserved = มีคำขอยืมรออยู่ ห้ามแก้สถานะเองไม่งั้นคำขอค้าง (ให้อนุมัติ/ปฏิเสธในกล่องคำขอ)
+    const onLoan = item.status === "borrowed" || item.status === "reserved" ||
       (records || []).some((r: any) => r.status === "borrowed" || r.status === "pending_return");
     if (onLoan) {
       setSheet({
         title: label(item),
-        message: "กำลังถูกยืมอยู่ ต้องคืนของก่อนถึงจะเปลี่ยนสถานะ ลบ หรือจำหน่ายได้",
+        message: item.status === "reserved"
+          ? "มีคำขอยืมรออนุมัติอยู่ ต้องอนุมัติหรือปฏิเสธคำขอก่อน"
+          : "กำลังถูกยืมอยู่ ต้องคืนของก่อนถึงจะเปลี่ยนสถานะ ลบ หรือจำหน่ายได้",
         actions: [],
       });
       return;

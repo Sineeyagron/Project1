@@ -44,6 +44,7 @@ const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 
 const STATUS_BADGE: Record<string, { label: string; bg: string; color: string; border: string; action: keyof typeof Ionicons.glyphMap }> = {
   available: { label: "ว่าง", bg: "#dcfce7", color: C.green, border: "#22c55e", action: "add" },
+  reserved: { label: "รออนุมัติ", bg: "#ffedd5", color: C.orange, border: "#fb923c", action: "information-outline" },
   borrowed: { label: "ถูกยืม", bg: "#fee2e2", color: C.red, border: "#f87171", action: "information-outline" },
   repair: { label: "ซ่อมบำรุง", bg: "#fef3c7", color: C.orange, border: "#f59e0b", action: "information-outline" },
 };
@@ -143,6 +144,11 @@ export default function Equipment() {
         <Text style={styles.headerSub}>คลังอุปกรณ์สำหรับนักเรียน</Text>
         <Text style={styles.headerTitle}>อุปกรณ์ IoT</Text>
 
+        <TouchableOpacity style={styles.scanBtn} onPress={() => router.push("/scan")} activeOpacity={0.88}>
+          <Ionicons name="scan" size={18} color={C.header} />
+          <Text style={styles.scanBtnText}>สแกนยืม / คืน</Text>
+        </TouchableOpacity>
+
         <View style={styles.statsRow}>
           <HeaderStat icon="cube-outline" label="ทั้งหมด" value={items.length} />
           <HeaderStat dot="#22c55e" label="พร้อมใช้" value={available} />
@@ -163,9 +169,9 @@ export default function Equipment() {
               <Ionicons name="close" size={17} color={C.purple} />
             </TouchableOpacity>
           ) : (
-            <View style={styles.searchAction}>
+            <TouchableOpacity style={styles.searchAction} onPress={() => router.push("/scan")} activeOpacity={0.82}>
               <Ionicons name="scan-outline" size={17} color={C.purple} />
-            </View>
+            </TouchableOpacity>
           )}
         </View>
       </View>
@@ -420,6 +426,18 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
   emptyText: { color: C.faint, fontSize: 14, fontWeight: "800" },
   itemCardDim: { opacity: 0.6 },
+  scanBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 11,
+    marginTop: 12,
+    marginBottom: 2,
+  },
+  scanBtnText: { color: C.header, fontSize: 14.5, fontWeight: "900" },
   itemCard: {
     backgroundColor: "#fff",
     borderRadius: 14,
