@@ -10,12 +10,37 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { notify } from "../../lib/notify";
 
 const FS = FileSystem as any;
 const SUPABASE_URL = "https://enupmlxmajjwskvzgcdq.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVudXBtbHhtYWpqd3NrdnpnY2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDIxMDUsImV4cCI6MjA4OTMxODEwNX0.px5ah-o_guGnQ8lTP7oJIwZXJEDiAcicuQTo3A_4aqE";
 
 type Step = "scan" | "details" | "preview";
+type Category = { id: string; name: string };
+
+// ตัดช่องว่าง/สัญลักษณ์แบบเดียวกับ alloc_item_code() ในฐานข้อมูล ใช้แค่แสดงตัวอย่างรหัส
+const codePrefixPreview = (name: string, shortName: string) =>
+  (shortName.trim() || name.trim()).replace(/[\s!-/:-@[-`{-~]/g, "") || "Item";
+
+const addYears = (years: number) => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + years);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+};
+
+const isValidDate = (value: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(value);
+};
+
+const formatThaiDate = (value: string) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString("th-TH", {
+    day: "numeric", month: "short", year: "numeric",
+  });
 
 export default function Scan() {
   const router = useRouter();
@@ -26,9 +51,15 @@ export default function Scan() {
 
   // ข้อมูลที่ได้จาก QR
   const [name, setName] = useState("");
-  const [type, setType] = useState("");
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState("1");
+
+  // ข้อมูลเพิ่มเติม (เฟส 1)
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [shortName, setShortName] = useState("");
+  const [serial, setSerial] = useState("");
+  const [warranty, setWarranty] = useState("");
 
   // รูปภาพจริง
   const [photoUri, setPhotoUri] = useState("");
@@ -43,6 +74,25 @@ export default function Scan() {
     requestPermission();
   }, [cameraRequested, permission, requestPermission, step]);
 
+  useEffect(() => {
+    supabase
+      .from("categories")
+      .select("id, name")
+      .eq("active", true)
+      .order("sort_order")
+      .then(({ data }) => setCategories(data || []));
+  }, []);
+
+  const findCategoryId = (typeName?: string) => {
+    const key = (typeName || "").trim().toLowerCase();
+    if (!key) return "";
+    return categories.find((c) => c.name.toLowerCase() === key)?.id || "";
+  };
+
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const warrantyInvalid = !!warranty.trim() && !isValidDate(warranty.trim());
+  const canContinue = !!name.trim() && !warrantyInvalid;
+
   // ── สแกน QR → parse JSON ──
   const handleBarcodeScan = ({ data }: { data: string }) => {
     if (scanned) return;
@@ -53,7 +103,7 @@ export default function Scan() {
       // เป็น QR ที่สร้างจากระบบ (มี name field)
       if (parsed.name) {
         setName(parsed.name || "");
-        setType(parsed.type || "");
+        setCategoryId(findCategoryId(parsed.type));
         setDescription(parsed.description || "");
         setStep("details");
         return;
@@ -98,71 +148,117 @@ export default function Scan() {
 
   // ── Upload รูป + บันทึก items ──
   const handleSave = async () => {
-    if (!name.trim()) { Alert.alert("กรอกชื่ออุปกรณ์ก่อน"); return; }
+    if (!name.trim()) { notify("กรอกชื่ออุปกรณ์ก่อน"); return; }
+    if (warranty.trim() && !isValidDate(warranty.trim())) {
+      notify("วันหมดประกันไม่ถูกต้อง", "ใช้รูปแบบ ปปปป-ดด-วว เช่น 2027-10-02");
+      return;
+    }
     const qty = parseInt(quantity) || 1;
     setSaving(true);
 
     try {
       let finalImageUrl = "";
 
-      // Upload รูปจริงไป Supabase Storage ด้วย FileSystem.uploadAsync (reliable ที่สุดใน RN)
       if (photoUri) {
-        const ext = photoUri.split(".").pop()?.split("?")[0]?.toLowerCase() || "jpg";
-        const fileName = `items/${Date.now()}_${name.replace(/\s+/g, "_")}.${ext}`;
-        const contentType = ext === "png" ? "image/png" : "image/jpeg";
+        // ชื่อไฟล์ใช้แค่ ASCII: Storage ไม่รับ key ที่มีตัวอักษรไทย
+        const fileBase = `items/${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        let fileName = "";
+        let uploadError = "";
 
-        const uploadRes = await FS.uploadAsync(
-          `${SUPABASE_URL}/storage/v1/object/item-images/${fileName}`,
-          photoUri,
-          {
-            uploadType: FS.FileSystemUploadType.BINARY_CONTENT,
-            mimeType: contentType,
-            httpMethod: "POST",
-            headers: {
-              Authorization: `Bearer ${SUPABASE_ANON}`,
-              "Content-Type": contentType,
-              "x-upsert": "true",
-            },
+        if (Platform.OS === "web") {
+          // บนเว็บรูปเป็น blob: URL และไม่มี FileSystem.uploadAsync → อัปโหลดผ่าน supabase-js
+          const blob = await (await fetch(photoUri)).blob();
+          const ext = blob.type === "image/png" ? "png" : "jpg";
+          fileName = `${fileBase}.${ext}`;
+          const { error: upErr } = await supabase.storage
+            .from("item-images")
+            .upload(fileName, blob, { contentType: blob.type || "image/jpeg", upsert: true });
+          if (upErr) uploadError = upErr.message;
+        } else {
+          // มือถือ: FileSystem.uploadAsync (reliable ที่สุดใน RN, กัน bug ไฟล์ 0 ไบต์)
+          const ext = photoUri.split(".").pop()?.split("?")[0]?.toLowerCase() || "jpg";
+          fileName = `${fileBase}.${ext}`;
+          const contentType = ext === "png" ? "image/png" : "image/jpeg";
+
+          const uploadRes = await FS.uploadAsync(
+            `${SUPABASE_URL}/storage/v1/object/item-images/${fileName}`,
+            photoUri,
+            {
+              uploadType: FS.FileSystemUploadType.BINARY_CONTENT,
+              mimeType: contentType,
+              httpMethod: "POST",
+              headers: {
+                Authorization: `Bearer ${SUPABASE_ANON}`,
+                "Content-Type": contentType,
+                "x-upsert": "true",
+              },
+            }
+          );
+          if (uploadRes.status !== 200 && uploadRes.status !== 201) {
+            uploadError = `status: ${uploadRes.status}\n${uploadRes.body}`;
           }
-        );
+        }
 
-        if (uploadRes.status === 200 || uploadRes.status === 201) {
+        if (uploadError) {
+          notify("อัปโหลดรูปไม่สำเร็จ", `${uploadError}\n\nจะบันทึกอุปกรณ์โดยไม่มีรูป`);
+        } else {
           const { data: { publicUrl } } = supabase.storage
             .from("item-images").getPublicUrl(fileName);
           finalImageUrl = publicUrl;
-        } else {
-          Alert.alert("อัปโหลดรูปไม่สำเร็จ", `status: ${uploadRes.status}\n${uploadRes.body}`);
         }
       }
 
-      // Insert items (1 row ต่อ 1 ชิ้น)
+      // Insert items (1 row ต่อ 1 ชิ้น) — item_code, barcode, location_id ฐานข้อมูลสร้างให้เอง
       const insertData = Array.from({ length: qty }, () => ({
         name: name.trim(),
         status: "available",
         image_url: finalImageUrl || null,
         description: description.trim() || null,
+        category_id: categoryId || null,
+        type: selectedCategory?.name || null,
+        short_name: shortName.trim() || null,
+        manufacturer_serial: serial.trim() || null,
+        warranty_expires_at: warranty.trim() || null,
       }));
 
-      const { error } = await supabase.from("items").insert(insertData);
+      const { data: saved, error } = await supabase
+        .from("items")
+        .insert(insertData)
+        .select("item_no, item_code, barcode");
       if (error) throw error;
 
-      Alert.alert(
+      const codes = (saved || [])
+        .sort((a, b) => a.item_no - b.item_no)
+        .map((row) => `${row.item_code}  (สแกน ${row.barcode})`)
+        .join("\n");
+
+      notify(
         "บันทึกสำเร็จ! 🎉",
-        `เพิ่ม "${name}" จำนวน ${qty} ชิ้นเข้าระบบแล้ว`,
-        [{ text: "โอเค", onPress: () => router.replace("/admin/home") }]
+        `เพิ่ม "${name}" จำนวน ${qty} ชิ้นเข้าระบบแล้ว\n\n${codes}`,
+        () => router.replace("/admin/home")
       );
     } catch (e: any) {
-      Alert.alert("เกิดข้อผิดพลาด", e.message);
+      notify("เกิดข้อผิดพลาด", e.message);
     } finally {
       setSaving(false);
     }
   };
 
+  const clearForm = () => {
+    setName("");
+    setCategoryId("");
+    setDescription("");
+    setQuantity("1");
+    setPhotoUri("");
+    setShortName("");
+    setSerial("");
+    setWarranty("");
+  };
+
   const resetAll = () => {
     setStep("scan");
     setScanned(false);
-    setName(""); setType(""); setDescription("");
-    setQuantity("1"); setPhotoUri("");
+    clearForm();
   };
 
   const goBack = () => {
@@ -171,11 +267,7 @@ export default function Scan() {
 
   const startManualAdd = () => {
     setScanned(false);
-    setName("");
-    setType("");
-    setDescription("");
-    setQuantity("1");
-    setPhotoUri("");
+    clearForm();
     setStep("details");
   };
 
@@ -293,8 +385,66 @@ export default function Scan() {
           <Text style={styles.fieldLabel}>ชื่ออุปกรณ์ *</Text>
           <TextInput style={styles.input} value={name} onChangeText={setName} />
 
-          <Text style={styles.fieldLabel}>ประเภท</Text>
-          <TextInput style={styles.input} value={type} onChangeText={setType} placeholder="เช่น Microcontroller, Sensor" />
+          <Text style={styles.fieldLabel}>ชื่อย่อสำหรับรหัส (ไม่บังคับ)</Text>
+          <TextInput
+            style={styles.input} value={shortName} onChangeText={setShortName}
+            placeholder="ใช้เมื่อชื่อยาว เช่น DHT22"
+          />
+          {!!name.trim() && (
+            <Text style={styles.fieldHint}>
+              รหัสที่จะได้: {codePrefixPreview(name, shortName)} 001, 002, …  (ระบบนับเลขต่อจากของเดิมให้เอง)
+            </Text>
+          )}
+
+          <Text style={styles.fieldLabel}>หมวดหมู่</Text>
+          <View style={styles.chipWrap}>
+            {categories.map((c) => {
+              const active = c.id === categoryId;
+              return (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => setCategoryId(active ? "" : c.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.fieldLabel}>Serial ผู้ผลิต (ไม่บังคับ)</Text>
+          <TextInput
+            style={styles.input} value={serial} onChangeText={setSerial}
+            placeholder="เลขที่พิมพ์บนตัวอุปกรณ์" autoCapitalize="characters"
+          />
+
+          <Text style={styles.fieldLabel}>วันหมดประกัน (ไม่บังคับ)</Text>
+          <TextInput
+            style={[styles.input, warrantyInvalid && styles.inputError]}
+            value={warranty} onChangeText={setWarranty}
+            placeholder="ปปปป-ดด-วว เช่น 2027-10-02" keyboardType="numbers-and-punctuation"
+          />
+          {warrantyInvalid && (
+            <Text style={styles.fieldError}>
+              วันที่ไม่ถูกต้อง ใช้รูปแบบ ปปปป-ดด-วว (ค.ศ.) หรือกด "ไม่มีประกัน" เพื่อล้าง
+            </Text>
+          )}
+          <View style={styles.chipWrap}>
+            {[1, 2, 3].map((years) => (
+              <TouchableOpacity
+                key={years} style={styles.chip} activeOpacity={0.8}
+                onPress={() => setWarranty(addYears(years))}
+              >
+                <Text style={styles.chipText}>+{years} ปีจากวันนี้</Text>
+              </TouchableOpacity>
+            ))}
+            {!!warranty && (
+              <TouchableOpacity style={styles.chip} activeOpacity={0.8} onPress={() => setWarranty("")}>
+                <Text style={styles.chipText}>ไม่มีประกัน</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           <Text style={styles.fieldLabel}>รายละเอียด</Text>
           <TextInput
@@ -345,9 +495,9 @@ export default function Scan() {
           )}
 
           <TouchableOpacity
-            style={[styles.nextBtn, !name.trim() && styles.btnDisabled]}
-            onPress={() => { if (name.trim()) setStep("preview"); }}
-            disabled={!name.trim()}
+            style={[styles.nextBtn, !canContinue && styles.btnDisabled]}
+            onPress={() => { if (canContinue) setStep("preview"); }}
+            disabled={!canContinue}
           >
             <Text style={styles.nextBtnText}>ดูสรุปก่อนบันทึก →</Text>
           </TouchableOpacity>
@@ -387,7 +537,10 @@ export default function Scan() {
         <View style={styles.summaryBox}>
           {[
             { label: "ชื่ออุปกรณ์", val: name },
-            { label: "ประเภท", val: type || "-" },
+            { label: "รหัสเรียก", val: `${codePrefixPreview(name, shortName)} ### (ออกให้ตอนบันทึก)` },
+            { label: "หมวดหมู่", val: selectedCategory?.name || "-" },
+            { label: "Serial ผู้ผลิต", val: serial || "-" },
+            { label: "หมดประกัน", val: isValidDate(warranty.trim()) ? formatThaiDate(warranty.trim()) : "-" },
             { label: "รายละเอียด", val: description || "-" },
             { label: "จำนวน", val: `${quantity} ชิ้น` },
             { label: "สถานะ", val: "available" },
@@ -637,6 +790,17 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 11, fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 5, marginTop: 12 },
   input: { backgroundColor: "#fff", borderRadius: 12, padding: 13, fontSize: 14, borderWidth: 1, borderColor: "#e2e8f0" },
   inputMulti: { height: 72, textAlignVertical: "top" },
+  inputError: { borderColor: "#ef4444" },
+  fieldHint: { fontSize: 11, color: "#7c3aed", marginTop: 5 },
+  fieldError: { fontSize: 11, color: "#dc2626", marginTop: 5 },
+  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
+  chip: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
+    backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0",
+  },
+  chipActive: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
+  chipText: { fontSize: 12, fontWeight: "700", color: "#64748b" },
+  chipTextActive: { color: "#fff" },
   qtyRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   qtyBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0", justifyContent: "center", alignItems: "center" },
   qtyInput: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 10, fontSize: 18, fontWeight: "700", borderWidth: 1, borderColor: "#e2e8f0" },

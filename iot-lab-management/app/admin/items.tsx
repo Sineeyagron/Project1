@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { notify } from "../../lib/notify";
 
 const C = {
   bg: "#eef3f8",
@@ -32,6 +33,7 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string; bor
   available: { label: "ว่าง", color: "#16a34a", bg: "#dcfce7", border: "#22c55e", cta: "add" },
   borrowed: { label: "ถูกยืม", color: "#b45309", bg: "#fef3c7", border: "#f59e0b", cta: "info" },
   repair: { label: "ซ่อมบำรุง", color: "#dc2626", bg: "#fee2e2", border: "#ef4444", cta: "info" },
+  retired: { label: "จำหน่ายแล้ว", color: "#64748b", bg: "#e2e8f0", border: "#94a3b8", cta: "info" },
 };
 
 const TYPE_CFG: Record<string, { icon: any; color: string; bg: string; filter: string; label: string }> = {
@@ -41,7 +43,10 @@ const TYPE_CFG: Record<string, { icon: any; color: string; bg: string; filter: s
   default: { icon: "cube-outline", color: "#d97706", bg: "#fef3c7", filter: "other", label: "อื่นๆ" },
 };
 
-type FilterKey = "all" | "microcontroller" | "sensor" | "module" | "other";
+type FilterKey = "all" | "microcontroller" | "sensor" | "module" | "other" | "retired";
+
+type SheetAction = { label: string; icon: any; tone?: "danger"; onPress: () => void };
+type Sheet = { title: string; message?: string; actions: SheetAction[] };
 
 function normalize(value?: string) {
   return (value || "").trim().toLowerCase();
@@ -62,50 +67,62 @@ function formatDue(dateValue?: string) {
   return date.toLocaleDateString("th-TH", { day: "numeric", month: "short" });
 }
 
+function warrantyText(dateValue?: string) {
+  if (!dateValue) return "";
+  const end = new Date(`${dateValue}T23:59:59`);
+  if (Number.isNaN(end.getTime())) return "";
+  if (end.getTime() < Date.now()) return "หมดประกันแล้ว";
+  return `ประกันถึง ${end.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}`;
+}
+
+// เรียงตามชื่อรหัส แล้วตามเลขจริง (002 ก่อน 010)
+function compareItems(a: any, b: any) {
+  const byPrefix = (a.item_prefix || a.name || "").localeCompare(b.item_prefix || b.name || "", "th");
+  return byPrefix !== 0 ? byPrefix : (a.item_no || 0) - (b.item_no || 0);
+}
+
 function ItemCard({
   item,
   dueDate,
-  onChangeStatus,
-  onDelete,
+  onPress,
 }: {
   item: any;
   dueDate?: string;
-  onChangeStatus: (item: any) => void;
-  onDelete: (item: any) => void;
+  onPress: (item: any) => void;
 }) {
   const status = STATUS_CFG[item.status] || STATUS_CFG.available;
   const typeCfg = getTypeConfig(item.type || item.description || item.name);
-  const meta = [item.type || typeCfg.label, item.description || item.barcode].filter(Boolean).join(" · ");
-  const dateText = item.status === "borrowed" && dueDate ? `คืน ${formatDue(dueDate)}` : "";
+  const meta = [item.name, item.type || typeCfg.label, item.barcode && `สแกน ${item.barcode}`]
+    .filter(Boolean).join(" · ");
+  const footText = item.status === "borrowed" && dueDate
+    ? `คืน ${formatDue(dueDate)}`
+    : item.status === "retired"
+      ? item.retire_reason || ""
+      : warrantyText(item.warranty_expires_at);
 
   return (
     <TouchableOpacity
-      style={[s.card, { borderLeftColor: status.border }]}
+      style={[s.card, { borderLeftColor: status.border }, item.status === "retired" && s.cardRetired]}
       activeOpacity={0.88}
-      onPress={() => onChangeStatus(item)}
-      onLongPress={() => onDelete(item)}
+      onPress={() => onPress(item)}
     >
       <View style={[s.itemIconBox, { backgroundColor: typeCfg.bg }]}>
         <Ionicons name={typeCfg.icon} size={24} color={typeCfg.color} />
       </View>
 
       <View style={s.cardBody}>
-        <Text style={s.cardName} numberOfLines={1}>{item.name || "ไม่มีชื่ออุปกรณ์"}</Text>
+        <Text style={s.cardName} numberOfLines={1}>{item.item_code || item.name || "ไม่มีชื่ออุปกรณ์"}</Text>
         <Text style={s.cardMeta} numberOfLines={1}>{meta || "ยังไม่มีรายละเอียด"}</Text>
         <View style={s.cardFooter}>
           <View style={[s.statusPill, { backgroundColor: status.bg }]}>
             <Text style={[s.statusText, { color: status.color }]}>• {status.label}</Text>
           </View>
-          <Text style={s.qtyText}>{dateText || "มี 1 ชิ้น"}</Text>
+          {!!footText && <Text style={s.qtyText} numberOfLines={1}>{footText}</Text>}
         </View>
       </View>
 
-      <View style={[s.cardAction, status.cta === "add" ? s.cardActionPrimary : s.cardActionMuted]}>
-        <Ionicons
-          name={status.cta === "add" ? "add" : "information"}
-          size={status.cta === "add" ? 24 : 18}
-          color={status.cta === "add" ? "#ffffff" : "#64748b"}
-        />
+      <View style={[s.cardAction, s.cardActionMuted]}>
+        <Ionicons name="ellipsis-vertical" size={18} color="#64748b" />
       </View>
     </TouchableOpacity>
   );
@@ -120,6 +137,10 @@ export default function AdminItems() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
+  const [sheet, setSheet] = useState<Sheet | null>(null);
+  const [retireTarget, setRetireTarget] = useState<any>(null);
+  const [retireReason, setRetireReason] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     fetchItems();
@@ -131,7 +152,7 @@ export default function AdminItems() {
 
   const fetchItems = async () => {
     const [{ data, error }, { data: borrows }] = await Promise.all([
-      supabase.from("items").select("*").order("name"),
+      supabase.from("items").select("*"),
       supabase
         .from("borrow_records")
         .select("item_id, due_date")
@@ -139,9 +160,9 @@ export default function AdminItems() {
     ]);
 
     if (error) {
-      Alert.alert("โหลดข้อมูลไม่สำเร็จ", error.message);
+      notify("โหลดข้อมูลไม่สำเร็จ", error.message);
     } else {
-      setItems(data || []);
+      setItems((data || []).sort(compareItems));
     }
 
     const nextBorrowMap: Record<string, string> = {};
@@ -158,21 +179,27 @@ export default function AdminItems() {
     fetchItems();
   };
 
-  const availableCount = items.filter((i) => i.status === "available").length;
-  const borrowedCount = items.filter((i) => i.status === "borrowed").length;
-  const repairCount = items.filter((i) => i.status === "repair").length;
+  // ของที่จำหน่ายแล้วไม่นับในสต็อก
+  const activeItems = items.filter((i) => i.status !== "retired");
+  const retiredCount = items.length - activeItems.length;
+  const availableCount = activeItems.filter((i) => i.status === "available").length;
+  const borrowedCount = activeItems.filter((i) => i.status === "borrowed").length;
+  const repairCount = activeItems.filter((i) => i.status === "repair").length;
 
   const chips = useMemo(() => {
     const countByFilter = (key: FilterKey) =>
       key === "all"
-        ? items.length
-        : items.filter((item) => getTypeConfig(item.type || item.description || item.name).filter === key).length;
+        ? activeItems.length
+        : key === "retired"
+          ? retiredCount
+          : activeItems.filter((item) => getTypeConfig(item.type || item.description || item.name).filter === key).length;
 
     return [
       { key: "all" as const, label: "ทั้งหมด", icon: "cube-outline", count: countByFilter("all") },
       { key: "microcontroller" as const, label: "Microcontroller", icon: "hardware-chip-outline", count: countByFilter("microcontroller") },
       { key: "sensor" as const, label: "Sensor", icon: "pulse-outline", count: countByFilter("sensor") },
       { key: "module" as const, label: "Module", icon: "cube-outline", count: countByFilter("module") },
+      { key: "retired" as const, label: "จำหน่ายแล้ว", icon: "archive-outline", count: countByFilter("retired") },
     ].filter((chip) => chip.key === "all" || chip.count > 0);
   }, [items]);
 
@@ -180,9 +207,13 @@ export default function AdminItems() {
     const q = normalize(search);
     return items.filter((item) => {
       const typeCfg = getTypeConfig(item.type || item.description || item.name);
-      const matchesFilter = filter === "all" || typeCfg.filter === filter;
+      const matchesFilter =
+        filter === "retired"
+          ? item.status === "retired"
+          : item.status !== "retired" && (filter === "all" || typeCfg.filter === filter);
       const matchesSearch =
         !q ||
+        normalize(item.item_code).includes(q) ||
         normalize(item.name).includes(q) ||
         normalize(item.type).includes(q) ||
         normalize(item.description).includes(q) ||
@@ -191,60 +222,116 @@ export default function AdminItems() {
     });
   }, [items, search, filter]);
 
-  const changeStatus = (item: any) => {
-    if (item.status === "borrowed") {
-      Alert.alert("เปลี่ยนไม่ได้", "อุปกรณ์นี้กำลังถูกยืมอยู่\nคืนของก่อนถึงจะเปลี่ยนสถานะได้");
+  const label = (item: any) => item.item_code || item.name;
+
+  const run = async (task: () => PromiseLike<{ error: any }>, failTitle: string) => {
+    setBusy(true);
+    const { error } = await task();
+    setBusy(false);
+    if (error) {
+      notify(failTitle, error.message);
+      return false;
+    }
+    fetchItems();
+    return true;
+  };
+
+  const setStatus = (item: any, status: string) => {
+    setSheet(null);
+    run(() => supabase.from("items").update({ status }).eq("id", item.id), "เปลี่ยนสถานะไม่สำเร็จ");
+  };
+
+  const restore = (item: any) => {
+    setSheet(null);
+    run(
+      () => supabase.from("items")
+        .update({ status: "available", retired_at: null, retire_reason: null })
+        .eq("id", item.id),
+      "ยกเลิกการจำหน่ายไม่สำเร็จ"
+    );
+  };
+
+  const hardDelete = (item: any) => {
+    setSheet({
+      title: `ลบ ${label(item)} ถาวร?`,
+      message: "ลบแล้วกู้คืนไม่ได้ เลขรหัสนี้จะไม่ถูกนำกลับมาใช้อีก",
+      actions: [{
+        label: "ลบถาวร", icon: "trash-outline", tone: "danger",
+        onPress: () => {
+          setSheet(null);
+          run(() => supabase.from("items").delete().eq("id", item.id), "ลบไม่สำเร็จ");
+        },
+      }],
+    });
+  };
+
+  const openRetire = (item: any) => {
+    setSheet(null);
+    setRetireReason("");
+    setRetireTarget(item);
+  };
+
+  const confirmRetire = async () => {
+    if (!retireReason.trim()) return;
+    const item = retireTarget;
+    const ok = await run(
+      () => supabase.from("items")
+        .update({ status: "retired", retired_at: new Date().toISOString(), retire_reason: retireReason.trim() })
+        .eq("id", item.id),
+      "จำหน่ายออกไม่สำเร็จ"
+    );
+    if (ok) setRetireTarget(null);
+  };
+
+  // กดการ์ด → เมนูจัดการ ตามกฎแผนข้อ 2.3
+  const openManage = async (item: any) => {
+    if (item.status === "retired") {
+      setSheet({
+        title: label(item),
+        message: `จำหน่ายแล้ว: ${item.retire_reason || "-"}`,
+        actions: [{ label: "ยกเลิกการจำหน่าย (กลับเป็นว่าง)", icon: "arrow-undo-outline", onPress: () => restore(item) }],
+      });
       return;
     }
 
-    const options = [
-      { label: "ว่าง", value: "available" },
-      { label: "ซ่อมบำรุง", value: "repair" },
-    ].filter((option) => option.value !== item.status);
+    setBusy(true);
+    const { data: records } = await supabase
+      .from("borrow_records")
+      .select("status")
+      .eq("item_id", item.id);
+    setBusy(false);
 
-    Alert.alert(`เปลี่ยนสถานะ: ${item.name}`, "เลือกสถานะใหม่", [
-      ...options.map((option) => ({
-        text: option.label,
-        onPress: async () => {
-          const { error } = await supabase.from("items").update({ status: option.value }).eq("id", item.id);
-          if (error) {
-            Alert.alert("เกิดข้อผิดพลาด", error.message);
-            return;
-          }
-          fetchItems();
-        },
-      })),
-      { text: "ยกเลิก", style: "cancel" as const },
-    ]);
-  };
+    const onLoan = item.status === "borrowed" ||
+      (records || []).some((r: any) => r.status === "borrowed" || r.status === "pending_return");
+    if (onLoan) {
+      setSheet({
+        title: label(item),
+        message: "กำลังถูกยืมอยู่ ต้องคืนของก่อนถึงจะเปลี่ยนสถานะ ลบ หรือจำหน่ายได้",
+        actions: [],
+      });
+      return;
+    }
 
-  const deleteItem = (item: any) => {
-    Alert.alert("ลบอุปกรณ์", `ลบ "${item.name}" ?`, [
-      { text: "ยกเลิก", style: "cancel" },
-      {
-        text: "ลบ",
-        style: "destructive",
-        onPress: async () => {
-          const { data: active } = await supabase
-            .from("borrow_records")
-            .select("id")
-            .eq("item_id", item.id)
-            .eq("status", "borrowed");
+    const everBorrowed = (records || []).length > 0;
+    const actions: SheetAction[] = [];
+    if (item.status !== "available") {
+      actions.push({ label: "เปลี่ยนเป็น ว่าง", icon: "checkmark-circle-outline", onPress: () => setStatus(item, "available") });
+    }
+    if (item.status !== "repair") {
+      actions.push({ label: "เปลี่ยนเป็น ซ่อมบำรุง", icon: "construct-outline", onPress: () => setStatus(item, "repair") });
+    }
+    actions.push({ label: "จำหน่ายออก", icon: "archive-outline", tone: "danger", onPress: () => openRetire(item) });
+    if (!everBorrowed) {
+      actions.push({ label: "ลบถาวร", icon: "trash-outline", tone: "danger", onPress: () => hardDelete(item) });
+    }
 
-          if (active && active.length > 0) {
-            Alert.alert("ลบไม่ได้", "อุปกรณ์นี้ยังถูกยืมอยู่");
-            return;
-          }
-
-          const { error } = await supabase.from("items").delete().eq("id", item.id);
-          if (error) {
-            Alert.alert("ลบไม่สำเร็จ", error.message);
-            return;
-          }
-          fetchItems();
-        },
-      },
-    ]);
+    setSheet({
+      title: label(item),
+      message: everBorrowed
+        ? `${item.name} · เคยถูกยืมแล้ว จึงลบถาวรไม่ได้ (เก็บไว้ในประวัติ) จำหน่ายออกได้`
+        : item.name,
+      actions,
+    });
   };
 
   return (
@@ -265,7 +352,7 @@ export default function AdminItems() {
         </View>
 
         <View style={s.statRow}>
-          <HeaderStat icon="cube-outline" label="ทั้งหมด" value={items.length} dotColor="#ffffff" />
+          <HeaderStat icon="cube-outline" label="ทั้งหมด" value={activeItems.length} dotColor="#ffffff" />
           <HeaderStat icon="ellipse" label="พร้อมใช้" value={availableCount} dotColor="#22c55e" />
           <HeaderStat icon="ellipse" label="ถูกยืม/ซ่อม" value={borrowedCount + repairCount} dotColor="#facc15" />
         </View>
@@ -274,7 +361,7 @@ export default function AdminItems() {
           <Ionicons name="search-outline" size={19} color="#94a3b8" />
           <TextInput
             style={s.searchInput}
-            placeholder="ค้นหาชื่อ หรือ ประเภท..."
+            placeholder="ค้นหารหัส ชื่อ หรือ ประเภท..."
             placeholderTextColor="#94a3b8"
             value={search}
             onChangeText={setSearch}
@@ -315,7 +402,7 @@ export default function AdminItems() {
             <Text style={s.listTitle}>รายการอุปกรณ์</Text>
             <TouchableOpacity style={s.sortBtn} activeOpacity={0.75}>
               <Text style={s.sortMuted}>เรียงตาม</Text>
-              <Text style={s.sortText}>ชื่อ A-Z</Text>
+              <Text style={s.sortText}>รหัส</Text>
               <Ionicons name="chevron-down" size={13} color={C.purple} />
             </TouchableOpacity>
           </View>
@@ -331,13 +418,68 @@ export default function AdminItems() {
                 key={item.id}
                 item={item}
                 dueDate={borrowMap[item.id]}
-                onChangeStatus={changeStatus}
-                onDelete={deleteItem}
+                onPress={openManage}
               />
             ))
           )}
           <View style={{ height: 28 }} />
         </ScrollView>
+      )}
+
+      {/* เมนูจัดการ (ใช้แทน Alert ที่ไม่ทำงานบนเว็บ) */}
+      <Modal visible={!!sheet} transparent animationType="fade" onRequestClose={() => setSheet(null)}>
+        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setSheet(null)}>
+          <TouchableOpacity style={s.sheet} activeOpacity={1}>
+            <Text style={s.sheetTitle}>{sheet?.title}</Text>
+            {!!sheet?.message && <Text style={s.sheetMessage}>{sheet.message}</Text>}
+            {sheet?.actions.map((a) => (
+              <TouchableOpacity key={a.label} style={s.sheetBtn} onPress={a.onPress} activeOpacity={0.8}>
+                <Ionicons name={a.icon} size={18} color={a.tone === "danger" ? C.red : C.purple} />
+                <Text style={[s.sheetBtnText, a.tone === "danger" && { color: C.red }]}>{a.label}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={s.sheetCancel} onPress={() => setSheet(null)} activeOpacity={0.8}>
+              <Text style={s.sheetCancelText}>ปิด</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* จำหน่ายออก: ต้องใส่เหตุผล */}
+      <Modal visible={!!retireTarget} transparent animationType="fade" onRequestClose={() => setRetireTarget(null)}>
+        <View style={s.backdrop}>
+          <View style={s.sheet}>
+            <Text style={s.sheetTitle}>จำหน่ายออก {retireTarget && label(retireTarget)}</Text>
+            <Text style={s.sheetMessage}>
+              ของจะหายจากสต็อกและหน้ายืม แต่ยังอยู่ในประวัติ/รายงาน รหัสเดิมไม่ถูกนำกลับมาใช้
+            </Text>
+            <TextInput
+              style={s.reasonInput}
+              value={retireReason}
+              onChangeText={setRetireReason}
+              placeholder="เหตุผล เช่น ชำรุดซ่อมไม่ได้, สูญหาย"
+              placeholderTextColor={C.faint}
+              autoFocus
+            />
+            <TouchableOpacity
+              style={[s.sheetPrimary, !retireReason.trim() && { opacity: 0.4 }]}
+              disabled={!retireReason.trim() || busy}
+              onPress={confirmRetire}
+              activeOpacity={0.85}
+            >
+              <Text style={s.sheetPrimaryText}>{busy ? "กำลังบันทึก..." : "ยืนยันจำหน่ายออก"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.sheetCancel} onPress={() => setRetireTarget(null)} activeOpacity={0.8}>
+              <Text style={s.sheetCancelText}>ยกเลิก</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {busy && !retireTarget && (
+        <View style={s.busyOverlay} pointerEvents="none">
+          <ActivityIndicator color={C.purple} />
+        </View>
       )}
     </View>
   );
@@ -620,6 +762,89 @@ const s = StyleSheet.create({
     backgroundColor: "#f8fafc",
     borderWidth: 1,
     borderColor: "#e2e8f0",
+  },
+  cardRetired: {
+    opacity: 0.6,
+  },
+  backdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.45)",
+    justifyContent: "flex-end",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 28,
+    gap: 8,
+  },
+  sheetTitle: {
+    color: C.ink,
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  sheetMessage: {
+    color: C.muted,
+    fontSize: 12.5,
+    fontWeight: "700",
+    lineHeight: 18,
+    marginBottom: 6,
+  },
+  sheetBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  sheetBtnText: {
+    color: C.ink,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  sheetPrimary: {
+    backgroundColor: C.red,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  sheetPrimaryText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  sheetCancel: {
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  sheetCancelText: {
+    color: C.muted,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  reasonInput: {
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: C.ink,
+  },
+  busyOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.35)",
   },
   empty: {
     alignItems: "center",
