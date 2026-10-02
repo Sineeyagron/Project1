@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "IoT Lab (Web)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "iot-lab-management", "run", "web"],
+      "port": 8081
+    }
+  ]
+}
