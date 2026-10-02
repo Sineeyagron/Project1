@@ -8,9 +8,26 @@ import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
-  borrow: { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
-  return: { icon: "checkmark-circle-outline", iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  borrow:         { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
+  return:         { icon: "checkmark-circle-outline", iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  // ถึงผู้ดูแล: มีคำขอใหม่
+  request_borrow: { icon: "hand-left-outline",        iconColor: "#2563eb", iconBg: "#dbeafe", dot: "#3b82f6" },
+  request_return: { icon: "return-down-back-outline", iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  request_renew:  { icon: "refresh-outline",          iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
+  // ถึงผู้ขอ: ผลคำขอ
+  approved:       { icon: "checkmark-circle-outline", iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  renewed:        { icon: "calendar-outline",         iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  declined:       { icon: "close-circle-outline",     iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+  expired:        { icon: "time-outline",             iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
+  cancelled:      { icon: "ban-outline",              iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
+  auto_returned:  { icon: "alert-circle-outline",     iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
+  // เตือนกำหนดคืน
+  due_soon:       { icon: "alarm-outline",            iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
+  overdue:        { icon: "warning-outline",          iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
 };
+
+// ประเภทที่ผู้ดูแลต้องไปจัดการในกล่องคำขอ
+const STAFF_TYPES = new Set(["request_borrow", "request_return", "request_renew", "auto_returned", "overdue"]);
 
 const formatDateTime = (d: string) => {
   if (!d) return "";
@@ -36,12 +53,17 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [newCount, setNewCount] = useState(0);
+  const [isStaff, setIsStaff] = useState(false);
   const prevCountRef = useRef(-1);
   const isFirstLoad = useRef(true);
 
   const fetchNotifications = useCallback(async (silent = false) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
+    if (isFirstLoad.current) {
+      const { data: staff } = await supabase.rpc("is_staff");
+      setIsStaff(!!staff);
+    }
 
     const { data } = await supabase
       .from("notifications")
@@ -87,6 +109,19 @@ export default function Notifications() {
   }, [fetchNotifications]);
 
   const onRefresh = () => { setRefreshing(true); setNewCount(0); fetchNotifications(); };
+
+  // กดแจ้งเตือน → อ่านแล้ว + ไปหน้าที่เกี่ยวข้อง
+  const openNotification = async (n: any) => {
+    if (!n.read) {
+      await supabase.from("notifications").update({ read: true }).eq("id", n.id);
+      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+    }
+    if (isStaff && STAFF_TYPES.has(n.type)) {
+      router.push((n.request_id ? `/admin/requests?id=${n.request_id}` : "/admin/requests") as any);
+    } else if (n.type !== "borrow" && n.type !== "return") {
+      router.push("/borrow");
+    }
+  };
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -139,7 +174,12 @@ export default function Notifications() {
           {notifications.map(n => {
             const cfg = TYPE_CFG[n.type] || TYPE_CFG.borrow;
             return (
-              <View key={n.id} style={[s.card, !n.read && s.cardUnread]}>
+              <TouchableOpacity
+                key={n.id}
+                style={[s.card, !n.read && s.cardUnread]}
+                onPress={() => openNotification(n)}
+                activeOpacity={0.85}
+              >
                 {!n.read && <View style={[s.dot, { backgroundColor: cfg.dot }]} />}
                 <View style={[s.iconBox, { backgroundColor: cfg.iconBg }]}>
                   <Ionicons name={cfg.icon} size={22} color={cfg.iconColor} />
@@ -155,7 +195,7 @@ export default function Notifications() {
                     <Text style={s.cardDateTime}>{formatDateTime(n.created_at)}</Text>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
 

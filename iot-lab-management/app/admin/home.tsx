@@ -82,6 +82,7 @@ export default function AdminHome() {
   const [statusReturned, setStatusReturned] = useState(0);
   const [statusRepair, setStatusRepair] = useState(0);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [pendingRequests, setPendingRequests] = useState(0);
 
   useEffect(() => {
     checkRoleAndFetch();
@@ -122,6 +123,13 @@ export default function AdminHome() {
   };
 
   const fetchDashboard = async () => {
+    await supabase.rpc("expire_requests");
+    const { count: reqCount } = await supabase
+      .from("borrow_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    setPendingRequests(reqCount || 0);
+
     const [
       { data: items },
       { data: borrowRecords },
@@ -273,6 +281,29 @@ export default function AdminHome() {
           </View>
         ) : (
           <>
+            {/* กล่องคำขอจากนักศึกษา (เฟส 3) */}
+            <TouchableOpacity
+              style={[s.inboxCard, pendingRequests > 0 && s.inboxCardHot]}
+              onPress={() => router.push("/admin/requests" as any)}
+              activeOpacity={0.86}
+            >
+              <View style={s.inboxIcon}>
+                <Ionicons name="file-tray-full-outline" size={24} color={pendingRequests > 0 ? "#fff" : C.purple} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.inboxTitle, pendingRequests > 0 && { color: "#fff" }]}>กล่องคำขอ</Text>
+                <Text style={[s.inboxSub, pendingRequests > 0 && { color: "#ede9fe" }]}>
+                  {pendingRequests > 0 ? `มี ${pendingRequests} คำขอรออนุมัติ` : "ไม่มีคำขอที่รออยู่"}
+                </Text>
+              </View>
+              {pendingRequests > 0 && (
+                <View style={s.inboxBadge}>
+                  <Text style={s.inboxBadgeText}>{pendingRequests}</Text>
+                </View>
+              )}
+              <Ionicons name="chevron-forward" size={20} color={pendingRequests > 0 ? "#fff" : C.muted} />
+            </TouchableOpacity>
+
             <View style={s.primaryGrid}>
               {PRIMARY.map((item) => (
                 <TouchableOpacity
@@ -455,6 +486,38 @@ function StatCard({
 }
 
 const s = StyleSheet.create({
+  inboxCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#ede9fe",
+  },
+  inboxCardHot: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
+  inboxIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 13,
+    backgroundColor: "rgba(124,58,237,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inboxTitle: { fontSize: 16, fontWeight: "900", color: "#0f172a" },
+  inboxSub: { fontSize: 12.5, fontWeight: "700", color: "#64748b", marginTop: 2 },
+  inboxBadge: {
+    minWidth: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#ef4444",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 7,
+  },
+  inboxBadgeText: { color: "#fff", fontSize: 13, fontWeight: "900" },
   container: {
     flex: 1,
     backgroundColor: C.bg,

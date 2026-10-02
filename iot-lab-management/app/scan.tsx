@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -17,6 +17,7 @@ import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { notify, confirmAction } from "../lib/notify";
 import { canTakeLivePhoto, takeLivePhoto, uploadBorrowPhoto } from "../lib/borrowPhotos";
+import Countdown from "../components/Countdown";
 
 // นักศึกษาสแกน QR ที่ตัวของ ณ ห้อง → ขอยืม / ขอคืน / ขอยืมต่อ (แผน 2.6)
 // กติกาทั้งหมดอยู่ใน RPC ฝั่งฐานข้อมูล หน้านี้แค่เก็บข้อมูลแล้วส่ง
@@ -51,25 +52,6 @@ const KIND_TH: Record<string, string> = { borrow: "ขอยืม", return: "�
 
 const thaiDate = (value?: string | null) =>
   value ? new Date(`${value}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-";
-
-function Countdown({ until, onDone }: { until: string; onDone?: () => void }) {
-  const [left, setLeft] = useState(() => new Date(until).getTime() - Date.now());
-  useEffect(() => {
-    const id = setInterval(() => {
-      const ms = new Date(until).getTime() - Date.now();
-      setLeft(ms);
-      if (ms <= 0) {
-        clearInterval(id);
-        onDone?.();
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [until]);
-  if (left <= 0) return <Text style={s.countdown}>หมดเวลาแล้ว</Text>;
-  const m = Math.floor(left / 60000);
-  const sec = Math.floor((left % 60000) / 1000);
-  return <Text style={s.countdown}>เหลือเวลา {m}:{String(sec).padStart(2, "0")} นาที</Text>;
-}
 
 export default function StudentScan() {
   const router = useRouter();
@@ -343,7 +325,7 @@ export default function StudentScan() {
           <View style={s.pendingBox}>
             <Ionicons name="hourglass-outline" size={28} color={C.orange} />
             <Text style={s.bigText}>{KIND_TH[lookup.pending.kind]} รอผู้ดูแลอนุมัติ</Text>
-            <Countdown until={lookup.pending.expires_at} onDone={refresh} />
+            <Countdown until={lookup.pending.expires_at} onDone={refresh} style={s.countdown} />
             <Text style={s.note}>
               {lookup.pending.kind === "return"
                 ? "ถ้าไม่มีผู้ดูแลยืนยันภายในเวลา ระบบจะบันทึกการคืนให้อัตโนมัติ"

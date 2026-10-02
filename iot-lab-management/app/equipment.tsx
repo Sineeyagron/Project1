@@ -43,7 +43,7 @@ const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 const STATUS_BADGE: Record<string, { label: string; bg: string; color: string; border: string; action: keyof typeof Ionicons.glyphMap }> = {
-  available: { label: "ว่าง", bg: "#dcfce7", color: C.green, border: "#22c55e", action: "add" },
+  available: { label: "ว่าง", bg: "#dcfce7", color: C.green, border: "#22c55e", action: "information-outline" },
   reserved: { label: "รออนุมัติ", bg: "#ffedd5", color: C.orange, border: "#fb923c", action: "information-outline" },
   borrowed: { label: "ถูกยืม", bg: "#fee2e2", color: C.red, border: "#f87171", action: "information-outline" },
   repair: { label: "ซ่อมบำรุง", bg: "#fef3c7", color: C.orange, border: "#f59e0b", action: "information-outline" },
@@ -115,7 +115,7 @@ export default function Equipment() {
     const status = STATUS_BADGE[item.status] || STATUS_BADGE.available;
     const label = item.item_code || item.name;
     if (item.status === "available") {
-      notify("พร้อมให้ยืม", `${label}\nกรุณาติดต่อผู้ดูแลหรือสแกน QR กับเจ้าหน้าที่เพื่อยืมอุปกรณ์`);
+      notify("พร้อมให้ยืม", `${label}\nไปที่ห้องแล้วสแกน QR ที่ตัวอุปกรณ์ (ปุ่ม "สแกนยืม / คืน") เพื่อขอยืม`);
       return;
     }
     const due = item.due_date ? `\nกำหนดคืน ${formatDue(item.due_date)}` : "";
@@ -268,8 +268,9 @@ export default function Equipment() {
                     </View>
                   </View>
 
-                  <View style={[styles.actionBtn, !isAvailable && styles.actionBtnMuted]}>
-                    <Ionicons name={badge.action} size={22} color={isAvailable ? "#fff" : C.muted} />
+                  {/* ยืมจากรายการไม่ได้ (แผน 2.6) ปุ่มนี้แค่ดูรายละเอียด */}
+                  <View style={[styles.actionBtn, styles.actionBtnMuted]}>
+                    <Ionicons name={badge.action} size={20} color={C.muted} />
                   </View>
                 </TouchableOpacity>
               );
