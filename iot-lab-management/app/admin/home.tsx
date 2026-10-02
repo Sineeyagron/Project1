@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import Svg, { Polyline } from "react-native-svg";
 import supabase from "../../lib/supabase";
 import { confirmAction, notify } from "../../lib/notify";
@@ -42,7 +42,11 @@ const TOOLS = [
   { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room", color: "#8b5cf6", bg: "#ede9fe" },
   { icon: "cube-outline", label: "จัดการอุปกรณ์", route: "/admin/items", color: "#0ea5e9", bg: "#e0f2fe" },
   { icon: "qr-code-outline", label: "สร้าง QR", route: "/admin/qrgen", color: "#6366f1", bg: "#ede9fe" },
+  { icon: "pricetags-outline", label: "หมวดหมู่", route: "/admin/categories", color: "#db2777", bg: "#fce7f3" },
+  { icon: "bar-chart-outline", label: "รายงานสต็อก", route: "/admin/stock", color: "#0891b2", bg: "#cffafe" },
+  { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings", color: "#475569", bg: "#f1f5f9" },
   { icon: "add-circle-outline", label: "เพิ่มอุปกรณ์", route: "/admin/scan", color: C.cyan, bg: "#cffafe" },
+  { icon: "document-text-outline", label: "นำเข้า CSV", route: "/admin/import", color: "#059669", bg: "#d1fae5" },
   { icon: "receipt-outline", label: "ประวัติยืม", route: "/admin/history", color: C.muted, bg: "#f1f5f9" },
   { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations", color: C.red, bg: "#fee2e2" },
   { icon: "git-network-outline", label: "จัดการแลน", route: "/admin/lanports", color: C.purple, bg: "#ede9fe" },
@@ -84,10 +88,29 @@ export default function AdminHome() {
   const [statusRepair, setStatusRepair] = useState(0);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [pendingRequests, setPendingRequests] = useState(0);
+  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
     checkRoleAndFetch();
   }, []);
+
+  // แจ้งเตือนที่ยังไม่อ่าน (ประกัน/อายุ/คำขอ ฯลฯ) — นับใหม่ทุกครั้งที่กลับมาหน้านี้
+  const refreshUnread = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { count } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("read", false);
+    setUnread(count || 0);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshUnread();
+    }, [refreshUnread])
+  );
 
   const greeting = useMemo(() => getGreeting(), []);
 
@@ -258,9 +281,24 @@ export default function AdminHome() {
             </Text>
           </View>
 
-          <TouchableOpacity style={s.logoutBtn} onPress={confirmLogout} activeOpacity={0.85}>
-            <Ionicons name="log-out-outline" size={20} color="#fff" />
-          </TouchableOpacity>
+          <View style={s.headerBtns}>
+            <TouchableOpacity
+              style={s.logoutBtn}
+              onPress={() => router.push("/notifications")}
+              activeOpacity={0.85}
+              accessibilityLabel={unread ? `แจ้งเตือน ยังไม่อ่าน ${unread}` : "แจ้งเตือน"}
+            >
+              <Ionicons name="notifications-outline" size={20} color="#fff" />
+              {unread > 0 && (
+                <View style={s.bellBadge}>
+                  <Text style={s.bellBadgeText}>{unread > 99 ? "99+" : unread}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity style={s.logoutBtn} onPress={confirmLogout} activeOpacity={0.85} accessibilityLabel="ออกจากระบบ">
+              <Ionicons name="log-out-outline" size={20} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={s.todayCard}>
@@ -557,6 +595,22 @@ const s = StyleSheet.create({
   heroTitleAccent: {
     color: "#bfdbfe",
   },
+  headerBtns: { flexDirection: "row", gap: 8 },
+  bellBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: "#ef4444",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: "#fff",
+  },
+  bellBadgeText: { color: "#fff", fontSize: 10.5, fontWeight: "900" },
   logoutBtn: {
     width: 38,
     height: 38,

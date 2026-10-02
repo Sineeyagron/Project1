@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
+import { addYears, isValidDate, thaiDate } from "../../lib/itemInfo";
 
 const C = {
   bg: "#eef3f8",
@@ -46,7 +47,9 @@ const TYPE_CFG: Record<string, { icon: any; color: string; bg: string; filter: s
   default: { icon: "cube-outline", color: "#d97706", bg: "#fef3c7", filter: "other", label: "อื่นๆ" },
 };
 
-type FilterKey = "all" | "microcontroller" | "sensor" | "module" | "other" | "retired";
+// "all" | "retired" | ชื่อหมวด (จากตาราง categories)
+type FilterKey = string;
+const OTHER = "อื่นๆ";
 
 // ไม่มี "ชื่อ" เพราะรหัสสร้างจากชื่อ เรียงแล้วได้ลำดับเดียวกับรหัส
 type SortKey = "code" | "status" | "due" | "warranty" | "oldest" | "newest";
@@ -112,8 +115,8 @@ function ItemCard({
   onPress: (item: any) => void;
 }) {
   const status = STATUS_CFG[item.status] || STATUS_CFG.available;
-  const typeCfg = getTypeConfig(item.type || item.description || item.name);
-  const meta = [item.name, item.type || typeCfg.label, item.barcode && `สแกน ${item.barcode}`]
+  const typeCfg = getTypeConfig(item.category === OTHER ? item.type || item.name : item.category);
+  const meta = [item.name, item.category, item.barcode && `สแกน ${item.barcode}`]
     .filter(Boolean).join(" · ");
   const footText = item.status === "borrowed" && dueDate
     ? `คืน ${formatDue(dueDate)}`
@@ -162,7 +165,11 @@ export default function AdminItems() {
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [retireTarget, setRetireTarget] = useState<any>(null);
   const [retireReason, setRetireReason] = useState("");
+  const [editTarget, setEditTarget] = useState<any>(null);
+  const [editWarranty, setEditWarranty] = useState("");
+  const [editSerial, setEditSerial] = useState("");
   const [busy, setBusy] = useState(false);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     fetchItems();
@@ -173,18 +180,29 @@ export default function AdminItems() {
   };
 
   const fetchItems = async () => {
-    const [{ data, error }, { data: borrows }] = await Promise.all([
+    const [{ data, error }, { data: borrows }, { data: cats }] = await Promise.all([
       supabase.from("items").select("*"),
       supabase
         .from("borrow_records")
         .select("item_id, due_date")
         .in("status", ["borrowed", "pending_return"]),
+      supabase.from("categories").select("id, name").eq("active", true).order("sort_order").order("name"),
     ]);
+
+    // หมวดของแต่ละชิ้น: category_id → ชื่อในช่อง type ที่ตรงกับหมวด → "อื่นๆ" (เหมือนหน้า นศ.)
+    const catList = cats || [];
+    const byId: Record<string, string> = {};
+    catList.forEach((c: any) => { byId[c.id] = c.name; });
+    const categoryOf = (item: any) =>
+      byId[item.category_id] ||
+      catList.find((c: any) => c.name.toLowerCase() === String(item.type || "").trim().toLowerCase())?.name ||
+      OTHER;
+    setCategories(catList);
 
     if (error) {
       notify("โหลดข้อมูลไม่สำเร็จ", error.message);
     } else {
-      setItems((data || []).sort(compareItems));
+      setItems((data || []).map((item: any) => ({ ...item, category: categoryOf(item) })).sort(compareItems));
     }
 
     const nextBorrowMap: Record<string, string> = {};
@@ -208,36 +226,30 @@ export default function AdminItems() {
   const borrowedCount = activeItems.filter((i) => i.status === "borrowed").length;
   const repairCount = activeItems.filter((i) => i.status === "repair").length;
 
-  const chips = useMemo(() => {
-    const countByFilter = (key: FilterKey) =>
-      key === "all"
-        ? activeItems.length
-        : key === "retired"
-          ? retiredCount
-          : activeItems.filter((item) => getTypeConfig(item.type || item.description || item.name).filter === key).length;
-
-    return [
-      { key: "all" as const, label: "ทั้งหมด", icon: "cube-outline", count: countByFilter("all") },
-      { key: "microcontroller" as const, label: "Microcontroller", icon: "hardware-chip-outline", count: countByFilter("microcontroller") },
-      { key: "sensor" as const, label: "Sensor", icon: "pulse-outline", count: countByFilter("sensor") },
-      { key: "module" as const, label: "Module", icon: "cube-outline", count: countByFilter("module") },
-      { key: "retired" as const, label: "จำหน่ายแล้ว", icon: "archive-outline", count: countByFilter("retired") },
-    ].filter((chip) => chip.key === "all" || chip.count > 0);
-  }, [items]);
+  // ชิปหมวดดึงจากตาราง categories (โชว์เฉพาะหมวดที่มีของ)
+  const chips = [
+    { key: "all", label: "ทั้งหมด", icon: "cube-outline", count: activeItems.length },
+    ...categories.map((c) => ({
+      key: c.name,
+      label: c.name,
+      icon: getTypeConfig(c.name === OTHER ? "" : c.name).icon,
+      count: activeItems.filter((item) => item.category === c.name).length,
+    })),
+    { key: "retired", label: "จำหน่ายแล้ว", icon: "archive-outline", count: retiredCount },
+  ].filter((chip) => chip.key === "all" || chip.count > 0);
 
   // คำนวณใหม่ทุกครั้งที่ render (รายการไม่กี่ร้อยชิ้น) — พิมพ์แล้วกรองทันที
   const filtered = (() => {
     const q = compact(search);
     const list = items.filter((item) => {
-      const typeCfg = getTypeConfig(item.type || item.description || item.name);
       // ระหว่างค้นหา หาในทุกหมวด (ยกเว้นของที่จำหน่ายแล้ว ถ้าไม่ได้เลือกตัวกรองนั้น)
       const matchesFilter =
         filter === "retired"
           ? item.status === "retired"
-          : item.status !== "retired" && (!!q || filter === "all" || typeCfg.filter === filter);
+          : item.status !== "retired" && (!!q || filter === "all" || item.category === filter);
       const matchesSearch =
         !q ||
-        [item.item_code, item.name, item.short_name, item.type, item.description, item.barcode, item.manufacturer_serial]
+        [item.item_code, item.name, item.short_name, item.category, item.type, item.description, item.barcode, item.manufacturer_serial]
           .some((field) => compact(field).includes(q));
       return matchesFilter && matchesSearch;
     });
@@ -309,6 +321,50 @@ export default function AdminItems() {
     });
   };
 
+  // เปลี่ยนหมวด: เลือกจากหมวดที่เปิดอยู่ (แก้ช่อง type ตามด้วย ให้ของเก่าแสดงตรงกัน)
+  const pickCategory = (item: any) => {
+    setSheet({
+      title: `เปลี่ยนหมวด ${label(item)}`,
+      message: `ตอนนี้: ${item.category}`,
+      actions: categories.map((c) => ({
+        label: c.name,
+        icon: c.name === item.category ? "checkmark-circle" : "ellipse-outline",
+        onPress: () => {
+          setSheet(null);
+          if (c.name === item.category && item.category_id === c.id) return;
+          run(
+            () => supabase.from("items").update({ category_id: c.id, type: c.name }).eq("id", item.id),
+            "เปลี่ยนหมวดไม่สำเร็จ"
+          );
+        },
+      })),
+    });
+  };
+
+  // แก้วันหมดประกัน / Serial (ชื่อ-รหัสแก้ไม่ได้ เพราะติดป้ายไปแล้ว)
+  const openEdit = (item: any) => {
+    setSheet(null);
+    setEditWarranty(item.warranty_expires_at || "");
+    setEditSerial(item.manufacturer_serial || "");
+    setEditTarget(item);
+  };
+
+  const editWarrantyInvalid = !!editWarranty.trim() && !isValidDate(editWarranty.trim());
+
+  const saveEdit = async () => {
+    if (editWarrantyInvalid) return;
+    const ok = await run(
+      () => supabase.from("items")
+        .update({
+          warranty_expires_at: editWarranty.trim() || null,
+          manufacturer_serial: editSerial.trim() || null,
+        })
+        .eq("id", editTarget.id),
+      "บันทึกไม่สำเร็จ"
+    );
+    if (ok) setEditTarget(null);
+  };
+
   const openRetire = (item: any) => {
     setSheet(null);
     setRetireReason("");
@@ -354,13 +410,19 @@ export default function AdminItems() {
         message: item.status === "reserved"
           ? "มีคำขอยืมรออนุมัติอยู่ ต้องอนุมัติหรือปฏิเสธคำขอก่อน"
           : "กำลังถูกยืมอยู่ ต้องคืนของก่อนถึงจะเปลี่ยนสถานะ ลบ หรือจำหน่ายได้",
-        actions: [],
+        actions: [
+          { label: "แก้ประกัน / Serial", icon: "create-outline", onPress: () => openEdit(item) },
+          { label: "เปลี่ยนหมวด", icon: "pricetag-outline", onPress: () => pickCategory(item) },
+        ],
       });
       return;
     }
 
     const everBorrowed = (records || []).length > 0;
-    const actions: SheetAction[] = [];
+    const actions: SheetAction[] = [
+      { label: "แก้ประกัน / Serial", icon: "create-outline", onPress: () => openEdit(item) },
+      { label: `เปลี่ยนหมวด (ตอนนี้: ${item.category})`, icon: "pricetag-outline", onPress: () => pickCategory(item) },
+    ];
     if (item.status !== "available") {
       actions.push({ label: "เปลี่ยนเป็น ว่าง", icon: "checkmark-circle-outline", onPress: () => setStatus(item, "available") });
     }
@@ -452,6 +514,14 @@ export default function AdminItems() {
                 </TouchableOpacity>
               );
             })}
+            <TouchableOpacity
+              style={[s.chip, s.chipManage]}
+              activeOpacity={0.82}
+              onPress={() => router.push("/admin/categories" as any)}
+            >
+              <Ionicons name="settings-outline" size={13} color={C.purple} />
+              <Text style={[s.chipText, { color: C.purple }]}>จัดการหมวด</Text>
+            </TouchableOpacity>
           </ScrollView>
 
           <View style={s.listHeader}>
@@ -540,7 +610,66 @@ export default function AdminItems() {
         </View>
       </Modal>
 
-      {busy && !retireTarget && (
+      {/* แก้ประกัน / Serial */}
+      <Modal visible={!!editTarget} transparent animationType="fade" onRequestClose={() => setEditTarget(null)}>
+        <View style={s.backdrop}>
+          <View style={s.sheet}>
+            <Text style={s.sheetTitle}>แก้ข้อมูล {editTarget && label(editTarget)}</Text>
+            <Text style={s.sheetMessage}>
+              ตอนนี้: {editTarget?.warranty_expires_at ? `ประกันถึง ${thaiDate(editTarget.warranty_expires_at)}` : "ไม่มีประกัน"}
+            </Text>
+
+            <Text style={s.editLabel}>วันหมดประกัน (เว้นว่าง = ไม่มีประกัน)</Text>
+            <TextInput
+              style={[s.reasonInput, editWarrantyInvalid && s.inputError]}
+              value={editWarranty}
+              onChangeText={setEditWarranty}
+              placeholder="ปปปป-ดด-วว เช่น 2027-10-02"
+              placeholderTextColor={C.faint}
+              keyboardType="numbers-and-punctuation"
+            />
+            {editWarrantyInvalid && (
+              <Text style={s.editError}>วันที่ไม่ถูกต้อง ใช้รูปแบบ ปปปป-ดด-วว (ค.ศ.)</Text>
+            )}
+            <View style={s.editChips}>
+              {[1, 2, 3].map((y) => (
+                <TouchableOpacity key={y} style={s.editChip} onPress={() => setEditWarranty(addYears(y))} activeOpacity={0.8}>
+                  <Text style={s.editChipText}>+{y} ปีจากวันนี้</Text>
+                </TouchableOpacity>
+              ))}
+              {!!editWarranty && (
+                <TouchableOpacity style={s.editChip} onPress={() => setEditWarranty("")} activeOpacity={0.8}>
+                  <Text style={s.editChipText}>ไม่มีประกัน</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
+            <Text style={s.editLabel}>Serial ผู้ผลิต</Text>
+            <TextInput
+              style={s.reasonInput}
+              value={editSerial}
+              onChangeText={setEditSerial}
+              placeholder="เลขที่พิมพ์บนตัวอุปกรณ์"
+              placeholderTextColor={C.faint}
+              autoCapitalize="characters"
+            />
+
+            <TouchableOpacity
+              style={[s.sheetPrimary, (editWarrantyInvalid || busy) && { opacity: 0.4 }]}
+              disabled={editWarrantyInvalid || busy}
+              onPress={saveEdit}
+              activeOpacity={0.85}
+            >
+              <Text style={s.sheetPrimaryText}>{busy ? "กำลังบันทึก..." : "บันทึก"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={s.sheetCancel} onPress={() => setEditTarget(null)} activeOpacity={0.8}>
+              <Text style={s.sheetCancelText}>ยกเลิก</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {busy && !retireTarget && !editTarget && (
         <View style={s.busyOverlay} pointerEvents="none">
           <ActivityIndicator color={C.purple} />
         </View>
@@ -705,6 +834,21 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e2e8f0",
   },
+  editLabel: { fontSize: 13, fontWeight: "800", color: C.ink, marginTop: 4 },
+  editError: { fontSize: 12.5, color: C.red, fontWeight: "700" },
+  inputError: { borderColor: C.red, backgroundColor: "#fef2f2" },
+  editChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  editChip: {
+    minHeight: 36,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: C.purpleSoft,
+    backgroundColor: "#f5f3ff",
+  },
+  editChipText: { fontSize: 13, fontWeight: "700", color: C.purple },
+  chipManage: { borderStyle: "dashed", borderColor: C.purpleSoft, backgroundColor: "#f5f3ff" },
   chipActive: {
     backgroundColor: C.purple,
     borderColor: C.purple,

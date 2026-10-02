@@ -18,6 +18,7 @@ import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { notify } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
+import { ageText, thaiDate, warrantyInfo } from "../../lib/itemInfo";
 
 // Admin สแกน = ดูสถานะอย่างเดียว (แผน 2.6): ชื่อ รหัส สถานะ ผู้ยืม กำหนดคืน อายุ ประกัน ประวัติ
 // การยืม/คืนต้องให้นักศึกษาสแกนขอเอง แล้วผู้ดูแลอนุมัติในกล่องคำขอ
@@ -48,33 +49,7 @@ const RECORD_STATUS: Record<string, string> = {
   returned: "คืนแล้ว",
 };
 
-const thaiDate = (value?: string | null) =>
-  value ? new Date(value.length === 10 ? `${value}T00:00:00` : value).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-";
-
-// อายุอุปกรณ์นับจากวันที่เพิ่มเข้าระบบ (แผน 2.2)
-function ageText(createdAt?: string) {
-  if (!createdAt) return "-";
-  const start = new Date(createdAt);
-  const now = new Date();
-  let months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-  if (now.getDate() < start.getDate()) months -= 1;
-  if (months < 1) {
-    const days = Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000));
-    return `${days} วัน`;
-  }
-  const y = Math.floor(months / 12);
-  const m = months % 12;
-  return [y ? `${y} ปี` : "", m ? `${m} เดือน` : ""].filter(Boolean).join(" ");
-}
-
-function warrantyText(date?: string | null) {
-  if (!date) return { text: "ไม่มีข้อมูลประกัน", color: C.faint };
-  const end = new Date(`${date}T23:59:59`);
-  const days = Math.ceil((end.getTime() - Date.now()) / 86400000);
-  if (days < 0) return { text: `หมดประกันแล้ว (${thaiDate(date)})`, color: C.red };
-  if (days <= 30) return { text: `เหลืออีก ${days} วัน (${thaiDate(date)})`, color: C.orange };
-  return { text: `ถึง ${thaiDate(date)} · เหลือ ${days} วัน`, color: C.green };
-}
+const warrantyText = warrantyInfo;
 
 async function findItem(code: string) {
   const raw = code.trim();

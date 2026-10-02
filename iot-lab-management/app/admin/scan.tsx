@@ -9,6 +9,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { addYears, isValidDate } from "../../lib/itemInfo";
 import { notify } from "../../lib/notify";
 
 const FS = FileSystem as any;
@@ -22,20 +23,6 @@ type Category = { id: string; name: string };
 // ตัดช่องว่าง/สัญลักษณ์แบบเดียวกับ alloc_item_code() ในฐานข้อมูล ใช้แค่แสดงตัวอย่างรหัส
 const codePrefixPreview = (name: string, shortName: string) =>
   (shortName.trim() || name.trim()).replace(/[\s!-/:-@[-`{-~]/g, "") || "Item";
-
-const addYears = (years: number) => {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() + years);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-};
-
-const isValidDate = (value: string) => {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const d = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(value);
-};
 
 const formatThaiDate = (value: string) =>
   new Date(`${value}T00:00:00`).toLocaleDateString("th-TH", {

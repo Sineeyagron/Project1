@@ -54,6 +54,18 @@
 - `borrow_records` **ไม่มี** `created_at` → เรียงด้วย `borrow_date`
 - `lib/notify.ts` ใช้แทน `Alert.alert` (Alert ไม่ทำงานบนเว็บ), `lib/labels.ts` สร้างป้าย QR 6×2.8 ซม. (A4 27 ชิ้น)
 
+### เฟส 2 (3 ต.ค. 2569) — หมวด + Stock Report + แจ้งเตือนประกัน/อายุ
+- `app/admin/categories.tsx` จัดการหมวด (เพิ่ม/แก้ชื่อ/เรียง/ปิด/ลบ — ลบหมวดที่มีของต้องย้ายของไปหมวดอื่นก่อน) "อื่นๆ" = หมวดสำรอง ห้ามแก้
+- ชิปหมวดทั้งหน้า นศ. (`equipment.tsx`) และ Admin (`admin/items.tsx`) ดึงจาก `categories`: `category_id` → ชื่อในช่อง `type` → "อื่นๆ" / เปลี่ยนหมวดอัปเดตทั้ง `category_id` และ `type`
+- `app/admin/stock.tsx` รายงานสต็อก (`?watch=soon|expired|ageWarn|ageReplace` เปิดกลุ่มนั้น) / `lib/itemInfo.ts` คำนวณอายุ+ประกัน ใช้ร่วมกัน
+- `app/admin/settings.tsx` แก้ `app_settings`: `warranty_warn_days`, `age_warn_years`, `age_replace_years`, `max_active_borrows`, `request_expiry_minutes`
+- `app/admin/import.tsx` นำเข้า CSV (ชื่อ, หมวด, จำนวน, วันหมดประกัน, ชื่อย่อ) — ตรรกะตรวจทั้งหมดใน `lib/importItems.ts` (แยกจาก UI ทดสอบได้)
+  - ผิด = บันทึกไม่ได้ / เตือน = ต้องติ๊กยืนยัน / หมายเหตุ = แจ้งเฉยๆ · insert ครั้งเดียว + ตรวจซ้ำกับข้อมูลล่าสุดก่อนบันทึก + ยกเลิกการนำเข้าได้ (ลบชิ้นที่ยัง available)
+  - กันพลาด: หมวดสะกดผิด (แนะนำ+เลือกแก้ในแอป), ปี พ.ศ./ปีผ่านไปแล้ว, เลขวันที่ Excel, เลขไทย, เครื่องหมายคำพูด iPhone, นำเข้าซ้ำ/ชื่อซ้ำ, รหัสชนของเดิม, ไฟล์ .xlsx, ตัวคั่น , ; แท็บ
+  - เลือกไฟล์ได้ทั้งเว็บ (input) และมือถือ (`File.pickFileAsync` ของ expo-file-system) + วางข้อความ / แม่แบบ: เว็บดาวน์โหลด มือถือแชร์ · ถอดรหัส UTF-8/TIS-620 เขียนเอง (Hermes ไม่มี windows-874)
+- แก้วันหมดประกัน/Serial: หน้า `admin/items` กดการ์ด → "แก้ประกัน / Serial" (ชื่อ-รหัสแก้ไม่ได้)
+- migration `phase2_item_alerts`: แจ้งเตือนประเภท `warranty_soon|warranty_expired|age_warn|age_replace`, ตาราง `item_alerts` (กันเตือนซ้ำ แอปเข้าไม่ได้), RPC `send_item_alerts()` + pg_cron `item-health-alerts` 08:00 ไทย
+
 ### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
 - ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)
 - ผู้ใช้อ่านได้: `items`, `categories`, `borrow_locations`, `app_settings`, `computer_stations`, `lan_ports`, `station_equipment` + `profiles` / `borrow_records` / `notifications` ของตัวเอง (กด "อ่านแล้ว" ได้)
@@ -123,7 +135,7 @@ ON CONFLICT DO NOTHING;
 
 1. นักศึกษาสแกน QR ที่ตัวของ (`app/scan.tsx`) → RPC `scan_lookup` บอกสถานะ
 2. ขอยืม / ขอคืน: ถ่ายรูปสด (`lib/borrowPhotos.ts` → bucket `borrow-photos/<user_id>/`) + ตรวจสภาพ → RPC `request_borrow` / `request_return` / `request_renew`
-3. ของถูกกันไว้ (`items.status = reserved` / `borrow_records.status = pending_return`) + แจ้งเตือน staff
+3. ของถูกกันไว้ (`items.status = reserved` / `borrow_records.status = pending_return`) → คำขอขึ้นใน **กล่องคำขอ** อย่างเดียว (migration `staff_inbox_split`: `_notify_staff` ไม่ส่ง `request_*` เข้ากระดิ่ง; กระดิ่งผู้ดูแล = ประกัน/อายุ/เกินกำหนด/คืนอัตโนมัติ, ปุ่มกระดิ่งอยู่หน้า `admin/home`)
 4. Admin อนุมัติ/ปฏิเสธใน `app/admin/requests.tsx` → RPC `decide_request` (คืน: ตรวจสภาพ ชำรุด → `repair` + ค่าเสียหาย)
 5. ไม่มีใครตอบใน `app_settings.request_expiry_minutes` (30) → pg_cron `expire_requests` ทุกนาที: ยืม = หมดอายุ / คืน = คืนอัตโนมัติ
 6. pg_cron `send_due_reminders` 08:00 ไทย: แจ้ง "พรุ่งนี้ครบกำหนด" + "เกินกำหนด"

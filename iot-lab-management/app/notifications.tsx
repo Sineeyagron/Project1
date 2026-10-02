@@ -24,6 +24,19 @@ const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; d
   // เตือนกำหนดคืน
   due_soon:       { icon: "alarm-outline",            iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
   overdue:        { icon: "warning-outline",          iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+  // ถึงผู้ดูแล: ประกัน / อายุอุปกรณ์ (เฟส 2.3)
+  warranty_soon:    { icon: "shield-half-outline",    iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
+  warranty_expired: { icon: "shield-outline",         iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+  age_warn:         { icon: "eye-outline",            iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
+  age_replace:      { icon: "refresh-circle-outline", iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+};
+
+// แจ้งเตือนประกัน/อายุ → เปิดรายงานสต็อก ตรงกลุ่ม "ต้องดูแล" นั้น
+const STOCK_WATCH: Record<string, string> = {
+  warranty_soon: "soon",
+  warranty_expired: "expired",
+  age_warn: "ageWarn",
+  age_replace: "ageReplace",
 };
 
 // ประเภทที่ผู้ดูแลต้องไปจัดการในกล่องคำขอ
@@ -116,7 +129,9 @@ export default function Notifications() {
       await supabase.from("notifications").update({ read: true }).eq("id", n.id);
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
     }
-    if (isStaff && STAFF_TYPES.has(n.type)) {
+    if (isStaff && STOCK_WATCH[n.type]) {
+      router.push(`/admin/stock?watch=${STOCK_WATCH[n.type]}` as any);
+    } else if (isStaff && STAFF_TYPES.has(n.type)) {
       router.push((n.request_id ? `/admin/requests?id=${n.request_id}` : "/admin/requests") as any);
     } else if (n.type !== "borrow" && n.type !== "return") {
       router.push("/borrow");
