@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Modal, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActionSheetIOS, Alert, Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 // Alert.alert ของ React Native ไม่ทำงานบนเว็บ (react-native-web ทำเป็น no-op)
 // และ window.alert/confirm ถูกซ่อนในบางที่ (เช่นแผง Browser ของ Claude)
 // → บนเว็บใช้หน้าต่างของแอปเอง (<DialogHost /> ใน app/_layout.tsx) / มือถือใช้ Alert ปกติ
 
 type DialogButton = { text: string; style?: "cancel" | "destructive" | "default"; onPress?: () => void };
-type Dialog = { title: string; message?: string; buttons: DialogButton[] };
+type Dialog = { title: string; message?: string; buttons: DialogButton[]; sheet?: boolean; selected?: number };
 
 let showDialog: ((dialog: Dialog) => void) | null = null;
 
@@ -52,6 +52,38 @@ export function confirmAction(
   });
 }
 
+// เมนูเลือก 1 ตัวเลือก แบบ iPhone (Action Sheet เด้งจากด้านล่าง)
+// iOS: เมนูของระบบเอง / Android + เว็บ: แผ่นเมนูของแอป (DialogHost)
+export function pickOption(
+  title: string,
+  options: string[],
+  onSelect: (index: number) => void,
+  selected?: number
+) {
+  if (Platform.OS === "ios") {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title,
+        options: [...options.map((o, i) => (i === selected ? `✓ ${o}` : o)), "ยกเลิก"],
+        cancelButtonIndex: options.length,
+      },
+      (index) => { if (index < options.length) onSelect(index); }
+    );
+    return;
+  }
+  const dialog: Dialog = {
+    title,
+    sheet: true,
+    selected,
+    buttons: [
+      ...options.map((text, i) => ({ text, onPress: () => onSelect(i) })),
+      { text: "ยกเลิก", style: "cancel" as const },
+    ],
+  };
+  if (showDialog) showDialog(dialog);
+  else Alert.alert(title, undefined, dialog.buttons.slice(0, 3));
+}
+
 export function DialogHost() {
   const [dialog, setDialog] = useState<Dialog | null>(null);
 
@@ -66,6 +98,42 @@ export function DialogHost() {
     setDialog(null);
     button.onPress?.();
   };
+
+  if (dialog.sheet) {
+    const options = dialog.buttons.filter((b) => b.style !== "cancel");
+    const cancel = dialog.buttons.find((b) => b.style === "cancel");
+    return (
+      <Modal visible transparent animationType="slide" onRequestClose={() => setDialog(null)}>
+        <View style={s.sheetBackdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setDialog(null)} accessibilityLabel="ปิดเมนู" />
+          <View style={s.sheetWrap}>
+            <View style={s.sheetGroup}>
+              <Text style={s.sheetTitle}>{dialog.title}</Text>
+              {options.map((b, i) => (
+                <Pressable
+                  key={b.text}
+                  style={({ pressed }) => [s.sheetOption, pressed && s.sheetPressed]}
+                  onPress={() => press(b)}
+                >
+                  <Text style={[s.sheetOptionText, i === dialog.selected && s.sheetOptionSelected]}>
+                    {i === dialog.selected ? `✓ ${b.text}` : b.text}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            {cancel && (
+              <Pressable
+                style={({ pressed }) => [s.sheetGroup, s.sheetCancel, pressed && s.sheetPressed]}
+                onPress={() => press(cancel)}
+              >
+                <Text style={s.sheetCancelText}>{cancel.text}</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => setDialog(null)}>
@@ -116,4 +184,29 @@ const s = StyleSheet.create({
   btnCancel: { backgroundColor: "#f1f5f9" },
   btnText: { color: "#fff", fontSize: 14, fontWeight: "800" },
   btnTextCancel: { color: "#475569" },
+
+  // แผ่นเมนูเลือก (หน้าตาแบบ Action Sheet ของ iOS)
+  sheetBackdrop: { flex: 1, backgroundColor: "rgba(15,23,42,0.4)", justifyContent: "flex-end" },
+  sheetWrap: { padding: 10, paddingBottom: 24, gap: 8, width: "100%", maxWidth: 520, alignSelf: "center" },
+  sheetGroup: { backgroundColor: "#fff", borderRadius: 14, overflow: "hidden" },
+  sheetTitle: {
+    textAlign: "center",
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "700",
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e2e8f0",
+  },
+  sheetOption: {
+    paddingVertical: 16,
+    alignItems: "center",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e2e8f0",
+  },
+  sheetPressed: { backgroundColor: "#f1f5f9" },
+  sheetOptionText: { fontSize: 17, color: "#2563eb", fontWeight: "500" },
+  sheetOptionSelected: { fontWeight: "800" },
+  sheetCancel: { paddingVertical: 16, alignItems: "center" },
+  sheetCancelText: { fontSize: 17, color: "#2563eb", fontWeight: "800" },
 });

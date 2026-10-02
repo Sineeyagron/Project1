@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { notify } from "../../lib/notify";
+import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
 
 const C = {
   bg: "#eef3f8",
@@ -46,11 +48,29 @@ const TYPE_CFG: Record<string, { icon: any; color: string; bg: string; filter: s
 
 type FilterKey = "all" | "microcontroller" | "sensor" | "module" | "other" | "retired";
 
+// ไม่มี "ชื่อ" เพราะรหัสสร้างจากชื่อ เรียงแล้วได้ลำดับเดียวกับรหัส
+type SortKey = "code" | "status" | "due" | "warranty" | "oldest" | "newest";
+// label = ชื่อเต็มในเมนู / short = ชื่อสั้นบนปุ่ม "เรียงตาม"
+const SORTS: { key: SortKey; label: string; short: string }[] = [
+  { key: "code", label: "รหัสอุปกรณ์ (A–Z)", short: "รหัส A–Z" },
+  { key: "status", label: "สถานะที่ต้องดำเนินการ", short: "สถานะ" },
+  { key: "due", label: "กำหนดส่งคืนใกล้ที่สุด", short: "กำหนดส่งคืน" },
+  { key: "warranty", label: "การรับประกันใกล้สิ้นสุด", short: "การรับประกัน" },
+  { key: "oldest", label: "อายุการใช้งานมากที่สุด", short: "อายุการใช้งาน" },
+  { key: "newest", label: "วันที่เพิ่มเข้าระบบล่าสุด", short: "เพิ่มล่าสุด" },
+];
+const STATUS_ORDER: Record<string, number> = { repair: 0, reserved: 1, borrowed: 2, available: 3, retired: 4 };
+
 type SheetAction = { label: string; icon: any; tone?: "danger"; onPress: () => void };
 type Sheet = { title: string; message?: string; actions: SheetAction[] };
 
 function normalize(value?: string) {
   return (value || "").trim().toLowerCase();
+}
+
+// ค้นแบบไม่สนช่องว่าง/ตัวพิมพ์: "nodemcu001" เจอ "NodeMCU 001"
+function compact(value?: string) {
+  return normalize(value).replace(/[\s\-_.]/g, "");
 }
 
 function getTypeConfig(type?: string) {
@@ -137,6 +157,7 @@ export default function AdminItems() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("code");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [sheet, setSheet] = useState<Sheet | null>(null);
   const [retireTarget, setRetireTarget] = useState<any>(null);
@@ -204,24 +225,46 @@ export default function AdminItems() {
     ].filter((chip) => chip.key === "all" || chip.count > 0);
   }, [items]);
 
-  const filtered = useMemo(() => {
-    const q = normalize(search);
-    return items.filter((item) => {
+  // คำนวณใหม่ทุกครั้งที่ render (รายการไม่กี่ร้อยชิ้น) — พิมพ์แล้วกรองทันที
+  const filtered = (() => {
+    const q = compact(search);
+    const list = items.filter((item) => {
       const typeCfg = getTypeConfig(item.type || item.description || item.name);
+      // ระหว่างค้นหา หาในทุกหมวด (ยกเว้นของที่จำหน่ายแล้ว ถ้าไม่ได้เลือกตัวกรองนั้น)
       const matchesFilter =
         filter === "retired"
           ? item.status === "retired"
-          : item.status !== "retired" && (filter === "all" || typeCfg.filter === filter);
+          : item.status !== "retired" && (!!q || filter === "all" || typeCfg.filter === filter);
       const matchesSearch =
         !q ||
-        normalize(item.item_code).includes(q) ||
-        normalize(item.name).includes(q) ||
-        normalize(item.type).includes(q) ||
-        normalize(item.description).includes(q) ||
-        normalize(item.barcode).includes(q);
+        [item.item_code, item.name, item.short_name, item.type, item.description, item.barcode, item.manufacturer_serial]
+          .some((field) => compact(field).includes(q));
       return matchesFilter && matchesSearch;
     });
-  }, [items, search, filter]);
+    const sorted = [...list];
+    // ค่าที่ไม่มี (ไม่มีกำหนดคืน / ไม่มีประกัน) ไว้ท้ายสุด
+    const byText = (pick: (i: any) => string | undefined) => (a: any, b: any) =>
+      String(pick(a) || "9999").localeCompare(String(pick(b) || "9999")) || compareItems(a, b);
+    if (sortKey === "status") {
+      sorted.sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9) || compareItems(a, b));
+    } else if (sortKey === "due") {
+      sorted.sort(byText((i) => borrowMap[i.id]));
+    } else if (sortKey === "warranty") {
+      sorted.sort(byText((i) => i.warranty_expires_at));
+    } else if (sortKey === "oldest") {
+      sorted.sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
+    } else if (sortKey === "newest") {
+      sorted.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+    } else {
+      sorted.sort(compareItems);
+    }
+    return sorted;
+  })();
+
+  const sortBtnRef = useRef<any>(null);
+  const headerSortRef = useRef<any>(null);
+  const [sortAnchor, setSortAnchor] = useState<Anchor | null>(null);
+  const openSort = (ref: React.RefObject<any>) => measureAnchor(ref, setSortAnchor);
 
   const label = (item: any) => item.item_code || item.name;
 
@@ -345,7 +388,7 @@ export default function AdminItems() {
           <TouchableOpacity style={s.iconBtn} onPress={goBack} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <TouchableOpacity style={s.iconBtn} activeOpacity={0.82}>
+          <TouchableOpacity ref={headerSortRef} style={s.iconBtn} onPress={() => openSort(headerSortRef)} activeOpacity={0.82}>
             <Ionicons name="options-outline" size={21} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -365,11 +408,20 @@ export default function AdminItems() {
           <Ionicons name="search-outline" size={19} color="#94a3b8" />
           <TextInput
             style={s.searchInput}
-            placeholder="ค้นหารหัส ชื่อ หรือ ประเภท..."
+            placeholder="พิมพ์ชื่อ รหัส หรือรหัสสแกน..."
             placeholderTextColor="#94a3b8"
             value={search}
             onChangeText={setSearch}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+            clearButtonMode="while-editing"
           />
+          {!!search && (
+            <TouchableOpacity style={s.clearBtn} onPress={() => setSearch("")} activeOpacity={0.8}>
+              <Ionicons name="close-circle" size={20} color="#94a3b8" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={s.scanBtn} onPress={() => router.push("/admin/scan" as any)} activeOpacity={0.82}>
             <Ionicons name="add" size={22} color={C.purple} />
           </TouchableOpacity>
@@ -403,10 +455,12 @@ export default function AdminItems() {
           </ScrollView>
 
           <View style={s.listHeader}>
-            <Text style={s.listTitle}>รายการอุปกรณ์</Text>
-            <TouchableOpacity style={s.sortBtn} activeOpacity={0.75}>
+            <Text style={s.listTitle}>
+              {search.trim() ? `ผลการค้นหา "${search.trim()}" · ${filtered.length} รายการ` : "รายการอุปกรณ์"}
+            </Text>
+            <TouchableOpacity ref={sortBtnRef} style={s.sortBtn} onPress={() => openSort(sortBtnRef)} activeOpacity={0.75}>
               <Text style={s.sortMuted}>เรียงตาม</Text>
-              <Text style={s.sortText}>รหัส</Text>
+              <Text style={s.sortText}>{SORTS.find((o) => o.key === sortKey)?.short}</Text>
               <Ionicons name="chevron-down" size={13} color={C.purple} />
             </TouchableOpacity>
           </View>
@@ -431,22 +485,28 @@ export default function AdminItems() {
       )}
 
       {/* เมนูจัดการ (ใช้แทน Alert ที่ไม่ทำงานบนเว็บ) */}
+      {/* ไม่ซ้อนปุ่มในปุ่ม: พื้นหลังกดปิดเป็นชั้นแยก อยู่ "ข้าง" แผ่นเมนู (บนมือถือปุ่มชั้นนอกแย่งการกด) */}
       <Modal visible={!!sheet} transparent animationType="fade" onRequestClose={() => setSheet(null)}>
-        <TouchableOpacity style={s.backdrop} activeOpacity={1} onPress={() => setSheet(null)}>
-          <TouchableOpacity style={s.sheet} activeOpacity={1}>
+        <View style={s.backdrop}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSheet(null)} accessibilityLabel="ปิดเมนู" />
+          <View style={s.sheet}>
             <Text style={s.sheetTitle}>{sheet?.title}</Text>
             {!!sheet?.message && <Text style={s.sheetMessage}>{sheet.message}</Text>}
             {sheet?.actions.map((a) => (
-              <TouchableOpacity key={a.label} style={s.sheetBtn} onPress={a.onPress} activeOpacity={0.8}>
+              <Pressable
+                key={a.label}
+                style={({ pressed }) => [s.sheetBtn, pressed && { opacity: 0.7 }]}
+                onPress={a.onPress}
+              >
                 <Ionicons name={a.icon} size={18} color={a.tone === "danger" ? C.red : C.purple} />
                 <Text style={[s.sheetBtnText, a.tone === "danger" && { color: C.red }]}>{a.label}</Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
-            <TouchableOpacity style={s.sheetCancel} onPress={() => setSheet(null)} activeOpacity={0.8}>
+            <Pressable style={s.sheetCancel} onPress={() => setSheet(null)}>
               <Text style={s.sheetCancelText}>ปิด</Text>
-            </TouchableOpacity>
-          </TouchableOpacity>
-        </TouchableOpacity>
+            </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* จำหน่ายออก: ต้องใส่เหตุผล */}
@@ -485,6 +545,16 @@ export default function AdminItems() {
           <ActivityIndicator color={C.purple} />
         </View>
       )}
+
+      {/* เมนูเรียงตาม โผล่ใต้ปุ่มที่กด */}
+      <AnchoredMenu
+        anchor={sortAnchor}
+        title="เรียงลำดับตาม"
+        options={SORTS.map((o) => o.label)}
+        selected={SORTS.findIndex((o) => o.key === sortKey)}
+        onSelect={(i) => setSortKey(SORTS[i].key)}
+        onClose={() => setSortAnchor(null)}
+      />
     </View>
   );
 }
@@ -766,6 +836,15 @@ const s = StyleSheet.create({
     backgroundColor: "#f8fafc",
     borderWidth: 1,
     borderColor: "#e2e8f0",
+  },
+  sortRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 12,
+  },
+  clearBtn: {
+    padding: 4,
   },
   cardRetired: {
     opacity: 0.6,

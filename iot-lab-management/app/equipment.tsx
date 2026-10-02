@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import supabase from "../lib/supabase";
 import { notify } from "../lib/notify";
+import AnchoredMenu, { Anchor, measureAnchor } from "../components/AnchoredMenu";
 import {
   ActivityIndicator,
   Image,
@@ -14,6 +15,17 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+
+// ของที่ยังไม่มีหมวด (ของเก่าก่อนมีตาราง categories) รวมไว้ที่หมวดนี้
+const OTHER = "อื่นๆ";
+
+type SortKey = "code" | "available" | "soonest";
+// label = ชื่อเต็มในเมนู / short = ชื่อสั้นบนปุ่ม "เรียงตาม"
+const SORTS: { key: SortKey; label: string; short: string }[] = [
+  { key: "code", label: "รหัสอุปกรณ์ (A–Z)", short: "รหัส A–Z" },
+  { key: "available", label: "พร้อมให้ยืมก่อน", short: "พร้อมให้ยืม" },
+  { key: "soonest", label: "กำหนดส่งคืนใกล้ที่สุด", short: "กำหนดส่งคืน" },
+];
 
 const formatDue = (value: string) =>
   new Date(value).toLocaleDateString("th-TH", { day: "numeric", month: "short" });
@@ -40,6 +52,7 @@ const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Kit: "color-wand-outline",
   Cable: "git-branch-outline",
   Other: "ellipsis-horizontal-outline",
+  "อื่นๆ": "ellipsis-horizontal-outline",
 };
 
 const STATUS_BADGE: Record<string, { label: string; bg: string; color: string; border: string; action: keyof typeof Ionicons.glyphMap }> = {
@@ -56,6 +69,10 @@ export default function Equipment() {
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [activeType, setActiveType] = useState("ทั้งหมด");
+  const [categories, setCategories] = useState<string[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>("code");
+  const sortBtnRef = useRef<any>(null);
+  const [sortAnchor, setSortAnchor] = useState<Anchor | null>(null);
 
   useEffect(() => {
     fetchItems();
@@ -64,18 +81,29 @@ export default function Equipment() {
   const fetchItems = async () => {
     setLoading(true);
     // ของที่จำหน่ายแล้วไม่แสดงในหน้ายืม (แผน 2.3)
-    const [{ data, error }, { data: loans }] = await Promise.all([
+    const [{ data, error }, { data: loans }, { data: cats }] = await Promise.all([
       supabase.from("items").select("*").neq("status", "retired"),
       // RLS: นักศึกษาเห็นแค่ประวัติของตัวเอง → ใช้ RPC ที่คืนแค่ ชิ้นไหน + วันคืน (ไม่บอกผู้ยืม)
       supabase.rpc("item_active_loans"),
+      supabase.from("categories").select("id, name, sort_order").eq("active", true).order("sort_order"),
     ]);
     if (error) {
       console.log(error);
       setItems([]);
     } else {
+      const catList = cats || [];
+      const byId: Record<string, string> = {};
+      catList.forEach((c: any) => { byId[c.id] = c.name; });
+      // หมวดของแต่ละชิ้น: จาก category_id → ถ้าไม่มีลองจับคู่ชื่อ type เดิม → ไม่เจอ = อื่นๆ
+      const categoryOf = (item: any) =>
+        byId[item.category_id] ||
+        catList.find((c: any) => c.name.toLowerCase() === String(item.type || "").trim().toLowerCase())?.name ||
+        OTHER;
+
       const dueMap: Record<string, string> = {};
       (loans || []).forEach((r: any) => { if (r.item_id && r.due_date) dueMap[r.item_id] = r.due_date; });
-      setItems((data || []).map((item: any) => ({ ...item, due_date: dueMap[item.id] })));
+      setCategories(catList.map((c: any) => c.name));
+      setItems((data || []).map((item: any) => ({ ...item, due_date: dueMap[item.id], category: categoryOf(item) })));
     }
     setLoading(false);
     setRefreshing(false);
@@ -86,25 +114,32 @@ export default function Equipment() {
     fetchItems();
   };
 
-  const types = useMemo(() => {
-    const unique = Array.from(new Set(items.map((item) => item.type || "Other").filter(Boolean)));
-    return ["ทั้งหมด", ...unique];
-  }, [items]);
+  // ชิปหมวด: ตามลำดับในตาราง categories แสดงเฉพาะหมวดที่มีของ
+  const types = ["ทั้งหมด", ...categories.filter((name) => items.some((item) => item.category === name))];
 
-  const filtered = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    return items
-      .filter((item) => activeType === "ทั้งหมด" || (item.type || "Other") === activeType)
-      .filter((item) => {
-        if (!query) return true;
-        return `${item.item_code || ""} ${item.barcode || ""} ${item.name || ""} ${item.type || ""} ${item.description || ""}`
-          .toLowerCase().includes(query);
-      })
-      .sort((a, b) => {
-        const byPrefix = String(a.item_prefix || a.name || "").localeCompare(String(b.item_prefix || b.name || ""), "th");
-        return byPrefix !== 0 ? byPrefix : (a.item_no || 0) - (b.item_no || 0);
-      });
-  }, [items, search, activeType]);
+  // พิมพ์แล้วกรองทันที ไม่สนช่องว่าง/ตัวพิมพ์ ("nodemcu001" เจอ "NodeMCU 001") และหาทุกหมวดระหว่างค้นหา
+  const compact = (v?: string) => (v || "").toLowerCase().replace(/[\s\-_.]/g, "");
+  const query = compact(search);
+  const filtered = items
+    .filter((item) => !!query || activeType === "ทั้งหมด" || item.category === activeType)
+    .filter((item) =>
+      !query ||
+      [item.item_code, item.barcode, item.name, item.short_name, item.category, item.description]
+        .some((field) => compact(field).includes(query))
+    )
+    .sort((a, b) => {
+      if (sortKey === "available") {
+        const rank = (i: any) => (i.status === "available" ? 0 : 1);
+        if (rank(a) !== rank(b)) return rank(a) - rank(b);
+      } else if (sortKey === "soonest") {
+        // ของที่ถูกยืม: คืนเร็วสุดขึ้นก่อน (จะว่างเร็วสุด) ของว่างไว้ท้าย
+        const due = (i: any) => (i.status === "available" ? "9999" : i.due_date || "9998");
+        const byDue = String(due(a)).localeCompare(String(due(b)));
+        if (byDue !== 0) return byDue;
+      }
+      const byPrefix = String(a.item_prefix || a.name || "").localeCompare(String(b.item_prefix || b.name || ""), "th");
+      return byPrefix !== 0 ? byPrefix : (a.item_no || 0) - (b.item_no || 0);
+    });
 
   const available = items.filter((item) => item.status === "available").length;
   const borrowed = items.filter((item) => item.status === "borrowed").length;
@@ -180,7 +215,7 @@ export default function Equipment() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
           {types.map((type) => {
             const active = activeType === type;
-            const count = type === "ทั้งหมด" ? items.length : items.filter((item) => (item.type || "Other") === type).length;
+            const count = type === "ทั้งหมด" ? items.length : items.filter((item) => item.category === type).length;
             return (
               <TouchableOpacity
                 key={type}
@@ -212,9 +247,15 @@ export default function Equipment() {
       </View>
 
       <View style={styles.titleRow}>
-        <Text style={styles.sectionTitle}>รายการอุปกรณ์</Text>
-        <TouchableOpacity activeOpacity={0.82}>
-          <Text style={styles.sortText}>เรียงตาม ชื่อ A-Z⌄</Text>
+        <Text style={styles.sectionTitle} numberOfLines={1}>
+          {query ? `ผลการค้นหา · ${filtered.length} รายการ` : "รายการอุปกรณ์"}
+        </Text>
+        <TouchableOpacity
+          ref={sortBtnRef}
+          onPress={() => measureAnchor(sortBtnRef, setSortAnchor)}
+          activeOpacity={0.82}
+        >
+          <Text style={styles.sortText}>เรียงตาม {SORTS.find((o) => o.key === sortKey)?.short} ⌄</Text>
         </TouchableOpacity>
       </View>
 
@@ -234,7 +275,7 @@ export default function Equipment() {
           ) : (
             filtered.map((item: any) => {
               const badge = STATUS_BADGE[item.status] || STATUS_BADGE.available;
-              const iconName = TYPE_ICONS[item.type] || TYPE_ICONS.Other;
+              const iconName = TYPE_ICONS[item.category] || TYPE_ICONS.Other;
               const isAvailable = item.status === "available";
 
               return (
@@ -255,7 +296,7 @@ export default function Equipment() {
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemName} numberOfLines={1}>{item.item_code || item.name}</Text>
                     <Text style={styles.itemType} numberOfLines={1}>
-                      {[item.name, item.type || "อุปกรณ์", item.description].filter(Boolean).join(" · ")}
+                      {[item.name, item.category, item.description].filter(Boolean).join(" · ")}
                     </Text>
                     <View style={styles.itemMetaRow}>
                       <View style={[styles.statusPill, { backgroundColor: badge.bg }]}>
@@ -298,6 +339,16 @@ export default function Equipment() {
           <Text style={styles.tabText}>โปรไฟล์</Text>
         </TouchableOpacity>
       </View>
+
+      {/* เมนูเรียงตาม โผล่ใต้ปุ่ม (ต้องเป็นลูกตัวสุดท้ายของหน้า จะได้อยู่บนสุด) */}
+      <AnchoredMenu
+        anchor={sortAnchor}
+        title="เรียงลำดับตาม"
+        options={SORTS.map((o) => o.label)}
+        selected={SORTS.findIndex((o) => o.key === sortKey)}
+        onSelect={(i) => setSortKey(SORTS[i].key)}
+        onClose={() => setSortAnchor(null)}
+      />
     </View>
   );
 }
