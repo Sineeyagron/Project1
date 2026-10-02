@@ -32,9 +32,10 @@ const C = {
   cyan: "#0891b2",
 };
 
+// แผน 2.6: Admin ยืม/คืนแทนนักศึกษาไม่ได้ สแกน = ดูสถานะ / อนุมัติผ่านกล่องคำขอ
 const PRIMARY = [
-  { icon: "barcode-outline", title: "สแกนยืม", route: "/admin/borrowscan", bg: "#2347ae" },
-  { icon: "return-down-back-outline", title: "สแกนคืน", route: "/admin/returnscan", bg: C.orange },
+  { icon: "scan-outline", title: "สแกนดูสถานะ", sub: "ผู้ยืม · ประวัติ", route: "/admin/lookup", bg: "#2347ae" },
+  { icon: "add-circle-outline", title: "เพิ่มอุปกรณ์", sub: "ออกรหัสให้อัตโนมัติ", route: "/admin/scan", bg: C.orange },
 ] as const;
 
 const TOOLS = [
@@ -319,7 +320,7 @@ export default function AdminHome() {
                   <View>
                     <Text style={s.primaryTitle}>{item.title}</Text>
                     <View style={s.primarySubRow}>
-                      <Text style={s.primarySub}>Tap to scan</Text>
+                      <Text style={s.primarySub}>{item.sub}</Text>
                       <Ionicons name="arrow-forward" size={12} color="#fff" />
                     </View>
                   </View>

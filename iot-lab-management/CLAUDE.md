@@ -117,9 +117,21 @@ ON CONFLICT DO NOTHING;
 
 ---
 
-## 🔄 Borrow Flow
+## 🔄 Borrow Flow (เฟส 3 — ใช้จริงตอนนี้)
 
-### ยืม (Admin ทำ):
+> ⚠️ Admin **ยืม/คืนแทนนักศึกษาไม่ได้แล้ว** (หน้า `borrowscan` / `returnscan` / `admin/borrow` ถูกลบ 2 ต.ค. 2569)
+
+1. นักศึกษาสแกน QR ที่ตัวของ (`app/scan.tsx`) → RPC `scan_lookup` บอกสถานะ
+2. ขอยืม / ขอคืน: ถ่ายรูปสด (`lib/borrowPhotos.ts` → bucket `borrow-photos/<user_id>/`) + ตรวจสภาพ → RPC `request_borrow` / `request_return` / `request_renew`
+3. ของถูกกันไว้ (`items.status = reserved` / `borrow_records.status = pending_return`) + แจ้งเตือน staff
+4. Admin อนุมัติ/ปฏิเสธใน `app/admin/requests.tsx` → RPC `decide_request` (คืน: ตรวจสภาพ ชำรุด → `repair` + ค่าเสียหาย)
+5. ไม่มีใครตอบใน `app_settings.request_expiry_minutes` (30) → pg_cron `expire_requests` ทุกนาที: ยืม = หมดอายุ / คืน = คืนอัตโนมัติ
+6. pg_cron `send_due_reminders` 08:00 ไทย: แจ้ง "พรุ่งนี้ครบกำหนด" + "เกินกำหนด"
+- กติกาทั้งหมดอยู่ใน RPC (security definer + ล็อกแถว) แอปเรียกอย่างเดียว — SQL: `supabase/migrations/2026100309*_phase3_*.sql`
+- Admin สแกน = ดูสถานะอย่างเดียว (`app/admin/lookup.tsx`)
+- จำกัดยืมพร้อมกัน `app_settings.max_active_borrows` (3), จำนวนวัน `borrow_day_options` ([3,5,7])
+
+### (เดิม) ยืม (Admin ทำ):
 1. Admin กด "สแกนยืม" ใน `admin/borrowscan.tsx`
 2. สแกน Barcode/QR บน item → ขึ้นชื่อ + รูป + สถานะ
 3. พิมพ์ email user (มี autocomplete จาก profiles)
