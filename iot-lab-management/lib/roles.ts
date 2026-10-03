@@ -21,6 +21,7 @@ const TA_ROUTES = new Set([
   "/admin/lookup", // สแกนดูสถานะ
   "/admin/history", // ประวัติยืม
   "/admin/stock", // รายงานสต็อก (ดูอย่างเดียว)
+  "/admin/report", // รายงานการยืม-คืน + ส่งออก
   "/admin/qrgen", // พิมพ์ป้าย QR
   "/admin/iotinspection", // ตรวจสภาพประจำเทอม
 ]);

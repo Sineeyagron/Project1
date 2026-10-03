@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
+import { setRememberLogin } from "../lib/session";
 import { getAllowedDomain, isAllowedEmail, signInWithGoogle, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
 
 export default function Login() {
@@ -138,6 +139,7 @@ export default function Login() {
 
   // หลังล็อกอินสำเร็จ (รหัสผ่าน / Google): โหลดสิทธิ์ แล้วพาไปหน้าตามบทบาท
   const finishLogin = async (user: any, fallbackEmail: string) => {
+    await setRememberLogin(rememberMe);
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role")

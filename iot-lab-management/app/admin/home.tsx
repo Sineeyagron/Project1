@@ -45,6 +45,7 @@ const TOOLS = [
   { icon: "qr-code-outline", label: "สร้าง QR", route: "/admin/qrgen", color: "#6366f1", bg: "#ede9fe" },
   { icon: "pricetags-outline", label: "หมวดหมู่", route: "/admin/categories", color: "#db2777", bg: "#fce7f3" },
   { icon: "bar-chart-outline", label: "รายงานสต็อก", route: "/admin/stock", color: "#0891b2", bg: "#cffafe" },
+  { icon: "document-attach-outline", label: "รายงานยืม-คืน", route: "/admin/report", color: "#0d9488", bg: "#ccfbf1" },
   { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings", color: "#475569", bg: "#f1f5f9" },
   { icon: "people-outline", label: "จัดการ TA", route: "/admin/users", color: "#7c3aed", bg: "#ede9fe" },
   { icon: "add-circle-outline", label: "เพิ่มอุปกรณ์", route: "/admin/scan", color: C.cyan, bg: "#cffafe" },

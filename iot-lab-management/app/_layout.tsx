@@ -3,11 +3,14 @@ import { useEffect } from "react";
 import * as Linking from "expo-linking";
 import supabase from "../lib/supabase";
 import { DialogHost } from "../lib/notify";
+import { applyRememberLogin } from "../lib/session";
 
 export default function Layout() {
   const router = useRouter();
 
   useEffect(() => {
+    // ไม่ได้ติ๊ก "จดจำการเข้าสู่ระบบ" ตอนล็อกอินครั้งก่อน → ออกจากระบบตอนเปิดแอปใหม่
+    applyRememberLogin();
 
     // ── วิธีที่ 1: onAuthStateChange ─────────────────────────────────────
     // Supabase SDK จะ "ฟัง" อยู่ตลอดว่ามี session เปลี่ยนแปลงไหม

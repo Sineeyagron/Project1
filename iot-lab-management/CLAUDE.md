@@ -81,6 +81,12 @@
 - **ช่วงพัฒนาปิดไว้** (ค่าว่าง) ทุกบัญชีใช้ได้ / **ตอน Final Project** เปิดสวิตช์ "รับเฉพาะอีเมล @kkumail.com" ที่หน้า `admin/settings` + เปิด Hook ใน Dashboard
 - ต้องตั้งค่าเอง: Google Cloud OAuth client + Supabase provider Google + Redirect URLs + เปิด Hook ใน Dashboard
 
+### จำการล็อกอิน + เฟส 5.1 รายงาน (4 ต.ค. 2569)
+- `lib/supabase.js`: มือถือเก็บ session ใน AsyncStorage (`@react-native-async-storage/async-storage`) + ต่ออายุเฉพาะตอนแอปเปิด / เว็บใช้ localStorage
+- `lib/session.ts`: ช่อง "จดจำการเข้าสู่ระบบ" ไม่ติ๊ก → เปิดแอปครั้งหน้าออกจากระบบ (`applyRememberLogin` ใน `app/_layout.tsx`)
+- `app/admin/report.tsx` (admin + TA): รายงานยืม-คืนตามช่วง (30 วัน / 3 เดือน / ปีนี้ / ทั้งหมด / กำหนดเอง) ส่งออก CSV + PDF — คำนวณใน `lib/report.ts`, ส่งออกผ่าน `lib/fileExport.ts`
+- ประวัติรุ่นเก่าที่คืนแล้วแต่ไม่มี `return_date` → ไม่นับว่าคืนช้า
+
 ### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
 - ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)
 - ผู้ใช้อ่านได้: `items`, `categories`, `borrow_locations`, `app_settings`, `computer_stations`, `lan_ports`, `station_equipment` + `profiles` / `borrow_records` / `notifications` ของตัวเอง (กด "อ่านแล้ว" ได้)
