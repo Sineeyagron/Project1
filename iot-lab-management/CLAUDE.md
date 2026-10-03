@@ -40,9 +40,62 @@
 | `repair_records` | ติดตามการซ่อม (station_id, description, status: pending/in-repair/done) |
 | `room_bookings` | ไม่ได้ใช้แล้ว (ระบบจองถูกเอาออก) |
 | `lan_ports` | LAN port ของ server แต่ละกลุ่ม (room_id, group_no, port_no, label, status) |
+| `categories` | หมวดหมู่อุปกรณ์ (Admin แก้ได้) — เฟส 1 |
+| `borrow_locations` | ห้องยืมของ (แยกจากห้องคอม) ตอนนี้มี "IoT Lab" ห้องเดียว — เฟส 1 |
+| `app_settings` | ค่าตั้งระบบ key/value (request_expiry_minutes, age_warn_years, age_replace_years) — เฟส 1 |
+| `item_code_counters` | ตัวนับรหัสเรียกต่อชื่อ แอปเข้าไม่ได้ (RLS ไม่มี policy) ใช้ผ่าน trigger — เฟส 1 |
 
-### RLS — DISABLED สำหรับ:
-- `computer_stations`, `room_bookings`, `lan_ports`
+### เฟส 1 (2 ต.ค. 2569) — รหัสเรียกอุปกรณ์
+- SQL อยู่ใน `supabase/migrations/` (รันแล้ว: `phase1_items`, `phase1_hardening`)
+- `items` เพิ่ม: `item_prefix`, `item_no`, `item_code` (เช่น `NodeMCU 001`, unique), `short_name`, `manufacturer_serial`, `warranty_expires_at`, `retired_at`, `retire_reason`, `category_id`, `location_id`
+- `items.status` ใส่ได้แค่ `available | borrowed | repair | retired` (default `available`)
+- **Trigger `items_before_insert`** ออก `item_code` + `barcode` 4 ตัว + `location_id` ให้เองทุกครั้งที่ insert (ไม่รับค่าจากแอป) / `items_before_update` ล็อกรหัสและห้องไม่ให้เปลี่ยน
+- ⚠️ โปรเจกต์มี event trigger `ensure_rls` เปิด RLS ให้ตารางใหม่อัตโนมัติ → สร้างตารางใหม่ต้องเขียน policy ในไฟล์เดียวกัน
+- `borrow_records` **ไม่มี** `created_at` → เรียงด้วย `borrow_date`
+- `lib/notify.ts` ใช้แทน `Alert.alert` (Alert ไม่ทำงานบนเว็บ), `lib/labels.ts` สร้างป้าย QR 6×2.8 ซม. (A4 27 ชิ้น)
+
+### เฟส 2 (3 ต.ค. 2569) — หมวด + Stock Report + แจ้งเตือนประกัน/อายุ
+- `app/admin/categories.tsx` จัดการหมวด (เพิ่ม/แก้ชื่อ/เรียง/ปิด/ลบ — ลบหมวดที่มีของต้องย้ายของไปหมวดอื่นก่อน) "อื่นๆ" = หมวดสำรอง ห้ามแก้
+- ชิปหมวดทั้งหน้า นศ. (`equipment.tsx`) และ Admin (`admin/items.tsx`) ดึงจาก `categories`: `category_id` → ชื่อในช่อง `type` → "อื่นๆ" / เปลี่ยนหมวดอัปเดตทั้ง `category_id` และ `type`
+- `app/admin/stock.tsx` รายงานสต็อก (`?watch=soon|expired|ageWarn|ageReplace` เปิดกลุ่มนั้น) / `lib/itemInfo.ts` คำนวณอายุ+ประกัน ใช้ร่วมกัน
+- `app/admin/settings.tsx` แก้ `app_settings`: `warranty_warn_days`, `age_warn_years`, `age_replace_years`, `max_active_borrows`, `request_expiry_minutes`
+- `app/admin/import.tsx` นำเข้า CSV (ชื่อ, หมวด, จำนวน, วันหมดประกัน, ชื่อย่อ) — ตรรกะตรวจทั้งหมดใน `lib/importItems.ts` (แยกจาก UI ทดสอบได้)
+  - ผิด = บันทึกไม่ได้ / เตือน = ต้องติ๊กยืนยัน / หมายเหตุ = แจ้งเฉยๆ · insert ครั้งเดียว + ตรวจซ้ำกับข้อมูลล่าสุดก่อนบันทึก + ยกเลิกการนำเข้าได้ (ลบชิ้นที่ยัง available)
+  - กันพลาด: หมวดสะกดผิด (แนะนำ+เลือกแก้ในแอป), ปี พ.ศ./ปีผ่านไปแล้ว, เลขวันที่ Excel, เลขไทย, เครื่องหมายคำพูด iPhone, นำเข้าซ้ำ/ชื่อซ้ำ, รหัสชนของเดิม, ไฟล์ .xlsx, ตัวคั่น , ; แท็บ
+  - เลือกไฟล์ได้ทั้งเว็บ (input) และมือถือ (`File.pickFileAsync` ของ expo-file-system) + วางข้อความ / แม่แบบ: เว็บดาวน์โหลด มือถือแชร์ · ถอดรหัส UTF-8/TIS-620 เขียนเอง (Hermes ไม่มี windows-874)
+- แก้วันหมดประกัน/Serial: หน้า `admin/items` กดการ์ด → "แก้ประกัน / Serial" (ชื่อ-รหัสแก้ไม่ได้)
+- migration `phase2_item_alerts`: แจ้งเตือนประเภท `warranty_soon|warranty_expired|age_warn|age_replace`, ตาราง `item_alerts` (กันเตือนซ้ำ แอปเข้าไม่ได้), RPC `send_item_alerts()` + pg_cron `item-health-alerts` 08:00 ไทย
+
+### เฟส 4.1 — บทบาท TA (migration `phase4_ta_role`)
+- `profiles.role` = `user | ta | admin` / `_staff_roles()` = admin+ta → `is_staff()` รวม TA
+- TA อ่านได้เพิ่ม: `borrow_records`, `profiles` ทั้งหมด / บันทึก `item_inspections` ได้ (ลบได้เฉพาะ admin) / เขียนอย่างอื่นยังเป็น `is_admin()`
+- แจ้งเตือนประกัน/อายุ ส่งเฉพาะ admin (`_notify_staff`) / TA ได้ เกินกำหนด + คืนอัตโนมัติ
+- RPC `set_user_role(p_user, p_role)` admin เท่านั้น ตั้งได้แค่ user↔ta (ห้ามตัวเอง/ห้ามแตะ admin) + แจ้งเตือน `role_changed`
+- trigger `borrow_requests_no_self_decide`: TA อนุมัติ/ปฏิเสธคำขอของตัวเองไม่ได้
+- แอป: `lib/roles.ts` (`canAccess`, `TA_ROUTES`, `RoleContext`/`useRole`) / `admin/_layout.tsx` ให้ admin+ta เข้า แล้วกันหน้าที่ TA ไม่มีสิทธิ์ / `admin/users.tsx` จัดการ TA / หน้าแรกนักศึกษามีปุ่มกลับแดชบอร์ดสำหรับ staff
+
+### เฟส 4.2 — ล็อกอิน Google (@kkumail.com)
+- `lib/googleAuth.ts`: เว็บ = redirect กลับ `/login` / มือถือ = `WebBrowser.openAuthSessionAsync` + `Linking.createURL("/login")` (Expo Go = `exp://.../--/login`) / ส่ง `hd=kkumail.com`
+- `app/login.tsx`: ปุ่ม Google + `finishLogin()` ใช้ร่วมกับล็อกอินรหัสผ่าน / หลัง Google ตรวจโดเมนซ้ำ ไม่ใช่ kkumail → signOut
+- ด่านจริง: Auth Hook "Before User Created" → `hook_restrict_signup_domain` (migration `phase4_google_domain`) อ่าน `app_settings.allowed_email_domain` (ว่าง = รับทุกโดเมน) — บัญชีเดิมไม่โดน
+- **ช่วงพัฒนาปิดไว้** (ค่าว่าง) ทุกบัญชีใช้ได้ / **ตอน Final Project** เปิดสวิตช์ "รับเฉพาะอีเมล @kkumail.com" ที่หน้า `admin/settings` + เปิด Hook ใน Dashboard
+- ต้องตั้งค่าเอง: Google Cloud OAuth client + Supabase provider Google + Redirect URLs + เปิด Hook ใน Dashboard
+
+### จำการล็อกอิน + เฟส 5.1 รายงาน (4 ต.ค. 2569)
+- `lib/supabase.js`: มือถือเก็บ session ใน AsyncStorage (`@react-native-async-storage/async-storage`) + ต่ออายุเฉพาะตอนแอปเปิด / เว็บใช้ localStorage
+- `lib/session.ts`: ช่อง "จดจำการเข้าสู่ระบบ" ไม่ติ๊ก → เปิดแอปครั้งหน้าออกจากระบบ (`applyRememberLogin` ใน `app/_layout.tsx`)
+- `app/admin/report.tsx` (admin + TA): รายงานยืม-คืนตามช่วง (30 วัน / 3 เดือน / ปีนี้ / ทั้งหมด / กำหนดเอง) ส่งออก CSV + PDF — คำนวณใน `lib/report.ts`, ส่งออกผ่าน `lib/fileExport.ts`
+- ประวัติรุ่นเก่าที่คืนแล้วแต่ไม่มี `return_date` → ไม่นับว่าคืนช้า
+
+### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
+- ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)
+- ผู้ใช้อ่านได้: `items`, `categories`, `borrow_locations`, `app_settings`, `computer_stations`, `lan_ports`, `station_equipment` + `profiles` / `borrow_records` / `notifications` ของตัวเอง (กด "อ่านแล้ว" ได้)
+- admin เท่านั้น: เขียนทุกตาราง, `repair_records`, `equipment_inspections`, `item_inspections`, `room_bookings`
+- `profiles`: trigger `profiles_protect` กันผู้ใช้เปลี่ยน `role` / `email` ของตัวเอง (admin เปลี่ยนได้)
+- RPC `item_active_loans()` = วันคืนของที่ถูกยืม (ไม่บอกผู้ยืม) ใช้ในหน้า equipment
+- Storage `item-images`: อัปโหลด/แก้/ลบ เฉพาะ admin → มือถือต้องส่ง `session.access_token` ไม่ใช่ anon key
+- หน้าใน `app/admin/` ผ่านด่าน `app/admin/_layout.tsx` (ไม่ใช่ admin → /home)
+- **เพิ่มตารางหรือหน้าใหม่ ต้องเขียน policy ให้ครบ** ไม่งั้นแอปอ่าน/เขียนไม่ได้
 
 ### Supabase Storage
 - Bucket: **`item-images`** — รูปอุปกรณ์ (public)
@@ -97,9 +150,21 @@ ON CONFLICT DO NOTHING;
 
 ---
 
-## 🔄 Borrow Flow
+## 🔄 Borrow Flow (เฟส 3 — ใช้จริงตอนนี้)
 
-### ยืม (Admin ทำ):
+> ⚠️ Admin **ยืม/คืนแทนนักศึกษาไม่ได้แล้ว** (หน้า `borrowscan` / `returnscan` / `admin/borrow` ถูกลบ 2 ต.ค. 2569)
+
+1. นักศึกษาสแกน QR ที่ตัวของ (`app/scan.tsx`) → RPC `scan_lookup` บอกสถานะ
+2. ขอยืม / ขอคืน: ถ่ายรูปสด (`lib/borrowPhotos.ts` → bucket `borrow-photos/<user_id>/`) + ตรวจสภาพ → RPC `request_borrow` / `request_return` / `request_renew`
+3. ของถูกกันไว้ (`items.status = reserved` / `borrow_records.status = pending_return`) → คำขอขึ้นใน **กล่องคำขอ** อย่างเดียว (migration `staff_inbox_split`: `_notify_staff` ไม่ส่ง `request_*` เข้ากระดิ่ง; กระดิ่งผู้ดูแล = ประกัน/อายุ/เกินกำหนด/คืนอัตโนมัติ, ปุ่มกระดิ่งอยู่หน้า `admin/home`)
+4. Admin อนุมัติ/ปฏิเสธใน `app/admin/requests.tsx` → RPC `decide_request` (คืน: ตรวจสภาพ ชำรุด → `repair` + ค่าเสียหาย)
+5. ไม่มีใครตอบใน `app_settings.request_expiry_minutes` (30) → pg_cron `expire_requests` ทุก 5 นาที (เดิมทุกนาที เปลี่ยนเพราะ Disk IO ของแพ็กเกจฟรี — migration `reduce_disk_io` + `cleanup-cron-history` ลบบันทึก cron เก่ากว่า 7 วัน; หน้าแจ้งเตือน/กล่องคำขอรีเฟรชทุก 30 วิ เฉพาะตอนแอปเปิดอยู่): ยืม = หมดอายุ / คืน = คืนอัตโนมัติ
+6. pg_cron `send_due_reminders` 08:00 ไทย: แจ้ง "พรุ่งนี้ครบกำหนด" + "เกินกำหนด"
+- กติกาทั้งหมดอยู่ใน RPC (security definer + ล็อกแถว) แอปเรียกอย่างเดียว — SQL: `supabase/migrations/2026100309*_phase3_*.sql`
+- Admin สแกน = ดูสถานะอย่างเดียว (`app/admin/lookup.tsx`)
+- จำกัดยืมพร้อมกัน `app_settings.max_active_borrows` (3), จำนวนวัน `borrow_day_options` ([3,5,7])
+
+### (เดิม) ยืม (Admin ทำ):
 1. Admin กด "สแกนยืม" ใน `admin/borrowscan.tsx`
 2. สแกน Barcode/QR บน item → ขึ้นชื่อ + รูป + สถานะ
 3. พิมพ์ email user (มี autocomplete จาก profiles)

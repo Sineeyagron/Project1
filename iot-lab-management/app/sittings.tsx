@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
+import { confirmAction } from "../lib/notify";
 
 export default function Settings() {
   const router = useRouter();
@@ -22,13 +23,10 @@ export default function Settings() {
   }, []);
 
   const handleLogout = () => {
-    Alert.alert("ออกจากระบบ", "ต้องการออกจากระบบใช่ไหม?", [
-      { text: "ยกเลิก", style: "cancel" },
-      { text: "ออกจากระบบ", style: "destructive", onPress: async () => {
-        await supabase.auth.signOut();
-        router.replace("/login");
-      }},
-    ]);
+    confirmAction("ออกจากระบบ", "ต้องการออกจากระบบใช่ไหม?", "ออกจากระบบ", async () => {
+      await supabase.auth.signOut();
+      router.replace("/login");
+    }, true);
   };
 
   return (

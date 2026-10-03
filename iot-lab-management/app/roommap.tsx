@@ -50,7 +50,7 @@ export default function RoomMap() {
   const [serverModal, setServerModal] = useState(false);
   const [serverGroup, setServerGroup] = useState<number | null>(null);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [roomName]);
 
   const fetchAll = async () => {
     const [{ data: st }, { data: lp }, { data: eq }] = await Promise.all([
@@ -112,11 +112,16 @@ export default function RoomMap() {
 
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#1e3a8a" />
+        <TouchableOpacity style={s.headerBtn} onPress={() => router.replace("/home")} activeOpacity={0.84}>
+          <Ionicons name="arrow-back" size={23} color="#fff" />
         </TouchableOpacity>
-        <Text style={s.headerText}>ผังห้อง {roomName}</Text>
-        <View style={{ width: 24 }} />
+        <View style={s.headerTitleBlock}>
+          <Text style={s.headerText}>ผังห้อง {roomName}</Text>
+          <Text style={s.headerSub}>{stations.length} เครื่อง · {lanPorts.length} LAN port</Text>
+        </View>
+        <TouchableOpacity style={s.headerBtn} onPress={onRefresh} activeOpacity={0.84}>
+          <Ionicons name="refresh" size={19} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {/* LEGEND */}
@@ -134,6 +139,7 @@ export default function RoomMap() {
         <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 40 }} />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}
+          contentContainerStyle={s.scrollContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}>
 
           {/* กระดาน */}
@@ -321,17 +327,47 @@ export default function RoomMap() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9", paddingTop: 50, paddingHorizontal: 16 },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
-  headerText: { fontSize: 18, fontWeight: "bold", color: "#1e3a8a" },
+  container: { flex: 1, backgroundColor: "#edf5ff" },
+  header: {
+    backgroundColor: "#2563eb",
+    paddingTop: 54,
+    paddingBottom: 17,
+    paddingHorizontal: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  headerBtn: {
+    width: 39,
+    height: 39,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.23)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitleBlock: { flex: 1, paddingHorizontal: 14 },
+  headerText: { fontSize: 21, fontWeight: "900", color: "#fff" },
+  headerSub: { color: "#dbeafe", fontSize: 11, fontWeight: "800", marginTop: 2 },
 
-  legend: { flexDirection: "row", gap: 12, marginBottom: 14, alignItems: "center", flexWrap: "wrap" },
+  legend: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 14,
+    alignItems: "center",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    paddingTop: 14,
+  },
   legItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legDot: { width: 10, height: 10, borderRadius: 5 },
   legTxt: { fontSize: 11, color: "#64748b" },
   viewOnly: { marginLeft: "auto", fontSize: 10, color: "#94a3b8" },
 
-  board: { backgroundColor: "#1e3a8a", borderRadius: 10, padding: 10, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 10 },
+  scrollContent: { paddingHorizontal: 16 },
+
+  board: { backgroundColor: "#2563eb", borderRadius: 10, padding: 10, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 10 },
   boardTxt: { color: "#fff", fontWeight: "600", fontSize: 13 },
   teacherDesk: { backgroundColor: "#dbeafe", borderRadius: 10, padding: 10, alignItems: "center", marginBottom: 14, borderWidth: 1.5, borderStyle: "dashed", borderColor: "#93c5fd" },
   teacherTxt: { color: "#1e3a8a", fontWeight: "600", fontSize: 12 },

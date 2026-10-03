@@ -8,9 +8,41 @@ import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
-  borrow: { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
-  return: { icon: "checkmark-circle-outline", iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  borrow:         { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
+  return:         { icon: "checkmark-circle-outline", iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  // ถึงผู้ดูแล: มีคำขอใหม่
+  request_borrow: { icon: "hand-left-outline",        iconColor: "#2563eb", iconBg: "#dbeafe", dot: "#3b82f6" },
+  request_return: { icon: "return-down-back-outline", iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  request_renew:  { icon: "refresh-outline",          iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
+  // ถึงผู้ขอ: ผลคำขอ
+  approved:       { icon: "checkmark-circle-outline", iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  renewed:        { icon: "calendar-outline",         iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  declined:       { icon: "close-circle-outline",     iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+  expired:        { icon: "time-outline",             iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
+  cancelled:      { icon: "ban-outline",              iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
+  auto_returned:  { icon: "alert-circle-outline",     iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
+  // เตือนกำหนดคืน
+  due_soon:       { icon: "alarm-outline",            iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
+  overdue:        { icon: "warning-outline",          iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+  // ถึงผู้ดูแล: ประกัน / อายุอุปกรณ์ (เฟส 2.3)
+  warranty_soon:    { icon: "shield-half-outline",    iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
+  warranty_expired: { icon: "shield-outline",         iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+  age_warn:         { icon: "eye-outline",            iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
+  age_replace:      { icon: "refresh-circle-outline", iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+  // สิทธิ์ TA เปลี่ยน (เฟส 4.1)
+  role_changed:     { icon: "shield-checkmark-outline", iconColor: "#7c3aed", iconBg: "#ede9fe", dot: "#8b5cf6" },
 };
+
+// แจ้งเตือนประกัน/อายุ → เปิดรายงานสต็อก ตรงกลุ่ม "ต้องดูแล" นั้น
+const STOCK_WATCH: Record<string, string> = {
+  warranty_soon: "soon",
+  warranty_expired: "expired",
+  age_warn: "ageWarn",
+  age_replace: "ageReplace",
+};
+
+// ประเภทที่ผู้ดูแลต้องไปจัดการในกล่องคำขอ
+const STAFF_TYPES = new Set(["request_borrow", "request_return", "request_renew", "auto_returned", "overdue"]);
 
 const formatDateTime = (d: string) => {
   if (!d) return "";
@@ -36,12 +68,17 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [newCount, setNewCount] = useState(0);
+  const [isStaff, setIsStaff] = useState(false);
   const prevCountRef = useRef(-1);
   const isFirstLoad = useRef(true);
 
   const fetchNotifications = useCallback(async (silent = false) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setLoading(false); return; }
+    if (isFirstLoad.current) {
+      const { data: staff } = await supabase.rpc("is_staff");
+      setIsStaff(!!staff);
+    }
 
     const { data } = await supabase
       .from("notifications")
@@ -75,7 +112,8 @@ export default function Notifications() {
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
 
   useEffect(() => {
-    const interval = setInterval(() => fetchNotifications(true), 15000);
+    // ทุก 30 วินาที ข้ามตอนแอป/แท็บอยู่เบื้องหลัง (ประหยัด Disk IO ของ Supabase)
+    const interval = setInterval(() => { if (AppState.currentState === "active") fetchNotifications(true); }, 30000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
@@ -87,6 +125,38 @@ export default function Notifications() {
   }, [fetchNotifications]);
 
   const onRefresh = () => { setRefreshing(true); setNewCount(0); fetchNotifications(); };
+
+  // TA อาจยืมของเองด้วย: "เกินกำหนด" / "คืนอัตโนมัติ" ของผู้ยืมกับของผู้ดูแลเป็นประเภทเดียวกัน
+  // → ถ้าเป็นของที่ตัวเองยืม พาไปหน้าการยืมของตัวเอง ไม่ใช่กล่องคำขอ
+  const isMyLoan = async (n: any) => {
+    if (!["overdue", "auto_returned"].includes(n.type) || !n.item_id) return false;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { count } = await supabase
+      .from("borrow_records")
+      .select("id", { count: "exact", head: true })
+      .eq("item_id", n.item_id)
+      .eq("user_id", user.id);
+    return (count || 0) > 0;
+  };
+
+  // กดแจ้งเตือน → อ่านแล้ว + ไปหน้าที่เกี่ยวข้อง
+  const openNotification = async (n: any) => {
+    if (!n.read) {
+      await supabase.from("notifications").update({ read: true }).eq("id", n.id);
+      setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+    }
+    if (n.type === "role_changed") {
+      // ด่านหน้า admin เช็กสิทธิ์ล่าสุดเอง: ได้ TA → เข้าได้ / ถูกถอด → พากลับหน้านักศึกษา
+      router.replace("/admin/home");
+    } else if (isStaff && STOCK_WATCH[n.type]) {
+      router.push(`/admin/stock?watch=${STOCK_WATCH[n.type]}` as any);
+    } else if (isStaff && STAFF_TYPES.has(n.type) && !(await isMyLoan(n))) {
+      router.push((n.request_id ? `/admin/requests?id=${n.request_id}` : "/admin/requests") as any);
+    } else if (n.type !== "borrow" && n.type !== "return") {
+      router.push("/borrow");
+    }
+  };
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -139,7 +209,12 @@ export default function Notifications() {
           {notifications.map(n => {
             const cfg = TYPE_CFG[n.type] || TYPE_CFG.borrow;
             return (
-              <View key={n.id} style={[s.card, !n.read && s.cardUnread]}>
+              <TouchableOpacity
+                key={n.id}
+                style={[s.card, !n.read && s.cardUnread]}
+                onPress={() => openNotification(n)}
+                activeOpacity={0.85}
+              >
                 {!n.read && <View style={[s.dot, { backgroundColor: cfg.dot }]} />}
                 <View style={[s.iconBox, { backgroundColor: cfg.iconBg }]}>
                   <Ionicons name={cfg.icon} size={22} color={cfg.iconColor} />
@@ -155,7 +230,7 @@ export default function Notifications() {
                     <Text style={s.cardDateTime}>{formatDateTime(n.created_at)}</Text>
                   </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             );
           })}
 

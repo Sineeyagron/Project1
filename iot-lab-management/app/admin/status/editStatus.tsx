@@ -77,7 +77,7 @@ export default function EditStatus() {
     <View style={styles.container}>
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerText}>แก้ไขสถานะเครื่อง</Text>
@@ -161,9 +161,19 @@ export default function EditStatus() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f1f5f9" },
   header: {
-    backgroundColor: "#1e3a8a",
+    backgroundColor: "#7c3aed",
     paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.20)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
   roomRow: { flexDirection: "row", gap: 8, padding: 16, flexWrap: "wrap" },

@@ -1,69 +1,73 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, Alert, ActivityIndicator,
+  ScrollView, ActivityIndicator,
   Image, KeyboardAvoidingView, Platform, TextInput,
 } from "react-native";
-import { CameraView, useCameraPermissions } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { addYears, isValidDate } from "../../lib/itemInfo";
+import { notify } from "../../lib/notify";
 
 const FS = FileSystem as any;
 const SUPABASE_URL = "https://enupmlxmajjwskvzgcdq.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVudXBtbHhtYWpqd3NrdnpnY2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDIxMDUsImV4cCI6MjA4OTMxODEwNX0.px5ah-o_guGnQ8lTP7oJIwZXJEDiAcicuQTo3A_4aqE";
 
-type Step = "scan" | "details" | "preview";
+// เพิ่มอุปกรณ์: กรอก → ยืนยัน (QR ป้ายสร้างทีหลังที่หน้า qrgen ไม่ได้สแกนตอนเพิ่มแล้ว)
+type Step = "details" | "preview";
+type Category = { id: string; name: string };
+
+// ตัดช่องว่าง/สัญลักษณ์แบบเดียวกับ alloc_item_code() ในฐานข้อมูล ใช้แค่แสดงตัวอย่างรหัส
+const codePrefixPreview = (name: string, shortName: string) =>
+  (shortName.trim() || name.trim()).replace(/[\s!-/:-@[-`{-~]/g, "") || "Item";
+
+const formatThaiDate = (value: string) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString("th-TH", {
+    day: "numeric", month: "short", year: "numeric",
+  });
 
 export default function Scan() {
   const router = useRouter();
-  const [permission, requestPermission] = useCameraPermissions();
 
-  const [step, setStep] = useState<Step>("scan");
-  const [scanned, setScanned] = useState(false);
+  const [step, setStep] = useState<Step>("details");
 
-  // ข้อมูลที่ได้จาก QR
   const [name, setName] = useState("");
-  const [type, setType] = useState("");
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState("1");
+
+  // ข้อมูลเพิ่มเติม (เฟส 1)
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [shortName, setShortName] = useState("");
+  const [serial, setSerial] = useState("");
+  const [warranty, setWarranty] = useState("");
 
   // รูปภาพจริง
   const [photoUri, setPhotoUri] = useState("");
 
   const [saving, setSaving] = useState(false);
 
-  // ── สแกน QR → parse JSON ──
-  const handleBarcodeScan = ({ data }: { data: string }) => {
-    if (scanned) return;
-    setScanned(true);
+  useEffect(() => {
+    supabase
+      .from("categories")
+      .select("id, name")
+      .eq("active", true)
+      .order("sort_order")
+      .then(({ data }) => setCategories(data || []));
+  }, []);
 
-    try {
-      const parsed = JSON.parse(data);
-      // เป็น QR ที่สร้างจากระบบ (มี name field)
-      if (parsed.name) {
-        setName(parsed.name || "");
-        setType(parsed.type || "");
-        setDescription(parsed.description || "");
-        setStep("details");
-        return;
-      }
-    } catch {
-      // ไม่ใช่ JSON → ใช้ค่าดิบเป็นชื่อ
-    }
-
-    // QR ทั่วไป → ใช้ค่าเป็นชื่อเริ่มต้น
-    setName(data);
-    setStep("details");
-  };
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const warrantyInvalid = !!warranty.trim() && !isValidDate(warranty.trim());
+  const canContinue = !!name.trim() && !warrantyInvalid;
 
   // ── ถ่ายรูปอุปกรณ์ ──
   const handleTakePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("ต้องการสิทธิ์กล้อง");
+      notify("ต้องการสิทธิ์กล้อง");
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -90,79 +94,131 @@ export default function Scan() {
 
   // ── Upload รูป + บันทึก items ──
   const handleSave = async () => {
-    if (!name.trim()) { Alert.alert("กรอกชื่ออุปกรณ์ก่อน"); return; }
+    if (!name.trim()) { notify("กรอกชื่ออุปกรณ์ก่อน"); return; }
+    if (warranty.trim() && !isValidDate(warranty.trim())) {
+      notify("วันหมดประกันไม่ถูกต้อง", "ใช้รูปแบบ ปปปป-ดด-วว เช่น 2027-10-02");
+      return;
+    }
     const qty = parseInt(quantity) || 1;
     setSaving(true);
 
     try {
       let finalImageUrl = "";
 
-      // Upload รูปจริงไป Supabase Storage ด้วย FileSystem.uploadAsync (reliable ที่สุดใน RN)
       if (photoUri) {
-        const ext = photoUri.split(".").pop()?.split("?")[0]?.toLowerCase() || "jpg";
-        const fileName = `items/${Date.now()}_${name.replace(/\s+/g, "_")}.${ext}`;
-        const contentType = ext === "png" ? "image/png" : "image/jpeg";
+        // ชื่อไฟล์ใช้แค่ ASCII: Storage ไม่รับ key ที่มีตัวอักษรไทย
+        const fileBase = `items/${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        let fileName = "";
+        let uploadError = "";
 
-        const uploadRes = await FS.uploadAsync(
-          `${SUPABASE_URL}/storage/v1/object/item-images/${fileName}`,
-          photoUri,
-          {
-            uploadType: FS.FileSystemUploadType.BINARY_CONTENT,
-            mimeType: contentType,
-            httpMethod: "POST",
-            headers: {
-              Authorization: `Bearer ${SUPABASE_ANON}`,
-              "Content-Type": contentType,
-              "x-upsert": "true",
-            },
+        if (Platform.OS === "web") {
+          // บนเว็บรูปเป็น blob: URL และไม่มี FileSystem.uploadAsync → อัปโหลดผ่าน supabase-js
+          const blob = await (await fetch(photoUri)).blob();
+          const ext = blob.type === "image/png" ? "png" : "jpg";
+          fileName = `${fileBase}.${ext}`;
+          const { error: upErr } = await supabase.storage
+            .from("item-images")
+            .upload(fileName, blob, { contentType: blob.type || "image/jpeg", upsert: true });
+          if (upErr) uploadError = upErr.message;
+        } else {
+          // มือถือ: FileSystem.uploadAsync (reliable ที่สุดใน RN, กัน bug ไฟล์ 0 ไบต์)
+          const ext = photoUri.split(".").pop()?.split("?")[0]?.toLowerCase() || "jpg";
+          fileName = `${fileBase}.${ext}`;
+          const contentType = ext === "png" ? "image/png" : "image/jpeg";
+          // Storage อนุญาตเฉพาะ admin → ต้องส่ง token ของผู้ใช้ที่ล็อกอิน ไม่ใช่ anon key
+          const { data: { session } } = await supabase.auth.getSession();
+
+          const uploadRes = await FS.uploadAsync(
+            `${SUPABASE_URL}/storage/v1/object/item-images/${fileName}`,
+            photoUri,
+            {
+              uploadType: FS.FileSystemUploadType.BINARY_CONTENT,
+              mimeType: contentType,
+              httpMethod: "POST",
+              headers: {
+                Authorization: `Bearer ${session?.access_token ?? SUPABASE_ANON}`,
+                apikey: SUPABASE_ANON,
+                "Content-Type": contentType,
+                "x-upsert": "true",
+              },
+            }
+          );
+          if (uploadRes.status !== 200 && uploadRes.status !== 201) {
+            uploadError = `status: ${uploadRes.status}\n${uploadRes.body}`;
           }
-        );
+        }
 
-        if (uploadRes.status === 200 || uploadRes.status === 201) {
+        if (uploadError) {
+          notify("อัปโหลดรูปไม่สำเร็จ", `${uploadError}\n\nจะบันทึกอุปกรณ์โดยไม่มีรูป`);
+        } else {
           const { data: { publicUrl } } = supabase.storage
             .from("item-images").getPublicUrl(fileName);
           finalImageUrl = publicUrl;
-        } else {
-          Alert.alert("อัปโหลดรูปไม่สำเร็จ", `status: ${uploadRes.status}\n${uploadRes.body}`);
         }
       }
 
-      // Insert items (1 row ต่อ 1 ชิ้น)
+      // Insert items (1 row ต่อ 1 ชิ้น) — item_code, barcode, location_id ฐานข้อมูลสร้างให้เอง
       const insertData = Array.from({ length: qty }, () => ({
         name: name.trim(),
         status: "available",
         image_url: finalImageUrl || null,
         description: description.trim() || null,
+        category_id: categoryId || null,
+        type: selectedCategory?.name || null,
+        short_name: shortName.trim() || null,
+        manufacturer_serial: serial.trim() || null,
+        warranty_expires_at: warranty.trim() || null,
       }));
 
-      const { error } = await supabase.from("items").insert(insertData);
+      const { data: saved, error } = await supabase
+        .from("items")
+        .insert(insertData)
+        .select("item_no, item_code, barcode");
       if (error) throw error;
 
-      Alert.alert(
+      const codes = (saved || [])
+        .sort((a, b) => a.item_no - b.item_no)
+        .map((row) => `${row.item_code}  (สแกน ${row.barcode})`)
+        .join("\n");
+
+      notify(
         "บันทึกสำเร็จ! 🎉",
-        `เพิ่ม "${name}" จำนวน ${qty} ชิ้นเข้าระบบแล้ว`,
-        [{ text: "โอเค", onPress: () => router.back() }]
+        `เพิ่ม "${name}" จำนวน ${qty} ชิ้นเข้าระบบแล้ว\n\n${codes}`,
+        () => router.replace("/admin/home")
       );
     } catch (e: any) {
-      Alert.alert("เกิดข้อผิดพลาด", e.message);
+      notify("เกิดข้อผิดพลาด", e.message);
     } finally {
       setSaving(false);
     }
   };
 
+  const clearForm = () => {
+    setName("");
+    setCategoryId("");
+    setDescription("");
+    setQuantity("1");
+    setPhotoUri("");
+    setShortName("");
+    setSerial("");
+    setWarranty("");
+  };
+
   const resetAll = () => {
-    setStep("scan");
-    setScanned(false);
-    setName(""); setType(""); setDescription("");
-    setQuantity("1"); setPhotoUri("");
+    setStep("details");
+    clearForm();
+  };
+
+  const goBack = () => {
+    router.replace("/admin/home");
   };
 
   // ── STEP INDICATOR ──
   const StepBar = () => (
     <View style={si.row}>
-      {["สแกน QR", "รายละเอียด", "บันทึก"].map((label, i) => {
+      {["รายละเอียด", "ยืนยัน & บันทึก"].map((label, i) => {
         const num = i + 1;
-        const current = step === "scan" ? 1 : step === "details" ? 2 : 3;
+        const current = step === "details" ? 1 : 2;
         const done = num < current;
         const active = num === current;
         return (
@@ -176,81 +232,14 @@ export default function Scan() {
               </View>
               <Text style={[si.label, active && si.labelActive]}>{label}</Text>
             </View>
-            {i < 2 && <View style={[si.line, done && si.lineDone]} />}
+            {i < 1 && <View style={[si.line, done && si.lineDone]} />}
           </React.Fragment>
         );
       })}
     </View>
   );
 
-  // ── RENDER: Step 1 — Scan ──
-  if (step === "scan") {
-    if (!permission) return <View style={styles.center}><ActivityIndicator /></View>;
-
-    if (!permission.granted) {
-      return (
-        <View style={styles.center}>
-          <Ionicons name="camera-outline" size={48} color="#94a3b8" />
-          <Text style={styles.permText}>ต้องการสิทธิ์เข้าถึงกล้อง</Text>
-          <TouchableOpacity style={styles.permBtn} onPress={requestPermission}>
-            <Text style={styles.permBtnText}>อนุญาตให้เข้าถึงกล้อง</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerText}>สแกน QR อุปกรณ์</Text>
-          <View style={{ width: 22 }} />
-        </View>
-
-        <StepBar />
-
-        <View style={styles.scanWrap}>
-          <CameraView
-            style={styles.camera}
-            onBarcodeScanned={handleBarcodeScan}
-            barcodeScannerSettings={{
-              barcodeTypes: ["qr", "ean13", "ean8", "code128", "code39"],
-            }}
-          >
-            {/* กรอบสแกน */}
-            <View style={styles.overlay}>
-              <View style={styles.frameBox}>
-                <View style={[styles.corner, styles.cTL]} />
-                <View style={[styles.corner, styles.cTR]} />
-                <View style={[styles.corner, styles.cBL]} />
-                <View style={[styles.corner, styles.cBR]} />
-                <Text style={styles.frameHint}>จ่อ QR ให้อยู่ในกรอบ</Text>
-              </View>
-            </View>
-          </CameraView>
-        </View>
-
-        <View style={styles.scanBottom}>
-          <Text style={styles.scanDesc}>
-            สแกน QR Code ที่แปะบนอุปกรณ์{"\n"}ข้อมูลจะขึ้นมาอัตโนมัติ
-          </Text>
-
-          {/* ปุ่มไปหน้า QR Generator */}
-          <TouchableOpacity
-            style={styles.qrGenBtn}
-            onPress={() => router.push("/admin/qrgen")}
-          >
-            <Ionicons name="qr-code-outline" size={16} color="#7c3aed" />
-            <Text style={styles.qrGenText}>ยังไม่มี QR? กดสร้าง QR ที่นี่</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  }
-
-  // ── RENDER: Step 2 — Details + Photo ──
+  // ── RENDER: Step 1 — Details + Photo ──
   if (step === "details") {
     return (
       <KeyboardAvoidingView
@@ -258,10 +247,10 @@ export default function Scan() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <View style={styles.header}>
-          <TouchableOpacity onPress={resetAll}>
+          <TouchableOpacity style={styles.scanBackBtn} onPress={goBack} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerText}>ตรวจสอบข้อมูล</Text>
+          <Text style={styles.headerText}>เพิ่มอุปกรณ์</Text>
           <View style={{ width: 22 }} />
         </View>
 
@@ -269,17 +258,76 @@ export default function Scan() {
 
         <ScrollView contentContainerStyle={styles.form}>
 
-          {/* auto-fill badge */}
           <View style={styles.autoFillBadge}>
-            <Ionicons name="checkmark-circle" size={16} color="#16a34a" />
-            <Text style={styles.autoFillText}>ข้อมูลจาก QR Code ขึ้นอัตโนมัติ — แก้ไขได้</Text>
+            <Ionicons name="information-circle" size={16} color="#16a34a" />
+            <Text style={styles.autoFillText}>
+              ระบบออกรหัสเรียกและรหัสสแกนให้เองตอนบันทึก — พิมพ์ป้าย QR ได้ที่เมนู "สร้าง QR"
+            </Text>
           </View>
 
           <Text style={styles.fieldLabel}>ชื่ออุปกรณ์ *</Text>
           <TextInput style={styles.input} value={name} onChangeText={setName} />
 
-          <Text style={styles.fieldLabel}>ประเภท</Text>
-          <TextInput style={styles.input} value={type} onChangeText={setType} placeholder="เช่น Microcontroller, Sensor" />
+          <Text style={styles.fieldLabel}>ชื่อย่อสำหรับรหัส (ไม่บังคับ)</Text>
+          <TextInput
+            style={styles.input} value={shortName} onChangeText={setShortName}
+            placeholder="ใช้เมื่อชื่อยาว เช่น DHT22"
+          />
+          {!!name.trim() && (
+            <Text style={styles.fieldHint}>
+              รหัสที่จะได้: {codePrefixPreview(name, shortName)} 001, 002, …  (ระบบนับเลขต่อจากของเดิมให้เอง)
+            </Text>
+          )}
+
+          <Text style={styles.fieldLabel}>หมวดหมู่</Text>
+          <View style={styles.chipWrap}>
+            {categories.map((c) => {
+              const active = c.id === categoryId;
+              return (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => setCategoryId(active ? "" : c.id)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Text style={styles.fieldLabel}>Serial ผู้ผลิต (ไม่บังคับ)</Text>
+          <TextInput
+            style={styles.input} value={serial} onChangeText={setSerial}
+            placeholder="เลขที่พิมพ์บนตัวอุปกรณ์" autoCapitalize="characters"
+          />
+
+          <Text style={styles.fieldLabel}>วันหมดประกัน (ไม่บังคับ)</Text>
+          <TextInput
+            style={[styles.input, warrantyInvalid && styles.inputError]}
+            value={warranty} onChangeText={setWarranty}
+            placeholder="ปปปป-ดด-วว เช่น 2027-10-02" keyboardType="numbers-and-punctuation"
+          />
+          {warrantyInvalid && (
+            <Text style={styles.fieldError}>
+              วันที่ไม่ถูกต้อง ใช้รูปแบบ ปปปป-ดด-วว (ค.ศ.) หรือกด "ไม่มีประกัน" เพื่อล้าง
+            </Text>
+          )}
+          <View style={styles.chipWrap}>
+            {[1, 2, 3].map((years) => (
+              <TouchableOpacity
+                key={years} style={styles.chip} activeOpacity={0.8}
+                onPress={() => setWarranty(addYears(years))}
+              >
+                <Text style={styles.chipText}>+{years} ปีจากวันนี้</Text>
+              </TouchableOpacity>
+            ))}
+            {!!warranty && (
+              <TouchableOpacity style={styles.chip} activeOpacity={0.8} onPress={() => setWarranty("")}>
+                <Text style={styles.chipText}>ไม่มีประกัน</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           <Text style={styles.fieldLabel}>รายละเอียด</Text>
           <TextInput
@@ -330,9 +378,9 @@ export default function Scan() {
           )}
 
           <TouchableOpacity
-            style={[styles.nextBtn, !name.trim() && styles.btnDisabled]}
-            onPress={() => { if (name.trim()) setStep("preview"); }}
-            disabled={!name.trim()}
+            style={[styles.nextBtn, !canContinue && styles.btnDisabled]}
+            onPress={() => { if (canContinue) setStep("preview"); }}
+            disabled={!canContinue}
           >
             <Text style={styles.nextBtnText}>ดูสรุปก่อนบันทึก →</Text>
           </TouchableOpacity>
@@ -343,11 +391,11 @@ export default function Scan() {
     );
   }
 
-  // ── RENDER: Step 3 — Preview & Save ──
+  // ── RENDER: Step 2 — Preview & Save ──
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => setStep("details")}>
+        <TouchableOpacity style={styles.scanBackBtn} onPress={() => setStep("details")} activeOpacity={0.82}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerText}>ยืนยัน & บันทึก</Text>
@@ -372,7 +420,10 @@ export default function Scan() {
         <View style={styles.summaryBox}>
           {[
             { label: "ชื่ออุปกรณ์", val: name },
-            { label: "ประเภท", val: type || "-" },
+            { label: "รหัสเรียก", val: `${codePrefixPreview(name, shortName)} ### (ออกให้ตอนบันทึก)` },
+            { label: "หมวดหมู่", val: selectedCategory?.name || "-" },
+            { label: "Serial ผู้ผลิต", val: serial || "-" },
+            { label: "หมดประกัน", val: isValidDate(warranty.trim()) ? formatThaiDate(warranty.trim()) : "-" },
             { label: "รายละเอียด", val: description || "-" },
             { label: "จำนวน", val: `${quantity} ชิ้น` },
             { label: "สถานะ", val: "available" },
@@ -401,7 +452,7 @@ export default function Scan() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.cancelBtn} onPress={resetAll}>
-          <Text style={styles.cancelBtnText}>← สแกนใหม่</Text>
+          <Text style={styles.cancelBtnText}>ล้างฟอร์ม เริ่มใหม่</Text>
         </TouchableOpacity>
 
         <View style={{ height: 40 }} />
@@ -425,21 +476,174 @@ const si = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+  container: { flex: 1, backgroundColor: "#eef3f8" },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, padding: 20 },
   header: {
-    backgroundColor: "#1e3a8a", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
+    backgroundColor: "#7c3aed", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
   },
   headerText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
 
   permText: { fontSize: 14, color: "#64748b", textAlign: "center" },
-  permBtn: { backgroundColor: "#1e3a8a", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
+  permBtn: { backgroundColor: "#7c3aed", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
   permBtnText: { color: "#fff", fontWeight: "600" },
 
   // Scan
+  scanHeader: {
+    minHeight: 114,
+    backgroundColor: "#7c3aed",
+    paddingTop: 54,
+    paddingHorizontal: 30,
+    paddingBottom: 17,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  scanBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.20)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  scanHeaderTitleWrap: {
+    flex: 1,
+  },
+  scanHeaderTitle: {
+    color: "#fff",
+    fontSize: 25,
+    fontWeight: "900",
+    lineHeight: 29,
+  },
+  scanHeaderSub: {
+    color: "#ddd6fe",
+    fontSize: 12,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  scanBody: {
+    flex: 1,
+    paddingHorizontal: 30,
+    paddingTop: 21,
+    alignItems: "center",
+  },
+  scannerPanel: {
+    width: 200,
+    height: 200,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderStyle: "dashed",
+    borderColor: "#0d9488",
+    backgroundColor: "#f8fafc",
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#94a3b8",
+    shadowOpacity: 0.1,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 2,
+  },
+  camera: {
+    width: "100%",
+    height: "100%",
+  },
+  cameraOverlay: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "transparent",
+  },
+  permissionPanel: {
+    flex: 1,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  permissionText: {
+    color: "#0d9488",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  scanLine: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    bottom: 31,
+    height: 1,
+    backgroundColor: "#14b8a6",
+    opacity: 0.7,
+  },
+  scanTitle: {
+    color: "#0f172a",
+    fontSize: 15,
+    fontWeight: "900",
+    marginTop: 12,
+  },
+  scanDesc: {
+    color: "#64748b",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 17,
+    textAlign: "center",
+    marginTop: 7,
+  },
+  autoInfo: {
+    width: "100%",
+    maxWidth: 420,
+    minHeight: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+    backgroundColor: "#cffafe",
+    borderWidth: 1,
+    borderColor: "#67e8f9",
+    borderRadius: 12,
+    paddingHorizontal: 13,
+    paddingVertical: 10,
+    marginTop: 20,
+  },
+  autoInfoTextWrap: {
+    flex: 1,
+  },
+  autoInfoTitle: {
+    color: "#0f766e",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  autoInfoText: {
+    color: "#0f766e",
+    fontSize: 11,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+  manualBtn: {
+    width: "100%",
+    maxWidth: 420,
+    minHeight: 42,
+    borderRadius: 10,
+    backgroundColor: "#7c3aed",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 19,
+    shadowColor: "#7c3aed",
+    shadowOpacity: 0.35,
+    shadowRadius: 13,
+    shadowOffset: { width: 0, height: 7 },
+    elevation: 7,
+  },
+  manualBtnText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "900",
+  },
   scanWrap: { flex: 1 },
-  camera: { flex: 1 },
   overlay: { flex: 1, justifyContent: "center", alignItems: "center" },
   frameBox: {
     width: 240, height: 240, position: "relative",
@@ -453,7 +657,6 @@ const styles = StyleSheet.create({
   frameHint: { color: "#fff", fontSize: 12, marginBottom: 8, backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
 
   scanBottom: { padding: 20, alignItems: "center", gap: 12, backgroundColor: "#f1f5f9" },
-  scanDesc: { fontSize: 13, color: "#64748b", textAlign: "center", lineHeight: 20 },
   qrGenBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
     backgroundColor: "#ede9fe", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10,
@@ -470,6 +673,17 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 11, fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 5, marginTop: 12 },
   input: { backgroundColor: "#fff", borderRadius: 12, padding: 13, fontSize: 14, borderWidth: 1, borderColor: "#e2e8f0" },
   inputMulti: { height: 72, textAlignVertical: "top" },
+  inputError: { borderColor: "#ef4444" },
+  fieldHint: { fontSize: 11, color: "#7c3aed", marginTop: 5 },
+  fieldError: { fontSize: 11, color: "#dc2626", marginTop: 5 },
+  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
+  chip: {
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
+    backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0",
+  },
+  chipActive: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
+  chipText: { fontSize: 12, fontWeight: "700", color: "#64748b" },
+  chipTextActive: { color: "#fff" },
   qtyRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   qtyBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0", justifyContent: "center", alignItems: "center" },
   qtyInput: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 10, fontSize: 18, fontWeight: "700", borderWidth: 1, borderColor: "#e2e8f0" },

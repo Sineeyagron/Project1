@@ -1,13 +1,17 @@
 import React, { useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
+  View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import supabase from "../lib/supabase";
@@ -17,27 +21,18 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // ── อธิบาย redirectTo ────────────────────────────────────────────────
-  // Supabase จะส่งลิงก์ไปทางอีเมล เมื่อกดลิงก์นั้น
-  // ระบบจะเปิดแอปกลับมาที่หน้า reset-password พร้อม token
-  //
-  // Linking.createURL('reset-password') จะสร้าง URL อัตโนมัติ
-  // - ถ้ารันบน Expo Go: exp://192.168.x.x:8081/--/reset-password
-  // - ถ้า build จริง: iotlab://reset-password
-  // แทนที่จะ hardcode URL ที่ใช้ได้เฉพาะเครื่องตัวเอง
-  // ────────────────────────────────────────────────────────────────────
+  const canSubmit = email.trim().length > 0 && !isLoading;
+
   const handleReset = async () => {
-    if (!email) {
-      Alert.alert("กรอกอีเมลก่อน");
+    if (!email.trim()) {
+      Alert.alert("กรอกอีเมลก่อน", "กรุณากรอกอีเมลที่ใช้สมัครบัญชี");
       return;
     }
 
     setIsLoading(true);
 
-    // สร้าง URL ที่ถูกต้องสำหรับเครื่องนี้ โดยอัตโนมัติ
     const redirectTo = Linking.createURL("reset-password");
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo,
     });
 
@@ -50,100 +45,305 @@ export default function ForgotPassword() {
     }
 
     Alert.alert(
-      "ส่งลิงก์แล้ว 📩",
-      "กรุณาตรวจสอบอีเมลแล้วกดลิงก์เพื่อรีเซ็ตรหัสผ่าน"
+      "ส่งลิงก์แล้ว",
+      "กรุณาตรวจสอบอีเมล แล้วกดลิงก์เพื่อรีเซ็ตรหัสผ่าน"
     );
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>ลืมรหัสผ่าน?</Text>
-      <Text style={styles.subtitle}>
-        กรอกอีเมลที่ใช้สมัคร เราจะส่งลิงก์รีเซ็ตรหัสผ่านไปให้
-      </Text>
+    <KeyboardAvoidingView
+      style={styles.screen}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.headerBack} onPress={() => router.back()} disabled={isLoading}>
+          <Ionicons name="arrow-back" size={23} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>ลืมรหัสผ่าน</Text>
+      </View>
 
-      <TextInput
-        placeholder="อีเมล"
-        style={styles.input}
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
-
-      <TouchableOpacity
-        style={[styles.btn, isLoading && { opacity: 0.6 }]}
-        onPress={handleReset}
-        disabled={isLoading}
+      <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
-        {isLoading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.btnText}>ส่งลิงก์รีเซ็ตรหัสผ่าน</Text>
-        }
-      </TouchableOpacity>
+        <View style={styles.iconBadge}>
+          <Ionicons name="lock-closed-outline" size={42} color="#1e3a8a" />
+          <View style={styles.keyBadge}>
+            <Ionicons name="key" size={15} color="#fff" />
+          </View>
+        </View>
 
-      <TouchableOpacity
-        style={styles.backBtn}
-        onPress={() => router.back()}
-      >
-        <Text style={styles.backText}>← กลับ</Text>
-      </TouchableOpacity>
-    </View>
+        <Text style={styles.title}>รีเซ็ตรหัสผ่าน</Text>
+        <Text style={styles.subtitle}>ใส่อีเมลของคุณ เราจะส่งลิงก์รีเซ็ตไปให้ใน 1 นาที</Text>
+
+        <View style={styles.stepRow}>
+          <View style={styles.stepActive}>
+            <Text style={styles.stepActiveText}>1</Text>
+          </View>
+          <Text style={styles.stepActiveLabel}>กรอกอีเมล</Text>
+          <View style={styles.stepLine} />
+          <View style={styles.stepMuted}>
+            <Text style={styles.stepMutedText}>2</Text>
+          </View>
+          <Text style={styles.stepMutedLabel}>ตั้งรหัสใหม่</Text>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.label}>อีเมล</Text>
+          <View style={styles.inputBox}>
+            <Ionicons name="mail-outline" size={20} color="#64748b" />
+            <TextInput
+              placeholder="example@email.com"
+              placeholderTextColor="#94a3b8"
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              textContentType="emailAddress"
+            />
+          </View>
+
+          <View style={styles.noteRow}>
+            <Ionicons name="information-circle-outline" size={15} color="#1e3a8a" />
+            <Text style={styles.noteText}>
+              ใช้อีเมลที่ลงทะเบียนไว้กับห้องแล็บ — โดยปกติคือ <Text style={styles.noteStrong}>@iotlab.ac.th</Text>
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.primaryBtn, !canSubmit && styles.disabledBtn]}
+            onPress={handleReset}
+            disabled={!canSubmit}
+            activeOpacity={0.88}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="paper-plane-outline" size={19} color="#fff" />
+                <Text style={styles.primaryText}>ส่งลิงก์รีเซ็ต</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.footerRow}>
+          <Text style={styles.footerText}>นึกออกแล้ว?</Text>
+          <TouchableOpacity onPress={() => router.replace("/login")} disabled={isLoading}>
+            <Text style={styles.footerLink}>กลับไปเข้าสู่ระบบ</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    justifyContent: "center",
-    padding: 24,
     backgroundColor: "#f1f5f9",
   },
-
+  header: {
+    minHeight: 72,
+    backgroundColor: "#2563eb",
+    paddingTop: 10,
+    paddingHorizontal: 22,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  headerBack: {
+    width: 28,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  content: {
+    flexGrow: 1,
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 28,
+    paddingBottom: 36,
+  },
+  iconBadge: {
+    width: 96,
+    height: 96,
+    borderRadius: 25,
+    backgroundColor: "#eaf3ff",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+  keyBadge: {
+    position: "absolute",
+    right: 10,
+    bottom: 10,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#1e3a8a",
+    borderWidth: 3,
+    borderColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#1e3a8a",
-    marginBottom: 8,
+    color: "#0f172a",
+    fontSize: 24,
+    fontWeight: "900",
+    textAlign: "center",
   },
-
   subtitle: {
-    fontSize: 14,
     color: "#64748b",
-    marginBottom: 28,
-    lineHeight: 22,
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 8,
+    marginBottom: 20,
   },
-
-  input: {
+  stepRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 22,
+  },
+  stepActive: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#1e3a8a",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepActiveText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  stepActiveLabel: {
+    color: "#1e3a8a",
+    fontSize: 11,
+    fontWeight: "900",
+    marginLeft: 7,
+  },
+  stepLine: {
+    width: 24,
+    height: 1,
+    backgroundColor: "#cbd5e1",
+    marginHorizontal: 8,
+  },
+  stepMuted: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     backgroundColor: "#fff",
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: "#e2e8f0",
-    fontSize: 15,
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  btn: {
-    backgroundColor: "#2563eb",
-    padding: 16,
+  stepMutedText: {
+    color: "#94a3b8",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  stepMutedLabel: {
+    color: "#94a3b8",
+    fontSize: 11,
+    fontWeight: "900",
+    marginLeft: 7,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 430,
+    backgroundColor: "#fff",
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 20,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    elevation: 2,
+  },
+  label: {
+    color: "#1e3a8a",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 8,
+  },
+  inputBox: {
+    minHeight: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#f1f5f9",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
     borderRadius: 12,
-    alignItems: "center",
+    paddingHorizontal: 13,
+    marginBottom: 14,
   },
-
-  btnText: {
-    color: "#fff",
-    fontWeight: "bold",
+  input: {
+    flex: 1,
+    color: "#0f172a",
     fontSize: 15,
+    paddingVertical: 12,
   },
-
-  backBtn: {
-    marginTop: 20,
+  noteRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 7,
+    marginBottom: 18,
+  },
+  noteText: {
+    flex: 1,
+    color: "#64748b",
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: "700",
+  },
+  noteStrong: {
+    color: "#1e3a8a",
+    fontWeight: "900",
+  },
+  primaryBtn: {
+    minHeight: 52,
+    borderRadius: 12,
+    backgroundColor: "#172554",
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
   },
-
-  backText: {
+  disabledBtn: {
+    opacity: 0.55,
+  },
+  primaryText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 18,
+  },
+  footerText: {
+    color: "#64748b",
+    fontSize: 14,
+  },
+  footerLink: {
     color: "#1e3a8a",
     fontSize: 14,
+    fontWeight: "900",
   },
 });

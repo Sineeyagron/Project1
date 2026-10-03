@@ -2,11 +2,15 @@ import { Stack, useRouter } from "expo-router";
 import { useEffect } from "react";
 import * as Linking from "expo-linking";
 import supabase from "../lib/supabase";
+import { DialogHost } from "../lib/notify";
+import { applyRememberLogin } from "../lib/session";
 
 export default function Layout() {
   const router = useRouter();
 
   useEffect(() => {
+    // ไม่ได้ติ๊ก "จดจำการเข้าสู่ระบบ" ตอนล็อกอินครั้งก่อน → ออกจากระบบตอนเปิดแอปใหม่
+    applyRememberLogin();
 
     // ── วิธีที่ 1: onAuthStateChange ─────────────────────────────────────
     // Supabase SDK จะ "ฟัง" อยู่ตลอดว่ามี session เปลี่ยนแปลงไหม
@@ -87,6 +91,7 @@ export default function Layout() {
   }, []);
 
   return (
+    <>
     <Stack screenOptions={{ headerShown: false }}>
       {/* Auth */}
       <Stack.Screen name="login" />
@@ -102,20 +107,12 @@ export default function Layout() {
       <Stack.Screen name="sittings" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="borrow" />
-      {/* Admin */}
-      <Stack.Screen name="admin/home" />
-      <Stack.Screen name="admin/borrowscan" />
-      <Stack.Screen name="admin/returnscan" />
-      <Stack.Screen name="admin/items" />
-      <Stack.Screen name="admin/history" />
-      <Stack.Screen name="admin/qrgen" />
-      <Stack.Screen name="admin/scan" />
-      <Stack.Screen name="admin/room" />
-      <Stack.Screen name="admin/stations" />
-      <Stack.Screen name="admin/lanports" />
-      <Stack.Screen name="admin/inspection" />
-      <Stack.Screen name="admin/iotinspection" />
-      <Stack.Screen name="admin/repairs" />
+      <Stack.Screen name="scan" />
+      {/* Admin — ทุกหน้าใน app/admin/ ผ่านด่านเช็กสิทธิ์ใน app/admin/_layout.tsx */}
+      <Stack.Screen name="admin" />
     </Stack>
+    {/* หน้าต่างแจ้งเตือน/ยืนยันของ notify() / confirmAction() บนเว็บ */}
+    <DialogHost />
+    </>
   );
 }

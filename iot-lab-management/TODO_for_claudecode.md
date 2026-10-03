@@ -21,20 +21,21 @@
 **ปัญหา:** ชื่อ "upload" แต่แค่ `return svgString` ทำให้สับสน
 
 **ต้องทำ:**
-- [ ] ลบ `lib/uploadSignature.ts`
-- [ ] แก้ `app/admin/borrowscan.tsx` + `returnscan.tsx` ให้เก็บ SVG ลง DB ตรงๆ (หรือ upload จริงถ้าจะใช้ Supabase Storage)
+- [x] ลบ `lib/uploadSignature.ts`
+- [x] ~~แก้ `app/admin/borrowscan.tsx` + `returnscan.tsx` ให้เก็บ SVG ลง DB ตรงๆ~~ ไม่ต้องทำแล้ว (2 หน้านี้ถูกลบในเฟส 3) (หรือ upload จริงถ้าจะใช้ Supabase Storage)
 
 ---
 
 ## 🟠 Important — กระทบ maintainability/UX
 
 ### 3. ลบ orphan files (ไฟล์ตายที่ไม่ได้ register)
+> 4 ต.ค. 2569: ลบแล้ว — ไฟล์ข้างล่างที่ติ๊ก + `Project1/` ซ้อน + ไฟล์แม่แบบ Expo (components/themed-*, ui/*, hooks/*, constants/theme) / ที่ยังไม่ติ๊ก = ระบบห้อง รอถามเจ้าของก่อน
 - [ ] `app/groups/group1.tsx` ถึง `group6.tsx`
 - [ ] `app/room/cp9524.tsx`, `app/room/sc9604.tsx`
 - [ ] `app/admin/group/group1.tsx`, `app/admin/room/cp9524.tsx`
-- [ ] `app/device/deviceList.tsx`
-- [ ] `app/components/BorrowItem.tsx`, `app/components/RoomCard.tsx` (อยู่ผิด folder)
-- [ ] `app/admin/borrow.tsx` (CLAUDE.md บอก "ไม่ได้ link")
+- [x] `app/device/deviceList.tsx`
+- [x] `app/components/BorrowItem.tsx`, `app/components/RoomCard.tsx` (อยู่ผิด folder)
+- [x] `app/admin/borrow.tsx` (CLAUDE.md บอก "ไม่ได้ link")
 
 ### 4. เคลียร์ inspection 2 ระบบทับซ้อน
 - [ ] ตัดสินใจว่า `equipment_inspections` (per station + 3 อุปกรณ์) กับ `item_inspections` (per item) จะแยกหน้าที่ยังไง
