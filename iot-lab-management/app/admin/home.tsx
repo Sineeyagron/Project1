@@ -13,6 +13,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import Svg, { Polyline } from "react-native-svg";
 import supabase from "../../lib/supabase";
 import { confirmAction, notify } from "../../lib/notify";
+import { canAccess, isStaffRole, ROLE_LABEL, useRole } from "../../lib/roles";
 
 const C = {
   bg: "#eef3f8",
@@ -45,6 +46,7 @@ const TOOLS = [
   { icon: "pricetags-outline", label: "หมวดหมู่", route: "/admin/categories", color: "#db2777", bg: "#fce7f3" },
   { icon: "bar-chart-outline", label: "รายงานสต็อก", route: "/admin/stock", color: "#0891b2", bg: "#cffafe" },
   { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings", color: "#475569", bg: "#f1f5f9" },
+  { icon: "people-outline", label: "จัดการ TA", route: "/admin/users", color: "#7c3aed", bg: "#ede9fe" },
   { icon: "add-circle-outline", label: "เพิ่มอุปกรณ์", route: "/admin/scan", color: C.cyan, bg: "#cffafe" },
   { icon: "document-text-outline", label: "นำเข้า CSV", route: "/admin/import", color: "#059669", bg: "#d1fae5" },
   { icon: "receipt-outline", label: "ประวัติยืม", route: "/admin/history", color: C.muted, bg: "#f1f5f9" },
@@ -75,8 +77,20 @@ function getGreeting(date = new Date()) {
   return { text: "สวัสดีตอนดึก", icon: "moon-outline", color: "#bfdbfe" };
 }
 
+type Tile = { icon: string; title?: string; sub?: string; label?: string; route: string; color?: string; bg: string };
+
 export default function AdminHome() {
   const router = useRouter();
+  const { role } = useRole();
+  // TA เห็นเฉพาะเมนูที่มีสิทธิ์ (lib/roles.ts) + ทางไปหน้านักศึกษาเพื่อยืมของเอง
+  const primary: Tile[] = [
+    ...PRIMARY.filter((t) => canAccess(role, t.route)),
+    ...(role === "ta" ? [{ icon: "qr-code-outline", title: "พิมพ์ป้าย QR", sub: "ป้ายติดอุปกรณ์", route: "/admin/qrgen", bg: "#4f46e5" }] : []),
+  ];
+  const tools: Tile[] = [
+    ...TOOLS.filter((t) => canAccess(role, t.route)),
+    ...(role === "ta" ? [{ icon: "person-outline", label: "ยืมของ (หน้านักศึกษา)", route: "/home", color: C.green, bg: "#dcfce7" }] : []),
+  ];
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [total, setTotal] = useState(0);
@@ -138,7 +152,7 @@ export default function AdminHome() {
       .eq("id", user.id)
       .single();
 
-    if (profile?.role !== "admin") {
+    if (!isStaffRole(profile?.role)) {
       router.replace("/home");
       return;
     }
@@ -274,10 +288,10 @@ export default function AdminHome() {
           <View>
             <View style={s.greetRow}>
               <Ionicons name={greeting.icon as any} size={13} color={greeting.color} />
-              <Text style={s.greet}>{greeting.text} · admin</Text>
+              <Text style={s.greet}>{greeting.text} · {role ? ROLE_LABEL[role] : ""}</Text>
             </View>
             <Text style={s.heroTitle}>
-              Admin <Text style={s.heroTitleAccent}>Dashboard</Text>
+              {role === "ta" ? "TA" : "Admin"} <Text style={s.heroTitleAccent}>Dashboard</Text>
             </Text>
           </View>
 
@@ -344,7 +358,7 @@ export default function AdminHome() {
             </TouchableOpacity>
 
             <View style={s.primaryGrid}>
-              {PRIMARY.map((item) => (
+              {primary.map((item) => (
                 <TouchableOpacity
                   key={item.route}
                   activeOpacity={0.86}
@@ -375,7 +389,7 @@ export default function AdminHome() {
 
             <SectionLabel icon="settings-outline" title="เครื่องมือทั้งหมด" />
             <View style={s.toolGrid}>
-              {TOOLS.map((item) => (
+              {tools.map((item) => (
                 <TouchableOpacity
                   key={item.route}
                   activeOpacity={0.85}

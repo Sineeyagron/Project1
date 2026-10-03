@@ -66,6 +66,14 @@
 - แก้วันหมดประกัน/Serial: หน้า `admin/items` กดการ์ด → "แก้ประกัน / Serial" (ชื่อ-รหัสแก้ไม่ได้)
 - migration `phase2_item_alerts`: แจ้งเตือนประเภท `warranty_soon|warranty_expired|age_warn|age_replace`, ตาราง `item_alerts` (กันเตือนซ้ำ แอปเข้าไม่ได้), RPC `send_item_alerts()` + pg_cron `item-health-alerts` 08:00 ไทย
 
+### เฟส 4.1 — บทบาท TA (migration `phase4_ta_role`)
+- `profiles.role` = `user | ta | admin` / `_staff_roles()` = admin+ta → `is_staff()` รวม TA
+- TA อ่านได้เพิ่ม: `borrow_records`, `profiles` ทั้งหมด / บันทึก `item_inspections` ได้ (ลบได้เฉพาะ admin) / เขียนอย่างอื่นยังเป็น `is_admin()`
+- แจ้งเตือนประกัน/อายุ ส่งเฉพาะ admin (`_notify_staff`) / TA ได้ เกินกำหนด + คืนอัตโนมัติ
+- RPC `set_user_role(p_user, p_role)` admin เท่านั้น ตั้งได้แค่ user↔ta (ห้ามตัวเอง/ห้ามแตะ admin) + แจ้งเตือน `role_changed`
+- trigger `borrow_requests_no_self_decide`: TA อนุมัติ/ปฏิเสธคำขอของตัวเองไม่ได้
+- แอป: `lib/roles.ts` (`canAccess`, `TA_ROUTES`, `RoleContext`/`useRole`) / `admin/_layout.tsx` ให้ admin+ta เข้า แล้วกันหน้าที่ TA ไม่มีสิทธิ์ / `admin/users.tsx` จัดการ TA / หน้าแรกนักศึกษามีปุ่มกลับแดชบอร์ดสำหรับ staff
+
 ### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
 - ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)
 - ผู้ใช้อ่านได้: `items`, `categories`, `borrow_locations`, `app_settings`, `computer_stations`, `lan_ports`, `station_equipment` + `profiles` / `borrow_records` / `notifications` ของตัวเอง (กด "อ่านแล้ว" ได้)

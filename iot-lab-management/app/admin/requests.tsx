@@ -18,6 +18,7 @@ import supabase from "../../lib/supabase";
 import { notify } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import Countdown from "../../components/Countdown";
+import { useRole } from "../../lib/roles";
 
 // กล่องคำขอของผู้ดูแล: อนุมัติ / ปฏิเสธ คำขอยืม-คืน-ยืมต่อ (แผน 2.4, 2.6)
 // การตัดสินทั้งหมดผ่าน RPC decide_request (ตรวจสิทธิ์ + ล็อกแถวในฐานข้อมูล)
@@ -50,7 +51,7 @@ const RESULT: Record<string, { label: string; color: string; bg: string }> = {
 };
 
 const SELECT = `
-  id, kind, status, days, condition, condition_note, photo_path, created_at, expires_at,
+  id, user_id, kind, status, days, condition, condition_note, photo_path, created_at, expires_at,
   decided_at, decision_note,
   items(item_code, name, image_url),
   borrow_locations(name),
@@ -74,6 +75,7 @@ type Decision = {
 
 export default function AdminRequests() {
   const router = useRouter();
+  const { role, userId } = useRole();
   const { id: focusId } = useLocalSearchParams<{ id?: string }>();
 
   const [tab, setTab] = useState<"pending" | "history">("pending");
@@ -234,7 +236,10 @@ export default function AdminRequests() {
           </View>
         )}
 
-        {isPending ? (
+        {isPending && role !== "admin" && r.user_id === userId ? (
+          // คำขอของตัวเอง (TA ที่ยืมของด้วย) — ฐานข้อมูลก็กันไว้ (trigger borrow_requests_no_self_decide)
+          <Text style={s.selfNote}>คำขอของคุณเอง — ให้ผู้ดูแลคนอื่นเป็นคนตัดสิน</Text>
+        ) : isPending ? (
           <View style={s.actions}>
             <TouchableOpacity style={[s.btn, s.btnDecline]} onPress={() => openDecision(r, false)} activeOpacity={0.85}>
               <Text style={s.btnDeclineText}>ปฏิเสธ</Text>
@@ -447,6 +452,7 @@ const s = StyleSheet.create({
   compareLabel: { fontSize: 12, fontWeight: "800", color: C.muted },
 
   actions: { flexDirection: "row", gap: 10 },
+  selfNote: { fontSize: 13, fontWeight: "700", color: "#b45309", backgroundColor: "#fffbeb", padding: 10, borderRadius: 10, overflow: "hidden" },
   btn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
   btnDecline: { borderWidth: 1.5, borderColor: C.red, backgroundColor: "#fff", flex: 0.6 },
   btnDeclineText: { color: C.red, fontWeight: "900" },

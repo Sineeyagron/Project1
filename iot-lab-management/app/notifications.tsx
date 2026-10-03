@@ -29,6 +29,8 @@ const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; d
   warranty_expired: { icon: "shield-outline",         iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
   age_warn:         { icon: "eye-outline",            iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
   age_replace:      { icon: "refresh-circle-outline", iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+  // สิทธิ์ TA เปลี่ยน (เฟส 4.1)
+  role_changed:     { icon: "shield-checkmark-outline", iconColor: "#7c3aed", iconBg: "#ede9fe", dot: "#8b5cf6" },
 };
 
 // แจ้งเตือนประกัน/อายุ → เปิดรายงานสต็อก ตรงกลุ่ม "ต้องดูแล" นั้น
@@ -124,15 +126,32 @@ export default function Notifications() {
 
   const onRefresh = () => { setRefreshing(true); setNewCount(0); fetchNotifications(); };
 
+  // TA อาจยืมของเองด้วย: "เกินกำหนด" / "คืนอัตโนมัติ" ของผู้ยืมกับของผู้ดูแลเป็นประเภทเดียวกัน
+  // → ถ้าเป็นของที่ตัวเองยืม พาไปหน้าการยืมของตัวเอง ไม่ใช่กล่องคำขอ
+  const isMyLoan = async (n: any) => {
+    if (!["overdue", "auto_returned"].includes(n.type) || !n.item_id) return false;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const { count } = await supabase
+      .from("borrow_records")
+      .select("id", { count: "exact", head: true })
+      .eq("item_id", n.item_id)
+      .eq("user_id", user.id);
+    return (count || 0) > 0;
+  };
+
   // กดแจ้งเตือน → อ่านแล้ว + ไปหน้าที่เกี่ยวข้อง
   const openNotification = async (n: any) => {
     if (!n.read) {
       await supabase.from("notifications").update({ read: true }).eq("id", n.id);
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
     }
-    if (isStaff && STOCK_WATCH[n.type]) {
+    if (n.type === "role_changed") {
+      // ด่านหน้า admin เช็กสิทธิ์ล่าสุดเอง: ได้ TA → เข้าได้ / ถูกถอด → พากลับหน้านักศึกษา
+      router.replace("/admin/home");
+    } else if (isStaff && STOCK_WATCH[n.type]) {
       router.push(`/admin/stock?watch=${STOCK_WATCH[n.type]}` as any);
-    } else if (isStaff && STAFF_TYPES.has(n.type)) {
+    } else if (isStaff && STAFF_TYPES.has(n.type) && !(await isMyLoan(n))) {
       router.push((n.request_id ? `/admin/requests?id=${n.request_id}` : "/admin/requests") as any);
     } else if (n.type !== "borrow" && n.type !== "return") {
       router.push("/borrow");

@@ -11,6 +11,7 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
+import { Role, ROLE_LABEL } from "../lib/roles";
 import { confirmAction, notify } from "../lib/notify";
 
 const C = {
@@ -52,6 +53,7 @@ const dueText = (dateValue: string) => {
 export default function Profile() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState("user");
   const [totalBorrows, setTotalBorrows] = useState(0);
   const [activeLoans, setActiveLoans] = useState(0);
   const [returnedLoans, setReturnedLoans] = useState(0);
@@ -74,8 +76,9 @@ export default function Profile() {
       return;
     }
 
-    const { data: profile } = await supabase.from("profiles").select("email").eq("id", user.id).maybeSingle();
+    const { data: profile } = await supabase.from("profiles").select("email, role").eq("id", user.id).maybeSingle();
     setEmail(profile?.email || user.email || "");
+    setRole(profile?.role || "user");
 
     const [{ data: borrows }, totalRes, activeRes, returnedRes, unreadRes] = await Promise.all([
       supabase
@@ -175,7 +178,7 @@ export default function Profile() {
             </View>
             <View style={s.rolePill}>
               <Ionicons name="school-outline" size={11} color="#fff" />
-              <Text style={s.roleText}>นักศึกษา · IoT Lab</Text>
+              <Text style={s.roleText}>{ROLE_LABEL[role as Role] || ROLE_LABEL.user} · IoT Lab</Text>
             </View>
           </View>
         </View>

@@ -50,6 +50,11 @@ function getRoomFloor(room: string) {
 
 export default function Home() {
   const router = useRouter();
+  // TA/admin ที่มาหน้านักศึกษา (เช่น มายืมของเอง) → มีปุ่มกลับแดชบอร์ด
+  const [isStaff, setIsStaff] = useState(false);
+  useEffect(() => {
+    supabase.rpc("is_staff").then(({ data }) => setIsStaff(!!data));
+  }, []);
   const [stations, setStations] = useState<Station[]>([]);
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
@@ -133,9 +138,21 @@ export default function Home() {
               <Text style={s.headerTitle}>ห้องเรียน IoT</Text>
             </View>
           </View>
-          <TouchableOpacity style={s.bellBtn} onPress={() => router.push("/notifications")} activeOpacity={0.84}>
-            <Ionicons name="notifications-outline" size={21} color="#ffffff" />
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {isStaff && (
+              <TouchableOpacity
+                style={s.bellBtn}
+                onPress={() => router.replace("/admin/home")}
+                activeOpacity={0.84}
+                accessibilityLabel="กลับแดชบอร์ดผู้ดูแล"
+              >
+                <Ionicons name="speedometer-outline" size={21} color="#ffffff" />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={s.bellBtn} onPress={() => router.push("/notifications")} activeOpacity={0.84}>
+              <Ionicons name="notifications-outline" size={21} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
         </View>
 
         <View style={s.statsRow}>

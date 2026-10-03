@@ -139,7 +139,8 @@ export default function Login() {
 
     setIsLoading(false);
 
-    if (profile.role === "admin") {
+    // admin และ TA เข้าหน้าผู้ดูแล (TA เห็นเมนูเท่าที่มีสิทธิ์)
+    if (profile.role === "admin" || profile.role === "ta") {
       router.replace("/admin/home");
     } else {
       router.replace("/home");
