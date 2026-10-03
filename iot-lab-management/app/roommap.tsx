@@ -1,29 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet,
   ScrollView, Modal, ActivityIndicator, RefreshControl,
 } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
-
-const PORT_STATUS: Record<string, { color: string; bg: string; label: string; icon: any }> = {
-  available: { color: "#16a34a", bg: "#dcfce7", label: "ใช้งานได้", icon: "checkmark-circle-outline" },
-  repair:    { color: "#b45309", bg: "#fef3c7", label: "กำลังซ่อม", icon: "construct-outline" },
-  broken:    { color: "#dc2626", bg: "#fee2e2", label: "เสีย",       icon: "close-circle-outline" },
-};
-
-const STATION_STATUS: Record<string, { color: string; bg: string; label: string; icon: any }> = {
-  available: { color: "#16a34a", bg: "#86efac", label: "ว่าง",      icon: "checkmark-circle-outline" },
-  repair:    { color: "#b45309", bg: "#fde68a", label: "ซ่อมบำรุง", icon: "construct-outline" },
-  broken:    { color: "#dc2626", bg: "#fca5a5", label: "พัง",        icon: "close-circle-outline" },
-};
-
-const EQUIP_STATUS: Record<string, { color: string; bg: string; label: string; icon: any }> = {
-  present: { color: "#16a34a", bg: "#dcfce7", label: "ครบ",    icon: "checkmark-circle-outline" },
-  missing: { color: "#dc2626", bg: "#fee2e2", label: "หาย",   icon: "alert-circle-outline" },
-  broken:  { color: "#b45309", bg: "#fef3c7", label: "ชำรุด", icon: "construct-outline" },
-};
+import { goBack, useRefreshOnFocus } from "../lib/nav";
+import { EQUIP_STATUS, LAN_STATUS, STATION_STATUS, naturalNo, roomStatus } from "../lib/roomStatus";
+import LoadError from "../components/LoadError";
 
 const EQUIP_LABELS: Record<string, string> = {
   mouse:    "🖱️ เมาส์",
@@ -32,7 +17,6 @@ const EQUIP_LABELS: Record<string, string> = {
 };
 
 export default function RoomMap() {
-  const router = useRouter();
   const { room_id } = useLocalSearchParams<{ room_id: string }>();
   const roomName = room_id || "CP9524";
 
@@ -41,6 +25,8 @@ export default function RoomMap() {
   const [equipMap, setEquipMap] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const roomRef = useRef(roomName); // กันผลของห้องเก่า (ตอบช้า) มาทับห้องใหม่
 
   // Modal: detail เครื่องคอม + checklist
   const [compModal, setCompModal] = useState(false);
@@ -50,18 +36,34 @@ export default function RoomMap() {
   const [serverModal, setServerModal] = useState(false);
   const [serverGroup, setServerGroup] = useState<number | null>(null);
 
-  useEffect(() => { fetchAll(); }, [roomName]);
+  useEffect(() => {
+    roomRef.current = roomName;
+    fetchAll();
+  }, [roomName]);
+  useRefreshOnFocus(() => fetchAll());
 
   const fetchAll = async () => {
-    const [{ data: st }, { data: lp }, { data: eq }] = await Promise.all([
+    const room = roomName;
+    const [{ data: st, error: e1 }, { data: lp, error: e2 }, { data: eq, error: e3 }] = await Promise.all([
       supabase.from("computer_stations").select("*")
-        .eq("room_id", roomName).order("group_no").order("name"),
+        .eq("room_id", room).order("group_no").order("name"),
       supabase.from("lan_ports").select("*")
-        .eq("room_id", roomName).order("group_no").order("port_no"),
-      supabase.from("station_equipment").select("*"),
+        .eq("room_id", room).order("group_no").order("port_no"),
+      // เฉพาะเช็กลิสต์ของเครื่องในห้องนี้ (เดิมโหลดทั้งตารางทุกห้อง)
+      supabase.from("station_equipment").select("*, computer_stations!inner(room_id)")
+        .eq("computer_stations.room_id", room),
     ]);
+    if (room !== roomRef.current) return;
+    setLoading(false);
+    setRefreshing(false);
+    if (e1 || e2 || e3) {
+      // โหลดพัง ห้ามโชว์ผังเปล่า/ "ครบ" — ขึ้นแถบให้ลองใหม่
+      setLoadError(e1?.message || e2?.message || e3?.message || "");
+      return;
+    }
+    setLoadError("");
 
-    setStations(st || []);
+    setStations((st || []).sort((a: any, b: any) => naturalNo(a.name) - naturalNo(b.name)));
     setLanPorts(lp || []);
 
     // จัด equipMap: station_id → []
@@ -71,8 +73,6 @@ export default function RoomMap() {
       map[e.station_id].push(e);
     });
     setEquipMap(map);
-    setLoading(false);
-    setRefreshing(false);
   };
 
   const onRefresh = () => { setRefreshing(true); fetchAll(); };
@@ -112,7 +112,7 @@ export default function RoomMap() {
 
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => router.replace("/home")} activeOpacity={0.84}>
+        <TouchableOpacity style={s.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
           <Ionicons name="arrow-back" size={23} color="#fff" />
         </TouchableOpacity>
         <View style={s.headerTitleBlock}>
@@ -128,7 +128,7 @@ export default function RoomMap() {
       <View style={s.legend}>
         {Object.entries(STATION_STATUS).map(([k, v]) => (
           <View key={k} style={s.legItem}>
-            <View style={[s.legDot, { backgroundColor: v.bg }]} />
+            <View style={[s.legDot, { backgroundColor: v.border }]} />
             <Text style={s.legTxt}>{v.label}</Text>
           </View>
         ))}
@@ -141,6 +141,8 @@ export default function RoomMap() {
         <ScrollView showsVerticalScrollIndicator={false}
           contentContainerStyle={s.scrollContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}>
+
+          {!!loadError && <LoadError message={loadError} onRetry={onRefresh} />}
 
           {/* กระดาน */}
           <View style={s.board}>
@@ -163,12 +165,12 @@ export default function RoomMap() {
                   {/* คอมในกลุ่ม */}
                   <View style={s.stationsWrap}>
                     {stns.map(station => {
-                      const cfg = STATION_STATUS[station.status] || STATION_STATUS.available;
+                      const cfg = roomStatus(STATION_STATUS, station.status);
                       const { hasIssue } = getEquipSummary(station.id);
                       return (
                         <TouchableOpacity
                           key={station.id}
-                          style={[s.station, { backgroundColor: cfg.bg }]}
+                          style={[s.station, { backgroundColor: cfg.border }]}
                           onPress={() => openStation(station)}
                         >
                           {hasIssue && <View style={s.equipWarnDot} />}
@@ -202,7 +204,7 @@ export default function RoomMap() {
             );
           })}
 
-          {stations.length === 0 && (
+          {stations.length === 0 && !loadError && (
             <View style={s.empty}>
               <Ionicons name="desktop-outline" size={48} color="#cbd5e1" />
               <Text style={s.emptyTxt}>ไม่พบข้อมูลเครื่องคอมในห้องนี้</Text>
@@ -229,9 +231,10 @@ export default function RoomMap() {
 
             {/* สถานะเครื่อง */}
             {(() => {
-              const cfg = STATION_STATUS[selectedStation?.status || "available"];
+              // ค่าสำรองเมื่อเจอสถานะแปลก — เดิมไม่มี แอปพังทั้งหน้า
+              const cfg = roomStatus(STATION_STATUS, selectedStation?.status);
               return (
-                <View style={[s.statusBigBox, { backgroundColor: cfg.bg + "80" }]}>
+                <View style={[s.statusBigBox, { backgroundColor: cfg.border + "80" }]}>
                   <Ionicons name={cfg.icon} size={40} color={cfg.color} />
                   <Text style={[s.statusBigLabel, { color: cfg.color }]}>{cfg.label}</Text>
                   {selectedStation?.status === "repair" && (
@@ -254,7 +257,7 @@ export default function RoomMap() {
                 const equips = equipMap[selectedStation?.id] || [];
                 const eq = equips.find((e: any) => e.equipment_type === type);
                 const status = eq?.status || "present";
-                const cfg = EQUIP_STATUS[status];
+                const cfg = roomStatus(EQUIP_STATUS, status);
                 return (
                   <View key={type} style={[s.checklistItem, { backgroundColor: cfg.bg }]}>
                     <Ionicons name={cfg.icon} size={20} color={cfg.color} />
@@ -291,7 +294,7 @@ export default function RoomMap() {
             <ScrollView showsVerticalScrollIndicator={false}>
               <View style={s.portGrid}>
                 {serverGroupPorts.map(port => {
-                  const cfg = PORT_STATUS[port.status] || PORT_STATUS.available;
+                  const cfg = roomStatus(LAN_STATUS, port.status);
                   return (
                     <View key={port.id}
                       style={[s.portCell, { backgroundColor: cfg.bg, borderColor: cfg.color + "40" }]}>
@@ -305,7 +308,7 @@ export default function RoomMap() {
               </View>
 
               <View style={s.portLegend}>
-                {Object.entries(PORT_STATUS).map(([k, v]) => (
+                {Object.entries(LAN_STATUS).map(([k, v]) => (
                   <View key={k} style={s.legItem}>
                     <View style={[s.legDot, { backgroundColor: v.color }]} />
                     <Text style={s.legTxt}>{v.label}</Text>

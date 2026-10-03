@@ -1,20 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Alert, ActivityIndicator, RefreshControl, Modal, TextInput,
+  ActivityIndicator, RefreshControl, Modal, TextInput,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import supabase from "../../lib/supabase";
+import { confirmAction, notify } from "../../lib/notify";
+import { goBack, useRefreshOnFocus } from "../../lib/nav";
+import { LAN_STATUS, roomStatus } from "../../lib/roomStatus";
+import LoadError from "../../components/LoadError";
 
-const STATUS_CONFIG: { [k: string]: { label: string; color: string; bg: string; icon: any; next: string } } = {
-  available: { label: "ใช้งานได้", color: "#16a34a", bg: "#dcfce7", icon: "checkmark-circle-outline", next: "repair" },
-  repair:    { label: "กำลังซ่อม", color: "#b45309", bg: "#fef3c7", icon: "construct-outline",         next: "broken" },
-  broken:    { label: "เสีย",       color: "#dc2626", bg: "#fee2e2", icon: "close-circle-outline",      next: "available" },
-};
+// กด port = เปลี่ยนสถานะวนตามลำดับนี้
+const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
+const MAX_PORT = 12; // Server 1 เครื่องมี LAN 12 ช่อง
 
 export default function AdminLanPorts() {
-  const router = useRouter();
+  const { room_id: roomParam } = useLocalSearchParams<{ room_id?: string }>(); // เปิดจากการ์ดห้อง → เลือกห้องนั้น
 
   const [ports, setPorts]           = useState<any[]>([]);
   const [rooms, setRooms]           = useState<string[]>([]);
@@ -24,6 +26,9 @@ export default function AdminLanPorts() {
   const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving]         = useState<string | null>(null);
+  const [loadError, setLoadError]   = useState("");
+  // ห้อง/กลุ่มล่าสุดที่เลือก — กันผลโหลดเก่า (ตอบช้า) มาทับตอนสลับเร็วๆ
+  const viewRef = useRef("");
 
   // Modal เพิ่ม port
   const [addModal, setAddModal]   = useState(false);
@@ -33,91 +38,116 @@ export default function AdminLanPorts() {
 
   useEffect(() => { fetchRooms(); }, []);
   useEffect(() => { if (selectedRoom) fetchGroups(); }, [selectedRoom]);
-  useEffect(() => { if (selectedRoom) fetchPorts(); }, [selectedRoom, selectedGroup]);
+  useEffect(() => {
+    viewRef.current = `${selectedRoom}:${selectedGroup}`;
+    if (selectedRoom) fetchPorts();
+  }, [selectedRoom, selectedGroup]);
+  useRefreshOnFocus(() => { if (selectedRoom) fetchPorts(); });
 
+  // TODO R1: อ่านรายชื่อห้องจากตาราง rooms (ตอนนี้ห้องที่ยังไม่มี port จะไม่ขึ้น)
   const fetchRooms = async () => {
-    const { data } = await supabase.from("lan_ports").select("room_id");
-    if (data) {
-      const unique = [...new Set(data.map((r: any) => r.room_id))] as string[];
+    const { data, error } = await supabase.from("lan_ports").select("room_id");
+    if (error) setLoadError(error.message);
+    else if (data) {
+      const unique = ([...new Set(data.map((r: any) => r.room_id).filter(Boolean))] as string[]).sort();
       setRooms(unique);
-      if (unique.length > 0) setSelectedRoom(unique[0]);
+      if (unique.length > 0) setSelectedRoom(unique.includes(String(roomParam)) ? String(roomParam) : unique[0]);
     }
     setLoading(false);
   };
 
   const fetchGroups = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("lan_ports").select("group_no").eq("room_id", selectedRoom);
+    if (error) { setLoadError(error.message); return; }
     if (data) {
-      const unique = [...new Set(data.map((r: any) => r.group_no))].sort() as number[];
+      // เรียงแบบตัวเลข (เดิม .sort() เรียงแบบตัวอักษร กลุ่ม 10 มาก่อน 2)
+      const unique = ([...new Set(data.map((r: any) => r.group_no))] as number[]).sort((a, b) => a - b);
       setGroups(unique);
       if (unique.length > 0 && !unique.includes(selectedGroup)) setSelectedGroup(unique[0]);
     }
   };
 
   const fetchPorts = async () => {
-    const { data } = await supabase
+    const view = `${selectedRoom}:${selectedGroup}`;
+    const { data, error } = await supabase
       .from("lan_ports").select("*")
       .eq("room_id", selectedRoom)
       .eq("group_no", selectedGroup)
       .order("port_no");
-    setPorts(data || []);
+    if (view !== viewRef.current) return; // สลับห้อง/กลุ่มไปแล้ว
     setRefreshing(false);
+    if (error) { setLoadError(error.message); return; }
+    setLoadError("");
+    setPorts(data || []);
+  };
+
+  const retry = () => {
+    setLoadError("");
+    if (!selectedRoom) { setLoading(true); fetchRooms(); }
+    else { fetchGroups(); fetchPorts(); }
   };
 
   const onRefresh = () => { setRefreshing(true); fetchPorts(); };
 
   // กดเปลี่ยนสถานะ (วนซ้ำ)
   const toggleStatus = (port: any) => {
-    const next = STATUS_CONFIG[port.status]?.next || "available";
-    const nextCfg = STATUS_CONFIG[next];
-    Alert.alert(
+    const next = NEXT_STATUS[port.status] || "available";
+    const nextCfg = roomStatus(LAN_STATUS, next);
+    confirmAction(
       "เปลี่ยนสถานะ",
       `Port ${port.port_no}${port.label ? ` (${port.label})` : ""}\n→ "${nextCfg.label}" ?`,
-      [
-        { text: "ยกเลิก", style: "cancel" },
-        {
-          text: "ยืนยัน",
-          onPress: async () => {
-            setSaving(port.id);
-            const { error } = await supabase
-              .from("lan_ports").update({ status: next }).eq("id", port.id);
-            if (error) Alert.alert("เกิดข้อผิดพลาด", error.message);
-            else setPorts(prev => prev.map(p => p.id === port.id ? { ...p, status: next } : p));
-            setSaving(null);
-          },
-        },
-      ]
+      "ยืนยัน",
+      async () => {
+        setSaving(port.id);
+        // .select() เพื่อรู้ว่าแก้ได้จริง — RLS ไม่ให้สิทธิ์จะไม่ error แต่แก้ได้ 0 แถว
+        const { data, error } = await supabase
+          .from("lan_ports").update({ status: next }).eq("id", port.id).select("id");
+        setSaving(null);
+        if (error || !data?.length) {
+          notify("เปลี่ยนสถานะไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข หรือ port นี้ถูกลบไปแล้ว");
+          return;
+        }
+        setPorts(prev => prev.map(p => p.id === port.id ? { ...p, status: next } : p));
+      }
     );
   };
 
   // กดค้างเพื่อลบ
   const deletePort = (port: any) => {
-    Alert.alert("ลบ Port", `ลบ Port ${port.port_no} ?`, [
-      { text: "ยกเลิก", style: "cancel" },
-      {
-        text: "ลบ", style: "destructive",
-        onPress: async () => {
-          await supabase.from("lan_ports").delete().eq("id", port.id);
-          setPorts(prev => prev.filter(p => p.id !== port.id));
-        },
-      },
-    ]);
+    confirmAction("ลบ Port", `ลบ Port ${port.port_no} ?`, "ลบ", async () => {
+      const { data, error } = await supabase.from("lan_ports").delete().eq("id", port.id).select("id");
+      if (error || !data?.length) {
+        notify("ลบไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์ลบ หรือ port นี้ถูกลบไปแล้ว");
+        return;
+      }
+      setPorts(prev => prev.filter(p => p.id !== port.id));
+    }, true);
   };
 
   // เพิ่ม port ใหม่
   const addPort = async () => {
-    if (!newPortNo.trim()) { Alert.alert("กรอกหมายเลข Port ก่อน"); return; }
+    const raw = newPortNo.trim();
+    const portNo = Number(raw);
+    if (!raw) { notify("กรอกหมายเลข Port ก่อน"); return; }
+    if (!/^\d+$/.test(raw) || portNo < 1 || portNo > MAX_PORT) {
+      notify("หมายเลข Port ไม่ถูกต้อง", `ใส่ตัวเลข 1–${MAX_PORT}`);
+      return;
+    }
+    if (ports.some(p => p.port_no === portNo)) {
+      notify("Port ซ้ำ", `กลุ่ม ${selectedGroup} มี Port ${portNo} อยู่แล้ว`);
+      return;
+    }
     setAdding(true);
     const { error } = await supabase.from("lan_ports").insert([{
       room_id: selectedRoom,
       group_no: selectedGroup,
-      port_no: parseInt(newPortNo) || 0,
+      port_no: portNo,
       label: newLabel.trim() || null,
       status: "available",
     }]);
     setAdding(false);
-    if (error) { Alert.alert("เพิ่มไม่สำเร็จ", error.message); return; }
+    if (error) { notify("เพิ่มไม่สำเร็จ", error.message); return; }
     setAddModal(false);
     setNewPortNo(""); setNewLabel("");
     fetchPorts();
@@ -132,11 +162,12 @@ export default function AdminLanPorts() {
 
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => goBack("/admin/room")} activeOpacity={0.82}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerText}>จัดการ LAN Port</Text>
-        <TouchableOpacity onPress={() => setAddModal(true)}>
+        <TouchableOpacity
+          onPress={() => selectedRoom ? setAddModal(true) : notify("ยังไม่มีห้อง", "ต้องมีห้องก่อนถึงจะเพิ่ม Port ได้")}>
           <Ionicons name="add-circle-outline" size={26} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -173,6 +204,8 @@ export default function AdminLanPorts() {
         <ScrollView contentContainerStyle={styles.scroll}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}>
 
+          {!!loadError && <LoadError message={loadError} onRetry={retry} />}
+
           {/* สถิติ */}
           <View style={styles.statsRow}>
             <View style={[styles.statCard, { borderLeftColor: "#22c55e" }]}>
@@ -197,14 +230,14 @@ export default function AdminLanPorts() {
 
           {/* PORT GRID */}
           <View style={styles.portGrid}>
-            {ports.length === 0 ? (
+            {loadError && ports.length === 0 ? null : ports.length === 0 ? (
               <View style={styles.empty}>
                 <Ionicons name="server-outline" size={40} color="#cbd5e1" />
                 <Text style={styles.emptyTxt}>ยังไม่มี Port กด + เพื่อเพิ่ม</Text>
               </View>
             ) : (
               ports.map(port => {
-                const cfg = STATUS_CONFIG[port.status] || STATUS_CONFIG.available;
+                const cfg = roomStatus(LAN_STATUS, port.status);
                 const isSaving = saving === port.id;
                 return (
                   <TouchableOpacity

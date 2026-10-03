@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   RefreshControl,
   ScrollView,
@@ -12,8 +11,12 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { notify } from "../../lib/notify";
+import { goBack, useRefreshOnFocus } from "../../lib/nav";
+import { currentUser } from "../../lib/session";
+import { REPAIR_STATUS, roomStatus } from "../../lib/roomStatus";
+import LoadError from "../../components/LoadError";
 
 const C = {
   bg: "#eef2f8",
@@ -30,14 +33,6 @@ const C = {
   green: "#22c55e",
   orange: "#f59e0b",
 };
-
-const STATUS_CFG: Record<string, { color: string; bg: string; border: string; label: string; icon: any; dot: string }> = {
-  pending: { color: C.red, bg: "#fee2e2", border: "#f87171", label: "รอซ่อม", icon: "desktop-outline", dot: C.red },
-  "in-repair": { color: C.orange, bg: "#fef3c7", border: "#facc15", label: "กำลังซ่อม", icon: "hardware-chip-outline", dot: C.yellow },
-  done: { color: C.green, bg: "#dcfce7", border: "#34d399", label: "ซ่อมเสร็จแล้ว", icon: "desktop-outline", dot: C.green },
-};
-
-const ROOMS = ["CP9524", "SC9604"];
 
 type FilterKey = "all" | "pending" | "in-repair" | "done";
 
@@ -62,9 +57,8 @@ function stationSub(record: any) {
 }
 
 export default function RepairsPage() {
-  const router = useRouter();
-
   const [records, setRecords] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState("");
   const [stations, setStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -86,17 +80,28 @@ export default function RepairsPage() {
   useEffect(() => {
     fetchAll();
   }, []);
+  useRefreshOnFocus(() => fetchAll(true));
 
-  const fetchAll = async () => {
-    setLoading(true);
+  // TODO R1: รายชื่อห้องจากตาราง rooms
+  const rooms = useMemo(
+    () => [...new Set(stations.map((station: any) => station.room_id).filter(Boolean))].sort() as string[],
+    [stations]
+  );
+
+  const fetchAll = async (quiet = false) => {
+    if (!quiet) setLoading(true);
     const [{ data: recs, error: recError }, { data: stationRows, error: stationError }] = await Promise.all([
       supabase.from("repair_records").select("*").order("reported_at", { ascending: false }),
       supabase.from("computer_stations").select("*").order("room_id").order("group_no").order("name"),
     ]);
 
     if (recError || stationError) {
-      Alert.alert("โหลดข้อมูลไม่สำเร็จ", recError?.message || stationError?.message || "กรุณาลองใหม่อีกครั้ง");
+      setLoadError(recError?.message || stationError?.message || "กรุณาลองใหม่อีกครั้ง");
+      setLoading(false);
+      setRefreshing(false);
+      return;
     }
+    setLoadError("");
 
     const safeStations = stationRows || [];
     const userIds = [...new Set((recs || []).map((r: any) => r.reported_by).filter(Boolean))];
@@ -131,11 +136,12 @@ export default function RepairsPage() {
   };
 
   const openAdd = () => {
-    setFormRoom("CP9524");
+    const room = rooms.includes(formRoom) ? formRoom : rooms[0] || "";
+    setFormRoom(room);
     setFormStation(null);
     setFormDesc("");
     setFormNotes("");
-    setFilteredStations(stations.filter((station: any) => station.room_id === "CP9524"));
+    setFilteredStations(stations.filter((station: any) => station.room_id === room));
     setAddModal(true);
   };
 
@@ -147,12 +153,12 @@ export default function RepairsPage() {
 
   const saveRepair = async () => {
     if (!formDesc.trim()) {
-      Alert.alert("กรุณาระบุรายละเอียด");
+      notify("กรุณาระบุรายละเอียด");
       return;
     }
 
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     const { error } = await supabase.from("repair_records").insert([{
       station_id: formStation?.id || null,
       description: formDesc.trim(),
@@ -163,13 +169,13 @@ export default function RepairsPage() {
     setSaving(false);
 
     if (error) {
-      Alert.alert("เกิดข้อผิดพลาด", error.message);
+      notify("แจ้งซ่อมไม่สำเร็จ", error.message);
       return;
     }
 
     setAddModal(false);
-    Alert.alert("แจ้งซ่อมสำเร็จ");
-    fetchAll();
+    notify("แจ้งซ่อมสำเร็จ");
+    fetchAll(true);
   };
 
   const openUpdate = (record: any) => {
@@ -183,23 +189,24 @@ export default function RepairsPage() {
     if (!updateRecord) return;
 
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     const updates: any = { status: updateStatus, notes: updateNotes.trim() || null };
     if (updateStatus === "done") {
       updates.repaired_at = new Date().toISOString();
       updates.repaired_by = user?.id || null;
     }
 
-    const { error } = await supabase.from("repair_records").update(updates).eq("id", updateRecord.id);
+    // .select() เพื่อรู้ว่าแก้ได้จริง — RLS ไม่ให้สิทธิ์จะไม่ error แต่แก้ได้ 0 แถว
+    const { data, error } = await supabase.from("repair_records").update(updates).eq("id", updateRecord.id).select("id");
     setSaving(false);
 
-    if (error) {
-      Alert.alert("เกิดข้อผิดพลาด", error.message);
+    if (error || !data?.length) {
+      notify("บันทึกไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข หรือรายการนี้ถูกลบไปแล้ว");
       return;
     }
 
     setUpdateModal(false);
-    fetchAll();
+    fetchAll(true);
   };
 
   const counts = useMemo(() => ({
@@ -224,7 +231,7 @@ export default function RepairsPage() {
     <View style={s.container}>
       <View style={s.hero}>
         <View style={s.heroTop}>
-          <TouchableOpacity style={s.headerIconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
+          <TouchableOpacity style={s.headerIconBtn} onPress={() => goBack("/admin/room")} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={22} color="#ffffff" />
           </TouchableOpacity>
 
@@ -264,7 +271,7 @@ export default function RepairsPage() {
       </View>
 
       <View style={s.listTitleRow}>
-        <Text style={s.listTitle}>{filterStatus === "all" ? "รายการซ่อมทั้งหมด" : `รายการ${STATUS_CFG[filterStatus].label}`}</Text>
+        <Text style={s.listTitle}>{filterStatus === "all" ? "รายการซ่อมทั้งหมด" : `รายการ${roomStatus(REPAIR_STATUS, filterStatus).label}`}</Text>
       </View>
 
       {loading ? (
@@ -278,7 +285,8 @@ export default function RepairsPage() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
         >
-          {filtered.length === 0 ? (
+          {!!loadError && <LoadError message={loadError} onRetry={() => fetchAll()} />}
+          {loadError && records.length === 0 ? null : filtered.length === 0 ? (
             <View style={s.empty}>
               <Ionicons name="construct-outline" size={45} color="#cbd5e1" />
               <Text style={s.emptyTitle}>ไม่มีรายการซ่อม</Text>
@@ -286,7 +294,7 @@ export default function RepairsPage() {
             </View>
           ) : (
             filtered.map((record) => {
-              const cfg = STATUS_CFG[record.status] || STATUS_CFG.pending;
+              const cfg = roomStatus(REPAIR_STATUS, record.status);
               return (
                 <TouchableOpacity
                   key={record.id}
@@ -341,7 +349,7 @@ export default function RepairsPage() {
 
             <Text style={s.fieldLabel}>ห้อง</Text>
             <View style={s.roomRow}>
-              {ROOMS.map((room) => (
+              {rooms.map((room) => (
                 <TouchableOpacity key={room} style={[s.roomBtn, formRoom === room && s.roomBtnActive]} onPress={() => changeRoom(room)}>
                   <Text style={[s.roomBtnText, formRoom === room && s.roomBtnTextActive]}>{room}</Text>
                 </TouchableOpacity>
@@ -411,7 +419,7 @@ export default function RepairsPage() {
             <Text style={s.fieldLabel}>สถานะ</Text>
             <View style={s.statusBtnRow}>
               {(["pending", "in-repair", "done"] as const).map((status) => {
-                const cfg = STATUS_CFG[status];
+                const cfg = REPAIR_STATUS[status];
                 const active = updateStatus === status;
                 return (
                   <TouchableOpacity

@@ -17,6 +17,7 @@ import supabase from "../../lib/supabase";
 import { currentUser } from "../../lib/session";
 import { notify } from "../../lib/notify";
 import { goBack } from "../../lib/nav";
+import { currentTerm } from "../../lib/term";
 
 const C = {
   bg: "#f4f4f7",
@@ -75,17 +76,6 @@ function itemLocation(item: any) {
   if (description) return description;
   const type = String(item?.type || "").trim();
   return type || "ไม่ระบุตำแหน่ง";
-}
-
-// ภาคเรียนปัจจุบัน (ปฏิทิน มข. โดยประมาณ): มิ.ย.–ต.ค. = 1 / พ.ย.–มี.ค. = 2 / เม.ย.–พ.ค. = ฤดูร้อน (3)
-// เดิมเขียนตายตัว "1/2568" → ผลตรวจปีนี้ไปบันทึกเป็นเทอมปีที่แล้ว
-function currentTerm(now = new Date()) {
-  const m = now.getMonth() + 1;
-  const be = now.getFullYear() + 543;
-  if (m >= 6 && m <= 10) return `1/${be}`;
-  if (m >= 11) return `2/${be}`;
-  if (m <= 3) return `2/${be - 1}`;
-  return `3/${be - 1}`;
 }
 
 function formatTermLabel(term: string) {

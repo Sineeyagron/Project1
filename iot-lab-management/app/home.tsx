@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { goTab, useRefreshOnFocus } from "../lib/nav";
+import LoadError from "../components/LoadError";
 
 type Station = {
   id: string;
@@ -62,6 +63,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     fetchRooms();
@@ -78,9 +80,10 @@ export default function Home() {
       .order("name");
 
     if (error) {
-      console.log(error);
-      setStations([]);
+      // โหลดพัง ห้ามโชว์ว่า "ใช้งานได้ทั้งหมด" — เก็บข้อมูลเดิมไว้ แล้วขึ้นแถบให้ลองใหม่
+      setLoadError(error.message);
     } else {
+      setLoadError("");
       setStations((data as Station[]) || []);
     }
     setLoading(false);
@@ -167,7 +170,7 @@ export default function Home() {
           </View>
           <View style={s.statCard}>
             <View style={[s.statDot, { backgroundColor: "#22c55e" }]} />
-            <Text style={s.statLabel}>ออนไลน์</Text>
+            <Text style={s.statLabel}>ใช้งานได้</Text>
             <Text style={s.statNumber}>{onlineStations}</Text>
           </View>
           <View style={s.statCard}>
@@ -218,7 +221,7 @@ export default function Home() {
         <View style={s.sectionHead}>
           <View>
             <Text style={s.sectionTitle}>ห้องที่มีให้เลือก</Text>
-            <Text style={s.sectionSub}>{roomSummaries.length} ห้อง พร้อมใช้งาน</Text>
+            <Text style={s.sectionSub}>{roomSummaries.length} ห้อง</Text>
           </View>
           <View style={s.viewToggle}>
             <TouchableOpacity
@@ -238,6 +241,7 @@ export default function Home() {
           </View>
         </View>
 
+        {!!loadError && <LoadError message={loadError} onRetry={onRefresh} />}
         {loading ? (
           <ActivityIndicator size="large" color={BLUE.header} style={{ marginTop: 40 }} />
         ) : (
@@ -273,7 +277,7 @@ export default function Home() {
                         </View>
                         <View style={s.roomMeta}>
                           <Ionicons name="wifi-outline" size={13} color="#16a34a" />
-                          <Text style={[s.roomMetaText, { color: "#16a34a" }]}>{room.online} ออนไลน์</Text>
+                          <Text style={[s.roomMetaText, { color: "#16a34a" }]}>{room.online} ใช้งานได้</Text>
                         </View>
                       </View>
                     </View>
@@ -283,7 +287,7 @@ export default function Home() {
               })}
             </View>
 
-            {filteredRooms.length === 0 ? (
+            {filteredRooms.length === 0 && !loadError ? (
               <View style={s.empty}>
                 <Ionicons name="search-outline" size={42} color="#bfdbfe" />
                 <Text style={s.emptyText}>ไม่พบห้องที่ค้นหา</Text>
@@ -322,7 +326,15 @@ export default function Home() {
             </View>
 
             {problemStations > 0 ? (
-              <TouchableOpacity style={s.alertCard} onPress={() => router.push("/roommap")} activeOpacity={0.88}>
+              <TouchableOpacity
+                style={s.alertCard}
+                // เปิดผังของห้องที่มีปัญหาจริง (เดิมไม่ส่ง room_id → เปิด CP9524 เสมอ แม้ปัญหาอยู่ SC9604)
+                onPress={() => {
+                  const problemRoom = roomSummaries.find((room) => room.problem > 0)?.room;
+                  router.push({ pathname: "/roommap", params: problemRoom ? { room_id: problemRoom } : {} });
+                }}
+                activeOpacity={0.88}
+              >
                 <View style={s.alertIcon}>
                   <Ionicons name="information-circle-outline" size={23} color="#d97706" />
                 </View>
@@ -342,7 +354,7 @@ export default function Home() {
       <View style={s.tabBar}>
         <TouchableOpacity style={s.tabItem} activeOpacity={0.82}>
           <Ionicons name="home" size={22} color={BLUE.purple} />
-          <Text style={[s.tabText, s.tabTextActive]}>ชั้นเรียน</Text>
+          <Text style={[s.tabText, s.tabTextActive]}>ห้องเรียน</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.tabItem} onPress={() => goTab("/equipment", "/home")} activeOpacity={0.82}>
           <Ionicons name="cube-outline" size={22} color={BLUE.faint} />

@@ -9,8 +9,11 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import supabase from "../lib/supabase";
+import { goBack, useRefreshOnFocus } from "../lib/nav";
+import { LAN_STATUS, roomStatus } from "../lib/roomStatus";
+import LoadError from "../components/LoadError";
 
 type LanPort = {
   id: string;
@@ -36,50 +39,27 @@ const C = {
   blue: "#2563eb",
 };
 
-const STATUS_CFG: Record<
-  string,
-  { label: string; color: string; bg: string; border: string; icon: keyof typeof Ionicons.glyphMap }
-> = {
-  available: {
-    label: "ใช้งานได้",
-    color: C.green,
-    bg: "#dcfce7",
-    border: "#86efac",
-    icon: "checkmark-circle-outline",
-  },
-  repair: {
-    label: "กำลังซ่อม",
-    color: C.orange,
-    bg: "#fef3c7",
-    border: "#fbbf24",
-    icon: "construct-outline",
-  },
-  broken: {
-    label: "เสีย",
-    color: C.red,
-    bg: "#fee2e2",
-    border: "#fca5a5",
-    icon: "close-circle-outline",
-  },
-};
-
 function roomSort(room: string) {
   const match = String(room || "").match(/\d+/);
   return match ? Number(match[0]) : 99999;
 }
 
 export default function LanStatus() {
-  const router = useRouter();
+  // เปิดจากการ์ดห้องหน้าแรก → เลือกห้องนั้นให้เลย (เดิมเปิดห้องแรกเสมอ)
+  const { room_id: roomParam } = useLocalSearchParams<{ room_id?: string }>();
   const [allPorts, setAllPorts] = useState<LanPort[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState(roomParam ? String(roomParam) : "");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     fetchAll();
   }, []);
+  useRefreshOnFocus(() => fetchAll());
 
+  // TODO R1: รายชื่อห้องจากตาราง rooms
   const fetchAll = async () => {
     const { data, error } = await supabase
       .from("lan_ports")
@@ -89,17 +69,17 @@ export default function LanStatus() {
       .order("port_no");
 
     if (error) {
-      console.log(error);
-      setAllPorts([]);
-      setRooms([]);
+      // โหลดพัง ห้ามโชว์ "ไม่มีข้อมูล" — เก็บข้อมูลเดิมไว้ แล้วขึ้นแถบให้ลองใหม่
+      setLoadError(error.message);
     } else {
+      setLoadError("");
       const list = (data as LanPort[]) || [];
       const uniqueRooms = Array.from(new Set(list.map((port) => port.room_id).filter(Boolean))).sort(
         (a, b) => roomSort(a) - roomSort(b) || a.localeCompare(b),
       );
       setAllPorts(list);
       setRooms(uniqueRooms);
-      setSelectedRoom((current) => current || uniqueRooms[0] || "");
+      setSelectedRoom((current) => (uniqueRooms.includes(current) ? current : uniqueRooms[0] || ""));
     }
 
     setLoading(false);
@@ -137,7 +117,7 @@ export default function LanStatus() {
     <View style={s.container}>
       <View style={s.header}>
         <View style={s.headerTop}>
-          <TouchableOpacity style={s.headerBtn} onPress={() => router.replace("/home")} activeOpacity={0.84}>
+          <TouchableOpacity style={s.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
             <Ionicons name="arrow-back" size={23} color="#ffffff" />
           </TouchableOpacity>
           <View style={s.titleBlock}>
@@ -176,6 +156,8 @@ export default function LanStatus() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.header} />}
         >
+          {!!loadError && <LoadError message={loadError} onRetry={onRefresh} />}
+
           <View style={s.summaryRow}>
             <View style={[s.summaryCard, s.summaryGreen]}>
               <Ionicons name="checkmark-circle-outline" size={24} color={C.green} />
@@ -214,7 +196,7 @@ export default function LanStatus() {
 
                 <View style={s.portGrid}>
                   {rows.map((port) => {
-                    const cfg = STATUS_CFG[port.status] || STATUS_CFG.available;
+                    const cfg = roomStatus(LAN_STATUS, port.status);
                     return (
                       <View
                         key={port.id}
@@ -237,7 +219,7 @@ export default function LanStatus() {
             );
           })}
 
-          {ports.length === 0 ? (
+          {ports.length === 0 && !loadError ? (
             <View style={s.empty}>
               <Ionicons name="server-outline" size={48} color="#bfdbfe" />
               <Text style={s.emptyText}>ยังไม่มีข้อมูล LAN Port</Text>

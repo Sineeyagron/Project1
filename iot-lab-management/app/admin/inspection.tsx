@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   ScrollView,
   StyleSheet,
@@ -11,11 +10,15 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { notify } from "../../lib/notify";
+import { goBack } from "../../lib/nav";
+import { currentUser } from "../../lib/session";
+import { currentTerm } from "../../lib/term";
+import { naturalNo } from "../../lib/roomStatus";
+import LoadError from "../../components/LoadError";
 
 const DEFAULT_ROOM = "CP9524";
-const DEFAULT_TERM = "1/2568";
 const EQUIP_TYPES = ["mouse", "keyboard", "monitor"] as const;
 type EquipType = (typeof EQUIP_TYPES)[number];
 type ConditionKey = "good" | "damaged" | "missing";
@@ -42,11 +45,7 @@ const emptyForm: Record<EquipType, EquipState> = {
   monitor: { condition: "good", notes: "", existingId: null },
 };
 
-function stationNumber(name?: string) {
-  const match = String(name || "").match(/\d+/);
-  return match ? Number(match[0]) : 9999;
-}
-
+// rows เรียงเก่า → ใหม่ แถวหลังทับแถวก่อน = ได้ผลล่าสุดของแต่ละอุปกรณ์ (กันแถวซ้ำในฐานข้อมูล)
 function latestPerType(rows: any[]) {
   const map: Record<string, any> = {};
   for (const row of rows) map[row.equipment_type] = row;
@@ -60,14 +59,18 @@ function formatProblem(record?: any) {
 }
 
 export default function InspectionPage() {
-  const router = useRouter();
-  const [term, setTerm] = useState(DEFAULT_TERM);
+  const [term, setTerm] = useState(currentTerm());
+  // เทอมของข้อมูลที่แสดงอยู่จริง — บันทึกใช้ค่านี้ (เดิมใช้ช่องพิมพ์ พิมพ์เทอมใหม่แต่ไม่กดค้นหา → ฟอร์มโชว์เทอมเก่าแต่บันทึกเป็นเทอมใหม่)
+  const [loadedTerm, setLoadedTerm] = useState(currentTerm());
   const [rooms, setRooms] = useState<string[]>([DEFAULT_ROOM]);
   const [selectedRoom, setSelectedRoom] = useState(DEFAULT_ROOM);
   const [stations, setStations] = useState<any[]>([]);
   const [inspections, setInspections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  // คำขอโหลดล่าสุด — กันผลของห้อง/เทอมเก่า (ตอบช้า) มาทับตอนสลับเร็วๆ
+  const loadSeq = useRef(0);
 
   const [formModal, setFormModal] = useState(false);
   const [formStation, setFormStation] = useState<any>(null);
@@ -78,11 +81,16 @@ export default function InspectionPage() {
   }, []);
 
   useEffect(() => {
-    fetchData(term, selectedRoom);
+    fetchData(loadedTerm, selectedRoom);
   }, [selectedRoom]);
 
+  // TODO R1: รายชื่อห้องจากตาราง rooms
   const fetchRooms = async () => {
-    const { data } = await supabase.from("computer_stations").select("room_id");
+    const { data, error } = await supabase.from("computer_stations").select("room_id");
+    if (error) {
+      setLoadError(error.message);
+      return;
+    }
     const uniqueRooms = Array.from(new Set((data || []).map((row) => row.room_id).filter(Boolean))).sort();
     if (uniqueRooms.length > 0) {
       setRooms(uniqueRooms);
@@ -92,7 +100,9 @@ export default function InspectionPage() {
     }
   };
 
-  const fetchData = async (termValue = term, roomValue = selectedRoom) => {
+  const fetchData = async (termValue = loadedTerm, roomValue = selectedRoom) => {
+    const cleanTerm = termValue.trim() || currentTerm();
+    const seq = ++loadSeq.current;
     setLoading(true);
     const { data: stationRows, error: stationError } = await supabase
       .from("computer_stations")
@@ -101,29 +111,36 @@ export default function InspectionPage() {
       .order("group_no")
       .order("name");
 
-    if (stationError) {
-      setLoading(false);
-      Alert.alert("โหลดข้อมูลไม่สำเร็จ", stationError.message);
-      return;
-    }
-
-    const ids = (stationRows || []).map((station) => station.id);
     let inspectionRows: any[] = [];
-    if (ids.length > 0 && termValue.trim()) {
+    let inspectionError: any = null;
+    const ids = (stationRows || []).map((station) => station.id);
+    if (!stationError && ids.length > 0) {
+      // เรียงด้วย inspected_at (ตารางนี้ไม่มี created_at — เดิมสั่งเรียง created_at ทำให้โหลดผลตรวจพังทุกครั้ง)
       const { data, error } = await supabase
         .from("equipment_inspections")
         .select("*")
-        .eq("term", termValue.trim())
+        .eq("term", cleanTerm)
         .in("station_id", ids)
-        .order("created_at", { ascending: true });
-      if (error) Alert.alert("โหลดผลตรวจไม่สำเร็จ", error.message);
+        .order("inspected_at", { ascending: true });
+      inspectionError = error;
       inspectionRows = data || [];
     }
 
+    if (seq !== loadSeq.current) return; // มีคำขอใหม่กว่าแล้ว
+    setLoading(false);
+    if (stationError || inspectionError) {
+      // โหลดพัง ห้ามโชว์ว่า "ยังไม่ได้ตรวจ" ทั้งห้อง — ขึ้นแถบให้ลองใหม่ และไม่ให้บันทึกทับ
+      setLoadError(stationError?.message || inspectionError?.message || "");
+      return;
+    }
+    setLoadError("");
     setStations(stationRows || []);
     setInspections(inspectionRows);
-    setLoading(false);
+    setLoadedTerm(cleanTerm);
+    setTerm(cleanTerm);
   };
+
+  const termPending = term.trim() !== loadedTerm;
 
   const recordsByStation = useMemo(() => {
     const map: Record<string, any[]> = {};
@@ -153,7 +170,7 @@ export default function InspectionPage() {
       .sort(([a], [b]) => Number(a) - Number(b))
       .map(([groupNo, rows]) => ({
         groupNo,
-        rows: rows.sort((a, b) => stationNumber(a.name) - stationNumber(b.name)),
+        rows: rows.sort((a, b) => naturalNo(a.name) - naturalNo(b.name)),
       }));
   }, [stations]);
 
@@ -164,6 +181,14 @@ export default function InspectionPage() {
   const progress = stations.length ? checkedCount / stations.length : 0;
 
   const openForm = (station: any) => {
+    if (loadError) {
+      notify("ยังโหลดผลตรวจไม่ได้", "กด \"ลองใหม่\" ก่อน — กันบันทึกทับผลที่มีอยู่แล้ว");
+      return;
+    }
+    if (termPending) {
+      notify("ยังไม่ได้เปลี่ยนเทอม", `ตอนนี้แสดงผลเทอม ${loadedTerm}\nกดปุ่มค้นหาเพื่อเปิดเทอม ${term.trim() || "-"} ก่อน`);
+      return;
+    }
     const existing = latestPerType(recordsByStation[station.id] || []);
     const next: Record<EquipType, EquipState> = {
       mouse: { ...emptyForm.mouse },
@@ -200,55 +225,64 @@ export default function InspectionPage() {
   };
 
   const saveInspection = async () => {
-    if (!term.trim()) {
-      Alert.alert("กรุณาระบุเทอม");
-      return;
-    }
     if (!formStation) return;
+    const saveTerm = loadedTerm;
 
     setSaving(true);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await currentUser();
 
-    const { data: existing } = await supabase
+    // อ่านผลเดิมของเครื่องนี้ในเทอมนี้ใหม่ทุกครั้งก่อนบันทึก (กันคนอื่นเพิ่งบันทึก) — ต้องอ่านสำเร็จก่อน ไม่งั้นจะ insert ซ้ำ
+    const { data: existing, error: readError } = await supabase
       .from("equipment_inspections")
       .select("id, equipment_type")
-      .eq("term", term.trim())
-      .eq("station_id", formStation.id);
+      .eq("term", saveTerm)
+      .eq("station_id", formStation.id)
+      .order("inspected_at", { ascending: true });
+    if (readError) {
+      setSaving(false);
+      notify("บันทึกไม่สำเร็จ", readError.message);
+      return;
+    }
 
     const existingMap: Record<string, string> = {};
-    for (const row of existing || []) existingMap[row.equipment_type] = row.id;
+    for (const row of existing || []) existingMap[row.equipment_type] = row.id; // ใช้แถวล่าสุดของแต่ละอุปกรณ์
+
+    const now = new Date().toISOString();
+    const rowFor = (type: EquipType) => ({
+      term: saveTerm,
+      station_id: formStation.id,
+      inspector_id: user?.id || null,
+      equipment_type: type,
+      condition: formData[type].condition,
+      notes: formData[type].notes.trim() || null,
+      inspected_at: now,
+    });
 
     let errorMsg: string | null = null;
-    for (const type of EQUIP_TYPES) {
-      const row = {
-        term: term.trim(),
-        station_id: formStation.id,
-        inspector_id: user?.id || null,
-        equipment_type: type,
-        condition: formData[type].condition,
-        notes: formData[type].notes.trim() || null,
-      };
-      const existingId = existingMap[type];
-      const { error } = existingId
-        ? await supabase.from("equipment_inspections").update(row).eq("id", existingId)
-        : await supabase.from("equipment_inspections").insert([row]);
-
-      if (error) {
-        errorMsg = error.message;
+    // อันที่มีอยู่แล้ว = แก้แถวเดิม
+    for (const type of EQUIP_TYPES.filter((t) => existingMap[t])) {
+      const { data, error } = await supabase
+        .from("equipment_inspections").update(rowFor(type)).eq("id", existingMap[type]).select("id");
+      if (error || !data?.length) {
+        errorMsg = error?.message || "ไม่มีสิทธิ์แก้ไขผลตรวจ";
         break;
       }
+    }
+    // อันที่ยังไม่มี = เพิ่มทีเดียวพร้อมกัน (สำเร็จทั้งหมดหรือไม่สำเร็จเลย)
+    const missing = EQUIP_TYPES.filter((t) => !existingMap[t]);
+    if (!errorMsg && missing.length > 0) {
+      const { error } = await supabase.from("equipment_inspections").insert(missing.map(rowFor));
+      if (error) errorMsg = error.message;
     }
 
     setSaving(false);
     if (errorMsg) {
-      Alert.alert("บันทึกไม่สำเร็จ", errorMsg);
+      notify("บันทึกไม่สำเร็จ", errorMsg);
       return;
     }
 
     setFormModal(false);
-    await fetchData(term, selectedRoom);
+    await fetchData(saveTerm, selectedRoom);
   };
 
   const renderStationCard = (station: any) => {
@@ -308,11 +342,11 @@ export default function InspectionPage() {
     <View style={st.container}>
       <View style={st.header}>
         <View style={st.topBar}>
-          <TouchableOpacity style={st.backBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
+          <TouchableOpacity style={st.backBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <Text style={st.headerTitle}>ตรวจสภาพอุปกรณ์</Text>
-          <TouchableOpacity style={st.backBtn} onPress={() => fetchData(term, selectedRoom)} activeOpacity={0.82}>
+          <TouchableOpacity style={st.backBtn} onPress={() => fetchData(loadedTerm, selectedRoom)} activeOpacity={0.82}>
             <Ionicons name="refresh" size={19} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -322,7 +356,7 @@ export default function InspectionPage() {
             style={st.termInput}
             value={term}
             onChangeText={setTerm}
-            placeholder="1/2568"
+            placeholder={currentTerm()}
             placeholderTextColor="#94a3b8"
             returnKeyType="search"
             onSubmitEditing={() => fetchData(term, selectedRoom)}
@@ -365,9 +399,14 @@ export default function InspectionPage() {
       </View>
 
       <ScrollView contentContainerStyle={st.body} keyboardShouldPersistTaps="handled">
+        {!!loadError && <LoadError message={loadError} onRetry={() => fetchData(loadedTerm, selectedRoom)} />}
+        {termPending ? (
+          <Text style={st.termHint}>กำลังแสดงเทอม {loadedTerm} · กดค้นหาเพื่อเปิดเทอม {term.trim() || "-"}</Text>
+        ) : null}
+
         {loading ? <ActivityIndicator color="#7c3aed" style={{ marginTop: 24 }} /> : null}
 
-        {!loading && stations.length === 0 ? (
+        {!loading && !loadError && stations.length === 0 ? (
           <Text style={st.emptyText}>ยังไม่มีเครื่องคอมพิวเตอร์ในห้อง {selectedRoom}</Text>
         ) : null}
 
@@ -394,7 +433,7 @@ export default function InspectionPage() {
               <View style={st.modalHeader}>
                 <View>
                   <Text style={st.modalTitle}>{formStation?.name}</Text>
-                  <Text style={st.modalSubtitle}>บันทึกผลตรวจเทอม {term || DEFAULT_TERM}</Text>
+                  <Text style={st.modalSubtitle}>บันทึกผลตรวจเทอม {loadedTerm}</Text>
                 </View>
                 <TouchableOpacity style={st.closeBtn} onPress={() => setFormModal(false)}>
                   <Ionicons name="close" size={20} color="#64748b" />
@@ -479,6 +518,7 @@ export default function InspectionPage() {
 
 const st = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#eef2f8" },
+  termHint: { color: "#b45309", backgroundColor: "#fef3c7", borderRadius: 10, padding: 10, fontSize: 12, fontWeight: "700", marginBottom: 12 },
   header: {
     backgroundColor: "#7c3aed",
     paddingHorizontal: 24,

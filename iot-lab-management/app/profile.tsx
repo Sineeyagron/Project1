@@ -278,7 +278,7 @@ export default function Profile() {
       <View style={s.tabBar}>
         <TouchableOpacity style={s.tabItem} onPress={() => goTab("/home", "/profile")} activeOpacity={0.82}>
           <Ionicons name="home-outline" size={22} color={C.faint} />
-          <Text style={s.tabText}>ชั้นเรียน</Text>
+          <Text style={s.tabText}>ห้องเรียน</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.tabItem} onPress={() => goTab("/equipment", "/profile")} activeOpacity={0.82}>
           <Ionicons name="cube-outline" size={22} color={C.faint} />

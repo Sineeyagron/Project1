@@ -328,7 +328,7 @@ export default function Equipment() {
       <View style={styles.tab}>
         <TouchableOpacity style={styles.tabItem} onPress={() => goTab("/home", "/equipment")} activeOpacity={0.82}>
           <Ionicons name="home-outline" size={22} color={C.faint} />
-          <Text style={styles.tabText}>ชั้นเรียน</Text>
+          <Text style={styles.tabText}>ห้องเรียน</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.tabItem} activeOpacity={0.82}>
           <Ionicons name="cube" size={22} color={C.purple} />

@@ -99,7 +99,14 @@
 - ป๊อปอัปใช้ `notify` / `confirmAction` (lib/notify) — `Alert.alert` ไม่ทำงานบนเว็บ / กติการหัสผ่าน `lib/password.ts` (8 ตัว มีตัวอักษร+ตัวเลข ตรงกับ Supabase)
 - เปลี่ยนรหัสผ่านจากโปรไฟล์ = `/reset-password?mode=change` (ใช้ updateUser ได้ทั้งตอนล็อกอินอยู่ / ลิงก์จากอีเมลไม่มี mode) — deep link handler ใน `_layout.tsx` ต้องไม่ redirect เมื่อมี `mode=change`
 - "แก้ไขข้อมูลส่วนตัว" ในโปรไฟล์ยังไม่มีฟีเจอร์จริง (แจ้งว่ายังแก้ไม่ได้) / `profiles` มีแค่ id, role, email — ชื่อจากหน้าสมัครเก็บใน auth user metadata `full_name`
-- ยังไม่แก้ (ระบบห้อง ไม่แตะ): stations, lanports, repairs, room, inspection, roommap, lanstatus ยังใช้ ← ไปหน้าแรก + Alert.alert
+
+### ระบบห้อง R0 (5 ต.ค. 2569) — migration `room_r0_schema`
+- ระบบห้องคอม **แยกจากระบบยืม-คืนเด็ดขาด** (ตาราง/หน้า/กติกา) แผนเต็ม R0–R4 อยู่ใน PLAN/REVIEW_ระบบห้อง.md
+- ชื่อ/สี/ไอคอนสถานะระบบห้อง: `lib/roomStatus.ts` (`STATION_STATUS`, `LAN_STATUS`, `EQUIP_STATUS`, `REPAIR_STATUS`, `CONDITION_STATUS` + `roomStatus(map, key)` มีค่าสำรอง) — ห้ามใช้ `lib/status.ts` ของระบบยืม
+- หน้าระบบห้องใช้ `confirmAction`/`notify`, `goBack`, `currentUser`, `components/LoadError.tsx` (โหลดพัง = แถบลองใหม่ ห้ามโชว์ "ปกติ") แล้ว / เขียนข้อมูลใช้ `.select("id")` เช็กว่าแก้ได้จริง (RLS ไม่ให้สิทธิ์ = 0 แถว ไม่ error)
+- `lib/term.ts` `currentTerm()` ใช้ทั้ง inspection และ iotinspection
+- ฐานข้อมูล: `room_bookings` ลบแล้ว / `computer_stations.status` CHECK available|repair|broken / ชื่อเครื่องห้ามซ้ำ **ในกลุ่มเดียวกัน** (ทุกกลุ่มมี C1–C9) / LAN port ห้ามซ้ำในกลุ่ม + 1–12 / `equipment_inspections` unique (station_id, term, equipment_type) — ตารางนี้ไม่มี `created_at` ใช้ `inspected_at`
+- รายชื่อห้องยังเดาจากข้อมูล (`TODO R1` = ตาราง `rooms`)
 
 ### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
 - ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)

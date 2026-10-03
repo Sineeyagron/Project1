@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   RefreshControl,
   ScrollView,
@@ -12,8 +11,12 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import supabase from "../../lib/supabase";
+import { confirmAction, notify } from "../../lib/notify";
+import { goBack, useRefreshOnFocus } from "../../lib/nav";
+import { STATION_STATUS, naturalNo, roomStatus } from "../../lib/roomStatus";
+import LoadError from "../../components/LoadError";
 
 const C = {
   bg: "#eef3f8",
@@ -28,11 +31,8 @@ const C = {
   red: "#ef4444",
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; next: string }> = {
-  available: { label: "พร้อมใช้", color: C.green, bg: "#dcfce7", border: "#86efac", next: "repair" },
-  repair: { label: "ซ่อม", color: C.orange, bg: "#fef3c7", border: "#fbbf24", next: "broken" },
-  broken: { label: "พัง", color: "#dc2626", bg: "#fee2e2", border: "#fca5a5", next: "available" },
-};
+// กดเครื่อง = เปลี่ยนสถานะวนตามลำดับนี้
+const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
 
 type Station = {
   id: string;
@@ -42,20 +42,17 @@ type Station = {
   status: string;
 };
 
-function naturalName(name: string) {
-  const match = String(name || "").match(/\d+/);
-  return match ? Number(match[0]) : 999;
-}
-
 export default function AdminStations() {
-  const router = useRouter();
-
+  const { room_id: roomParam } = useLocalSearchParams<{ room_id?: string }>(); // เปิดจากการ์ดห้อง → เลือกห้องนั้น
   const [stations, setStations] = useState<Station[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
   const [selectedRoom, setSelectedRoom] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
+  // ห้องล่าสุดที่เลือก — กันผลโหลดของห้องเก่า (ตอบช้า) มาทับห้องใหม่ตอนสลับเร็วๆ
+  const roomRef = useRef("");
 
   const [editModal, setEditModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Station | null>(null);
@@ -69,32 +66,57 @@ export default function AdminStations() {
   }, []);
 
   useEffect(() => {
+    roomRef.current = selectedRoom;
     if (selectedRoom) fetchStations(selectedRoom);
   }, [selectedRoom]);
 
+  useRefreshOnFocus(() => {
+    if (selectedRoom) fetchStations(selectedRoom);
+  });
+
+  // TODO R1: อ่านรายชื่อห้องจากตาราง rooms แทนการเดาจากเครื่องที่มีอยู่
   const fetchRooms = async () => {
-    const { data } = await supabase.from("computer_stations").select("room_id");
+    const { data, error } = await supabase.from("computer_stations").select("room_id");
+    if (error) {
+      setLoadError(error.message);
+      setLoading(false);
+      return;
+    }
     const unique = data && data.length > 0
-      ? ([...new Set(data.map((row: any) => row.room_id).filter(Boolean))] as string[])
+      ? ([...new Set(data.map((row: any) => row.room_id).filter(Boolean))] as string[]).sort()
       : ["CP9524", "SC9604"];
     setRooms(unique);
-    setSelectedRoom((current) => current || unique[0] || "CP9524");
+    setSelectedRoom((current) => current || (unique.includes(String(roomParam)) ? String(roomParam) : unique[0]) || "CP9524");
     setLoading(false);
   };
 
   const fetchStations = async (room = selectedRoom) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("computer_stations")
       .select("*")
       .eq("room_id", room)
       .order("group_no")
       .order("name");
-
+    if (room !== roomRef.current) return; // ผู้ใช้สลับไปห้องอื่นแล้ว
+    setRefreshing(false);
+    if (error) {
+      setLoadError(error.message);
+      return;
+    }
+    setLoadError("");
     const list = ((data as Station[]) || []).sort((a, b) =>
-      (a.group_no - b.group_no) || (naturalName(a.name) - naturalName(b.name)) || a.name.localeCompare(b.name)
+      (a.group_no - b.group_no) || (naturalNo(a.name) - naturalNo(b.name)) || a.name.localeCompare(b.name)
     );
     setStations(list);
-    setRefreshing(false);
+  };
+
+  const retry = () => {
+    setLoadError("");
+    if (selectedRoom) fetchStations(selectedRoom);
+    else {
+      setLoading(true);
+      fetchRooms();
+    }
   };
 
   const grouped = useMemo(() => {
@@ -116,30 +138,24 @@ export default function AdminStations() {
     fetchStations();
   };
 
-  const goBack = () => router.replace("/admin/home");
-
   const toggleStatus = (station: Station) => {
-    const next = STATUS_CONFIG[station.status]?.next || "available";
-    const nextCfg = STATUS_CONFIG[next];
-    Alert.alert("เปลี่ยนสถานะเครื่อง", `${station.name} → ${nextCfg.label}?`, [
-      { text: "ยกเลิก", style: "cancel" },
-      {
-        text: "ยืนยัน",
-        onPress: async () => {
-          setSaving(station.id);
-          const { error } = await supabase
-            .from("computer_stations")
-            .update({ status: next })
-            .eq("id", station.id);
-          if (error) {
-            Alert.alert("เปลี่ยนสถานะไม่สำเร็จ", error.message);
-          } else {
-            setStations((current) => current.map((row) => row.id === station.id ? { ...row, status: next } : row));
-          }
-          setSaving(null);
-        },
-      },
-    ]);
+    const next = NEXT_STATUS[station.status] || "available";
+    const nextCfg = roomStatus(STATION_STATUS, next);
+    confirmAction("เปลี่ยนสถานะเครื่อง", `${station.name} → ${nextCfg.label}?`, "ยืนยัน", async () => {
+      setSaving(station.id);
+      // .select() เพื่อรู้ว่าแก้ได้จริง — RLS ไม่ให้สิทธิ์จะไม่ error แต่แก้ได้ 0 แถว
+      const { data, error } = await supabase
+        .from("computer_stations")
+        .update({ status: next })
+        .eq("id", station.id)
+        .select("id");
+      setSaving(null);
+      if (error || !data?.length) {
+        notify("เปลี่ยนสถานะไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข หรือเครื่องนี้ถูกลบไปแล้ว");
+        return;
+      }
+      setStations((current) => current.map((row) => row.id === station.id ? { ...row, status: next } : row));
+    });
   };
 
   const openEdit = (station: Station) => {
@@ -152,47 +168,63 @@ export default function AdminStations() {
 
   const saveEdit = async () => {
     if (!editTarget || !editName.trim()) {
-      Alert.alert("กรอกชื่อเครื่องก่อน");
+      notify("กรอกชื่อเครื่องก่อน");
+      return;
+    }
+    const name = editName.trim();
+    // ชื่อซ้ำได้ข้ามกลุ่ม (ทุกกลุ่มมี C1–C9) แต่ห้ามซ้ำในกลุ่มเดียวกัน
+    const dup = stations.some(
+      (row) => row.id !== editTarget.id && row.group_no === editGroup && row.name.toLowerCase() === name.toLowerCase()
+    );
+    if (dup) {
+      notify("ชื่อซ้ำ", `กลุ่ม ${editGroup} ห้อง ${selectedRoom} มีเครื่องชื่อ "${name}" อยู่แล้ว`);
       return;
     }
     setEditSaving(true);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("computer_stations")
-      .update({ name: editName.trim(), status: editStatus, group_no: editGroup })
-      .eq("id", editTarget.id);
+      .update({ name, status: editStatus, group_no: editGroup })
+      .eq("id", editTarget.id)
+      .select("id");
     setEditSaving(false);
-    if (error) {
-      Alert.alert("แก้ไขไม่สำเร็จ", error.message);
+    if (error || !data?.length) {
+      notify("แก้ไขไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข หรือเครื่องนี้ถูกลบไปแล้ว");
       return;
     }
     setEditModal(false);
     fetchStations();
   };
 
+  // TODO (รอตัดสิน M6): เครื่องที่มีประวัติตรวจ/ซ่อม ควร "ปิดใช้งาน" แทนการลบ
   const deleteStation = (station: Station) => {
-    Alert.alert("ลบเครื่อง", `ลบ "${station.name}" ?`, [
-      { text: "ยกเลิก", style: "cancel" },
-      {
-        text: "ลบ",
-        style: "destructive",
-        onPress: async () => {
-          const { error } = await supabase.from("computer_stations").delete().eq("id", station.id);
-          if (error) {
-            Alert.alert("ลบไม่สำเร็จ", error.message);
-            return;
-          }
-          setEditModal(false);
-          setStations((current) => current.filter((row) => row.id !== station.id));
-        },
+    confirmAction(
+      "ลบเครื่อง",
+      `ลบ "${station.name}" ?\n\nเช็กลิสต์ของเครื่องจะถูกลบด้วย ส่วนประวัติตรวจ/ซ่อมยังอยู่แต่จะไม่รู้ว่าเป็นเครื่องไหน`,
+      "ลบ",
+      async () => {
+        const { data, error } = await supabase.from("computer_stations").delete().eq("id", station.id).select("id");
+        if (error || !data?.length) {
+          notify("ลบไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์ลบ หรือเครื่องนี้ถูกลบไปแล้ว");
+          return;
+        }
+        setEditModal(false);
+        setStations((current) => current.filter((row) => row.id !== station.id));
       },
-    ]);
+      true
+    );
   };
+
+  // กลุ่มที่เลือกได้ในหน้าต่างแก้ไข = กลุ่มที่มีในห้องนี้ + 1–6 (เดิมฟิก 1–6)
+  const groupChoices = useMemo(
+    () => [...new Set([1, 2, 3, 4, 5, 6, ...stations.map((row) => row.group_no)])].sort((a, b) => a - b),
+    [stations]
+  );
 
   return (
     <View style={s.container}>
       <View style={s.header}>
         <View style={s.headerTop}>
-          <TouchableOpacity style={s.backBtn} onPress={goBack} activeOpacity={0.82}>
+          <TouchableOpacity style={s.backBtn} onPress={() => goBack("/admin/room")} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <View style={s.headerTextWrap}>
@@ -226,13 +258,13 @@ export default function AdminStations() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
           showsVerticalScrollIndicator
         >
+          {!!loadError && <LoadError message={loadError} onRetry={retry} />}
+
           <View style={s.legendRow}>
-            <Legend color={C.green} label="พร้อมใช้" />
-            <Legend color="#f59e0b" label="ซ่อม" />
-            <Legend color={C.red} label="พัง" />
+            {Object.values(STATION_STATUS).map((cfg) => <Legend key={cfg.label} color={cfg.color} label={cfg.label} />)}
           </View>
 
-          {grouped.length === 0 ? (
+          {loadError && stations.length === 0 ? null : grouped.length === 0 ? (
             <View style={s.empty}>
               <Ionicons name="desktop-outline" size={46} color="#cbd5e1" />
               <Text style={s.emptyText}>ยังไม่มีเครื่องในห้องนี้</Text>
@@ -258,7 +290,7 @@ export default function AdminStations() {
 
                   <View style={s.stationGrid}>
                     {rows.map((station) => {
-                      const cfg = STATUS_CONFIG[station.status] || STATUS_CONFIG.available;
+                      const cfg = roomStatus(STATION_STATUS, station.status);
                       const isSaving = saving === station.id;
                       return (
                         <TouchableOpacity
@@ -311,7 +343,7 @@ export default function AdminStations() {
 
             <Text style={s.fieldLabel}>กลุ่ม</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.modalChips}>
-              {[1, 2, 3, 4, 5, 6].map((group) => (
+              {groupChoices.map((group) => (
                 <TouchableOpacity
                   key={group}
                   style={[s.modalChip, editGroup === group && s.modalChipActive]}
@@ -324,7 +356,7 @@ export default function AdminStations() {
 
             <Text style={s.fieldLabel}>สถานะ</Text>
             <View style={s.statusRow}>
-              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+              {Object.entries(STATION_STATUS).map(([key, cfg]) => (
                 <TouchableOpacity
                   key={key}
                   style={[s.statusBtn, { borderColor: cfg.color }, editStatus === key && { backgroundColor: cfg.color }]}

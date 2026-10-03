@@ -11,6 +11,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { goBack, useRefreshOnFocus } from "../../lib/nav";
+import { STATION_STATUS } from "../../lib/roomStatus";
+import LoadError from "../../components/LoadError";
 
 const C = {
   bg: "#eef2f8",
@@ -44,16 +47,27 @@ export default function AdminRoom() {
   const [stats, setStats] = useState<RoomStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     fetchStats();
   }, []);
+  useRefreshOnFocus(() => fetchStats());
 
+  // TODO R1: รายชื่อห้องจากตาราง rooms
   const fetchStats = async () => {
-    const [{ data: stations }, { data: lanData }] = await Promise.all([
+    const [{ data: stations, error: stationError }, { data: lanData, error: lanError }] = await Promise.all([
       supabase.from("computer_stations").select("room_id, status"),
       supabase.from("lan_ports").select("room_id, status").neq("status", "available"),
     ]);
+    if (stationError || lanError) {
+      // โหลดพัง ห้ามโชว์ว่า "ปกติ" — เก็บตัวเลขเดิมไว้ แล้วขึ้นแถบให้ลองใหม่
+      setLoadError(stationError?.message || lanError?.message || "");
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    setLoadError("");
 
     const roomsFromDb = [
       ...new Set([
@@ -97,7 +111,7 @@ export default function AdminRoom() {
     <View style={s.container}>
       <View style={s.header}>
         <View style={s.headerTop}>
-          <TouchableOpacity style={s.iconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
+          <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={22} color="#ffffff" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>จัดการห้อง</Text>
@@ -124,7 +138,15 @@ export default function AdminRoom() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
         >
-          {stats.map((room) => (
+          {!!loadError && <LoadError message={loadError} onRetry={onRefresh} />}
+          {stats.map((room) => {
+            // ป้ายห้องดูทั้งเครื่องและ LAN (เดิมดูแค่ LAN — เครื่องเสียหลายเครื่องก็ยังขึ้น "ปกติ")
+            const stationIssues = room.repair + room.broken;
+            const issueText = [
+              stationIssues > 0 ? `เครื่อง ${stationIssues}` : "",
+              room.lanIssues > 0 ? `LAN ${room.lanIssues}` : "",
+            ].filter(Boolean).join(" · ");
+            return (
             <View key={room.room_id} style={s.roomCard}>
               <View style={s.roomHeader}>
                 <View style={s.roomIconBox}>
@@ -135,10 +157,10 @@ export default function AdminRoom() {
                   <Text style={s.roomSub}>{room.total} เครื่องทั้งหมด</Text>
                 </View>
 
-                {room.lanIssues > 0 ? (
+                {issueText ? (
                   <View style={s.warnBadge}>
                     <Ionicons name="warning-outline" size={13} color="#c2410c" />
-                    <Text style={s.warnText}>LAN {room.lanIssues} port</Text>
+                    <Text style={s.warnText}>{issueText}</Text>
                   </View>
                 ) : (
                   <View style={s.okBadge}>
@@ -149,18 +171,19 @@ export default function AdminRoom() {
               </View>
 
               <View style={s.statusGrid}>
-                <RoomMetric value={room.available} label="ว่าง" color={C.green} />
-                <RoomMetric value={room.repair} label="ซ่อม" color={room.repair > 0 ? C.orange : C.faint} />
-                <RoomMetric value={room.broken} label="พัง" color={room.broken > 0 ? C.red : C.faint} />
+                <RoomMetric value={room.available} label={STATION_STATUS.available.label} color={C.green} />
+                <RoomMetric value={room.repair} label={STATION_STATUS.repair.label} color={room.repair > 0 ? C.orange : C.faint} />
+                <RoomMetric value={room.broken} label={STATION_STATUS.broken.label} color={room.broken > 0 ? C.red : C.faint} />
               </View>
 
               <View style={s.actionRow}>
                 <ActionButton icon="map-outline" label="ผังห้อง" onPress={() => router.push({ pathname: "/roommap", params: { room_id: room.room_id } } as any)} />
-                <ActionButton icon="desktop-outline" label="จัดการเครื่อง" onPress={() => router.push("/admin/stations" as any)} />
-                <ActionButton icon="git-network-outline" label="LAN Port" onPress={() => router.push("/admin/lanports" as any)} />
+                <ActionButton icon="desktop-outline" label="จัดการเครื่อง" onPress={() => router.push({ pathname: "/admin/stations", params: { room_id: room.room_id } } as any)} />
+                <ActionButton icon="git-network-outline" label="LAN Port" onPress={() => router.push({ pathname: "/admin/lanports", params: { room_id: room.room_id } } as any)} />
               </View>
             </View>
-          ))}
+            );
+          })}
           <View style={{ height: 32 }} />
         </ScrollView>
       )}
