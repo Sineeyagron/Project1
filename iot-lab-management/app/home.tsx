@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { goTab, useRefreshOnFocus } from "../lib/nav";
 import LoadError from "../components/LoadError";
+import { Room, fetchRooms as fetchRoomList, roomPlace } from "../lib/rooms";
 
 type Station = {
   id: string;
@@ -39,16 +40,6 @@ const BLUE = {
   orange: "#f59e0b",
 };
 
-function naturalRoom(room: string) {
-  const match = String(room || "").match(/\d+/);
-  return match ? Number(match[0]) : 99999;
-}
-
-function getRoomFloor(room: string) {
-  if (/9524/i.test(room)) return "อาคารคอมพิวเตอร์ ชั้น 5";
-  if (/9604/i.test(room)) return "อาคารวิทยาศาสตร์ ชั้น 6";
-  return "ห้องปฏิบัติการ IoT";
-}
 
 export default function Home() {
   const router = useRouter();
@@ -64,6 +55,7 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [loadError, setLoadError] = useState("");
+  const [rooms, setRooms] = useState<Room[]>([]);
 
   useEffect(() => {
     fetchRooms();
@@ -72,19 +64,22 @@ export default function Home() {
   useRefreshOnFocus(() => { fetchRooms(); });
 
   const fetchRooms = async () => {
-    const { data, error } = await supabase
-      .from("computer_stations")
-      .select("*")
-      .order("room_id")
-      .order("group_no")
-      .order("name");
+    // ห้องจากตาราง rooms (ห้องที่เปิดอยู่) + เครื่องที่เปิดใช้งาน
+    const [{ data, error: stationError }, { rooms: roomList, error: roomError }] = await Promise.all([
+      supabase.from("computer_stations").select("*").eq("active", true).order("room_id").order("group_no").order("name"),
+      fetchRoomList(),
+    ]);
+    const error = stationError || roomError;
 
     if (error) {
       // โหลดพัง ห้ามโชว์ว่า "ใช้งานได้ทั้งหมด" — เก็บข้อมูลเดิมไว้ แล้วขึ้นแถบให้ลองใหม่
       setLoadError(error.message);
     } else {
       setLoadError("");
-      setStations((data as Station[]) || []);
+      setRooms(roomList);
+      // เฉพาะเครื่องในห้องที่เปิดอยู่
+      const openIds = new Set(roomList.map((room) => room.id));
+      setStations(((data as Station[]) || []).filter((station) => openIds.has(station.room_id)));
     }
     setLoading(false);
     setRefreshing(false);
@@ -95,27 +90,21 @@ export default function Home() {
     fetchRooms();
   };
 
+  // ทุกห้องที่เปิดอยู่ เรียงตามที่ Admin ตั้ง (ห้องใหม่ที่ยังไม่มีเครื่องก็ขึ้น)
   const roomSummaries = useMemo(() => {
-    const map = new Map<string, Station[]>();
-    stations.forEach((station) => {
-      const room = station.room_id || "ไม่ระบุห้อง";
-      map.set(room, [...(map.get(room) || []), station]);
+    return rooms.map((info) => {
+      const rows = stations.filter((station) => station.room_id === info.id);
+      const online = rows.filter((row) => row.status === "available").length;
+      const problem = rows.length - online;
+      return {
+        room: info.id,
+        total: rows.length,
+        online,
+        problem,
+        floor: roomPlace(info),
+      };
     });
-
-    return [...map.entries()]
-      .sort(([a], [b]) => naturalRoom(a) - naturalRoom(b) || a.localeCompare(b))
-      .map(([room, rows]) => {
-        const online = rows.filter((row) => row.status === "available").length;
-        const problem = rows.length - online;
-        return {
-          room,
-          total: rows.length,
-          online,
-          problem,
-          floor: getRoomFloor(room),
-        };
-      });
-  }, [stations]);
+  }, [rooms, stations]);
 
   const runSearch = () => {
     setActiveSearch(search.trim());

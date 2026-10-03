@@ -9,6 +9,7 @@ import supabase from "../lib/supabase";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { EQUIP_STATUS, LAN_STATUS, STATION_STATUS, naturalNo, roomStatus } from "../lib/roomStatus";
 import LoadError from "../components/LoadError";
+import { Room, fetchRooms, roomPlace } from "../lib/rooms";
 
 const EQUIP_LABELS: Record<string, string> = {
   mouse:    "🖱️ เมาส์",
@@ -18,7 +19,16 @@ const EQUIP_LABELS: Record<string, string> = {
 
 export default function RoomMap() {
   const { room_id } = useLocalSearchParams<{ room_id: string }>();
-  const roomName = room_id || "CP9524";
+  // ไม่ได้ส่งห้องมา → ใช้ห้องแรกจากตาราง rooms (เดิมฟิก "CP9524")
+  const [roomName, setRoomName] = useState(room_id ? String(room_id) : "");
+  const [roomInfo, setRoomInfo] = useState<Room | null>(null);
+  useEffect(() => {
+    if (room_id) setRoomName(String(room_id));
+    else fetchRooms().then(({ rooms }) => {
+      if (rooms[0]) setRoomName(rooms[0].id);
+      else setLoading(false);
+    });
+  }, [room_id]);
 
   const [stations, setStations] = useState<any[]>([]);
   const [lanPorts, setLanPorts] = useState<any[]>([]);
@@ -38,22 +48,25 @@ export default function RoomMap() {
 
   useEffect(() => {
     roomRef.current = roomName;
-    fetchAll();
+    if (roomName) fetchAll();
   }, [roomName]);
-  useRefreshOnFocus(() => fetchAll());
+  useRefreshOnFocus(() => { if (roomName) fetchAll(); });
 
   const fetchAll = async () => {
     const room = roomName;
-    const [{ data: st, error: e1 }, { data: lp, error: e2 }, { data: eq, error: e3 }] = await Promise.all([
+    const [{ data: st, error: e1 }, { data: lp, error: e2 }, { data: eq, error: e3 }, { data: info }] = await Promise.all([
+      // เครื่องที่ปิดใช้งาน (active=false) ไม่ขึ้นในผังห้อง
       supabase.from("computer_stations").select("*")
-        .eq("room_id", room).order("group_no").order("name"),
+        .eq("room_id", room).eq("active", true).order("group_no").order("name"),
       supabase.from("lan_ports").select("*")
         .eq("room_id", room).order("group_no").order("port_no"),
       // เฉพาะเช็กลิสต์ของเครื่องในห้องนี้ (เดิมโหลดทั้งตารางทุกห้อง)
       supabase.from("station_equipment").select("*, computer_stations!inner(room_id)")
         .eq("computer_stations.room_id", room),
+      supabase.from("rooms").select("*").eq("id", room).maybeSingle(),
     ]);
     if (room !== roomRef.current) return;
+    setRoomInfo((info as Room) || null);
     setLoading(false);
     setRefreshing(false);
     if (e1 || e2 || e3) {
@@ -117,7 +130,7 @@ export default function RoomMap() {
         </TouchableOpacity>
         <View style={s.headerTitleBlock}>
           <Text style={s.headerText}>ผังห้อง {roomName}</Text>
-          <Text style={s.headerSub}>{stations.length} เครื่อง · {lanPorts.length} LAN port</Text>
+          <Text style={s.headerSub}>{roomPlace(roomInfo)} · {stations.length} เครื่อง · {lanPorts.length} LAN port</Text>
         </View>
         <TouchableOpacity style={s.headerBtn} onPress={onRefresh} activeOpacity={0.84}>
           <Ionicons name="refresh" size={19} color="#fff" />

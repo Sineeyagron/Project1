@@ -17,6 +17,7 @@ import { confirmAction, notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { STATION_STATUS, naturalNo, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
+import { fetchRooms as loadRooms } from "../../lib/rooms";
 
 const C = {
   bg: "#eef3f8",
@@ -31,6 +32,9 @@ const C = {
   red: "#ef4444",
 };
 
+// การ์ดเครื่องที่ปิดใช้งาน (สีเทา)
+const INACTIVE_CFG = { label: "ปิดใช้งาน", color: "#64748b", bg: "#f1f5f9", border: "#cbd5e1", icon: "remove-circle-outline" };
+
 // กดเครื่อง = เปลี่ยนสถานะวนตามลำดับนี้
 const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
 
@@ -40,6 +44,7 @@ type Station = {
   group_no: number;
   name: string;
   status: string;
+  active: boolean; // false = ปิดใช้งาน (มีประวัติ ลบไม่ได้) ไม่ขึ้นในผังห้อง/สถิติ
 };
 
 export default function AdminStations() {
@@ -61,6 +66,11 @@ export default function AdminStations() {
   const [editGroup, setEditGroup] = useState<number>(1);
   const [editSaving, setEditSaving] = useState(false);
 
+  // เพิ่มเครื่อง (REVIEW H3 — เดิมไม่มีที่ไหนเพิ่มเครื่องได้เลย)
+  const [addModal, setAddModal] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addGroup, setAddGroup] = useState<number>(1);
+
   useEffect(() => {
     fetchRooms();
   }, []);
@@ -74,19 +84,17 @@ export default function AdminStations() {
     if (selectedRoom) fetchStations(selectedRoom);
   });
 
-  // TODO R1: อ่านรายชื่อห้องจากตาราง rooms แทนการเดาจากเครื่องที่มีอยู่
+  // รายชื่อห้องจากตาราง rooms (ห้องที่เปิดอยู่)
   const fetchRooms = async () => {
-    const { data, error } = await supabase.from("computer_stations").select("room_id");
+    const { rooms: list, error } = await loadRooms();
     if (error) {
       setLoadError(error.message);
       setLoading(false);
       return;
     }
-    const unique = data && data.length > 0
-      ? ([...new Set(data.map((row: any) => row.room_id).filter(Boolean))] as string[]).sort()
-      : ["CP9524", "SC9604"];
-    setRooms(unique);
-    setSelectedRoom((current) => current || (unique.includes(String(roomParam)) ? String(roomParam) : unique[0]) || "CP9524");
+    const ids = list.map((room) => room.id);
+    setRooms(ids);
+    setSelectedRoom((current) => current || (ids.includes(String(roomParam)) ? String(roomParam) : ids[0]) || "");
     setLoading(false);
   };
 
@@ -130,8 +138,10 @@ export default function AdminStations() {
       .map(([group, rows]) => ({ group, rows }));
   }, [stations]);
 
-  const roomReady = stations.filter((station) => station.status === "available").length;
-  const roomProblems = stations.length - roomReady;
+  // สถิตินับเฉพาะเครื่องที่เปิดใช้งาน
+  const activeStations = stations.filter((station) => station.active !== false);
+  const roomReady = activeStations.filter((station) => station.status === "available").length;
+  const roomProblems = activeStations.length - roomReady;
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -139,6 +149,12 @@ export default function AdminStations() {
   };
 
   const toggleStatus = (station: Station) => {
+    if (station.active === false) {
+      confirmAction("เปิดใช้งานเครื่อง", `เปิดใช้ "${station.name}" อีกครั้ง?\nเครื่องจะกลับมาขึ้นในผังห้อง`, "เปิดใช้งาน", () =>
+        setActive(station, true)
+      );
+      return;
+    }
     const next = NEXT_STATUS[station.status] || "available";
     const nextCfg = roomStatus(STATION_STATUS, next);
     confirmAction("เปลี่ยนสถานะเครื่อง", `${station.name} → ${nextCfg.label}?`, "ยืนยัน", async () => {
@@ -195,11 +211,47 @@ export default function AdminStations() {
     fetchStations();
   };
 
-  // TODO (รอตัดสิน M6): เครื่องที่มีประวัติตรวจ/ซ่อม ควร "ปิดใช้งาน" แทนการลบ
-  const deleteStation = (station: Station) => {
+  // ปิด/เปิดใช้งานเครื่อง (active) — เครื่องที่ปิดไม่ขึ้นในผังห้อง/สถิติ แต่ประวัติยังผูกอยู่
+  const setActive = async (station: Station, active: boolean) => {
+    const { data, error } = await supabase
+      .from("computer_stations").update({ active }).eq("id", station.id).select("id");
+    if (error || !data?.length) {
+      notify(active ? "เปิดใช้งานไม่สำเร็จ" : "ปิดใช้งานไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข");
+      return;
+    }
+    setEditModal(false);
+    setStations((current) => current.map((row) => row.id === station.id ? { ...row, active } : row));
+  };
+
+  // ลบเครื่อง: มีประวัติตรวจ/ซ่อม → ห้ามลบ ให้ "ปิดใช้งาน" แทน (ลบแล้วประวัติจะไม่รู้ว่าเป็นเครื่องไหน)
+  // ไม่มีประวัติ (เช่น เพิ่มผิด) → ลบได้
+  const deleteStation = async (station: Station) => {
+    const [{ count: inspections, error: e1 }, { count: repairs, error: e2 }] = await Promise.all([
+      supabase.from("equipment_inspections").select("id", { count: "exact", head: true }).eq("station_id", station.id),
+      supabase.from("repair_records").select("id", { count: "exact", head: true }).eq("station_id", station.id),
+    ]);
+    if (e1 || e2) {
+      notify("ตรวจประวัติเครื่องไม่สำเร็จ", e1?.message || e2?.message);
+      return;
+    }
+    const history = (inspections || 0) + (repairs || 0);
+    if (history > 0) {
+      if (station.active === false) {
+        notify("ลบไม่ได้", `"${station.name}" มีประวัติตรวจ/ซ่อม ${history} รายการ จึงเก็บไว้แบบปิดใช้งาน`);
+        return;
+      }
+      confirmAction(
+        "ปิดใช้งานเครื่อง",
+        `"${station.name}" มีประวัติตรวจ/ซ่อม ${history} รายการ จึงลบไม่ได้\n\nปิดใช้งานแทน? เครื่องจะไม่ขึ้นในผังห้อง แต่ประวัติยังอยู่ และเปิดกลับได้`,
+        "ปิดใช้งาน",
+        () => setActive(station, false),
+        true
+      );
+      return;
+    }
     confirmAction(
       "ลบเครื่อง",
-      `ลบ "${station.name}" ?\n\nเช็กลิสต์ของเครื่องจะถูกลบด้วย ส่วนประวัติตรวจ/ซ่อมยังอยู่แต่จะไม่รู้ว่าเป็นเครื่องไหน`,
+      `ลบ "${station.name}" ?\n\nเครื่องนี้ยังไม่มีประวัติตรวจ/ซ่อม ลบแล้วกู้คืนไม่ได้`,
       "ลบ",
       async () => {
         const { data, error } = await supabase.from("computer_stations").delete().eq("id", station.id).select("id");
@@ -212,6 +264,46 @@ export default function AdminStations() {
       },
       true
     );
+  };
+
+  // ชื่อแนะนำของเครื่องใหม่ในกลุ่ม = C ตามด้วยเลขถัดจากเลขมากสุดในกลุ่ม
+  const suggestName = (group: number) => {
+    const nums = stations.filter((row) => row.group_no === group).map((row) => naturalNo(row.name)).filter((n) => n < 999);
+    return `C${(nums.length ? Math.max(...nums) : 0) + 1}`;
+  };
+
+  const openAdd = () => {
+    if (!selectedRoom) {
+      notify("ยังไม่มีห้อง", "เพิ่มห้องที่หน้า \"จัดการห้อง\" ก่อน");
+      return;
+    }
+    const group = grouped[grouped.length - 1]?.group || 1;
+    setAddGroup(group);
+    setAddName(suggestName(group));
+    setAddModal(true);
+  };
+
+  const saveAdd = async () => {
+    const name = addName.trim();
+    if (!name) {
+      notify("กรอกชื่อเครื่องก่อน");
+      return;
+    }
+    if (stations.some((row) => row.group_no === addGroup && row.name.toLowerCase() === name.toLowerCase())) {
+      notify("ชื่อซ้ำ", `กลุ่ม ${addGroup} ห้อง ${selectedRoom} มีเครื่องชื่อ "${name}" อยู่แล้ว`);
+      return;
+    }
+    setEditSaving(true);
+    const { error } = await supabase
+      .from("computer_stations")
+      .insert([{ room_id: selectedRoom, group_no: addGroup, name, status: "available" }]);
+    setEditSaving(false);
+    if (error) {
+      notify("เพิ่มเครื่องไม่สำเร็จ", error.code === "23505" ? "มีเครื่องชื่อนี้ในกลุ่มนี้อยู่แล้ว" : error.message);
+      return;
+    }
+    setAddModal(false);
+    fetchStations();
   };
 
   // กลุ่มที่เลือกได้ในหน้าต่างแก้ไข = กลุ่มที่มีในห้องนี้ + 1–6 (เดิมฟิก 1–6)
@@ -229,8 +321,11 @@ export default function AdminStations() {
           </TouchableOpacity>
           <View style={s.headerTextWrap}>
             <Text style={s.headerTitle}>จัดการเครื่องคอม</Text>
-            <Text style={s.headerSub}>ห้อง {selectedRoom || "-"} · {stations.length} เครื่อง</Text>
+            <Text style={s.headerSub}>ห้อง {selectedRoom || "-"} · {activeStations.length} เครื่อง</Text>
           </View>
+          <TouchableOpacity style={s.backBtn} onPress={openAdd} activeOpacity={0.82} accessibilityLabel="เพิ่มเครื่อง">
+            <Ionicons name="add" size={22} color="#fff" />
+          </TouchableOpacity>
         </View>
 
         <View style={s.roomTabs}>
@@ -271,8 +366,9 @@ export default function AdminStations() {
             </View>
           ) : (
             grouped.map(({ group, rows }) => {
-              const ready = rows.filter((station) => station.status === "available").length;
-              const problems = rows.length - ready;
+              const activeRows = rows.filter((station) => station.active !== false);
+              const ready = activeRows.filter((station) => station.status === "available").length;
+              const problems = activeRows.length - ready;
               return (
                 <View key={group} style={s.groupCard}>
                   <View style={s.groupHeader}>
@@ -290,7 +386,8 @@ export default function AdminStations() {
 
                   <View style={s.stationGrid}>
                     {rows.map((station) => {
-                      const cfg = roomStatus(STATION_STATUS, station.status);
+                      const inactive = station.active === false;
+                      const cfg = inactive ? INACTIVE_CFG : roomStatus(STATION_STATUS, station.status);
                       const isSaving = saving === station.id;
                       return (
                         <TouchableOpacity
@@ -318,7 +415,11 @@ export default function AdminStations() {
           )}
 
           <View style={s.roomSummary}>
-            <Text style={s.summaryText}>รวม {stations.length} เครื่อง · {roomReady} พร้อมใช้ · {roomProblems} ปัญหา</Text>
+            <Text style={s.summaryText}>
+              รวม {activeStations.length} เครื่อง · {roomReady} ใช้งานได้ · {roomProblems} ปัญหา
+              {stations.length > activeStations.length ? ` · ปิดใช้งาน ${stations.length - activeStations.length}` : ""}
+            </Text>
+            <Text style={s.summaryText}>กดเครื่อง = เปลี่ยนสถานะ · กดค้าง = แก้ไข/ลบ</Text>
           </View>
         </ScrollView>
       )}
@@ -372,7 +473,45 @@ export default function AdminStations() {
                 {editSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>บันทึก</Text>}
               </TouchableOpacity>
               <TouchableOpacity style={s.deleteBtn} onPress={() => editTarget && deleteStation(editTarget)}>
-                <Text style={s.deleteBtnText}>ลบเครื่อง</Text>
+                <Text style={s.deleteBtnText}>ลบ / ปิดใช้งาน</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={addModal} transparent animationType="slide">
+        <View style={s.overlay}>
+          <View style={s.modalBox}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>เพิ่มเครื่องคอม · ห้อง {selectedRoom}</Text>
+              <TouchableOpacity onPress={() => setAddModal(false)}>
+                <Ionicons name="close" size={24} color={C.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={s.fieldLabel}>กลุ่ม</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.modalChips}>
+              {groupChoices.map((group) => (
+                <TouchableOpacity
+                  key={group}
+                  style={[s.modalChip, addGroup === group && s.modalChipActive]}
+                  onPress={() => {
+                    setAddGroup(group);
+                    setAddName(suggestName(group));
+                  }}
+                >
+                  <Text style={[s.modalChipText, addGroup === group && s.modalChipTextActive]}>กลุ่ม {group}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={s.fieldLabel}>ชื่อเครื่อง</Text>
+            <TextInput style={s.input} value={addName} onChangeText={setAddName} placeholder="เช่น C9" autoCapitalize="characters" />
+
+            <View style={[s.modalActions, { marginTop: 16 }]}>
+              <TouchableOpacity style={[s.saveBtn, editSaving && { opacity: 0.6 }]} onPress={saveAdd} disabled={editSaving}>
+                {editSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>เพิ่มเครื่อง</Text>}
               </TouchableOpacity>
             </View>
           </View>

@@ -14,6 +14,7 @@ import supabase from "../lib/supabase";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { LAN_STATUS, roomStatus } from "../lib/roomStatus";
 import LoadError from "../components/LoadError";
+import { fetchRooms } from "../lib/rooms";
 
 type LanPort = {
   id: string;
@@ -39,11 +40,6 @@ const C = {
   blue: "#2563eb",
 };
 
-function roomSort(room: string) {
-  const match = String(room || "").match(/\d+/);
-  return match ? Number(match[0]) : 99999;
-}
-
 export default function LanStatus() {
   // เปิดจากการ์ดห้องหน้าแรก → เลือกห้องนั้นให้เลย (เดิมเปิดห้องแรกเสมอ)
   const { room_id: roomParam } = useLocalSearchParams<{ room_id?: string }>();
@@ -59,14 +55,13 @@ export default function LanStatus() {
   }, []);
   useRefreshOnFocus(() => fetchAll());
 
-  // TODO R1: รายชื่อห้องจากตาราง rooms
+  // รายชื่อห้องจากตาราง rooms + port ทั้งหมด
   const fetchAll = async () => {
-    const { data, error } = await supabase
-      .from("lan_ports")
-      .select("*")
-      .order("room_id")
-      .order("group_no")
-      .order("port_no");
+    const [{ data, error: portError }, { rooms: roomList, error: roomError }] = await Promise.all([
+      supabase.from("lan_ports").select("*").order("room_id").order("group_no").order("port_no"),
+      fetchRooms(), // ห้องที่เปิดอยู่ เรียงตามที่ Admin ตั้ง
+    ]);
+    const error = portError || roomError;
 
     if (error) {
       // โหลดพัง ห้ามโชว์ "ไม่มีข้อมูล" — เก็บข้อมูลเดิมไว้ แล้วขึ้นแถบให้ลองใหม่
@@ -74,9 +69,7 @@ export default function LanStatus() {
     } else {
       setLoadError("");
       const list = (data as LanPort[]) || [];
-      const uniqueRooms = Array.from(new Set(list.map((port) => port.room_id).filter(Boolean))).sort(
-        (a, b) => roomSort(a) - roomSort(b) || a.localeCompare(b),
-      );
+      const uniqueRooms = roomList.map((room) => room.id);
       setAllPorts(list);
       setRooms(uniqueRooms);
       setSelectedRoom((current) => (uniqueRooms.includes(current) ? current : uniqueRooms[0] || ""));

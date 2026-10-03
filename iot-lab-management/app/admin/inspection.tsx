@@ -17,8 +17,8 @@ import { currentUser } from "../../lib/session";
 import { currentTerm } from "../../lib/term";
 import { naturalNo } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
+import { fetchRooms as loadRooms } from "../../lib/rooms";
 
-const DEFAULT_ROOM = "CP9524";
 const EQUIP_TYPES = ["mouse", "keyboard", "monitor"] as const;
 type EquipType = (typeof EQUIP_TYPES)[number];
 type ConditionKey = "good" | "damaged" | "missing";
@@ -62,8 +62,8 @@ export default function InspectionPage() {
   const [term, setTerm] = useState(currentTerm());
   // เทอมของข้อมูลที่แสดงอยู่จริง — บันทึกใช้ค่านี้ (เดิมใช้ช่องพิมพ์ พิมพ์เทอมใหม่แต่ไม่กดค้นหา → ฟอร์มโชว์เทอมเก่าแต่บันทึกเป็นเทอมใหม่)
   const [loadedTerm, setLoadedTerm] = useState(currentTerm());
-  const [rooms, setRooms] = useState<string[]>([DEFAULT_ROOM]);
-  const [selectedRoom, setSelectedRoom] = useState(DEFAULT_ROOM);
+  const [rooms, setRooms] = useState<string[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState(""); // ตั้งเมื่อโหลดรายชื่อห้องเสร็จ
   const [stations, setStations] = useState<any[]>([]);
   const [inspections, setInspections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,23 +81,21 @@ export default function InspectionPage() {
   }, []);
 
   useEffect(() => {
-    fetchData(loadedTerm, selectedRoom);
+    if (selectedRoom) fetchData(loadedTerm, selectedRoom);
   }, [selectedRoom]);
 
-  // TODO R1: รายชื่อห้องจากตาราง rooms
+  // รายชื่อห้องจากตาราง rooms (ห้องที่เปิดอยู่)
   const fetchRooms = async () => {
-    const { data, error } = await supabase.from("computer_stations").select("room_id");
+    const { rooms: list, error } = await loadRooms();
     if (error) {
       setLoadError(error.message);
+      setLoading(false);
       return;
     }
-    const uniqueRooms = Array.from(new Set((data || []).map((row) => row.room_id).filter(Boolean))).sort();
-    if (uniqueRooms.length > 0) {
-      setRooms(uniqueRooms);
-      if (!uniqueRooms.includes(selectedRoom)) setSelectedRoom(uniqueRooms[0]);
-    } else {
-      setRooms([DEFAULT_ROOM]);
-    }
+    const ids = list.map((room) => room.id);
+    setRooms(ids);
+    if (ids.length === 0) setLoading(false);
+    if (ids.length > 0 && !ids.includes(selectedRoom)) setSelectedRoom(ids[0]);
   };
 
   const fetchData = async (termValue = loadedTerm, roomValue = selectedRoom) => {
@@ -108,6 +106,7 @@ export default function InspectionPage() {
       .from("computer_stations")
       .select("*")
       .eq("room_id", roomValue)
+      .eq("active", true) // เครื่องที่ปิดใช้งานไม่ต้องตรวจ
       .order("group_no")
       .order("name");
 

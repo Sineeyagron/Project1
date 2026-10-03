@@ -101,12 +101,19 @@
 - "แก้ไขข้อมูลส่วนตัว" ในโปรไฟล์ยังไม่มีฟีเจอร์จริง (แจ้งว่ายังแก้ไม่ได้) / `profiles` มีแค่ id, role, email — ชื่อจากหน้าสมัครเก็บใน auth user metadata `full_name`
 
 ### ระบบห้อง R0 (5 ต.ค. 2569) — migration `room_r0_schema`
-- ระบบห้องคอม **แยกจากระบบยืม-คืนเด็ดขาด** (ตาราง/หน้า/กติกา) แผนเต็ม R0–R4 อยู่ใน PLAN/REVIEW_ระบบห้อง.md
+- ระบบห้องคอม **แยกจากระบบยืม-คืนเด็ดขาด** (ตาราง/หน้า/กติกา/ไฟล์ lib) — งานระบบห้องห้ามแก้ไฟล์หรือตารางของระบบยืม-คืน และห้าม import ข้ามกัน (เจ้าของโปรเจกต์สั่งชัด 5 ต.ค. 2569) แผนเต็ม R0–R4 อยู่ใน PLAN/REVIEW_ระบบห้อง.md
+  - ไฟล์ของระบบห้อง: `lib/roomStatus.ts`, `lib/rooms.ts`, `lib/term.ts`, `components/LoadError.tsx`, หน้า stations/lanports/repairs/room/inspection/roommap/lanstatus + ส่วนการ์ดห้องใน `home.tsx`
 - ชื่อ/สี/ไอคอนสถานะระบบห้อง: `lib/roomStatus.ts` (`STATION_STATUS`, `LAN_STATUS`, `EQUIP_STATUS`, `REPAIR_STATUS`, `CONDITION_STATUS` + `roomStatus(map, key)` มีค่าสำรอง) — ห้ามใช้ `lib/status.ts` ของระบบยืม
 - หน้าระบบห้องใช้ `confirmAction`/`notify`, `goBack`, `currentUser`, `components/LoadError.tsx` (โหลดพัง = แถบลองใหม่ ห้ามโชว์ "ปกติ") แล้ว / เขียนข้อมูลใช้ `.select("id")` เช็กว่าแก้ได้จริง (RLS ไม่ให้สิทธิ์ = 0 แถว ไม่ error)
 - `lib/term.ts` `currentTerm()` ใช้ทั้ง inspection และ iotinspection
 - ฐานข้อมูล: `room_bookings` ลบแล้ว / `computer_stations.status` CHECK available|repair|broken / ชื่อเครื่องห้ามซ้ำ **ในกลุ่มเดียวกัน** (ทุกกลุ่มมี C1–C9) / LAN port ห้ามซ้ำในกลุ่ม + 1–12 / `equipment_inspections` unique (station_id, term, equipment_type) — ตารางนี้ไม่มี `created_at` ใช้ `inspected_at`
-- รายชื่อห้องยังเดาจากข้อมูล (`TODO R1` = ตาราง `rooms`)
+
+### ระบบห้อง R1 — migration `room_r1_rooms`
+- ตาราง `rooms` (id = รหัสห้อง เช่น CP9524, building, floor, sort_order, active) — `computer_stations.room_id` / `lan_ports.room_id` เป็น FK (แก้รหัส = cascade, ลบห้องที่มีเครื่อง/LAN ไม่ได้ → ปิดห้อง) / อ่านได้ทุกคนที่ล็อกอิน เขียนได้เฉพาะ admin
+- ทุกหน้าระบบห้องอ่านรายชื่อห้องจาก `lib/rooms.ts` (`fetchRooms(includeInactive)`, `roomPlace(room)`) — ห้ามเขียนรหัสห้องตายตัว
+- `admin/room.tsx` = จัดการห้อง (เพิ่ม/แก้/ปิด/ลบห้องว่าง) / `admin/stations.tsx` เพิ่มเครื่องได้ (ปุ่ม +)
+- `computer_stations.active`: เครื่องที่มีประวัติตรวจ/ซ่อม ลบไม่ได้ → ปิดใช้งาน (ไม่ขึ้นในผังห้อง/สถิติ/ตรวจประจำเทอม เปิดกลับได้) / ไม่มีประวัติ = ลบได้
+- `repair_records.item_id` ตัดออกแล้ว — งานซ่อมใช้กับเครื่องคอมของระบบห้องเท่านั้น
 
 ### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
 - ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)

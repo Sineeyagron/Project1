@@ -17,6 +17,8 @@ import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { currentUser } from "../../lib/session";
 import { REPAIR_STATUS, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
+import { fetchRooms as loadRooms } from "../../lib/rooms";
+import { naturalNo } from "../../lib/roomStatus";
 
 const C = {
   bg: "#eef2f8",
@@ -66,7 +68,7 @@ export default function RepairsPage() {
   const [saving, setSaving] = useState(false);
 
   const [addModal, setAddModal] = useState(false);
-  const [formRoom, setFormRoom] = useState("CP9524");
+  const [formRoom, setFormRoom] = useState("");
   const [formStation, setFormStation] = useState<any>(null);
   const [formDesc, setFormDesc] = useState("");
   const [formNotes, setFormNotes] = useState("");
@@ -82,26 +84,25 @@ export default function RepairsPage() {
   }, []);
   useRefreshOnFocus(() => fetchAll(true));
 
-  // TODO R1: รายชื่อห้องจากตาราง rooms
-  const rooms = useMemo(
-    () => [...new Set(stations.map((station: any) => station.room_id).filter(Boolean))].sort() as string[],
-    [stations]
-  );
+  // รายชื่อห้องจากตาราง rooms (ห้องที่เปิดอยู่)
+  const [rooms, setRooms] = useState<string[]>([]);
 
   const fetchAll = async (quiet = false) => {
     if (!quiet) setLoading(true);
-    const [{ data: recs, error: recError }, { data: stationRows, error: stationError }] = await Promise.all([
+    const [{ data: recs, error: recError }, { data: stationRows, error: stationError }, roomResult] = await Promise.all([
       supabase.from("repair_records").select("*").order("reported_at", { ascending: false }),
       supabase.from("computer_stations").select("*").order("room_id").order("group_no").order("name"),
+      loadRooms(),
     ]);
 
-    if (recError || stationError) {
-      setLoadError(recError?.message || stationError?.message || "กรุณาลองใหม่อีกครั้ง");
+    if (recError || stationError || roomResult.error) {
+      setLoadError(recError?.message || stationError?.message || roomResult.error?.message || "กรุณาลองใหม่อีกครั้ง");
       setLoading(false);
       setRefreshing(false);
       return;
     }
     setLoadError("");
+    setRooms(roomResult.rooms.map((room) => room.id));
 
     const safeStations = stationRows || [];
     const userIds = [...new Set((recs || []).map((r: any) => r.reported_by).filter(Boolean))];
@@ -141,14 +142,20 @@ export default function RepairsPage() {
     setFormStation(null);
     setFormDesc("");
     setFormNotes("");
-    setFilteredStations(stations.filter((station: any) => station.room_id === room));
+    setFilteredStations(stationsIn(room));
     setAddModal(true);
   };
+
+  // เครื่องที่แจ้งซ่อมได้ = เครื่องที่เปิดใช้งานในห้องนั้น เรียงกลุ่ม → เลขเครื่อง
+  const stationsIn = (room: string) =>
+    stations
+      .filter((station: any) => station.room_id === room && station.active !== false)
+      .sort((a: any, b: any) => (a.group_no - b.group_no) || (naturalNo(a.name) - naturalNo(b.name)));
 
   const changeRoom = (room: string) => {
     setFormRoom(room);
     setFormStation(null);
-    setFilteredStations(stations.filter((station: any) => station.room_id === room));
+    setFilteredStations(stationsIn(room));
   };
 
   const saveRepair = async () => {

@@ -10,6 +10,7 @@ import { confirmAction, notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { LAN_STATUS, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
+import { fetchRooms as loadRooms } from "../../lib/rooms";
 
 // กด port = เปลี่ยนสถานะวนตามลำดับนี้
 const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
@@ -44,14 +45,14 @@ export default function AdminLanPorts() {
   }, [selectedRoom, selectedGroup]);
   useRefreshOnFocus(() => { if (selectedRoom) fetchPorts(); });
 
-  // TODO R1: อ่านรายชื่อห้องจากตาราง rooms (ตอนนี้ห้องที่ยังไม่มี port จะไม่ขึ้น)
+  // รายชื่อห้องจากตาราง rooms — ห้องใหม่ที่ยังไม่มี port ก็ขึ้น (เดิมเดาจาก port ที่มีอยู่)
   const fetchRooms = async () => {
-    const { data, error } = await supabase.from("lan_ports").select("room_id");
+    const { rooms: list, error } = await loadRooms();
     if (error) setLoadError(error.message);
-    else if (data) {
-      const unique = ([...new Set(data.map((r: any) => r.room_id).filter(Boolean))] as string[]).sort();
-      setRooms(unique);
-      if (unique.length > 0) setSelectedRoom(unique.includes(String(roomParam)) ? String(roomParam) : unique[0]);
+    else {
+      const ids = list.map((room) => room.id);
+      setRooms(ids);
+      if (ids.length > 0) setSelectedRoom(ids.includes(String(roomParam)) ? String(roomParam) : ids[0]);
     }
     setLoading(false);
   };
@@ -61,8 +62,8 @@ export default function AdminLanPorts() {
       .from("lan_ports").select("group_no").eq("room_id", selectedRoom);
     if (error) { setLoadError(error.message); return; }
     if (data) {
-      // เรียงแบบตัวเลข (เดิม .sort() เรียงแบบตัวอักษร กลุ่ม 10 มาก่อน 2)
-      const unique = ([...new Set(data.map((r: any) => r.group_no))] as number[]).sort((a, b) => a - b);
+      // กลุ่มที่มี port + 1–6 (ห้องใหม่ยังไม่มี port ก็เลือกกลุ่มเพิ่มได้) เรียงแบบตัวเลข
+      const unique = ([...new Set([1, 2, 3, 4, 5, 6, ...data.map((r: any) => r.group_no)])] as number[]).sort((a, b) => a - b);
       setGroups(unique);
       if (unique.length > 0 && !unique.includes(selectedGroup)) setSelectedGroup(unique[0]);
     }
