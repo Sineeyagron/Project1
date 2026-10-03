@@ -127,6 +127,11 @@
 - คิว `app/admin/roomreports.tsx` (TA เข้าได้, ทางเข้า = แถบบนหน้าจัดการห้อง / กดแจ้งเตือน) → RPC `decide_room_report(id, accept, note)`: รับเครื่อง = สร้างงานซ่อม (เครื่องเป็น repair ผ่าน trigger R2) / รับ LAN = port เป็น repair / ปิด = ต้องมีเหตุผล / อัปเดตสดผ่านสัญญาณ notification ของตัวเอง
 - `app/notifications.tsx` (หน้าใช้ร่วม) เพิ่มแค่ 3 ประเภทนี้ + ทางไป — ห้ามแตะส่วนระบบยืม
 
+### ระบบห้อง อัปเดตสด — migration `room_realtime`
+- trigger `_room_broadcast_change` บน computer_stations / lan_ports (insert/update/delete) + station_equipment (update) → `realtime.send` ช่อง **`room`** event `room_status` payload `{room_id, table}` / policy ให้ทุกคนที่ล็อกอินฟังช่อง room
+- แอปใช้ `useRoomLive(onChange, room?)` จาก `lib/roomRealtime.ts` (ของระบบห้องเอง ไม่ใช้ `lib/realtime.ts` ของระบบยืม) — รวมสัญญาณติดกันเป็นโหลดครั้งเดียว (400 ms)
+- ใช้ใน: home, roommap (เฉพาะห้องที่เปิด + หน้าต่างรายละเอียดอัปเดตตาม), lanstatus, admin/room, admin/stations, admin/lanports
+
 ### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
 - ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)
 - ผู้ใช้อ่านได้: `items`, `categories`, `borrow_locations`, `app_settings`, `computer_stations`, `lan_ports`, `station_equipment` + `profiles` / `borrow_records` / `notifications` ของตัวเอง (กด "อ่านแล้ว" ได้)

@@ -19,6 +19,7 @@ import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { STATION_STATUS, naturalNo, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
+import { useRoomLive } from "../../lib/roomRealtime";
 
 const C = {
   bg: "#eef3f8",
@@ -86,6 +87,10 @@ export default function AdminStations() {
   useRefreshOnFocus(() => {
     if (selectedRoom) fetchStations(selectedRoom);
   });
+  // อัปเดตสด: Admin/TA คนอื่นเปลี่ยนสถานะเครื่องในห้องนี้ → เห็นทันที
+  useRoomLive(() => {
+    if (selectedRoom) fetchStations(selectedRoom);
+  }, selectedRoom);
 
   // รายชื่อห้องจากตาราง rooms (ห้องที่เปิดอยู่)
   const fetchRooms = async () => {

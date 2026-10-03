@@ -15,6 +15,7 @@ import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { LAN_STATUS, roomStatus } from "../lib/roomStatus";
 import LoadError from "../components/LoadError";
 import { fetchRooms } from "../lib/rooms";
+import { useRoomLive } from "../lib/roomRealtime";
 
 type LanPort = {
   id: string;
@@ -54,6 +55,7 @@ export default function LanStatus() {
     fetchAll();
   }, []);
   useRefreshOnFocus(() => fetchAll());
+  useRoomLive(() => fetchAll()); // อัปเดตสดเมื่อสถานะ LAN เปลี่ยน (REVIEW M12)
 
   // รายชื่อห้องจากตาราง rooms + port ทั้งหมด
   const fetchAll = async () => {

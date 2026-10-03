@@ -12,6 +12,7 @@ import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { LAN_STATUS, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
+import { useRoomLive } from "../../lib/roomRealtime";
 
 // กด port = เปลี่ยนสถานะวนตามลำดับนี้
 const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
@@ -47,6 +48,7 @@ export default function AdminLanPorts() {
     if (selectedRoom) fetchPorts();
   }, [selectedRoom, selectedGroup]);
   useRefreshOnFocus(() => { if (selectedRoom) fetchPorts(); });
+  useRoomLive(() => { if (selectedRoom) fetchPorts(); }, selectedRoom); // อัปเดตสด
 
   // รายชื่อห้องจากตาราง rooms — ห้องใหม่ที่ยังไม่มี port ก็ขึ้น (เดิมเดาจาก port ที่มีอยู่)
   const fetchRooms = async () => {

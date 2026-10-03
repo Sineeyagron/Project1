@@ -19,6 +19,7 @@ import { STATION_STATUS } from "../../lib/roomStatus";
 import { ROOM_CODE_RE, Room, fetchRooms, roomPlace } from "../../lib/rooms";
 import LoadError from "../../components/LoadError";
 import { useRole } from "../../lib/roles";
+import { useRoomLive } from "../../lib/roomRealtime";
 
 const C = {
   bg: "#eef2f8",
@@ -69,6 +70,7 @@ export default function AdminRoom() {
     fetchStats();
   }, []);
   useRefreshOnFocus(() => fetchStats());
+  useRoomLive(() => fetchStats()); // อัปเดตสดทุกห้อง
 
   // รายชื่อห้องจากตาราง rooms (รวมห้องที่ปิด) + สถิติจากเครื่อง/LAN
   const fetchStats = async () => {

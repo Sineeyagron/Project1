@@ -13,6 +13,7 @@ import { Room, fetchRooms, roomPlace } from "../lib/rooms";
 import { notify } from "../lib/notify";
 import { currentUser } from "../lib/session";
 import RoomReportForm from "../components/RoomReportForm";
+import { useRoomLive } from "../lib/roomRealtime";
 
 const EQUIP_LABELS: Record<string, string> = {
   mouse:    "🖱️ เมาส์",
@@ -64,6 +65,8 @@ export default function RoomMap() {
     if (roomName) fetchAll();
   }, [roomName]);
   useRefreshOnFocus(() => { if (roomName) fetchAll(); });
+  // อัปเดตสด: มีคนเปลี่ยนสถานะเครื่อง/LAN/เช็กลิสต์ในห้องนี้ → โหลดใหม่ทันที (REVIEW M12)
+  useRoomLive(() => { if (roomName) fetchAll(); }, roomName);
 
   const fetchAll = async () => {
     const room = roomName;
@@ -89,7 +92,10 @@ export default function RoomMap() {
     }
     setLoadError("");
 
-    setStations((st || []).sort((a: any, b: any) => naturalNo(a.name) - naturalNo(b.name)));
+    const sorted = (st || []).sort((a: any, b: any) => naturalNo(a.name) - naturalNo(b.name));
+    setStations(sorted);
+    // หน้าต่างรายละเอียดที่เปิดค้าง → แสดงสถานะล่าสุดด้วย
+    setSelectedStation((prev: any) => (prev ? sorted.find((x: any) => x.id === prev.id) || prev : prev));
     setLanPorts(lp || []);
 
     // จัด equipMap: station_id → []

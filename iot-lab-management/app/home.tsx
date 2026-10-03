@@ -15,6 +15,7 @@ import supabase from "../lib/supabase";
 import { goTab, useRefreshOnFocus } from "../lib/nav";
 import LoadError from "../components/LoadError";
 import { Room, fetchRooms as fetchRoomList, roomPlace } from "../lib/rooms";
+import { useRoomLive } from "../lib/roomRealtime";
 
 type Station = {
   id: string;
@@ -62,6 +63,8 @@ export default function Home() {
   }, []);
   // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
   useRefreshOnFocus(() => { fetchRooms(); });
+  // อัปเดตสด: สถานะเครื่องในห้องไหนเปลี่ยน → ตัวเลขการ์ดห้องเปลี่ยนทันที (REVIEW M12)
+  useRoomLive(() => { fetchRooms(); });
 
   const fetchRooms = async () => {
     // ห้องจากตาราง rooms (ห้องที่เปิดอยู่) + เครื่องที่เปิดใช้งาน
