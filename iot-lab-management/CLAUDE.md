@@ -115,6 +115,18 @@
 - `computer_stations.active`: เครื่องที่มีประวัติตรวจ/ซ่อม ลบไม่ได้ → ปิดใช้งาน (ไม่ขึ้นในผังห้อง/สถิติ/ตรวจประจำเทอม เปิดกลับได้) / ไม่มีประวัติ = ลบได้
 - `repair_records.item_id` ตัดออกแล้ว — งานซ่อมใช้กับเครื่องคอมของระบบห้องเท่านั้น
 
+### ระบบห้อง R2 — migration `room_r2_log_ta_checklist`
+- `room_status_log`: trigger บันทึกทุกการเปลี่ยนสถานะเครื่อง/LAN (ก่อน→หลัง, changed_by, source manual|repair) / staff อ่านได้ แอปเขียนไม่ได้ / ดูได้ในผังห้อง (กดเครื่อง, เฉพาะ Admin/TA)
+- **TA ในระบบห้อง** (`TA_ROUTES` + RLS `is_staff()`): เปลี่ยนสถานะเครื่อง/LAN, แก้เช็กลิสต์, ตรวจประจำเทอม, แจ้งซ่อม/อัปเดตงานซ่อม — trigger `_room_station_ta_guard`/`_room_lan_ta_guard` กัน TA แก้อย่างอื่นนอกจาก status / เพิ่ม-แก้-ลบ ห้อง/เครื่อง/port + ลบผลตรวจ/งานซ่อม = admin
+- เช็กลิสต์ (`station_equipment`): ผลตรวจประจำเทอมอัปเดตให้อัตโนมัติ (good→present, damaged→broken, missing→missing; แก้ผลเทอมเก่าไม่ทับ) / เครื่องใหม่ได้ 3 แถวอัตโนมัติ / staff กดเปลี่ยนในผังห้องได้
+- งานซ่อม: เปิดงาน → เครื่อง `repair` / ปิดงาน (ไม่มีงานค้าง) → `available` / ห้ามย้อน pending→in-repair→done / `reported_by`, `repaired_by/at` ฐานข้อมูลใส่เอง (แอปไม่ต้องส่ง)
+
+### ระบบห้อง R3 — migration `room_r3_reports`
+- นักศึกษาแจ้งปัญหา: ผังห้อง → กดเครื่อง → "แจ้งปัญหาเครื่องนี้" / กด Server → กด port (`components/RoomReportForm.tsx`) → RPC `report_room_problem(kind, target, description)` — กันแจ้งซ้ำ (เรื่องเดิมยัง open), 5 ครั้ง/วัน/คน (วันไทย), 3–500 ตัวอักษร / เขียนตาราง `room_reports` ตรงไม่ได้
+- แจ้ง Admin+TA ทุกคน (`_room_notify_staff` ของระบบห้องเอง ไม่ใช้ `_notify_staff` ของระบบยืม) ประเภท `room_report` / ผลถึงผู้แจ้ง `room_report_accepted` | `room_report_closed`
+- คิว `app/admin/roomreports.tsx` (TA เข้าได้, ทางเข้า = แถบบนหน้าจัดการห้อง / กดแจ้งเตือน) → RPC `decide_room_report(id, accept, note)`: รับเครื่อง = สร้างงานซ่อม (เครื่องเป็น repair ผ่าน trigger R2) / รับ LAN = port เป็น repair / ปิด = ต้องมีเหตุผล / อัปเดตสดผ่านสัญญาณ notification ของตัวเอง
+- `app/notifications.tsx` (หน้าใช้ร่วม) เพิ่มแค่ 3 ประเภทนี้ + ทางไป — ห้ามแตะส่วนระบบยืม
+
 ### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
 - ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)
 - ผู้ใช้อ่านได้: `items`, `categories`, `borrow_locations`, `app_settings`, `computer_stations`, `lan_ports`, `station_equipment` + `profiles` / `borrow_records` / `notifications` ของตัวเอง (กด "อ่านแล้ว" ได้)

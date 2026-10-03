@@ -18,6 +18,7 @@ import { confirmAction, notify } from "../../lib/notify";
 import { STATION_STATUS } from "../../lib/roomStatus";
 import { ROOM_CODE_RE, Room, fetchRooms, roomPlace } from "../../lib/rooms";
 import LoadError from "../../components/LoadError";
+import { useRole } from "../../lib/roles";
 
 const C = {
   bg: "#eef2f8",
@@ -47,11 +48,14 @@ type RoomStats = {
 
 export default function AdminRoom() {
   const router = useRouter();
+  // TA ดูห้องและเข้าหน้าเครื่อง/LAN ได้ แต่เพิ่ม/แก้/ปิด/ลบห้องไม่ได้ (RLS กันจริง)
+  const isAdmin = useRole().role === "admin";
 
   const [stats, setStats] = useState<RoomStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [openReports, setOpenReports] = useState(0); // คำแจ้งจากนักศึกษาที่รอตรวจ (R3)
 
   // หน้าต่างเพิ่ม/แก้ห้อง (editing = null → เพิ่มห้องใหม่)
   const [roomModal, setRoomModal] = useState(false);
@@ -99,6 +103,8 @@ export default function AdminRoom() {
     });
 
     setStats(result);
+    const { count } = await supabase.from("room_reports").select("id", { count: "exact", head: true }).eq("status", "open");
+    setOpenReports(count || 0);
     setLoading(false);
     setRefreshing(false);
   };
@@ -210,9 +216,13 @@ export default function AdminRoom() {
             <Ionicons name="arrow-back" size={22} color="#ffffff" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>จัดการห้อง</Text>
-          <TouchableOpacity style={s.iconBtn} onPress={openAdd} activeOpacity={0.82} accessibilityLabel="เพิ่มห้อง">
-            <Ionicons name="add" size={21} color="#ffffff" />
-          </TouchableOpacity>
+          {isAdmin ? (
+            <TouchableOpacity style={s.iconBtn} onPress={openAdd} activeOpacity={0.82} accessibilityLabel="เพิ่มห้อง">
+              <Ionicons name="add" size={21} color="#ffffff" />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 31 }} />
+          )}
         </View>
 
         <View style={s.summaryRow}>
@@ -234,6 +244,17 @@ export default function AdminRoom() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
         >
           {!!loadError && <LoadError message={loadError} onRetry={onRefresh} />}
+          <TouchableOpacity
+            style={[s.reportsBanner, openReports > 0 && s.reportsBannerHot]}
+            onPress={() => router.push("/admin/roomreports" as any)}
+            activeOpacity={0.86}
+          >
+            <Ionicons name="megaphone-outline" size={20} color={openReports > 0 ? "#c2410c" : C.muted} />
+            <Text style={[s.reportsText, openReports > 0 && { color: "#9a3412" }]}>
+              {openReports > 0 ? `คำแจ้งจากนักศึกษา ${openReports} รายการรอตรวจ` : "คำแจ้งปัญหาจากนักศึกษา"}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color={C.faint} />
+          </TouchableOpacity>
           {!loadError && stats.length === 0 ? (
             <Text style={s.emptyText}>ยังไม่มีห้อง กด + เพื่อเพิ่มห้อง</Text>
           ) : null}
@@ -271,9 +292,11 @@ export default function AdminRoom() {
                     <Text style={s.okText}>ปกติ</Text>
                   </View>
                 )}
-                <TouchableOpacity style={s.editBtn} onPress={() => openEdit(row)} accessibilityLabel={`แก้ไขห้อง ${room.id}`}>
-                  <Ionicons name="create-outline" size={18} color={C.muted} />
-                </TouchableOpacity>
+                {isAdmin ? (
+                  <TouchableOpacity style={s.editBtn} onPress={() => openEdit(row)} accessibilityLabel={`แก้ไขห้อง ${room.id}`}>
+                    <Ionicons name="create-outline" size={18} color={C.muted} />
+                  </TouchableOpacity>
+                ) : null}
               </View>
 
               {room.active ? (
@@ -519,6 +542,9 @@ const s = StyleSheet.create({
   },
   actionText: { color: C.ink, fontSize: 12, fontWeight: "800" },
   roomCardClosed: { opacity: 0.7 },
+  reportsBanner: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 14, marginBottom: 13 },
+  reportsBannerHot: { backgroundColor: "#fff7ed", borderColor: "#fdba74" },
+  reportsText: { flex: 1, fontSize: 13, fontWeight: "900", color: C.ink },
   closedBadge: { backgroundColor: "#e2e8f0", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   closedText: { fontSize: 10.5, color: C.muted, fontWeight: "900" },
   editBtn: { marginLeft: 8, width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#f1f5f9" },

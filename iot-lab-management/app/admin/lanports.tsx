@@ -5,6 +5,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
+import { useRole } from "../../lib/roles";
 import supabase from "../../lib/supabase";
 import { confirmAction, notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
@@ -17,6 +18,8 @@ const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "brok
 const MAX_PORT = 12; // Server 1 เครื่องมี LAN 12 ช่อง
 
 export default function AdminLanPorts() {
+  // TA เปลี่ยนสถานะได้อย่างเดียว — เพิ่ม/ลบ port = admin (ฐานข้อมูลกันจริง)
+  const isAdmin = useRole().role === "admin";
   const { room_id: roomParam } = useLocalSearchParams<{ room_id?: string }>(); // เปิดจากการ์ดห้อง → เลือกห้องนั้น
 
   const [ports, setPorts]           = useState<any[]>([]);
@@ -167,10 +170,14 @@ export default function AdminLanPorts() {
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerText}>จัดการ LAN Port</Text>
-        <TouchableOpacity
-          onPress={() => selectedRoom ? setAddModal(true) : notify("ยังไม่มีห้อง", "ต้องมีห้องก่อนถึงจะเพิ่ม Port ได้")}>
-          <Ionicons name="add-circle-outline" size={26} color="#fff" />
-        </TouchableOpacity>
+        {isAdmin ? (
+          <TouchableOpacity
+            onPress={() => selectedRoom ? setAddModal(true) : notify("ยังไม่มีห้อง", "ต้องมีห้องก่อนถึงจะเพิ่ม Port ได้")}>
+            <Ionicons name="add-circle-outline" size={26} color="#fff" />
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 26 }} />
+        )}
       </View>
 
       {/* ROOM SELECTOR */}
@@ -226,7 +233,7 @@ export default function AdminLanPorts() {
           {/* คำใบ้ */}
           <View style={styles.hint}>
             <Ionicons name="information-circle-outline" size={15} color="#1d4ed8" />
-            <Text style={styles.hintTxt}>กดเพื่อเปลี่ยนสถานะ · กดค้างเพื่อลบ</Text>
+            <Text style={styles.hintTxt}>{isAdmin ? "กดเพื่อเปลี่ยนสถานะ · กดค้างเพื่อลบ" : "กดเพื่อเปลี่ยนสถานะ"}</Text>
           </View>
 
           {/* PORT GRID */}
@@ -245,7 +252,7 @@ export default function AdminLanPorts() {
                     key={port.id}
                     style={[styles.portCell, { backgroundColor: cfg.bg, borderColor: cfg.color + "50" }]}
                     onPress={() => !isSaving && toggleStatus(port)}
-                    onLongPress={() => deletePort(port)}
+                    onLongPress={isAdmin ? () => deletePort(port) : undefined}
                     disabled={isSaving}
                   >
                     {isSaving ? (

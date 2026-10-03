@@ -34,6 +34,10 @@ const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; d
   age_replace:      { icon: "refresh-circle-outline", iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
   // สิทธิ์ TA เปลี่ยน (เฟส 4.1)
   role_changed:     { icon: "shield-checkmark-outline", iconColor: "#7c3aed", iconBg: "#ede9fe", dot: "#8b5cf6" },
+  // ระบบห้องคอม R3: คำแจ้งปัญหาเครื่อง/LAN (แยกจากระบบยืม-คืน)
+  room_report:          { icon: "megaphone-outline",        iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
+  room_report_accepted: { icon: "construct-outline",        iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  room_report_closed:   { icon: "chatbox-ellipses-outline", iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
 };
 
 // แจ้งเตือนประกัน/อายุ → เปิดรายงานสต็อก ตรงกลุ่ม "ต้องดูแล" นั้น
@@ -153,6 +157,12 @@ export default function Notifications() {
       await supabase.from("notifications").update({ read: true }).eq("id", n.id);
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
     }
+    // ระบบห้องคอม: ผู้ดูแล → คิวคำแจ้ง / ผู้แจ้ง → อ่านผลในข้อความพอ ไม่พาไปหน้าการยืม
+    if (n.type === "room_report") {
+      if (isStaff) router.push("/admin/roomreports" as any);
+      return;
+    }
+    if (n.type === "room_report_accepted" || n.type === "room_report_closed") return;
     if (n.type === "role_changed") {
       // ด่านหน้า admin เช็กสิทธิ์ล่าสุดเอง: ได้ TA → เข้าได้ / ถูกถอด → พากลับหน้านักศึกษา
       router.replace("/admin/home");

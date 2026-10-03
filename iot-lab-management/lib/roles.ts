@@ -13,7 +13,7 @@ export const ROLE_LABEL: Record<Role, string> = {
 
 export const isStaffRole = (role?: string | null): role is "ta" | "admin" => role === "admin" || role === "ta";
 
-// หน้าใน app/admin/ ที่ TA เข้าได้ (ที่เหลือ admin เท่านั้น: เพิ่ม/แก้/จำหน่ายของ, หมวด, ตั้งค่า, แต่งตั้ง TA, ระบบห้องคอม)
+// หน้าใน app/admin/ ที่ TA เข้าได้ (ที่เหลือ admin เท่านั้น: เพิ่ม/แก้/จำหน่ายของ, หมวด, ตั้งค่า, แต่งตั้ง TA)
 const TA_ROUTES = new Set([
   "/admin",
   "/admin/home",
@@ -24,6 +24,14 @@ const TA_ROUTES = new Set([
   "/admin/report", // รายงานการยืม-คืน + ส่งออก
   "/admin/qrgen", // พิมพ์ป้าย QR
   "/admin/iotinspection", // ตรวจสภาพประจำเทอม
+  // ระบบห้องคอม (R2): TA เปลี่ยนสถานะเครื่อง/LAN, ตรวจประจำเทอม, งานซ่อม — เพิ่ม/แก้/ลบ ห้องและเครื่อง = admin
+  // (กันจริงที่ RLS + trigger ในฐานข้อมูล หน้าแค่ซ่อนปุ่ม)
+  "/admin/room",
+  "/admin/stations",
+  "/admin/lanports",
+  "/admin/inspection",
+  "/admin/repairs",
+  "/admin/roomreports", // คิวคำแจ้งปัญหาจากนักศึกษา (R3)
 ]);
 
 // ตรวจเฉพาะหน้าใน /admin — หน้าอื่น (แจ้งเตือน, หน้านักศึกษา) เป็นของทุกคน ไม่ใช่เรื่องของด่านนี้

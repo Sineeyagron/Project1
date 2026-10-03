@@ -10,6 +10,9 @@ import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { EQUIP_STATUS, LAN_STATUS, STATION_STATUS, naturalNo, roomStatus } from "../lib/roomStatus";
 import LoadError from "../components/LoadError";
 import { Room, fetchRooms, roomPlace } from "../lib/rooms";
+import { notify } from "../lib/notify";
+import { currentUser } from "../lib/session";
+import RoomReportForm from "../components/RoomReportForm";
 
 const EQUIP_LABELS: Record<string, string> = {
   mouse:    "🖱️ เมาส์",
@@ -41,6 +44,16 @@ export default function RoomMap() {
   // Modal: detail เครื่องคอม + checklist
   const [compModal, setCompModal] = useState(false);
   const [selectedStation, setSelectedStation] = useState<any>(null);
+
+  // Admin/TA: แก้เช็กลิสต์ตรงได้ + เห็นประวัติการเปลี่ยนสถานะ (RLS: staff เท่านั้น)
+  const [isStaff, setIsStaff] = useState(false);
+  const [stationLog, setStationLog] = useState<any[]>([]);
+  const [equipSaving, setEquipSaving] = useState<string | null>(null);
+  // เป้าหมายที่กำลังกรอกคำแจ้งปัญหา (เครื่อง หรือ LAN port)
+  const [reportTarget, setReportTarget] = useState<{ kind: "station" | "lan"; id: string; label: string } | null>(null);
+  useEffect(() => {
+    supabase.rpc("is_staff").then(({ data }) => setIsStaff(!!data));
+  }, []);
 
   // Modal: Server LAN ports
   const [serverModal, setServerModal] = useState(false);
@@ -115,9 +128,49 @@ export default function RoomMap() {
     return { hasIssue, equips };
   };
 
-  const openStation = (station: any) => {
+  const openStation = async (station: any) => {
     setSelectedStation(station);
+    setStationLog([]);
+    setReportTarget(null);
     setCompModal(true);
+    if (isStaff) {
+      const { data } = await supabase
+        .from("room_status_log").select("*").eq("station_id", station.id)
+        .order("changed_at", { ascending: false }).limit(5);
+      const rows = data || [];
+      // ชื่อผู้เปลี่ยน (อีเมลส่วนหน้า @)
+      const ids = [...new Set(rows.map((row: any) => row.changed_by).filter(Boolean))];
+      const names: Record<string, string> = {};
+      if (ids.length) {
+        const { data: people } = await supabase.from("profiles").select("id, email").in("id", ids);
+        (people || []).forEach((p: any) => { names[p.id] = (p.email || "").split("@")[0]; });
+      }
+      setStationLog(rows.map((row: any) => ({ ...row, who: names[row.changed_by] || "ระบบ" })));
+    }
+  };
+
+  // Admin/TA กดอุปกรณ์ในเช็กลิสต์ = เปลี่ยนสถานะวน ครบ → หาย → ชำรุด → ครบ
+  // (ผลตรวจประจำเทอมก็อัปเดตเช็กลิสต์ให้เองอยู่แล้ว — อันนี้ไว้แก้ระหว่างเทอม)
+  const NEXT_EQUIP: Record<string, string> = { present: "missing", missing: "broken", broken: "present" };
+  const cycleEquip = async (type: string, current: string) => {
+    if (!isStaff || !selectedStation || equipSaving) return;
+    const next = NEXT_EQUIP[current] || "present";
+    setEquipSaving(type);
+    const user = await currentUser();
+    const { data, error } = await supabase
+      .from("station_equipment")
+      .update({ status: next, updated_at: new Date().toISOString(), updated_by: user?.id || null })
+      .eq("station_id", selectedStation.id).eq("equipment_type", type)
+      .select("*");
+    setEquipSaving(null);
+    if (error || !data?.length) {
+      notify("แก้เช็กลิสต์ไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข");
+      return;
+    }
+    setEquipMap((prev) => ({
+      ...prev,
+      [selectedStation.id]: [...(prev[selectedStation.id] || []).filter((e: any) => e.equipment_type !== type), data[0]],
+    }));
   };
 
   return (
@@ -198,7 +251,7 @@ export default function RoomMap() {
                   {/* Server card */}
                   <TouchableOpacity
                     style={[s.serverCard, srv.broken > 0 && s.serverCardWarn]}
-                    onPress={() => { setServerGroup(groupNo); setServerModal(true); }}
+                    onPress={() => { setServerGroup(groupNo); setReportTarget(null); setServerModal(true); }}
                   >
                     <Ionicons name="server-outline" size={20}
                       color={srv.broken > 0 ? "#b45309" : "#1d4ed8"} />
@@ -272,18 +325,55 @@ export default function RoomMap() {
                 const status = eq?.status || "present";
                 const cfg = roomStatus(EQUIP_STATUS, status);
                 return (
-                  <View key={type} style={[s.checklistItem, { backgroundColor: cfg.bg }]}>
-                    <Ionicons name={cfg.icon} size={20} color={cfg.color} />
+                  <TouchableOpacity
+                    key={type}
+                    style={[s.checklistItem, { backgroundColor: cfg.bg }]}
+                    onPress={() => cycleEquip(type, status)}
+                    disabled={!isStaff || !!equipSaving}
+                    activeOpacity={0.8}
+                  >
+                    {equipSaving === type
+                      ? <ActivityIndicator size="small" color={cfg.color} />
+                      : <Ionicons name={cfg.icon} size={20} color={cfg.color} />}
                     <Text style={[s.checklistLabel, { color: cfg.color }]}>
                       {EQUIP_LABELS[type]}
                     </Text>
                     <Text style={[s.checklistStatus, { color: cfg.color }]}>{cfg.label}</Text>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>
+            {isStaff ? <Text style={s.staffHint}>Admin/TA: กดอุปกรณ์เพื่อเปลี่ยน ครบ → หาย → ชำรุด</Text> : null}
 
-            <TouchableOpacity style={s.closeBtn} onPress={() => setCompModal(false)}>
+            {isStaff && stationLog.length > 0 ? (
+              <View style={s.logBox}>
+                <Text style={s.checklistTitle}>ประวัติสถานะล่าสุด</Text>
+                {stationLog.map((row: any) => (
+                  <Text key={row.id} style={s.logRow} numberOfLines={1}>
+                    {new Date(row.changed_at).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    {" · "}{roomStatus(STATION_STATUS, row.from_status).label} → {roomStatus(STATION_STATUS, row.to_status).label}
+                    {" · "}{row.source === "repair" ? "งานซ่อม" : row.who}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+
+            {/* แจ้งปัญหาเครื่อง (R3) — ทุกคนที่ล็อกอิน */}
+            {reportTarget?.kind === "station" && reportTarget.id === selectedStation?.id ? (
+              <RoomReportForm kind="station" targetId={reportTarget.id} label={reportTarget.label} onDone={() => setReportTarget(null)} />
+            ) : (
+              <TouchableOpacity
+                style={s.reportBtn}
+                onPress={() => selectedStation && setReportTarget({
+                  kind: "station", id: selectedStation.id, label: `กลุ่ม ${selectedStation.group_no} ${selectedStation.name}`,
+                })}
+              >
+                <Ionicons name="megaphone-outline" size={16} color="#c2410c" />
+                <Text style={s.reportBtnTxt}>แจ้งปัญหาเครื่องนี้</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={s.closeBtn} onPress={() => { setCompModal(false); setReportTarget(null); }}>
               <Text style={s.closeBtnTxt}>ปิด</Text>
             </TouchableOpacity>
           </View>
@@ -299,7 +389,7 @@ export default function RoomMap() {
                 <Text style={s.modalTitle}>Server กลุ่ม {serverGroup}</Text>
                 <Text style={s.modalSub}>ห้อง {roomName} · {serverGroupPorts.length} LAN Port</Text>
               </View>
-              <TouchableOpacity onPress={() => setServerModal(false)}>
+              <TouchableOpacity onPress={() => { setServerModal(false); setReportTarget(null); }}>
                 <Ionicons name="close" size={24} color="#64748b" />
               </TouchableOpacity>
             </View>
@@ -308,17 +398,27 @@ export default function RoomMap() {
               <View style={s.portGrid}>
                 {serverGroupPorts.map(port => {
                   const cfg = roomStatus(LAN_STATUS, port.status);
+                  const picked = reportTarget?.kind === "lan" && reportTarget.id === port.id;
                   return (
-                    <View key={port.id}
-                      style={[s.portCell, { backgroundColor: cfg.bg, borderColor: cfg.color + "40" }]}>
+                    // กด port = แจ้งปัญหา port นั้น (R3)
+                    <TouchableOpacity key={port.id}
+                      style={[s.portCell, { backgroundColor: cfg.bg, borderColor: picked ? "#ea580c" : cfg.color + "40" }]}
+                      onPress={() => setReportTarget({ kind: "lan", id: port.id, label: `กลุ่ม ${port.group_no} Port ${port.port_no}` })}
+                      activeOpacity={0.8}>
                       <Ionicons name={cfg.icon} size={14} color={cfg.color} />
                       <Text style={[s.portNo, { color: cfg.color }]}>P{port.port_no}</Text>
                       <Text style={[s.portStatus, { color: cfg.color }]}>{cfg.label}</Text>
                       {port.label ? <Text style={s.portLabel} numberOfLines={1}>{port.label}</Text> : null}
-                    </View>
+                    </TouchableOpacity>
                   );
                 })}
               </View>
+
+              {reportTarget?.kind === "lan" ? (
+                <RoomReportForm kind="lan" targetId={reportTarget.id} label={reportTarget.label} onDone={() => setReportTarget(null)} />
+              ) : (
+                <Text style={s.staffHint}>พบ port มีปัญหา? กดที่ port เพื่อแจ้งผู้ดูแล</Text>
+              )}
 
               <View style={s.portLegend}>
                 {Object.entries(LAN_STATUS).map(([k, v]) => (
@@ -331,7 +431,7 @@ export default function RoomMap() {
               <View style={{ height: 20 }} />
             </ScrollView>
 
-            <TouchableOpacity style={s.closeBtn} onPress={() => setServerModal(false)}>
+            <TouchableOpacity style={s.closeBtn} onPress={() => { setServerModal(false); setReportTarget(null); }}>
               <Text style={s.closeBtnTxt}>ปิด</Text>
             </TouchableOpacity>
           </View>
@@ -429,6 +529,11 @@ const s = StyleSheet.create({
   },
   checklistLabel: { fontSize: 11, fontWeight: "700", textAlign: "center" },
   checklistStatus: { fontSize: 10, fontWeight: "600" },
+  staffHint: { fontSize: 11, color: "#64748b", marginTop: 8, textAlign: "center" },
+  logBox: { marginTop: 12, backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 },
+  logRow: { fontSize: 11, color: "#334155", marginTop: 4 },
+  reportBtn: { marginTop: 12, minHeight: 42, borderRadius: 10, borderWidth: 1, borderColor: "#fdba74", backgroundColor: "#fff7ed", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  reportBtnTxt: { color: "#c2410c", fontWeight: "800", fontSize: 13 },
 
   portGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   portCell: { width: "22%", borderRadius: 10, padding: 8, alignItems: "center", gap: 2, borderWidth: 1 },

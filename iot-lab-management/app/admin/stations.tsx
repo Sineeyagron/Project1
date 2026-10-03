@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
+import { useRole } from "../../lib/roles";
 import supabase from "../../lib/supabase";
 import { confirmAction, notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
@@ -48,6 +49,8 @@ type Station = {
 };
 
 export default function AdminStations() {
+  // TA เปลี่ยนสถานะได้อย่างเดียว — เพิ่ม/แก้/ลบ/ปิดใช้งานเครื่อง = admin (ฐานข้อมูลกันจริง)
+  const isAdmin = useRole().role === "admin";
   const { room_id: roomParam } = useLocalSearchParams<{ room_id?: string }>(); // เปิดจากการ์ดห้อง → เลือกห้องนั้น
   const [stations, setStations] = useState<Station[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
@@ -150,6 +153,10 @@ export default function AdminStations() {
 
   const toggleStatus = (station: Station) => {
     if (station.active === false) {
+      if (!isAdmin) {
+        notify("เครื่องนี้ปิดใช้งานอยู่", "เฉพาะ Admin เปิดใช้งานเครื่องได้");
+        return;
+      }
       confirmAction("เปิดใช้งานเครื่อง", `เปิดใช้ "${station.name}" อีกครั้ง?\nเครื่องจะกลับมาขึ้นในผังห้อง`, "เปิดใช้งาน", () =>
         setActive(station, true)
       );
@@ -323,9 +330,11 @@ export default function AdminStations() {
             <Text style={s.headerTitle}>จัดการเครื่องคอม</Text>
             <Text style={s.headerSub}>ห้อง {selectedRoom || "-"} · {activeStations.length} เครื่อง</Text>
           </View>
-          <TouchableOpacity style={s.backBtn} onPress={openAdd} activeOpacity={0.82} accessibilityLabel="เพิ่มเครื่อง">
-            <Ionicons name="add" size={22} color="#fff" />
-          </TouchableOpacity>
+          {isAdmin ? (
+            <TouchableOpacity style={s.backBtn} onPress={openAdd} activeOpacity={0.82} accessibilityLabel="เพิ่มเครื่อง">
+              <Ionicons name="add" size={22} color="#fff" />
+            </TouchableOpacity>
+          ) : null}
         </View>
 
         <View style={s.roomTabs}>
@@ -394,7 +403,7 @@ export default function AdminStations() {
                           key={station.id}
                           style={[s.stationCard, { backgroundColor: cfg.bg, borderColor: cfg.border }]}
                           onPress={() => !isSaving && toggleStatus(station)}
-                          onLongPress={() => openEdit(station)}
+                          onLongPress={isAdmin ? () => openEdit(station) : undefined}
                           disabled={isSaving}
                           activeOpacity={0.86}
                         >
@@ -419,7 +428,9 @@ export default function AdminStations() {
               รวม {activeStations.length} เครื่อง · {roomReady} ใช้งานได้ · {roomProblems} ปัญหา
               {stations.length > activeStations.length ? ` · ปิดใช้งาน ${stations.length - activeStations.length}` : ""}
             </Text>
-            <Text style={s.summaryText}>กดเครื่อง = เปลี่ยนสถานะ · กดค้าง = แก้ไข/ลบ</Text>
+            <Text style={s.summaryText}>
+              {isAdmin ? "กดเครื่อง = เปลี่ยนสถานะ · กดค้าง = แก้ไข/ลบ" : "กดเครื่อง = เปลี่ยนสถานะ (ระบบบันทึกประวัติว่าใครเปลี่ยน)"}
+            </Text>
           </View>
         </ScrollView>
       )}

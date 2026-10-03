@@ -14,7 +14,6 @@ import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
-import { currentUser } from "../../lib/session";
 import { REPAIR_STATUS, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
@@ -37,6 +36,7 @@ const C = {
 };
 
 type FilterKey = "all" | "pending" | "in-repair" | "done";
+const REPAIR_ORDER = ["pending", "in-repair", "done"] as const;
 
 function formatDate(d?: string) {
   if (!d) return "-";
@@ -165,13 +165,12 @@ export default function RepairsPage() {
     }
 
     setSaving(true);
-    const user = await currentUser();
+    // ผู้แจ้ง/เวลาแจ้ง ฐานข้อมูลใส่เอง / มีเครื่อง → เครื่องเปลี่ยนเป็น "กำลังซ่อม" อัตโนมัติ (trigger)
     const { error } = await supabase.from("repair_records").insert([{
       station_id: formStation?.id || null,
       description: formDesc.trim(),
       notes: formNotes.trim() || null,
       status: "pending",
-      reported_by: user?.id || null,
     }]);
     setSaving(false);
 
@@ -181,7 +180,7 @@ export default function RepairsPage() {
     }
 
     setAddModal(false);
-    notify("แจ้งซ่อมสำเร็จ");
+    notify("แจ้งซ่อมสำเร็จ", formStation ? `${formStation.name} เปลี่ยนเป็น "กำลังซ่อม" แล้ว` : undefined);
     fetchAll(true);
   };
 
@@ -196,12 +195,9 @@ export default function RepairsPage() {
     if (!updateRecord) return;
 
     setSaving(true);
-    const user = await currentUser();
-    const updates: any = { status: updateStatus, notes: updateNotes.trim() || null };
-    if (updateStatus === "done") {
-      updates.repaired_at = new Date().toISOString();
-      updates.repaired_by = user?.id || null;
-    }
+    // ผู้ซ่อม/เวลาซ่อมเสร็จ ฐานข้อมูลใส่เอง / ห้ามย้อนสถานะ (trigger กัน)
+    // ซ่อมเสร็จและไม่มีงานค้างอื่น → เครื่องกลับเป็น "ใช้งานได้" อัตโนมัติ
+    const updates = { status: updateStatus, notes: updateNotes.trim() || null };
 
     // .select() เพื่อรู้ว่าแก้ได้จริง — RLS ไม่ให้สิทธิ์จะไม่ error แต่แก้ได้ 0 แถว
     const { data, error } = await supabase.from("repair_records").update(updates).eq("id", updateRecord.id).select("id");
@@ -425,14 +421,17 @@ export default function RepairsPage() {
             <Text style={s.updateTitle}>{updateRecord ? stationTitle(updateRecord) : ""}</Text>
             <Text style={s.fieldLabel}>สถานะ</Text>
             <View style={s.statusBtnRow}>
-              {(["pending", "in-repair", "done"] as const).map((status) => {
+              {REPAIR_ORDER.map((status, index) => {
                 const cfg = REPAIR_STATUS[status];
                 const active = updateStatus === status;
+                // ย้อนสถานะไม่ได้ (รอซ่อม → กำลังซ่อม → เสร็จ) — ฐานข้อมูลกันซ้ำอีกชั้น
+                const locked = index < REPAIR_ORDER.indexOf(updateRecord?.status);
                 return (
                   <TouchableOpacity
                     key={status}
-                    style={[s.statusBtn, { borderColor: cfg.border }, active && { backgroundColor: cfg.bg }]}
-                    onPress={() => setUpdateStatus(status)}
+                    style={[s.statusBtn, { borderColor: cfg.border }, active && { backgroundColor: cfg.bg }, locked && { opacity: 0.35 }]}
+                    onPress={() => !locked && setUpdateStatus(status)}
+                    disabled={locked}
                   >
                     <Ionicons name={cfg.icon} size={17} color={cfg.color} />
                     <Text style={[s.statusBtnText, { color: cfg.color }]}>{cfg.label}</Text>
