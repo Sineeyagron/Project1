@@ -255,7 +255,7 @@ export default function AdminHistory() {
                       {record.status === "returned" && (
                         <>
                           <Ionicons name="checkmark" size={13} color={C.green} />
-                          <Text style={s.dateText}>คืน {formatDate(record.returned_at)}</Text>
+                          <Text style={s.dateText}>คืน {formatDate(record.return_date)}</Text>
                         </>
                       )}
                     </View>

@@ -77,6 +77,17 @@ function itemLocation(item: any) {
   return type || "ไม่ระบุตำแหน่ง";
 }
 
+// ภาคเรียนปัจจุบัน (ปฏิทิน มข. โดยประมาณ): มิ.ย.–ต.ค. = 1 / พ.ย.–มี.ค. = 2 / เม.ย.–พ.ค. = ฤดูร้อน (3)
+// เดิมเขียนตายตัว "1/2568" → ผลตรวจปีนี้ไปบันทึกเป็นเทอมปีที่แล้ว
+function currentTerm(now = new Date()) {
+  const m = now.getMonth() + 1;
+  const be = now.getFullYear() + 543;
+  if (m >= 6 && m <= 10) return `1/${be}`;
+  if (m >= 11) return `2/${be}`;
+  if (m <= 3) return `2/${be - 1}`;
+  return `3/${be - 1}`;
+}
+
 function formatTermLabel(term: string) {
   return term.trim() || "-";
 }
@@ -105,8 +116,8 @@ function relativeInspection(value?: string) {
 export default function IotInspectionPage() {
   const router = useRouter();
 
-  const [term, setTerm] = useState("1/2568");
-  const [activeTerm, setActiveTerm] = useState("1/2568");
+  const [term, setTerm] = useState(currentTerm());
+  const [activeTerm, setActiveTerm] = useState(currentTerm());
   const [items, setItems] = useState<any[]>([]);
   const [inspections, setInspections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +135,7 @@ export default function IotInspectionPage() {
   }, []);
 
   const fetchData = async (termValue = activeTerm) => {
-    const cleanTerm = termValue.trim() || "1/2568";
+    const cleanTerm = termValue.trim() || currentTerm();
     setLoading(true);
 
     const [{ data: allItems, error: itemsError }, { data: inspectionRows, error: inspectionError }] = await Promise.all([
@@ -188,7 +199,7 @@ export default function IotInspectionPage() {
 
   const saveInspection = async () => {
     if (!formItem) return;
-    const cleanTerm = activeTerm.trim() || "1/2568";
+    const cleanTerm = activeTerm.trim() || currentTerm();
     setSaving(true);
 
     const user = await currentUser();
@@ -233,7 +244,7 @@ export default function IotInspectionPage() {
             style={s.termInput}
             value={term}
             onChangeText={setTerm}
-            placeholder="1/2568"
+            placeholder={currentTerm()}
             placeholderTextColor="#8b8b95"
             returnKeyType="search"
             onSubmitEditing={submitSearch}

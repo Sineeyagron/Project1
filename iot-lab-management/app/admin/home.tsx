@@ -247,7 +247,7 @@ export default function AdminHome() {
         color: isReturned ? C.blue : C.green,
         title: `${isReturned ? "คืน" : "ยืม"} ${itemMap.get(record.item_id) || "อุปกรณ์"}`,
         sub: emailMap[record.user_id] || "-",
-        time: relativeTime(record.returned_at || record.borrow_date || record.created_at),
+        time: relativeTime(record.return_date || record.borrow_date),
       };
     });
 

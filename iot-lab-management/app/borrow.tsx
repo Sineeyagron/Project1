@@ -59,7 +59,7 @@ export default function Borrow() {
         .order("borrow_date", { ascending: false }),
       supabase
         .from("borrow_requests")
-        .select("id, kind, status, days, created_at, expires_at, decision_note, items(name, item_code)")
+        .select("id, item_id, kind, status, days, created_at, expires_at, decision_note, items(name, item_code)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(15),
@@ -84,8 +84,16 @@ export default function Borrow() {
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
   // ผลล่าสุดใน 7 วัน (ไม่รวม "อนุมัติยืม" เพราะเห็นในรายการยืมอยู่แล้ว)
+  // นับเฉพาะคำขอล่าสุดของแต่ละชิ้น+ประเภท — กันกรณีขอครั้งแรกหมดเวลา ขอใหม่ได้แล้ว แต่ยังโชว์ "หมดอายุ" ค้าง
   const weekAgo = Date.now() - 7 * 86400000;
-  const recentResults = requests
+  const seen = new Set<string>();
+  const latestPerItem = requests.filter((r) => {
+    const key = `${r.item_id}:${r.kind}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const recentResults = latestPerItem
     .filter((r) => r.status !== "pending" && new Date(r.created_at).getTime() > weekAgo)
     .filter((r) => !(r.kind === "borrow" && r.status === "approved"))
     .slice(0, 5);
