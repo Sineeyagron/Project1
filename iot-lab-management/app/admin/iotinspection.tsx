@@ -14,6 +14,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { currentUser } from "../../lib/session";
+import { notify } from "../../lib/notify";
+import { goBack } from "../../lib/nav";
 
 const C = {
   bg: "#f4f4f7",
@@ -134,7 +137,7 @@ export default function IotInspectionPage() {
     ]);
 
     if (itemsError || inspectionError) {
-      Alert.alert("โหลดข้อมูลไม่สำเร็จ", itemsError?.message || inspectionError?.message || "กรุณาลองใหม่อีกครั้ง");
+      notify("โหลดข้อมูลไม่สำเร็จ", itemsError?.message || inspectionError?.message || "กรุณาลองใหม่อีกครั้ง");
     }
 
     setItems(allItems || []);
@@ -188,7 +191,7 @@ export default function IotInspectionPage() {
     const cleanTerm = activeTerm.trim() || "1/2568";
     setSaving(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     const { error } = await supabase
       .from("item_inspections")
       .upsert(
@@ -206,7 +209,7 @@ export default function IotInspectionPage() {
     setSaving(false);
 
     if (error) {
-      Alert.alert("บันทึกไม่สำเร็จ", error.message);
+      notify("บันทึกไม่สำเร็จ", error.message);
       return;
     }
 
@@ -218,7 +221,7 @@ export default function IotInspectionPage() {
     <View style={s.container}>
       <View style={s.header}>
         <View style={s.headerRow}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
+          <TouchableOpacity style={s.backBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
             <Ionicons name="arrow-back" size={21} color="#ffffff" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>ตรวจสภาพ IoT ประจำเทอม</Text>

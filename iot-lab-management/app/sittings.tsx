@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
+import { goBack } from "../lib/nav";
 import { confirmAction } from "../lib/notify";
 
 export default function Settings() {
@@ -34,7 +35,7 @@ export default function Settings() {
 
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => goBack("/profile")}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>ตั้งค่า</Text>
@@ -57,7 +58,8 @@ export default function Settings() {
         {/* MENU */}
         <Text style={s.sectionLabel}>บัญชี</Text>
 
-        <TouchableOpacity style={s.menuItem} onPress={() => router.push("/profile")}>
+        {/* เปิดมาจากหน้าโปรไฟล์ → ถอยกลับไป ไม่เปิดซ้อน (เดิม โปรไฟล์ ↔ ตั้งค่า วนซ้อนได้ไม่จบ) */}
+        <TouchableOpacity style={s.menuItem} onPress={() => router.dismissTo("/profile")}>
           <View style={[s.menuIcon, { backgroundColor: "#eff6ff" }]}>
             <Ionicons name="person-outline" size={20} color="#1e3a8a" />
           </View>

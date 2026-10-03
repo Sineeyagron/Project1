@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
+import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 
 function SignaturePreview({ svgString }: { svgString: string }) {
   if (!svgString || !svgString.startsWith("<svg")) return null;
@@ -153,6 +154,8 @@ export default function AdminHistory() {
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchHistory(); });
 
   const filtered = useMemo(() => {
     if (activeFilter === "all") return records;
@@ -166,7 +169,7 @@ export default function AdminHistory() {
     fetchHistory();
   };
 
-  const goBack = () => router.replace("/admin/home");
+  const goBack = () => navBack("/admin/home");
 
   return (
     <View style={s.container}>

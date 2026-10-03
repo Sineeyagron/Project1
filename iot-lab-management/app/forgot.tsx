@@ -15,6 +15,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import supabase from "../lib/supabase";
+import { notify } from "../lib/notify";
+import { authErrorThai } from "../lib/password";
+import { goBack } from "../lib/nav";
 
 export default function ForgotPassword() {
   const router = useRouter();
@@ -25,7 +28,7 @@ export default function ForgotPassword() {
 
   const handleReset = async () => {
     if (!email.trim()) {
-      Alert.alert("กรอกอีเมลก่อน", "กรุณากรอกอีเมลที่ใช้สมัครบัญชี");
+      notify("กรอกอีเมลก่อน", "กรุณากรอกอีเมลที่ใช้สมัครบัญชี");
       return;
     }
 
@@ -40,11 +43,11 @@ export default function ForgotPassword() {
 
     if (error) {
       console.log(error);
-      Alert.alert("ส่งไม่สำเร็จ", error.message);
+      notify("ส่งไม่สำเร็จ", authErrorThai(error.message));
       return;
     }
 
-    Alert.alert(
+    notify(
       "ส่งลิงก์แล้ว",
       "กรุณาตรวจสอบอีเมล แล้วกดลิงก์เพื่อรีเซ็ตรหัสผ่าน"
     );
@@ -56,7 +59,7 @@ export default function ForgotPassword() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.header}>
-        <TouchableOpacity style={styles.headerBack} onPress={() => router.back()} disabled={isLoading}>
+        <TouchableOpacity style={styles.headerBack} onPress={() => goBack("/login")} disabled={isLoading}>
           <Ionicons name="arrow-back" size={23} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>ลืมรหัสผ่าน</Text>

@@ -15,6 +15,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { useRealtime } from "../../lib/realtime";
+import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import Countdown from "../../components/Countdown";
@@ -122,10 +124,14 @@ export default function AdminRequests() {
   }, [focusId]);
 
   useEffect(() => { load(); }, [load]);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { load(); });
+  // Realtime: คำขอใหม่ / ถูกตัดสินโดยผู้ดูแลคนอื่น → โหลดทันที
+  useRealtime("staff", "request", () => { load(); });
 
-  // คำขอใหม่เข้ามาได้ตลอด → รีเฟรชทุก 30 วินาที (ข้ามตอนแอป/แท็บอยู่เบื้องหลัง) และตอนกลับเข้าแอป
+  // สำรองกรณีสัญญาณ Realtime หลุด: รีเฟรชทุก 5 นาที (ข้ามตอนแอป/แท็บอยู่เบื้องหลัง) และตอนกลับเข้าแอป
   useEffect(() => {
-    const t = setInterval(() => { if (AppState.currentState === "active") load(); }, 30000);
+    const t = setInterval(() => { if (AppState.currentState === "active") load(); }, 300000);
     const sub = AppState.addEventListener("change", (st) => { if (st === "active") load(); });
     return () => { clearInterval(t); sub.remove(); };
   }, [load]);
@@ -265,7 +271,7 @@ export default function AdminRequests() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
+        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>

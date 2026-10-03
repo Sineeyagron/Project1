@@ -6,6 +6,10 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
+import { useRealtime } from "../lib/realtime";
+import { currentUser } from "../lib/session";
+import { RECORD_STATUS } from "../lib/status";
+import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { confirmAction, notify } from "../lib/notify";
 import Countdown from "../components/Countdown";
 
@@ -21,9 +25,9 @@ const REQUEST_RESULT: Record<string, { label: string; color: string; bg: string 
 };
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
-  borrowed:       { label: "กำลังยืม",  color: "#b45309", bg: "#fef3c7", border: "#f59e0b", icon: "cube-outline" },
-  pending_return: { label: "รอยืนยันคืน", color: "#c2410c", bg: "#ffedd5", border: "#fb923c", icon: "hourglass-outline" },
-  returned:       { label: "คืนแล้ว",   color: "#16a34a", bg: "#dcfce7", border: "#22c55e", icon: "checkmark-circle-outline" },
+  borrowed:       { ...RECORD_STATUS.borrowed, icon: "cube-outline" },
+  pending_return: { ...RECORD_STATUS.pending_return, icon: "hourglass-outline" },
+  returned:       { ...RECORD_STATUS.returned, icon: "checkmark-circle-outline" },
 };
 
 const formatDate = (d: string) => {
@@ -44,7 +48,7 @@ export default function Borrow() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchBorrows = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     if (!user) { setLoading(false); return; }
     const [{ data }, { data: reqs }] = await Promise.all([
       supabase
@@ -87,6 +91,10 @@ export default function Borrow() {
     .slice(0, 5);
 
   useEffect(() => { fetchBorrows(); }, [fetchBorrows]);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchBorrows(); });
+  // Realtime: ผลคำขอ (อนุมัติ/ปฏิเสธ/หมดเวลา) มาเป็นแจ้งเตือน → โหลดรายการใหม่ทันที
+  useRealtime("user", "notification", () => { fetchBorrows(); });
 
   const onRefresh = () => { setRefreshing(true); fetchBorrows(); };
 
@@ -97,7 +105,7 @@ export default function Borrow() {
     <View style={s.container}>
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.replace("/home")} activeOpacity={0.84}>
+        <TouchableOpacity style={s.backBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View>

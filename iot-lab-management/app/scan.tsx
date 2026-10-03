@@ -15,6 +15,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
+import { goBack } from "../lib/nav";
 import { notify, confirmAction } from "../lib/notify";
 import { canTakeLivePhoto, takeLivePhoto, uploadBorrowPhoto } from "../lib/borrowPhotos";
 import Countdown from "../components/Countdown";
@@ -180,7 +181,7 @@ export default function StudentScan() {
   // ── ส่วนหัว ──
   const Header = (
     <View style={s.header}>
-      <TouchableOpacity style={s.headerBtn} onPress={() => router.back()} activeOpacity={0.84}>
+      <TouchableOpacity style={s.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
         <Ionicons name="arrow-back" size={22} color="#fff" />
       </TouchableOpacity>
       <View style={{ flex: 1 }}>

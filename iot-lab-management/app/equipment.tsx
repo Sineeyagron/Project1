@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import supabase from "../lib/supabase";
+import { ITEM_STATUS } from "../lib/status";
+import { goBack, goTab, useRefreshOnFocus } from "../lib/nav";
 import { notify } from "../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../components/AnchoredMenu";
 import {
@@ -56,10 +58,10 @@ const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 const STATUS_BADGE: Record<string, { label: string; bg: string; color: string; border: string; action: keyof typeof Ionicons.glyphMap }> = {
-  available: { label: "ว่าง", bg: "#dcfce7", color: C.green, border: "#22c55e", action: "information-outline" },
-  reserved: { label: "รออนุมัติ", bg: "#ffedd5", color: C.orange, border: "#fb923c", action: "information-outline" },
-  borrowed: { label: "ถูกยืม", bg: "#fee2e2", color: C.red, border: "#f87171", action: "information-outline" },
-  repair: { label: "ซ่อมบำรุง", bg: "#fef3c7", color: C.orange, border: "#f59e0b", action: "information-outline" },
+  available: { ...ITEM_STATUS.available, action: "information-outline" },
+  reserved: { ...ITEM_STATUS.reserved, action: "information-outline" },
+  borrowed: { ...ITEM_STATUS.borrowed, action: "information-outline" },
+  repair: { ...ITEM_STATUS.repair, action: "information-outline" },
 };
 
 export default function Equipment() {
@@ -77,6 +79,8 @@ export default function Equipment() {
   useEffect(() => {
     fetchItems();
   }, []);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchItems(); });
 
   const fetchItems = async () => {
     setLoading(true);
@@ -161,7 +165,7 @@ export default function Equipment() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.headerBtn} onPress={() => router.replace("/home")} activeOpacity={0.84}>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
@@ -322,7 +326,7 @@ export default function Equipment() {
       )}
 
       <View style={styles.tab}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/home")} activeOpacity={0.82}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => goTab("/home", "/equipment")} activeOpacity={0.82}>
           <Ionicons name="home-outline" size={22} color={C.faint} />
           <Text style={styles.tabText}>ชั้นเรียน</Text>
         </TouchableOpacity>
@@ -330,11 +334,11 @@ export default function Equipment() {
           <Ionicons name="cube" size={22} color={C.purple} />
           <Text style={[styles.tabText, styles.tabActive]}>อุปกรณ์</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/notifications")} activeOpacity={0.82}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => goTab("/notifications", "/equipment")} activeOpacity={0.82}>
           <Ionicons name="notifications-outline" size={22} color={C.faint} />
           <Text style={styles.tabText}>แจ้งเตือน</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem} onPress={() => router.push("/profile")} activeOpacity={0.82}>
+        <TouchableOpacity style={styles.tabItem} onPress={() => goTab("/profile", "/equipment")} activeOpacity={0.82}>
           <Ionicons name="person-outline" size={22} color={C.faint} />
           <Text style={styles.tabText}>โปรไฟล์</Text>
         </TouchableOpacity>

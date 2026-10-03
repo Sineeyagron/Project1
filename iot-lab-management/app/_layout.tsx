@@ -1,12 +1,28 @@
-import { Stack, useRouter } from "expo-router";
+import { Stack, usePathname, useRouter } from "expo-router";
 import { useEffect } from "react";
 import * as Linking from "expo-linking";
 import supabase from "../lib/supabase";
 import { DialogHost } from "../lib/notify";
 import { applyRememberLogin } from "../lib/session";
+import { isAdminPath } from "../lib/roles";
+
+// หน้าที่เปิดได้โดยไม่ต้องล็อกอิน (หน้าอื่นทั้งหมดต้องล็อกอิน — หน้า /admin มีด่านของตัวเองใน app/admin/_layout.tsx)
+const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/forgot", "/reset-password"]);
 
 export default function Layout() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  // ด่านหน้านักศึกษา: ยังไม่ล็อกอิน (เช่น เปิดลิงก์ตรง / session หมดอายุ) → ไปหน้าล็อกอิน
+  // เดิมเปิดได้แต่ข้อมูลว่างและ error 401 เพราะ RLS กันไว้
+  useEffect(() => {
+    if (PUBLIC_PATHS.has(pathname) || isAdminPath(pathname)) return;
+    let active = true;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (active && !session) setTimeout(() => router.replace("/login"), 0);
+    });
+    return () => { active = false; };
+  }, [pathname]);
 
   useEffect(() => {
     // ไม่ได้ติ๊ก "จดจำการเข้าสู่ระบบ" ตอนล็อกอินครั้งก่อน → ออกจากระบบตอนเปิดแอปใหม่
@@ -71,7 +87,8 @@ export default function Layout() {
         return;
       }
 
-      if (url.includes("reset-password")) {
+      // ลิงก์รีเซ็ตจากอีเมล → หน้าตั้งรหัสใหม่ (ยกเว้นโหมดเปลี่ยนรหัสจากหน้าโปรไฟล์ ไม่งั้นพารามิเตอร์หาย)
+      if (url.includes("reset-password") && !url.includes("mode=change")) {
         setTimeout(() => router.replace("/reset-password"), 0);
       }
     };

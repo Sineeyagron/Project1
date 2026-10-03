@@ -14,6 +14,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { ITEM_STATUS, RECORD_STATUS } from "../../lib/status";
+import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
 import { addYears, isValidDate, thaiDate } from "../../lib/itemInfo";
@@ -33,11 +35,11 @@ const C = {
 };
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; cta: "add" | "info" }> = {
-  available: { label: "ว่าง", color: "#16a34a", bg: "#dcfce7", border: "#22c55e", cta: "add" },
-  reserved: { label: "รออนุมัติยืม", color: "#c2410c", bg: "#ffedd5", border: "#fb923c", cta: "info" },
-  borrowed: { label: "ถูกยืม", color: "#b45309", bg: "#fef3c7", border: "#f59e0b", cta: "info" },
-  repair: { label: "ซ่อมบำรุง", color: "#dc2626", bg: "#fee2e2", border: "#ef4444", cta: "info" },
-  retired: { label: "จำหน่ายแล้ว", color: "#64748b", bg: "#e2e8f0", border: "#94a3b8", cta: "info" },
+  available: { ...ITEM_STATUS.available, cta: "add" },
+  reserved: { ...ITEM_STATUS.reserved, cta: "info" },
+  borrowed: { ...ITEM_STATUS.borrowed, cta: "info" },
+  repair: { ...ITEM_STATUS.repair, cta: "info" },
+  retired: { ...ITEM_STATUS.retired, cta: "info" },
 };
 
 const TYPE_CFG: Record<string, { icon: any; color: string; bg: string; filter: string; label: string }> = {
@@ -174,9 +176,11 @@ export default function AdminItems() {
   useEffect(() => {
     fetchItems();
   }, []);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchItems(); });
 
   const goBack = () => {
-    router.replace("/admin/home");
+    navBack("/admin/home");
   };
 
   const fetchItems = async () => {

@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import { File as FSFile, Paths } from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import supabase from "../../lib/supabase";
+import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { toCsv } from "../../lib/csv";
 import { thaiDate } from "../../lib/itemInfo";
@@ -299,7 +300,7 @@ export default function ImportItems() {
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
+        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>

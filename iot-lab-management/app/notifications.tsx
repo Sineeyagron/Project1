@@ -6,6 +6,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
+import { useRealtime } from "../lib/realtime";
+import { currentUser } from "../lib/session";
+import { goBack, useRefreshOnFocus } from "../lib/nav";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
   borrow:         { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
@@ -73,7 +76,7 @@ export default function Notifications() {
   const isFirstLoad = useRef(true);
 
   const fetchNotifications = useCallback(async (silent = false) => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     if (!user) { setLoading(false); return; }
     if (isFirstLoad.current) {
       const { data: staff } = await supabase.rpc("is_staff");
@@ -101,7 +104,7 @@ export default function Notifications() {
   }, []);
 
   const markAllRead = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     if (!user) return;
     await supabase.from("notifications").update({ read: true })
       .eq("user_id", user.id).eq("read", false);
@@ -110,10 +113,14 @@ export default function Notifications() {
   };
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchNotifications(true); });
+  // Realtime: มีแจ้งเตือนใหม่ → โหลดทันที
+  useRealtime("user", "notification", () => { fetchNotifications(true); });
 
   useEffect(() => {
-    // ทุก 30 วินาที ข้ามตอนแอป/แท็บอยู่เบื้องหลัง (ประหยัด Disk IO ของ Supabase)
-    const interval = setInterval(() => { if (AppState.currentState === "active") fetchNotifications(true); }, 30000);
+    // สำรองกรณีสัญญาณ Realtime หลุด: ทุก 5 นาที (เดิม 30 วิ) ข้ามตอนแอป/แท็บอยู่เบื้องหลัง
+    const interval = setInterval(() => { if (AppState.currentState === "active") fetchNotifications(true); }, 300000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
@@ -130,7 +137,7 @@ export default function Notifications() {
   // → ถ้าเป็นของที่ตัวเองยืม พาไปหน้าการยืมของตัวเอง ไม่ใช่กล่องคำขอ
   const isMyLoan = async (n: any) => {
     if (!["overdue", "auto_returned"].includes(n.type) || !n.item_id) return false;
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     if (!user) return false;
     const { count } = await supabase
       .from("borrow_records")
@@ -165,7 +172,7 @@ export default function Notifications() {
 
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()}>
+        <TouchableOpacity onPress={() => goBack(isStaff ? "/admin/home" : "/home")}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View>

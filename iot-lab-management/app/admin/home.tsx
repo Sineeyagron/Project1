@@ -12,6 +12,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import Svg, { Polyline } from "react-native-svg";
 import supabase from "../../lib/supabase";
+import { useRealtime } from "../../lib/realtime";
+import { currentUser } from "../../lib/session";
+import { useRefreshOnFocus } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { canAccess, isStaffRole, ROLE_LABEL, useRole } from "../../lib/roles";
 
@@ -48,7 +51,6 @@ const TOOLS = [
   { icon: "document-attach-outline", label: "รายงานยืม-คืน", route: "/admin/report", color: "#0d9488", bg: "#ccfbf1" },
   { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings", color: "#475569", bg: "#f1f5f9" },
   { icon: "people-outline", label: "จัดการ TA", route: "/admin/users", color: "#7c3aed", bg: "#ede9fe" },
-  { icon: "add-circle-outline", label: "เพิ่มอุปกรณ์", route: "/admin/scan", color: C.cyan, bg: "#cffafe" },
   { icon: "document-text-outline", label: "นำเข้า CSV", route: "/admin/import", color: "#059669", bg: "#d1fae5" },
   { icon: "receipt-outline", label: "ประวัติยืม", route: "/admin/history", color: C.muted, bg: "#f1f5f9" },
   { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations", color: C.red, bg: "#fee2e2" },
@@ -88,8 +90,9 @@ export default function AdminHome() {
     ...PRIMARY.filter((t) => canAccess(role, t.route)),
     ...(role === "ta" ? [{ icon: "qr-code-outline", title: "พิมพ์ป้าย QR", sub: "ป้ายติดอุปกรณ์", route: "/admin/qrgen", bg: "#4f46e5" }] : []),
   ];
+  // เครื่องมือ: ไม่ซ้ำกับปุ่มใหญ่ด้านบน
   const tools: Tile[] = [
-    ...TOOLS.filter((t) => canAccess(role, t.route)),
+    ...TOOLS.filter((t) => canAccess(role, t.route) && !primary.some((p) => p.route === t.route)),
     ...(role === "ta" ? [{ icon: "person-outline", label: "ยืมของ (หน้านักศึกษา)", route: "/home", color: C.green, bg: "#dcfce7" }] : []),
   ];
   const [loading, setLoading] = useState(true);
@@ -108,10 +111,12 @@ export default function AdminHome() {
   useEffect(() => {
     checkRoleAndFetch();
   }, []);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchDashboard(); });
 
   // แจ้งเตือนที่ยังไม่อ่าน (ประกัน/อายุ/คำขอ ฯลฯ) — นับใหม่ทุกครั้งที่กลับมาหน้านี้
   const refreshUnread = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     if (!user) return;
     const { count } = await supabase
       .from("notifications")
@@ -127,6 +132,19 @@ export default function AdminHome() {
     }, [refreshUnread])
   );
 
+  // เลขบนการ์ดกล่องคำขอ (นับอย่างเดียว เบากว่าโหลดหน้าแรกทั้งหน้า)
+  const refreshPending = async () => {
+    const { count } = await supabase
+      .from("borrow_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    setPendingRequests(count || 0);
+  };
+
+  // Realtime: แจ้งเตือนใหม่ → เลขกระดิ่ง / คำขอใหม่หรือถูกตัดสิน → เลขกล่องคำขอ (ขึ้นทันที ไม่ต้องรีเฟรช)
+  useRealtime("user", "notification", refreshUnread);
+  useRealtime("staff", "request", () => { refreshPending(); });
+
   const greeting = useMemo(() => getGreeting(), []);
 
   const today = useMemo(() => {
@@ -141,7 +159,7 @@ export default function AdminHome() {
   }, []);
 
   const checkRoleAndFetch = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     if (!user) {
       router.replace("/login");
       return;

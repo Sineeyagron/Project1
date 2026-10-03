@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { setRememberLogin } from "../lib/session";
+import { notify } from "../lib/notify";
 import { getAllowedDomain, isAllowedEmail, signInWithGoogle, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
 
 export default function Login() {
@@ -68,13 +69,8 @@ export default function Login() {
     if (res.ok && Platform.OS !== "web") await afterGoogle();
   };
 
-  const showPopup = (title: string, message: string) => {
-    if (Platform.OS === "web") {
-      window.alert(`${title}\n\n${message}`);
-      return;
-    }
-    Alert.alert(title, message);
-  };
+  // หน้าต่างแจ้งของแอปเอง (window.alert ถูกซ่อนในบางเบราว์เซอร์/แผงพรีวิว)
+  const showPopup = (title: string, message: string) => notify(title, message);
 
   const updateEmail = (value: string) => {
     setEmail(value);

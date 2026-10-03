@@ -14,6 +14,9 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
+import { goBack } from "../lib/nav";
+import { notify } from "../lib/notify";
+import { authErrorThai, PASSWORD_HINT, passwordProblem } from "../lib/password";
 
 export default function Signup() {
   const router = useRouter();
@@ -27,67 +30,50 @@ export default function Signup() {
   const canSubmit =
     fullName.trim().length > 0 &&
     email.trim().length > 0 &&
-    password.length >= 6 &&
+    !passwordProblem(password) &&
     !isLoading;
 
+  // Alert.alert ใช้ไม่ได้บนเว็บ → notify / กติการหัสผ่านตรงกับ Supabase (lib/password.ts)
   const handleSignup = async () => {
     if (!fullName.trim() || !email.trim() || !password) {
-      Alert.alert("กรอกข้อมูลให้ครบ", "กรุณากรอกชื่อ อีเมล และรหัสผ่านก่อนสมัคร");
+      notify("กรอกข้อมูลให้ครบ", "กรุณากรอกชื่อ อีเมล และรหัสผ่านก่อนสมัคร");
       return;
     }
-
-    if (password.length < 6) {
-      Alert.alert("รหัสผ่านสั้นเกินไป", "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+    const problem = passwordProblem(password);
+    if (problem) {
+      notify("รหัสผ่านยังไม่ผ่านเกณฑ์", problem);
       return;
     }
 
     setIsLoading(true);
-
+    // โปรไฟล์ (บทบาทนักศึกษา) ฐานข้อมูลสร้างให้เอง (trigger handle_new_user) — ชื่อเก็บไว้ในข้อมูลบัญชี
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
+      options: { data: { full_name: fullName.trim() } },
     });
-
-    if (error) {
-      setIsLoading(false);
-      if (error.message.includes("already")) {
-        Alert.alert("อีเมลนี้ถูกใช้ไปแล้ว");
-      } else {
-        Alert.alert("สมัครไม่สำเร็จ", error.message);
-      }
-      return;
-    }
-
-    const userId = data?.user?.id;
-    if (!userId) {
-      setIsLoading(false);
-      Alert.alert("สมัครไม่สำเร็จ");
-      return;
-    }
-
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .upsert(
-        [{
-          id: userId,
-          role: "user",
-          email: email.trim(),
-          full_name: fullName.trim(),
-        }],
-        { onConflict: "id" }
-      );
-
     setIsLoading(false);
 
-    if (profileError) {
-      console.log("profile error:", profileError);
-      Alert.alert("สมัครสำเร็จ", "กรุณาเข้าสู่ระบบ");
-      router.replace("/login");
+    if (error) {
+      notify("สมัครไม่สำเร็จ", authErrorThai(error.message));
+      return;
+    }
+    if (!data?.user?.id) {
+      notify("สมัครไม่สำเร็จ", "ลองใหม่อีกครั้ง");
+      return;
+    }
+    // เปิด "ยืนยันอีเมล" ไว้ + อีเมลซ้ำ: Supabase ไม่ส่ง error (กันเดาอีเมล) แต่ identities ว่าง
+    if (Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      notify("สมัครไม่สำเร็จ", "อีเมลนี้ถูกใช้สมัครไปแล้ว — เข้าสู่ระบบ หรือกด \"ลืมรหัสผ่าน\"");
       return;
     }
 
-    Alert.alert("สมัครสำเร็จ", "เข้าสู่ระบบได้เลย");
-    router.replace("/login");
+    if (data.session) {
+      // ระบบยืนยันอีเมลอัตโนมัติ (ค่าปัจจุบัน) → ล็อกอินแล้ว เข้าแอปได้เลย (บัญชีใหม่ = นักศึกษา)
+      notify("สมัครสำเร็จ", "ยินดีต้อนรับสู่ LabHub", () => router.replace("/home"));
+    } else {
+      notify("สมัครสำเร็จ", "กรุณายืนยันอีเมลจากลิงก์ที่ส่งไป แล้วเข้าสู่ระบบ", () => router.replace("/login"));
+    }
   };
 
   return (
@@ -96,7 +82,7 @@ export default function Signup() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} disabled={isLoading}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => goBack("/login")} disabled={isLoading}>
           <Ionicons name="arrow-back" size={23} color="#fff" />
         </TouchableOpacity>
         <View>
@@ -146,7 +132,7 @@ export default function Signup() {
           <View style={styles.inputBox}>
             <Ionicons name="lock-closed-outline" size={20} color="#64748b" />
             <TextInput
-              placeholder="อย่างน้อย 6 ตัวอักษร"
+              placeholder={PASSWORD_HINT}
               placeholderTextColor="#94a3b8"
               secureTextEntry={!showPassword}
               style={styles.input}

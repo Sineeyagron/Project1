@@ -18,6 +18,8 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
+import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
+import { useRole } from "../../lib/roles";
 import { notify } from "../../lib/notify";
 import { LABELS_PER_SHEET, buildLabelSheetHtml, formatItemNo, qrMatrix } from "../../lib/labels";
 
@@ -104,6 +106,7 @@ function compareItems(a: any, b: any) {
 }
 
 export default function QRGen() {
+  const { role } = useRole();
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -118,6 +121,8 @@ export default function QRGen() {
   useEffect(() => {
     fetchItems();
   }, []);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchItems(); });
 
   const fetchItems = async () => {
     const { data, error } = await supabase
@@ -199,7 +204,7 @@ export default function QRGen() {
 
   const sheetCount = Math.ceil((startAt - 1 + printTargets.length) / LABELS_PER_SHEET);
 
-  const goBack = () => router.replace("/admin/home");
+  const goBack = () => navBack("/admin/home");
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -307,7 +312,7 @@ export default function QRGen() {
               <Text style={s.headerTitle}>สร้าง QR Code</Text>
               <View style={s.adminPill}>
                 <Ionicons name="shield-checkmark" size={11} color="#fff" />
-                <Text style={s.adminPillText}>Admin</Text>
+                <Text style={s.adminPillText}>{role === "ta" ? "TA" : "Admin"}</Text>
               </View>
             </View>
             <View style={s.subtitleRow}>
@@ -315,9 +320,8 @@ export default function QRGen() {
               <Text style={s.headerSub}>พิมพ์ติดอุปกรณ์เพื่อสแกนยืม-คืน</Text>
             </View>
           </View>
-          <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/admin/history" as any)} activeOpacity={0.82}>
-            <Ionicons name="time-outline" size={21} color="#fff" />
-          </TouchableOpacity>
+          {/* (เดิมมีปุ่มนาฬิกาไปหน้าประวัติยืม ซึ่งไม่เกี่ยวกับป้าย QR — ดูประวัติได้ที่หน้าแรก) */}
+          <View style={{ width: 36 }} />
         </View>
 
         <View style={s.modeTabs}>

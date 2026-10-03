@@ -11,6 +11,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { ITEM_STATUS } from "../../lib/status";
+import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { ageMonths, ageText, warrantyInfo } from "../../lib/itemInfo";
 
@@ -32,11 +34,7 @@ const C = {
 const OTHER = "อื่นๆ";
 
 const STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  available: { label: "ว่าง", color: C.green, bg: "#dcfce7" },
-  reserved: { label: "จองอยู่", color: C.orange, bg: "#ffedd5" },
-  borrowed: { label: "ถูกยืม", color: "#b45309", bg: "#fef3c7" },
-  repair: { label: "ซ่อม", color: C.red, bg: "#fee2e2" },
-  retired: { label: "จำหน่ายแล้ว", color: C.muted, bg: "#e2e8f0" },
+  ...ITEM_STATUS,
 };
 const STATUS_KEYS = ["available", "borrowed", "reserved", "repair", "retired"];
 
@@ -77,6 +75,8 @@ export default function StockReport() {
   useEffect(() => {
     load();
   }, []);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { load(); });
 
   const load = async () => {
     const [{ data, error }, { data: cats }, { data: settings }] = await Promise.all([
@@ -139,7 +139,7 @@ export default function StockReport() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
+        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>

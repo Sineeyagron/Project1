@@ -14,6 +14,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { currentUser } from "../../lib/session";
+import { goBack } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { isValidDate } from "../../lib/itemInfo";
 import { exportCsv, exportPdf } from "../../lib/fileExport";
@@ -106,11 +108,11 @@ export default function BorrowReport() {
       reqQ = reqQ.gte("created_at", fromUtc);
     }
 
-    const [{ data: recs, error }, { data: reqs }, { data: cats }, { data: { user } }] = await Promise.all([
+    const [{ data: recs, error }, { data: reqs }, { data: cats }, user] = await Promise.all([
       recQ,
       reqQ,
       supabase.from("categories").select("id, name"),
-      supabase.auth.getUser(),
+      currentUser(),
     ]);
     if (error) notify("โหลดรายงานไม่สำเร็จ", error.message);
 
@@ -199,7 +201,7 @@ export default function BorrowReport() {
   return (
     <KeyboardAvoidingView style={st.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={st.header}>
-        <TouchableOpacity style={st.iconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
+        <TouchableOpacity style={st.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>

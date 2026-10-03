@@ -11,6 +11,9 @@ import {
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
+import { currentUser } from "../lib/session";
+import { RECORD_STATUS } from "../lib/status";
+import { goTab, useRefreshOnFocus } from "../lib/nav";
 import { Role, ROLE_LABEL } from "../lib/roles";
 import { confirmAction, notify } from "../lib/notify";
 
@@ -28,9 +31,9 @@ const C = {
 };
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  borrowed: { label: "กำลังยืม", color: C.orange, bg: "#fef3c7", border: "#fbbf24", icon: "cube-outline" },
-  pending_return: { label: "กำลังยืม", color: C.orange, bg: "#fef3c7", border: "#fbbf24", icon: "cube-outline" },
-  returned: { label: "คืนแล้ว", color: C.green, bg: "#dcfce7", border: "#86efac", icon: "checkmark-circle-outline" },
+  borrowed: { ...RECORD_STATUS.borrowed, icon: "cube-outline" },
+  pending_return: { ...RECORD_STATUS.pending_return, icon: "hourglass-outline" },
+  returned: { ...RECORD_STATUS.returned, icon: "checkmark-circle-outline" },
 };
 
 const formatDate = (dateValue: string) => {
@@ -65,11 +68,11 @@ export default function Profile() {
   useEffect(() => {
     fetchProfile();
   }, []);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchProfile(); });
 
   const fetchProfile = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await currentUser();
     if (!user) {
       setLoading(false);
       setRefreshing(false);
@@ -263,8 +266,8 @@ export default function Profile() {
 
         <Text style={s.sectionTitle}>การตั้งค่า</Text>
         <View style={s.menuList}>
-          <MenuRow icon="person-circle-outline" iconBg="#ede9fe" iconColor={C.purple} title="แก้ไขข้อมูลส่วนตัว" sub="ชื่อ อีเมล รหัสนักศึกษา" onPress={() => router.push("/sittings")} />
-          <MenuRow icon="shield-checkmark-outline" iconBg="#dcfce7" iconColor={C.green} title="ความปลอดภัย" sub="เปลี่ยนรหัสผ่าน" onPress={() => router.push("/sittings")} />
+          <MenuRow icon="person-circle-outline" iconBg="#ede9fe" iconColor={C.purple} title="แก้ไขข้อมูลส่วนตัว" sub="ชื่อ อีเมล รหัสนักศึกษา" onPress={() => notify("แก้ไขข้อมูลส่วนตัว", "ตอนนี้ยังแก้ในแอปไม่ได้ — อีเมลมาจากบัญชีที่ใช้สมัคร/ล็อกอิน Google ถ้าข้อมูลผิด ติดต่อผู้ดูแล")} />
+          <MenuRow icon="shield-checkmark-outline" iconBg="#dcfce7" iconColor={C.green} title="ความปลอดภัย" sub="เปลี่ยนรหัสผ่าน" onPress={() => router.push("/reset-password?mode=change" as any)} />
           <MenuRow icon="help-circle-outline" iconBg="#fce7f3" iconColor="#db2777" title="ช่วยเหลือ" sub="คำถามที่พบบ่อย" onPress={() => notify("ช่วยเหลือ", "ติดต่อผู้ดูแลห้องแล็บ IoT")} />
           <MenuRow icon="log-out-outline" iconBg="#fee2e2" iconColor={C.red} title="ออกจากระบบ" sub="" danger onPress={logout} />
         </View>
@@ -273,15 +276,15 @@ export default function Profile() {
       </ScrollView>
 
       <View style={s.tabBar}>
-        <TouchableOpacity style={s.tabItem} onPress={() => router.push("/home")} activeOpacity={0.82}>
+        <TouchableOpacity style={s.tabItem} onPress={() => goTab("/home", "/profile")} activeOpacity={0.82}>
           <Ionicons name="home-outline" size={22} color={C.faint} />
           <Text style={s.tabText}>ชั้นเรียน</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.tabItem} onPress={() => router.push("/equipment")} activeOpacity={0.82}>
+        <TouchableOpacity style={s.tabItem} onPress={() => goTab("/equipment", "/profile")} activeOpacity={0.82}>
           <Ionicons name="cube-outline" size={22} color={C.faint} />
           <Text style={s.tabText}>อุปกรณ์</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.tabItem} onPress={() => router.push("/notifications")} activeOpacity={0.82}>
+        <TouchableOpacity style={s.tabItem} onPress={() => goTab("/notifications", "/profile")} activeOpacity={0.82}>
           <Ionicons name="notifications-outline" size={22} color={C.faint} />
           <Text style={s.tabText}>แจ้งเตือน</Text>
         </TouchableOpacity>

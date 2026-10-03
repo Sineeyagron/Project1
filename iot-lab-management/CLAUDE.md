@@ -87,6 +87,20 @@
 - `app/admin/report.tsx` (admin + TA): รายงานยืม-คืนตามช่วง (30 วัน / 3 เดือน / ปีนี้ / ทั้งหมด / กำหนดเอง) ส่งออก CSV + PDF — คำนวณใน `lib/report.ts`, ส่งออกผ่าน `lib/fileExport.ts`
 - ประวัติรุ่นเก่าที่คืนแล้วแต่ไม่มี `return_date` → ไม่นับว่าคืนช้า
 
+### การนำทาง (4 ต.ค. 2569) — ใช้ `lib/nav.ts` เสมอ
+- ปุ่ม ← : `goBack(fallback)` = กลับหน้าที่มาจริง / ไม่มีหน้าก่อนหน้า → fallback (ห้ามใช้ `router.replace("/admin/home")` เป็นปุ่มย้อนกลับ)
+- แถบเมนูล่างนักศึกษา: `goTab(target, current)` stack = [หน้าแรก, แท็บ] ไม่ซ้อน
+- หน้าที่ต้องสดตอนกลับมา: `useRefreshOnFocus(load)` (ข้ามครั้งแรก)
+- ด่านล็อกอินหน้านักศึกษาอยู่ใน `app/_layout.tsx` (`PUBLIC_PATHS` = login/signup/forgot/reset-password) / หน้า /admin มีด่านของตัวเอง
+- **Realtime Broadcast** (migration `realtime_broadcast`): trigger ส่ง `realtime.send` → ช่อง `user:<id>` (event notification) / `staff` (event request) + policy บน `realtime.messages` / แอปฟังผ่าน `useRealtime()` ใน `lib/realtime.ts` (ช่องใช้ร่วม นับผู้ฟัง) — ใช้ใน หน้าแรก admin, กล่องคำขอ, แจ้งเตือน, การยืมของฉัน / รีเฟรชสำรองเหลือทุก 5 นาที
+  - ⚠️ ตาราง `realtime.messages` แบ่งพาร์ทิชันรายวัน ระบบ Realtime สร้างให้เองเมื่อมีคนเชื่อมต่อ — ถ้าไม่มีพาร์ทิชัน `realtime.send` จะล้มเงียบ (แอปยังมีรีเฟรชสำรอง)
+- ชื่อ/สีสถานะอุปกรณ์และการยืมอยู่ที่ `lib/status.ts` ที่เดียว (ห้ามตั้งเองในหน้า)
+- หา user ที่ล็อกอินในงานที่เรียกบ่อย ใช้ `currentUser()` (lib/session.ts — อ่าน session ในเครื่อง) ไม่ใช่ `auth.getUser()` (ยิงเซิร์ฟเวอร์ทุกครั้ง กิน Disk IO แพ็กเกจฟรี)
+- ป๊อปอัปใช้ `notify` / `confirmAction` (lib/notify) — `Alert.alert` ไม่ทำงานบนเว็บ / กติการหัสผ่าน `lib/password.ts` (8 ตัว มีตัวอักษร+ตัวเลข ตรงกับ Supabase)
+- เปลี่ยนรหัสผ่านจากโปรไฟล์ = `/reset-password?mode=change` (ใช้ updateUser ได้ทั้งตอนล็อกอินอยู่ / ลิงก์จากอีเมลไม่มี mode) — deep link handler ใน `_layout.tsx` ต้องไม่ redirect เมื่อมี `mode=change`
+- "แก้ไขข้อมูลส่วนตัว" ในโปรไฟล์ยังไม่มีฟีเจอร์จริง (แจ้งว่ายังแก้ไม่ได้) / `profiles` มีแค่ id, role, email — ชื่อจากหน้าสมัครเก็บใน auth user metadata `full_name`
+- ยังไม่แก้ (ระบบห้อง ไม่แตะ): stations, lanports, repairs, room, inspection, roommap, lanstatus ยังใช้ ← ไปหน้าแรก + Alert.alert
+
 ### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
 - ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)
 - ผู้ใช้อ่านได้: `items`, `categories`, `borrow_locations`, `app_settings`, `computer_stations`, `lan_ports`, `station_equipment` + `profiles` / `borrow_records` / `notifications` ของตัวเอง (กด "อ่านแล้ว" ได้)

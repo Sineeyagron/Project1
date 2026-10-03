@@ -16,6 +16,8 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { ITEM_STATUS, RECORD_STATUS as RECORD_STYLE } from "../../lib/status";
+import { goBack } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import { ageText, thaiDate, warrantyInfo } from "../../lib/itemInfo";
@@ -36,17 +38,13 @@ const C = {
 };
 
 const STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  available: { label: "ว่าง", color: C.green, bg: "#dcfce7" },
-  reserved: { label: "รออนุมัติยืม", color: C.orange, bg: "#ffedd5" },
-  borrowed: { label: "ถูกยืม", color: "#b45309", bg: "#fef3c7" },
-  repair: { label: "ซ่อมบำรุง", color: C.red, bg: "#fee2e2" },
-  retired: { label: "จำหน่ายแล้ว", color: C.muted, bg: "#e2e8f0" },
+  ...ITEM_STATUS,
 };
 
 const RECORD_STATUS: Record<string, string> = {
-  borrowed: "กำลังยืม",
-  pending_return: "รอยืนยันคืน",
-  returned: "คืนแล้ว",
+  borrowed: RECORD_STYLE.borrowed.label,
+  pending_return: RECORD_STYLE.pending_return.label,
+  returned: RECORD_STYLE.returned.label,
 };
 
 const warrantyText = warrantyInfo;
@@ -172,7 +170,7 @@ export default function AdminLookup() {
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
+        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>

@@ -12,6 +12,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
+import { goTab, useRefreshOnFocus } from "../lib/nav";
 
 type Station = {
   id: string;
@@ -65,6 +66,8 @@ export default function Home() {
   useEffect(() => {
     fetchRooms();
   }, []);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchRooms(); });
 
   const fetchRooms = async () => {
     const { data, error } = await supabase
@@ -142,7 +145,8 @@ export default function Home() {
             {isStaff && (
               <TouchableOpacity
                 style={s.bellBtn}
-                onPress={() => router.replace("/admin/home")}
+                // TA/admin ที่มายืมของ: กลับแดชบอร์ดเดิมใน stack (ไม่เปิดซ้อนใหม่) / ไม่มี → เปิดใหม่
+                onPress={() => router.dismissTo("/admin/home")}
                 activeOpacity={0.84}
                 accessibilityLabel="กลับแดชบอร์ดผู้ดูแล"
               >
@@ -340,15 +344,15 @@ export default function Home() {
           <Ionicons name="home" size={22} color={BLUE.purple} />
           <Text style={[s.tabText, s.tabTextActive]}>ชั้นเรียน</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.tabItem} onPress={() => router.push("/equipment")} activeOpacity={0.82}>
+        <TouchableOpacity style={s.tabItem} onPress={() => goTab("/equipment", "/home")} activeOpacity={0.82}>
           <Ionicons name="cube-outline" size={22} color={BLUE.faint} />
           <Text style={s.tabText}>อุปกรณ์</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.tabItem} onPress={() => router.push("/notifications")} activeOpacity={0.82}>
+        <TouchableOpacity style={s.tabItem} onPress={() => goTab("/notifications", "/home")} activeOpacity={0.82}>
           <Ionicons name="notifications-outline" size={22} color={BLUE.faint} />
           <Text style={s.tabText}>แจ้งเตือน</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={s.tabItem} onPress={() => router.push("/profile")} activeOpacity={0.82}>
+        <TouchableOpacity style={s.tabItem} onPress={() => goTab("/profile", "/home")} activeOpacity={0.82}>
           <Ionicons name="person-outline" size={22} color={BLUE.faint} />
           <Text style={s.tabText}>โปรไฟล์</Text>
         </TouchableOpacity>

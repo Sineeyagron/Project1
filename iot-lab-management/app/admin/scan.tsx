@@ -9,6 +9,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { goBack as navBack } from "../../lib/nav";
 import { addYears, isValidDate } from "../../lib/itemInfo";
 import { notify } from "../../lib/notify";
 
@@ -184,7 +185,7 @@ export default function Scan() {
       notify(
         "บันทึกสำเร็จ! 🎉",
         `เพิ่ม "${name}" จำนวน ${qty} ชิ้นเข้าระบบแล้ว\n\n${codes}`,
-        () => router.replace("/admin/home")
+        () => navBack("/admin/home")
       );
     } catch (e: any) {
       notify("เกิดข้อผิดพลาด", e.message);
@@ -210,7 +211,7 @@ export default function Scan() {
   };
 
   const goBack = () => {
-    router.replace("/admin/home");
+    navBack("/admin/home");
   };
 
   // ── STEP INDICATOR ──
