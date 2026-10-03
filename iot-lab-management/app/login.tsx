@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,6 +14,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
+import { getAllowedDomain, isAllowedEmail, signInWithGoogle, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
 
 export default function Login() {
   const router = useRouter();
@@ -27,6 +28,44 @@ export default function Login() {
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
 
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isLoading;
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  // ล็อกอิน Google สำเร็จ → ตรวจโดเมนซ้ำ (ด่านจริงอยู่ที่ Auth Hook) แล้วไปต่อเหมือนล็อกอินปกติ
+  const afterGoogle = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    // สวิตช์ปิดอยู่ (ช่วงพัฒนา) = ทุกบัญชีผ่าน / เปิดตอน Final Project = เฉพาะโดเมนที่ตั้ง
+    const domain = await getAllowedDomain();
+    if (!isAllowedEmail(user.email, domain)) {
+      await supabase.auth.signOut();
+      showPopup("ใช้อีเมลนี้ไม่ได้", `ตอนนี้ระบบรับเฉพาะอีเมล @${domain} (มหาวิทยาลัยขอนแก่น)`);
+      return;
+    }
+    setIsLoading(true);
+    await finishLogin(user, user.email || "");
+  };
+
+  // เว็บ: กลับมาจากหน้า Google → supabase-js อ่าน token จาก URL ให้แล้ว / มี error → แจ้ง
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const err = webRedirectError();
+    if (err) {
+      showPopup("เข้าสู่ระบบด้วย Google ไม่สำเร็จ", err);
+      return;
+    }
+    if (/access_token|[?&]code=/.test(window.location.href)) afterGoogle();
+  }, []);
+
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    const res = await signInWithGoogle();
+    setGoogleLoading(false);
+    if (res.error) {
+      showPopup("เข้าสู่ระบบด้วย Google ไม่สำเร็จ", res.error);
+      return;
+    }
+    if (res.ok && Platform.OS !== "web") await afterGoogle();
+  };
 
   const showPopup = (title: string, message: string) => {
     if (Platform.OS === "web") {
@@ -94,6 +133,11 @@ export default function Login() {
       return;
     }
 
+    await finishLogin(user, normalizedEmail);
+  };
+
+  // หลังล็อกอินสำเร็จ (รหัสผ่าน / Google): โหลดสิทธิ์ แล้วพาไปหน้าตามบทบาท
+  const finishLogin = async (user: any, fallbackEmail: string) => {
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("role")
@@ -102,7 +146,7 @@ export default function Login() {
 
     if (profileError) {
       console.log(profileError);
-      Alert.alert(
+      showPopup(
         "โหลดสิทธิ์ผู้ใช้ไม่สำเร็จ",
         profileError.message || "กรุณาลองเข้าสู่ระบบอีกครั้ง"
       );
@@ -117,14 +161,14 @@ export default function Login() {
           [{
             id: user.id,
             role: "user",
-            email: user.email || normalizedEmail,
+            email: user.email || fallbackEmail,
           }],
           { onConflict: "id" }
         );
 
       if (createProfileError) {
         console.log(createProfileError);
-        Alert.alert(
+        showPopup(
           "ตั้งค่าบัญชีไม่สำเร็จ",
           createProfileError.message || "บัญชีนี้ยังไม่มีข้อมูลสิทธิ์ผู้ใช้"
         );
@@ -272,6 +316,22 @@ export default function Login() {
             <Text style={styles.dividerText}>หรือเข้าใช้ระบบ</Text>
             <View style={styles.dividerLine} />
           </View>
+
+          <TouchableOpacity
+            style={[styles.googleBtn, (googleLoading || isLoading) && styles.loginBtnDisabled]}
+            onPress={handleGoogle}
+            disabled={googleLoading || isLoading}
+            activeOpacity={0.85}
+          >
+            {googleLoading ? (
+              <ActivityIndicator color="#0f172a" />
+            ) : (
+              <>
+                <Ionicons name="logo-google" size={18} color="#ea4335" />
+                <Text style={styles.googleText}>เข้าสู่ระบบด้วย Google (@{ALLOWED_DOMAIN})</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
 
         <View style={styles.signupRow}>
@@ -291,6 +351,19 @@ export default function Login() {
 }
 
 const styles = StyleSheet.create({
+  googleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    minHeight: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    backgroundColor: "#ffffff",
+    marginTop: 4,
+  },
+  googleText: { fontSize: 15, fontWeight: "800", color: "#0f172a" },
   screen: {
     flex: 1,
     backgroundColor: "#dfeafb",

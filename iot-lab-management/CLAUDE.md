@@ -74,6 +74,13 @@
 - trigger `borrow_requests_no_self_decide`: TA อนุมัติ/ปฏิเสธคำขอของตัวเองไม่ได้
 - แอป: `lib/roles.ts` (`canAccess`, `TA_ROUTES`, `RoleContext`/`useRole`) / `admin/_layout.tsx` ให้ admin+ta เข้า แล้วกันหน้าที่ TA ไม่มีสิทธิ์ / `admin/users.tsx` จัดการ TA / หน้าแรกนักศึกษามีปุ่มกลับแดชบอร์ดสำหรับ staff
 
+### เฟส 4.2 — ล็อกอิน Google (@kkumail.com)
+- `lib/googleAuth.ts`: เว็บ = redirect กลับ `/login` / มือถือ = `WebBrowser.openAuthSessionAsync` + `Linking.createURL("/login")` (Expo Go = `exp://.../--/login`) / ส่ง `hd=kkumail.com`
+- `app/login.tsx`: ปุ่ม Google + `finishLogin()` ใช้ร่วมกับล็อกอินรหัสผ่าน / หลัง Google ตรวจโดเมนซ้ำ ไม่ใช่ kkumail → signOut
+- ด่านจริง: Auth Hook "Before User Created" → `hook_restrict_signup_domain` (migration `phase4_google_domain`) อ่าน `app_settings.allowed_email_domain` (ว่าง = รับทุกโดเมน) — บัญชีเดิมไม่โดน
+- **ช่วงพัฒนาปิดไว้** (ค่าว่าง) ทุกบัญชีใช้ได้ / **ตอน Final Project** เปิดสวิตช์ "รับเฉพาะอีเมล @kkumail.com" ที่หน้า `admin/settings` + เปิด Hook ใน Dashboard
+- ต้องตั้งค่าเอง: Google Cloud OAuth client + Supabase provider Google + Redirect URLs + เปิด Hook ใน Dashboard
+
 ### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
 - ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)
 - ผู้ใช้อ่านได้: `items`, `categories`, `borrow_locations`, `app_settings`, `computer_stations`, `lan_ports`, `station_equipment` + `profiles` / `borrow_records` / `notifications` ของตัวเอง (กด "อ่านแล้ว" ได้)

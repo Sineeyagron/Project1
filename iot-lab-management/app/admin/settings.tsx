@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Switch,
   StyleSheet,
   Text,
   TextInput,
@@ -13,7 +14,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
-import { notify } from "../../lib/notify";
+import { confirmAction, notify } from "../../lib/notify";
+import { ALLOWED_DOMAIN } from "../../lib/googleAuth";
 
 // ตั้งค่าระบบ (ตาราง app_settings) — แก้ได้เฉพาะ admin (RLS)
 // ค่าเหล่านี้ RPC ฝั่งฐานข้อมูลอ่านเองทุกครั้ง เปลี่ยนแล้วมีผลทันที
@@ -55,13 +57,21 @@ export default function AdminSettings() {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // สวิตช์ "รับเฉพาะ @kkumail.com" (app_settings.allowed_email_domain) — ช่วงพัฒนาปิดไว้ เปิดตอน Final Project
+  const [restrictDomain, setRestrictDomain] = useState(false);
+  const [domainBusy, setDomainBusy] = useState(false);
 
   useEffect(() => {
     load();
   }, []);
 
   const load = async () => {
-    const { data, error } = await supabase.from("app_settings").select("key, value").in("key", FIELDS.map((f) => f.key));
+    const { data, error } = await supabase
+      .from("app_settings")
+      .select("key, value")
+      .in("key", [...FIELDS.map((f) => f.key), "allowed_email_domain"]);
+    const domainValue = (data || []).find((r: any) => r.key === "allowed_email_domain")?.value;
+    setRestrictDomain(typeof domainValue === "string" && domainValue.trim() !== "");
     if (error) notify("โหลดค่าตั้งไม่สำเร็จ", error.message);
     const values: Record<string, number> = {};
     FIELDS.forEach((f) => {
@@ -88,6 +98,31 @@ export default function AdminSettings() {
 
   const changed = FIELDS.filter((f) => Number(draft[f.key]) !== saved[f.key]);
   const canSave = changed.length > 0 && Object.keys(errors).length === 0 && !saving;
+
+  const toggleDomain = (on: boolean) => {
+    confirmAction(
+      on ? `รับเฉพาะอีเมล @${ALLOWED_DOMAIN}?` : "เปิดให้ทุกอีเมลใช้ได้?",
+      on
+        ? `ล็อกอินด้วย Google ได้เฉพาะ @${ALLOWED_DOMAIN} และสมัครบัญชีใหม่ได้เฉพาะ @${ALLOWED_DOMAIN} (บัญชีเดิมทั้งหมดยังใช้ได้)
+
+อย่าลืมเปิด Auth Hook "Before User Created" ใน Supabase ด้วย ไม่งั้นด่านฝั่งเซิร์ฟเวอร์ยังไม่ทำงาน`
+        : "ทุกอีเมลล็อกอินด้วย Google และสมัครบัญชีใหม่ได้ (ใช้ช่วงพัฒนา/ทดสอบ)",
+      on ? "เปิดใช้" : "ปิด",
+      async () => {
+        setDomainBusy(true);
+        const { error } = await supabase
+          .from("app_settings")
+          .upsert({ key: "allowed_email_domain", value: on ? ALLOWED_DOMAIN : "", updated_at: new Date().toISOString() });
+        setDomainBusy(false);
+        if (error) {
+          notify("บันทึกไม่สำเร็จ", error.message);
+          return;
+        }
+        setRestrictDomain(on);
+      },
+      on
+    );
+  };
 
   const save = async () => {
     if (!canSave) return;
@@ -144,6 +179,27 @@ export default function AdminSettings() {
               </View>
             </View>
           ))}
+
+          <View style={{ gap: 8 }}>
+            <Text style={s.section}>การเข้าสู่ระบบ</Text>
+            <View style={s.card}>
+              <View style={s.field}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.label}>รับเฉพาะอีเมล @{ALLOWED_DOMAIN}</Text>
+                  <Text style={s.hint}>
+                    {restrictDomain
+                      ? "เปิดอยู่ — ล็อกอิน Google / สมัครใหม่ได้เฉพาะอีเมลมหาวิทยาลัย"
+                      : "ปิดอยู่ (ช่วงพัฒนา) — ทุกอีเมลใช้ได้ · เปิดตอน Final Project"}
+                  </Text>
+                </View>
+                {domainBusy ? (
+                  <ActivityIndicator color={C.purple} />
+                ) : (
+                  <Switch value={restrictDomain} onValueChange={toggleDomain} trackColor={{ true: C.purple }} />
+                )}
+              </View>
+            </View>
+          </View>
 
           <TouchableOpacity style={[s.saveBtn, !canSave && { opacity: 0.4 }]} disabled={!canSave} onPress={save} activeOpacity={0.85}>
             <Text style={s.saveText}>{saving ? "กำลังบันทึก..." : changed.length ? `บันทึก (${changed.length} ค่า)` : "ยังไม่มีการเปลี่ยนแปลง"}</Text>
