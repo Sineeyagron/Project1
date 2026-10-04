@@ -519,14 +519,15 @@ const st = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   termHint: { color: "#b45309", backgroundColor: "#fef3c7", borderRadius: 10, padding: 10, fontSize: 12, fontWeight: "700", marginBottom: 12 },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 30,
+    paddingHorizontal: 16,
+    paddingTop: 0,
     paddingBottom: 16,
   },
   topBar: {
+    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 10,
     marginBottom: 14,
   },
   backBtn: {
@@ -535,9 +536,10 @@ const st = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
+    flex: 1,
     color: "#172033",
-    fontSize: 18,
-    fontWeight: "900",
+    fontSize: 20,
+    fontWeight: "700",
   },
   termRow: {
     flexDirection: "row",
@@ -605,7 +607,7 @@ const st = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 5,
   },
-  progressLabel: { color: "#475569", fontSize: 11, fontWeight: "800" },
+  progressLabel: { color: "#475569", fontSize: 12, fontWeight: "800" },
   progressCount: { color: "#172033", fontSize: 11, fontWeight: "900" },
   progressTrack: {
     height: 4,
@@ -624,7 +626,7 @@ const st = StyleSheet.create({
   },
   emptyText: {
     marginTop: 24,
-    color: "#64748b",
+    color: "#475569",
     textAlign: "center",
     fontSize: 13,
     fontWeight: "700",
@@ -733,7 +735,7 @@ const st = StyleSheet.create({
     marginBottom: 14,
   },
   modalTitle: { color: "#172033", fontSize: 20, fontWeight: "900" },
-  modalSubtitle: { color: "#64748b", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  modalSubtitle: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   closeBtn: {
     width: 34,
     height: 34,
@@ -789,7 +791,7 @@ const st = StyleSheet.create({
     flexDirection: "row",
     gap: 4,
   },
-  condBtnText: { color: "#64748b", fontSize: 11, fontWeight: "900" },
+  condBtnText: { color: "#475569", fontSize: 12, fontWeight: "900" },
   notesInput: {
     minHeight: 42,
     borderRadius: 10,

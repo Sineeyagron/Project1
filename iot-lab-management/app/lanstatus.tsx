@@ -34,8 +34,8 @@ const C = {
   purple: "#2563EB",
   purpleDark: "#1D4ED8",
   ink: "#172033",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  muted: "#475569",
+  faint: "#64748B",
   green: "#047857",
   red: "#dc2626",
   orange: "#B45309",
@@ -232,8 +232,8 @@ export default function LanStatus() {
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   header: {
-    paddingHorizontal: 32,
-    paddingTop: 56,
+    paddingHorizontal: 16,
+    paddingTop: 52,
     paddingBottom: 15,
   },
   headerTop: {

@@ -130,10 +130,10 @@ const s = StyleSheet.create({
   },
   avatarInitial: { color: "#fff", fontSize: 22, fontWeight: "800" },
   userName: { fontSize: 16, fontWeight: "700", color: "#1e293b" },
-  userEmail: { fontSize: 12, color: "#64748b", marginTop: 2 },
+  userEmail: { fontSize: 12, color: "#475569", marginTop: 2 },
 
   sectionLabel: {
-    fontSize: 11, fontWeight: "700", color: "#64748b",
+    fontSize: 11, fontWeight: "700", color: "#475569",
     textTransform: "uppercase", letterSpacing: 0.5,
     marginBottom: 10, marginTop: 4,
   },
@@ -148,7 +148,7 @@ const s = StyleSheet.create({
   },
   menuIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   menuTitle: { fontSize: 14, fontWeight: "600", color: "#1e293b" },
-  menuSub: { fontSize: 11, color: "#94a3b8", marginTop: 2 },
+  menuSub: { fontSize: 11, color: "#475569", marginTop: 2 },
 
   logoutBtn: {
     ...W.card, padding: 14,
@@ -157,7 +157,7 @@ const s = StyleSheet.create({
   logoutTxt: { fontSize: 14, fontWeight: "600", color: "#dc2626" },
 
   version: {
-    textAlign: "center", fontSize: 11, color: "#cbd5e1",
+    textAlign: "center", fontSize: 11, color: "#475569",
     marginTop: 32,
   },
 });

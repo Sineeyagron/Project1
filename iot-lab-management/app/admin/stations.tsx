@@ -26,8 +26,8 @@ const C = {
   purple: "#2563EB",
   purpleDark: "#1D4ED8",
   ink: "#172033",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  muted: "#475569",
+  faint: "#64748B",
   card: "#ffffff",
   green: "#047857",
   orange: "#c2410c",
@@ -35,7 +35,7 @@ const C = {
 };
 
 // การ์ดเครื่องที่ปิดใช้งาน (สีเทา)
-const INACTIVE_CFG = { label: "ปิดใช้งาน", color: "#64748b", bg: "#f1f5f9", border: "#cbd5e1", icon: "remove-circle-outline" };
+const INACTIVE_CFG = { label: "ปิดใช้งาน", color: "#475569", bg: "#f1f5f9", border: "#cbd5e1", icon: "remove-circle-outline" };
 
 // กดเครื่อง = เปลี่ยนสถานะวนตามลำดับนี้
 const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
@@ -549,11 +549,12 @@ function Legend({ color, label }: { color: string; label: string }) {
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   header: {
-    paddingTop: 74,
-    paddingHorizontal: 33,
+    paddingTop: 0,
+    paddingHorizontal: 16,
     paddingBottom: 16,
   },
   headerTop: {
+    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 13,
@@ -625,7 +626,7 @@ const s = StyleSheet.create({
   stationName: { fontSize: 14, fontWeight: "900" },
   stationStatus: { fontSize: 11, fontWeight: "900" },
   roomSummary: { alignItems: "center", marginTop: 2 },
-  summaryText: { color: C.faint, fontSize: 11, fontWeight: "800" },
+  summaryText: { color: C.faint, fontSize: 12, fontWeight: "800" },
   empty: { alignItems: "center", paddingVertical: 64, gap: 8 },
   emptyText: { color: C.faint, fontSize: 14, fontWeight: "800" },
   overlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.38)", justifyContent: "flex-end" },

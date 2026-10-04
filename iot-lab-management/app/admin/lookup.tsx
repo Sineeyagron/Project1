@@ -29,8 +29,8 @@ const C = {
   bg: "#EAF1FC",
   purple: "#2563EB",
   ink: "#172033",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  muted: "#475569",
+  faint: "#64748B",
   line: "#DCE6F5",
   green: "#047857",
   orange: "#c2410c",
@@ -351,13 +351,14 @@ function InfoRow({ label, value, color }: { label: string; value?: string | null
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: {
-    paddingTop: 52,
-    paddingBottom: 16,
-    paddingHorizontal: 18,
+  header: { ...W.headerBar,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    marginBottom: 8,
   },
   iconBtn: {
     ...W.iconBtn,
@@ -418,7 +419,7 @@ const s = StyleSheet.create({
   thumbRow: { flexDirection: "row", gap: 6 },
   thumbWrap: { alignItems: "center", gap: 2 },
   thumb: { width: 54, height: 54, borderRadius: 8, backgroundColor: "#f1f5f9" },
-  thumbLabel: { fontSize: 10, color: C.muted, fontWeight: "700" },
+  thumbLabel: { fontSize: 12, color: C.muted, fontWeight: "700" },
 
   againBtn: {
     ...W.primarySolid,

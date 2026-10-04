@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   description: {
-    color: "#7b8aa0",
+    color: "#475569",
     fontSize: 12.5,
     lineHeight: 19,
     marginTop: 7,
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
   signupHint: {
-    color: "#64748b",
+    color: "#475569",
     fontSize: 12.5,
     fontWeight: "700",
   },

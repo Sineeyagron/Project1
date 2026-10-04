@@ -27,8 +27,8 @@ const C = {
   hero: "#2563EB",
   ink: "#172033",
   text: "#1e293b",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  muted: "#475569",
+  faint: "#64748B",
   card: "#ffffff",
   blue: "#1d4ed8",
   blueDark: "#1f3f9e",
@@ -663,7 +663,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   inboxTitle: { fontSize: 16, fontWeight: "600", color: "#172033" },
-  inboxSub: { fontSize: 12.5, color: "#64748b", marginTop: 1 },
+  inboxSub: { fontSize: 12.5, color: "#475569", marginTop: 1 },
   inboxBadge: {
     ...NG,
     minWidth: 26,
@@ -684,7 +684,7 @@ const s = StyleSheet.create({
   },
   hero: {
     paddingTop: 52,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingBottom: 16,
   },
   heroTop: {
@@ -761,7 +761,7 @@ const s = StyleSheet.create({
     lineHeight: 16,
   },
   todayLabel: {
-    color: "#64748B",
+    color: "#475569",
     fontSize: 11,
     marginTop: 0,
   },

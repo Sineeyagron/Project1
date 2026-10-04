@@ -28,8 +28,8 @@ const C = {
   card: "#ffffff",
   ink: "#172033",
   text: "#172033",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  muted: "#475569",
+  faint: "#64748B",
   line: "#d8dde8",
   green: "#10b981",
   orange: "#f59e0b",
@@ -403,14 +403,15 @@ function ActionButton({ icon, label, onPress }: { icon: any; label: string; onPr
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   header: {
-    paddingTop: 52,
+    paddingTop: 0,
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
   headerTop: {
+    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 10,
     marginBottom: 14,
   },
   iconBtn: {
@@ -419,6 +420,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
+    flex: 1,
     color: "#172033",
     fontSize: 20,
     fontWeight: "700",
@@ -438,7 +440,7 @@ const s = StyleSheet.create({
     lineHeight: 32,
   },
   headerStatLabel: {
-    color: "#64748B",
+    color: "#475569",
     fontSize: 12,
     marginTop: 2,
     textAlign: "center",
@@ -469,7 +471,7 @@ const s = StyleSheet.create({
   },
   roomTitleBlock: { flex: 1 },
   roomName: { fontSize: 14.5, fontWeight: "900", color: C.ink, lineHeight: 18 },
-  roomSub: { fontSize: 11, color: "#374151", fontWeight: "600", marginTop: 2 },
+  roomSub: { fontSize: 12, color: "#374151", fontWeight: "600", marginTop: 2 },
   warnBadge: {
     ...NG,
     flexDirection: "row",
@@ -480,7 +482,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
   },
-  warnText: { fontSize: 10.5, color: "#c2410c", fontWeight: "800" },
+  warnText: { fontSize: 12, color: "#c2410c", fontWeight: "800" },
   okBadge: {
     ...NG,
     flexDirection: "row",
@@ -491,7 +493,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
   },
-  okText: { fontSize: 10.5, color: C.green, fontWeight: "900" },
+  okText: { fontSize: 12, color: C.green, fontWeight: "900" },
   statusGrid: {
     flexDirection: "row",
     borderTopWidth: 1,
@@ -507,7 +509,7 @@ const s = StyleSheet.create({
     borderRightColor: C.line,
   },
   metricValue: { fontSize: 20, fontWeight: "900", lineHeight: 23 },
-  metricLabel: { color: C.muted, fontSize: 11, fontWeight: "800", marginTop: 5 },
+  metricLabel: { color: C.muted, fontSize: 12, fontWeight: "800", marginTop: 5 },
   metricLine: {
     position: "absolute",
     left: 8,
@@ -532,7 +534,7 @@ const s = StyleSheet.create({
   reportsBannerHot: { ...NG, backgroundColor: "#fff7ed", borderColor: "#fdba74" },
   reportsText: { flex: 1, fontSize: 13, fontWeight: "900", color: C.ink },
   closedBadge: { ...NG, backgroundColor: "#DCE6F5", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
-  closedText: { fontSize: 10.5, color: C.muted, fontWeight: "900" },
+  closedText: { fontSize: 12, color: C.muted, fontWeight: "900" },
   editBtn: { marginLeft: 8, width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#f1f5f9" },
   emptyText: { color: C.faint, fontSize: 14, fontWeight: "800", textAlign: "center", marginTop: 40 },
   overlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.38)", justifyContent: "flex-end" },
@@ -541,7 +543,7 @@ const s = StyleSheet.create({
   modalTitle: { color: C.ink, fontSize: 18, fontWeight: "900" },
   fieldLabel: { color: C.muted, fontSize: 12, fontWeight: "900", marginTop: 10, marginBottom: 7 },
   input: { minHeight: 45, borderRadius: 12, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#DCE6F5", paddingHorizontal: 13, color: C.ink, fontSize: 14, fontWeight: "800" },
-  hint: { color: "#b45309", fontSize: 11, fontWeight: "700", marginTop: 6 },
+  hint: { color: "#b45309", fontSize: 12, fontWeight: "700", marginTop: 6 },
   saveBtn: { ...W.primarySolid, minHeight: 48, borderRadius: 15, alignItems: "center", justifyContent: "center", marginTop: 18 },
   saveBtnText: { color: "#fff", fontSize: 15, fontWeight: "900" },
   modalActions: { flexDirection: "row", gap: 10, marginTop: 10 },

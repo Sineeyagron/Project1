@@ -26,8 +26,8 @@ const C = {
   purple: "#2563EB",
   purpleSoft: "#3B82F6",
   ink: "#172033",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  muted: "#475569",
+  faint: "#64748B",
   card: "#ffffff",
   green: "#10B981",
   orange: "#f59e0b",
@@ -455,14 +455,13 @@ export default function AdminItems() {
           <TouchableOpacity style={s.iconBtn} onPress={goBack} activeOpacity={0.82}>
             <Ionicons name="chevron-back" size={22} color="#172033" />
           </TouchableOpacity>
+          <View style={s.titleBlock}>
+            <Text style={s.headerSub}>ระบบจัดการอุปกรณ์ IoT</Text>
+            <Text style={s.headerTitle}>อุปกรณ์ IoT</Text>
+          </View>
           <TouchableOpacity ref={headerSortRef} style={s.iconBtn} onPress={() => openSort(headerSortRef)} activeOpacity={0.82}>
             <Ionicons name="options-outline" size={21} color="#1D4ED8" />
           </TouchableOpacity>
-        </View>
-
-        <View style={s.titleBlock}>
-          <Text style={s.headerSub}>ระบบจัดการอุปกรณ์ IoT</Text>
-          <Text style={s.headerTitle}>อุปกรณ์ IoT</Text>
         </View>
 
         <View style={s.statRow}>
@@ -699,18 +698,16 @@ const s = StyleSheet.create({
     flex: 1,
   },
   header: {
-    paddingTop: 54,
-    paddingHorizontal: 18,
+    paddingTop: 0,
+    paddingHorizontal: 16,
     paddingBottom: 17,
   },
   headerTop: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    top: 56,
-    zIndex: 2,
+    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 14,
   },
   iconBtn: {
     ...W.iconBtn,
@@ -718,15 +715,13 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   titleBlock: {
-    alignItems: "center",
-    marginTop: 2,
-    marginBottom: 14,
+    flex: 1,
   },
   headerTitle: {
     color: "#172033",
-    fontSize: 28,
-    fontWeight: "900",
-    lineHeight: 32,
+    fontSize: 20,
+    fontWeight: "700",
+    lineHeight: 28,
   },
   headerSub: {
     color: "#475569",
@@ -811,7 +806,7 @@ const s = StyleSheet.create({
     elevation: 4,
   },
   chipText: {
-    color: "#64748b",
+    color: "#475569",
     fontSize: 12,
     fontWeight: "900",
   },
@@ -819,7 +814,7 @@ const s = StyleSheet.create({
     color: "#fff",
   },
   chipCount: {
-    color: "#64748b",
+    color: "#475569",
     fontSize: 11,
     fontWeight: "900",
   },

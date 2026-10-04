@@ -288,7 +288,7 @@ const s = StyleSheet.create({
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingBottom: 60 },
   emptyTitle: { fontSize: 17, fontWeight: "700", color: "#475569", marginTop: 8 },
-  emptyText: { fontSize: 13, color: "#94a3b8", textAlign: "center", lineHeight: 20 },
+  emptyText: { fontSize: 13, color: "#475569", textAlign: "center", lineHeight: 20 },
 
   list: { padding: 16, paddingTop: 4, paddingBottom: 40 },
   sectionLabel: {
@@ -310,8 +310,8 @@ const s = StyleSheet.create({
   cardTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 3 },
   cardTitle: { fontSize: 14, fontWeight: "500", color: "#475569", flex: 1, marginRight: 6 },
   cardTitleUnread: { fontWeight: "600", color: "#172033" },
-  cardAgo: { fontSize: 11, color: "#94a3b8", flexShrink: 0 },
-  cardBody: { fontSize: 12.5, color: "#64748B", lineHeight: 18, marginBottom: 6 },
+  cardAgo: { fontSize: 11, color: "#475569", flexShrink: 0 },
+  cardBody: { fontSize: 12.5, color: "#475569", lineHeight: 18, marginBottom: 6 },
   cardMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
-  cardDateTime: { fontSize: 11, color: "#94a3b8" },
+  cardDateTime: { fontSize: 11, color: "#475569" },
 });

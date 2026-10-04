@@ -40,8 +40,8 @@ const C = {
   headerDark: "#1d4ed8",
   purple: "#2563EB",
   ink: "#172033",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  muted: "#475569",
+  faint: "#64748B",
   green: "#047857",
   orange: "#B45309",
   red: "#ef4444",
@@ -346,7 +346,7 @@ export default function Equipment() {
 const styles = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   header: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 52,
     paddingBottom: 6,
   },

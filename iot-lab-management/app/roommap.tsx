@@ -486,7 +486,7 @@ const s = StyleSheet.create({
   legItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legDot: { width: 10, height: 10, borderRadius: 3 },
   legTxt: { fontSize: 12, color: "#475569" },
-  viewOnly: { marginLeft: "auto", fontSize: 12, color: "#64748B" },
+  viewOnly: { marginLeft: "auto", fontSize: 12, color: "#475569" },
 
   scrollContent: { paddingHorizontal: 16 },
 
@@ -511,22 +511,22 @@ const s = StyleSheet.create({
   serverCard: { width: 64, backgroundColor: "#EEF5FF", borderRadius: 15, padding: 8, alignItems: "center", gap: 3, borderWidth: 1, borderColor: "#BFDBFE", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
   serverCardWarn: { backgroundColor: "#FFFBEB", borderColor: "#FCD34D" },
   serverLabel: { fontSize: 10, fontWeight: "700" },
-  serverPort: { fontSize: 9, color: "#94a3b8" },
+  serverPort: { fontSize: 9, color: "#475569" },
   warnBadge: { backgroundColor: "#F59E0B", paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 },
   warnBadgeTxt: { fontSize: 9, color: "#FFFFFF", fontWeight: "600" },
 
   empty: { padding: 40, alignItems: "center", gap: 10 },
-  emptyTxt: { color: "#94a3b8", fontSize: 14 },
+  emptyTxt: { color: "#475569", fontSize: 14 },
 
   modalOverlay: { flex: 1, backgroundColor: "rgba(23,32,51,0.4)", justifyContent: "flex-end" },
   modalBox: { ...W.sheet, padding: 20, paddingBottom: 36 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
   modalTitle: { fontSize: 20, fontWeight: "700", color: "#172033" },
-  modalSub: { fontSize: 12, color: "#64748b", marginTop: 2 },
+  modalSub: { fontSize: 12, color: "#475569", marginTop: 2 },
 
   statusBigBox: { alignItems: "center", paddingVertical: 18, gap: 6, borderRadius: 18, marginBottom: 14, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
   statusBigLabel: { fontSize: 18, fontWeight: "700" },
-  statusNote: { fontSize: 12, color: "#64748b", textAlign: "center" },
+  statusNote: { fontSize: 12, color: "#475569", textAlign: "center" },
 
   checklistTitle: { fontSize: 13, fontWeight: "600", color: "#172033", marginBottom: 8 },
   checklistGrid: { flexDirection: "row", gap: 8, marginBottom: 16 },
@@ -536,7 +536,7 @@ const s = StyleSheet.create({
   },
   checklistLabel: { fontSize: 11, fontWeight: "700", textAlign: "center" },
   checklistStatus: { fontSize: 10, fontWeight: "600" },
-  staffHint: { fontSize: 11, color: "#64748b", marginTop: 8, textAlign: "center" },
+  staffHint: { fontSize: 11, color: "#475569", marginTop: 8, textAlign: "center" },
   logBox: { marginTop: 12, backgroundColor: "#F5F8FE", borderRadius: 15, padding: 10 },
   logRow: { fontSize: 11, color: "#334155", marginTop: 4 },
   reportBtn: { marginTop: 12, minHeight: 46, borderRadius: 15, borderWidth: 1, borderColor: "#fdba74", backgroundColor: "#fff7ed", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
@@ -546,7 +546,7 @@ const s = StyleSheet.create({
   portCell: { width: "22%", borderRadius: 12, padding: 8, alignItems: "center", gap: 2, borderWidth: 1 },
   portNo: { fontSize: 11, fontWeight: "700" },
   portStatus: { fontSize: 8, fontWeight: "600" },
-  portLabel: { fontSize: 7, color: "#94a3b8", textAlign: "center" },
+  portLabel: { fontSize: 7, color: "#475569", textAlign: "center" },
   portLegend: { flexDirection: "row", gap: 12, marginBottom: 8 },
 
   closeBtn: { backgroundColor: "#EEF2F7", padding: 14, borderRadius: 15, alignItems: "center", marginTop: 4 },

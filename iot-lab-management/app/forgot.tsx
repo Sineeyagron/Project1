@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   subtitle: {
-    color: "#64748b",
+    color: "#475569",
     fontSize: 13,
     fontWeight: "600",
     textAlign: "center",
@@ -255,12 +255,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   stepMutedText: {
-    color: "#94a3b8",
+    color: "#475569",
     fontSize: 12,
     fontWeight: "900",
   },
   stepMutedLabel: {
-    color: "#94a3b8",
+    color: "#475569",
     fontSize: 11,
     fontWeight: "900",
     marginLeft: 7,
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   },
   noteText: {
     flex: 1,
-    color: "#64748b",
+    color: "#475569",
     fontSize: 11,
     lineHeight: 16,
     fontWeight: "700",
@@ -339,7 +339,7 @@ const styles = StyleSheet.create({
     marginTop: 18,
   },
   footerText: {
-    color: "#64748b",
+    color: "#475569",
     fontSize: 14,
   },
   footerLink: {

@@ -27,8 +27,8 @@ const KIND_TH: Record<string, string> = { borrow: "ขอยืม", return: "�
 const REQUEST_RESULT: Record<string, { label: string; color: string; bg: string }> = {
   approved:      { label: "อนุมัติแล้ว",     color: "#047857", bg: "#ECFDF5" },
   declined:      { label: "ถูกปฏิเสธ",      color: "#dc2626", bg: "#fee2e2" },
-  expired:       { label: "หมดอายุ",        color: "#64748b", bg: "#f1f5f9" },
-  cancelled:     { label: "ยกเลิกแล้ว",     color: "#64748b", bg: "#f1f5f9" },
+  expired:       { label: "หมดอายุ",        color: "#475569", bg: "#f1f5f9" },
+  cancelled:     { label: "ยกเลิกแล้ว",     color: "#475569", bg: "#f1f5f9" },
   auto_returned: { label: "คืนอัตโนมัติ",   color: "#b45309", bg: "#fef3c7" },
 };
 
@@ -309,8 +309,8 @@ const s = StyleSheet.create({
 
   cardBody: { flex: 1 },
   cardName: { fontSize: 15, fontWeight: "600", color: "#172033" },
-  cardDate: { fontSize: 12, color: "#64748B", marginTop: 2 },
-  cardDue:  { fontSize: 12, color: "#64748B", marginTop: 1 },
+  cardDate: { fontSize: 12, color: "#475569", marginTop: 2 },
+  cardDue:  { fontSize: 12, color: "#475569", marginTop: 1 },
   cardDueOverdue: { color: "#dc2626", fontWeight: "700" },
   tapHint: { fontSize: 10, color: "#f97316", marginTop: 4, fontWeight: "600" },
   reqCard: {},
@@ -328,5 +328,5 @@ const s = StyleSheet.create({
 
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
   emptyTitle: { fontSize: 17, fontWeight: "700", color: "#475569", marginTop: 8 },
-  emptyText: { fontSize: 13, color: "#94a3b8", textAlign: "center", lineHeight: 20 },
+  emptyText: { fontSize: 13, color: "#475569", textAlign: "center", lineHeight: 20 },
 });

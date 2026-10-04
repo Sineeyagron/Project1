@@ -11,8 +11,8 @@ export const C = {
   primaryTint: "#EEF5FF",
   ink: "#172033",
   text2: "#475569",
-  muted: "#64748B",
-  faint: "#94A3B8",
+  muted: "#475569",
+  faint: "#64748B",
   border: "#D3E0F5",
   surface: "#FFFFFF",
   bg: "#EAF1FC",
@@ -67,6 +67,14 @@ export const W = {
     boxShadow: SMALL_SHADOW,
     width: 38,
     height: 38,
+  } as ViewStyle,
+  // แถบหัวหน้าบาง ๆ (หน้าเครื่องมือผู้ดูแล): เต็มความกว้าง พื้นขาวโปร่งไล่สีจาง + เส้นบางด้านล่าง แยกหัวข้อออกจากเนื้อหา
+  headerBar: {
+    backgroundColor: "rgba(255,255,255,0.6)",
+    ...gradient("linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.5) 100%)"),
+    borderBottomWidth: 0.5,
+    borderBottomColor: "rgba(148,163,184,0.45)",
+    boxShadow: "0 2px 8px rgba(37,99,235,0.05)",
   } as ViewStyle,
   // ปุ่มหลักสีน้ำเงิน
   primary: {

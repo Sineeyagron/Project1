@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   desc: {
-    color: "#64748b",
+    color: "#475569",
     fontSize: 13,
     fontWeight: "600",
     marginTop: 14,
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   termsText: {
     flex: 1,
-    color: "#64748b",
+    color: "#475569",
     fontSize: 11,
     fontWeight: "700",
     lineHeight: 16,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   footerText: {
-    color: "#64748b",
+    color: "#475569",
     fontSize: 14,
   },
   footerLink: {

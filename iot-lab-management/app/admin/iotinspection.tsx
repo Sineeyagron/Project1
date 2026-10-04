@@ -24,8 +24,8 @@ const C = {
   purpleDark: "#1D4ED8",
   ink: "#172033",
   text: "#172033",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  muted: "#475569",
+  faint: "#64748B",
   line: "#dddde5",
   card: "#ffffff",
   green: "#10b981",
@@ -408,11 +408,11 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   header: {
-    paddingTop: 52,
+    paddingTop: 0,
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
+  headerRow: { ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   backBtn: {
     ...W.iconBtn,
     alignItems: "center",
@@ -467,7 +467,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   summaryValue: { fontSize: 21, fontWeight: "900", lineHeight: 24 },
-  summaryLabel: { color: C.ink, fontSize: 10, marginTop: 5, fontWeight: "500" },
+  summaryLabel: { color: C.ink, fontSize: 12, marginTop: 5, fontWeight: "500" },
   filterRow: { flexDirection: "row", gap: 8, marginBottom: 13, flexWrap: "wrap" },
   filterChip: {
     minHeight: 27,
@@ -489,7 +489,7 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  filterText: { color: C.ink, fontSize: 11, fontWeight: "700" },
+  filterText: { color: C.ink, fontSize: 12, fontWeight: "700" },
   filterTextActive: { color: "#ffffff" },
   sectionTitle: { color: C.text, fontSize: 12, fontWeight: "600", marginBottom: 10 },
   list: { gap: 11 },
@@ -511,10 +511,10 @@ const s = StyleSheet.create({
   },
   itemMiddle: { flex: 1, minWidth: 0 },
   itemName: { color: C.ink, fontSize: 14, fontWeight: "900", lineHeight: 18 },
-  itemLocation: { color: "#374151", fontSize: 11, fontWeight: "600", marginTop: 1 },
+  itemLocation: { color: "#374151", fontSize: 12, fontWeight: "600", marginTop: 1 },
   inlineStatus: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  inlineStatusText: { fontSize: 11, fontWeight: "800" },
+  inlineStatusText: { fontSize: 12, fontWeight: "800" },
   itemRight: { alignItems: "flex-end", maxWidth: 98 },
   statusPill: {
     minWidth: 77,
@@ -525,7 +525,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   statusPillText: { fontSize: 10, fontWeight: "900" },
-  updatedText: { color: "#374151", fontSize: 10, fontWeight: "600", marginTop: 9, textAlign: "right" },
+  updatedText: { color: "#374151", fontSize: 12, fontWeight: "600", marginTop: 9, textAlign: "right" },
   emptyBox: {
     ...W.card,
     alignItems: "center",
@@ -556,7 +556,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
   },
-  conditionText: { fontSize: 11, fontWeight: "900" },
+  conditionText: { fontSize: 12, fontWeight: "900" },
   notesInput: {
     minHeight: 82,
     borderRadius: 12,

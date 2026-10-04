@@ -88,7 +88,7 @@ const s = StyleSheet.create({
     maxWidth: 280,
     overflow: "hidden",
   },
-  title: { fontSize: 12, color: "#94a3b8", fontWeight: "700", paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 },
+  title: { fontSize: 12, color: "#475569", fontWeight: "700", paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 },
   row: {
     flexDirection: "row",
     alignItems: "center",

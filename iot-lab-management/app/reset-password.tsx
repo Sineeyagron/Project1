@@ -174,7 +174,7 @@ export default function ResetPassword() {
 
       {/* BACK TO LOGIN */}
       <View style={styles.signupRow}>
-        <Text style={{ color: "#64748b" }}>{isChange ? "ไม่เปลี่ยนแล้ว? " : "จำรหัสผ่านได้แล้ว? "}</Text>
+        <Text style={{ color: "#475569" }}>{isChange ? "ไม่เปลี่ยนแล้ว? " : "จำรหัสผ่านได้แล้ว? "}</Text>
         <TouchableOpacity onPress={() => (isChange ? goBack("/profile") : router.replace("/login"))} disabled={isLoading}>
           <Text style={styles.signup}>{isChange ? "กลับ" : "เข้าสู่ระบบ"}</Text>
         </TouchableOpacity>
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
 
   subtitle: {
     fontSize: 12,
-    color: "#64748b",
+    color: "#475569",
     letterSpacing: 2,
   },
 
@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
   },
 
   desc: {
-    color: "#64748b",
+    color: "#475569",
     marginBottom: 20,
   },
 
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
   },
   modalMessage: {
     fontSize: 13,
-    color: "#64748b",
+    color: "#475569",
     textAlign: "center",
     marginBottom: 20,
     lineHeight: 19,

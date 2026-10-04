@@ -325,31 +325,32 @@ export default function AdminLanPorts() {
 
 const styles = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: {
-    paddingTop: 50,
-    paddingBottom: 16,
-    paddingHorizontal: 20,
+  header: { ...W.headerBar,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 10,
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    marginBottom: 8,
   },
   backBtn: {
     ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerText: { color: "#475569", fontSize: 17, fontWeight: "bold" },
+  headerText: { flex: 1, color: "#172033", fontSize: 20, fontWeight: "700" },
 
   selectorScroll: { maxHeight: 52 },
   selectorRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
   selectorBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 10, backgroundColor: "#DCE6F5" },
   selectorBtnActive: { ...NG, backgroundColor: "#1D4ED8" },
-  selectorTxt: { fontSize: 13, fontWeight: "600", color: "#64748b" },
+  selectorTxt: { fontSize: 13, fontWeight: "600", color: "#475569" },
   selectorTxtActive: { color: "#fff" },
 
   groupBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10, backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5" },
   groupBtnActive: { ...NG, backgroundColor: "#2563EB", borderColor: "#2563EB" },
-  groupBtnTxt: { fontSize: 12, fontWeight: "600", color: "#64748b" },
+  groupBtnTxt: { fontSize: 12, fontWeight: "600", color: "#475569" },
   groupBtnTxtActive: { color: "#fff" },
 
   scroll: { padding: 16 },
@@ -357,10 +358,10 @@ const styles = StyleSheet.create({
   statsRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
   statCard: { ...W.card, flex: 1, padding: 12, borderLeftWidth: 4, alignItems: "center" },
   statNum: { fontSize: 22, fontWeight: "800" },
-  statLabel: { fontSize: 10, color: "#94a3b8", marginTop: 2 },
+  statLabel: { fontSize: 12, color: "#475569", marginTop: 2 },
 
   hint: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#eff6ff", padding: 10, borderRadius: 10, marginBottom: 12 },
-  hintTxt: { fontSize: 11, color: "#1d4ed8" },
+  hintTxt: { fontSize: 12, color: "#1d4ed8" },
 
   portGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
 
@@ -371,17 +372,17 @@ const styles = StyleSheet.create({
   portNo: { fontSize: 12, fontWeight: "700" },
   portBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 },
   portBadgeTxt: { fontSize: 9, fontWeight: "700" },
-  portLabel: { fontSize: 8, color: "#94a3b8", textAlign: "center" },
+  portLabel: { fontSize: 8, color: "#475569", textAlign: "center" },
 
   empty: { width: "100%", alignItems: "center", paddingVertical: 40, gap: 10 },
-  emptyTxt: { color: "#94a3b8", fontSize: 13 },
+  emptyTxt: { color: "#475569", fontSize: 13 },
 
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
   modalTitle: { fontSize: 16, fontWeight: "bold", color: "#1e293b" },
-  modalSub: { fontSize: 12, color: "#64748b", marginBottom: 14 },
-  fieldLabel: { fontSize: 11, fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, marginTop: 10 },
+  modalSub: { fontSize: 12, color: "#475569", marginBottom: 14 },
+  fieldLabel: { fontSize: 12, fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, marginTop: 10 },
   input: { backgroundColor: "#f8fafc", borderRadius: 12, padding: 13, fontSize: 14, borderWidth: 1, borderColor: "#DCE6F5" },
   addBtn: { ...W.primarySolid, padding: 16, borderRadius: 15, alignItems: "center", marginTop: 16 },
   addBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 15 },

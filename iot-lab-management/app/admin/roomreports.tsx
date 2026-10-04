@@ -37,7 +37,7 @@ type Report = {
 const STATUS_CFG: Record<Report["status"], { label: string; color: string; bg: string }> = {
   open: { label: "รอตรวจ", color: "#c2410c", bg: "#ffedd5" },
   accepted: { label: "รับเป็นงานซ่อม", color: "#047857", bg: "#ECFDF5" },
-  closed: { label: "ปิดแล้ว", color: "#64748b", bg: "#f1f5f9" },
+  closed: { label: "ปิดแล้ว", color: "#475569", bg: "#f1f5f9" },
 };
 
 const FILTERS = [
@@ -260,7 +260,7 @@ export default function RoomReports() {
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { paddingTop: 30, paddingBottom: 18, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 12 },
+  header: { ...W.headerBar, flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10, marginBottom: 8 },
   iconBtn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
   headerTitle: { color: "#172033", fontSize: 18, fontWeight: "900" },
   headerSub: { color: "#475569", fontSize: 12, fontWeight: "800", marginTop: 2 },
@@ -268,20 +268,20 @@ const s = StyleSheet.create({
   filterRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   filterBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5" },
   filterBtnActive: { ...NG, backgroundColor: "#2563EB", borderColor: "#2563EB" },
-  filterText: { fontSize: 12, fontWeight: "800", color: "#64748b" },
+  filterText: { fontSize: 12, fontWeight: "800", color: "#475569" },
   filterTextActive: { color: "#fff" },
   list: { paddingHorizontal: 16, paddingTop: 4 },
   empty: { alignItems: "center", paddingVertical: 60, gap: 8 },
-  emptyText: { color: "#94a3b8", fontSize: 14, fontWeight: "800" },
+  emptyText: { color: "#475569", fontSize: 14, fontWeight: "800" },
   card: { ...W.card, padding: 14, marginBottom: 12 },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 10 },
   kindIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   cardTitle: { fontSize: 14, fontWeight: "900", color: "#172033" },
-  cardSub: { fontSize: 11, color: "#64748b", marginTop: 2 },
+  cardSub: { fontSize: 12, color: "#475569", marginTop: 2 },
   pill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
   pillText: { fontSize: 10.5, fontWeight: "900" },
   desc: { fontSize: 14, color: "#172033", marginTop: 10, lineHeight: 20 },
-  handled: { fontSize: 11, color: "#64748b", marginTop: 8 },
+  handled: { fontSize: 12, color: "#475569", marginTop: 8 },
   actions: { flexDirection: "row", gap: 8, marginTop: 12 },
   closeBtn: { flex: 1, minHeight: 42, borderRadius: 10, backgroundColor: "#f1f5f9", alignItems: "center", justifyContent: "center" },
   closeBtnText: { color: "#334155", fontWeight: "800", fontSize: 13 },
@@ -292,6 +292,6 @@ const s = StyleSheet.create({
   modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
   modalTitle: { fontSize: 16, fontWeight: "900", color: "#172033" },
   modalDesc: { fontSize: 13, color: "#475569", marginTop: 6 },
-  fieldLabel: { fontSize: 12, fontWeight: "900", color: "#64748b", marginTop: 14, marginBottom: 6 },
+  fieldLabel: { fontSize: 12, fontWeight: "900", color: "#475569", marginTop: 14, marginBottom: 6 },
   input: { minHeight: 70, borderRadius: 12, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#DCE6F5", padding: 12, fontSize: 14, color: "#172033", textAlignVertical: "top" },
 });

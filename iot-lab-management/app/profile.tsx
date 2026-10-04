@@ -24,8 +24,8 @@ const C = {
   header: "#2563eb",
   purple: "#2563EB",
   ink: "#172033",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  muted: "#475569",
+  faint: "#64748B",
   blue: "#2563eb",
   green: "#047857",
   orange: "#B45309",
@@ -329,7 +329,7 @@ const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: C.bg },
   header: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 52,
     paddingBottom: 16,
   },
@@ -379,7 +379,7 @@ const s = StyleSheet.create({
   userBlock: { flex: 1 },
   userName: { color: "#172033", fontSize: 20, fontWeight: "700" },
   emailRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 },
-  userEmail: { color: "#64748B", fontSize: 12 },
+  userEmail: { color: "#475569", fontSize: 12 },
   rolePill: {
     alignSelf: "flex-start",
     marginTop: 9,

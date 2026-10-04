@@ -29,8 +29,8 @@ const C = {
   bg: "#EAF1FC",
   purple: "#2563EB",
   ink: "#172033",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  muted: "#475569",
+  faint: "#64748B",
   line: "#DCE6F5",
   green: "#047857",
   orange: "#c2410c",
@@ -396,13 +396,14 @@ export default function AdminRequests() {
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: {
-    paddingTop: 52,
-    paddingBottom: 16,
-    paddingHorizontal: 18,
+  header: { ...W.headerBar,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    marginBottom: 8,
   },
   iconBtn: {
     ...W.iconBtn,
@@ -431,7 +432,7 @@ const s = StyleSheet.create({
   cardBody: { flexDirection: "row", gap: 12 },
   code: { fontSize: 18, fontWeight: "900", color: C.ink },
   meta: { fontSize: 12.5, fontWeight: "700", color: C.muted },
-  metaFaint: { fontSize: 11.5, color: C.faint, fontWeight: "600" },
+  metaFaint: { fontSize: 12, color: C.faint, fontWeight: "600" },
   detail: { fontSize: 12.5, fontWeight: "800", color: C.ink, marginTop: 2 },
 
   photo: { width: 96, height: 96, borderRadius: 12, backgroundColor: "#f1f5f9" },
