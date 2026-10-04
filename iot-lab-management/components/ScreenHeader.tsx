@@ -58,7 +58,7 @@ export function HeaderButton({
 
 const s = StyleSheet.create({
   wrap: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingTop: 52, paddingBottom: 12 },
-  btn: { ...W.small, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  btn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
   title: { color: C.ink, fontSize: 20, fontWeight: "700" },
   sub: { color: C.text2, fontSize: 12, marginTop: 1 },
   badge: { position: "absolute", top: 9, right: 10, width: 9, height: 9, borderRadius: 5, backgroundColor: C.error, borderWidth: 2, borderColor: "#FFFFFF" },

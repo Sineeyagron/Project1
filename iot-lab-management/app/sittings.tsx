@@ -111,7 +111,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  backBtn: { ...W.small, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  backBtn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
   headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700" },
 
   body: { padding: 16 },

@@ -15,7 +15,7 @@ import { ITEM_STATUS } from "../../lib/status";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { ageMonths, ageText, warrantyInfo } from "../../lib/itemInfo";
-import { W } from "../../lib/theme";
+import { W, gradient, tint } from "../../lib/theme";
 
 // Stock Report (แผนเฟส 2 ข้อ 1): นับจำนวนชิ้นตามสถานะ แยกตามหมวด + อายุ + ประกันรายชิ้น
 // กลุ่ม "ต้องดูแล" ใช้เกณฑ์ปีจาก app_settings (age_warn_years / age_replace_years) ที่ Admin ตั้งเอง
@@ -237,7 +237,7 @@ export default function StockReport() {
 
 function Stat({ label, value, color, wide }: { label: string; value: number; color: string; wide?: boolean }) {
   return (
-    <View style={[s.stat, wide && s.statWide]}>
+    <View style={[s.stat, wide && s.statWide, gradient(`linear-gradient(160deg, #FFFFFF 0%, ${tint(/^#(172033|64748b|94a3b8|475569)$/i.test(color) ? "#2563EB" : color)} 100%)`)]}>
       <Text style={[s.statNum, { color }]}>{value}</Text>
       <Text style={s.statLabel}>{label}</Text>
     </View>
@@ -274,7 +274,7 @@ const s = StyleSheet.create({
     gap: 12,
   },
   iconBtn: {
-    ...W.small, width: 44, height: 44,
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -290,8 +290,8 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
   },
   statWide: { flexBasis: "100%" },
-  statNum: { fontSize: 24, fontWeight: "900" },
-  statLabel: { fontSize: 12.5, color: C.muted, fontWeight: "700", marginTop: 2 },
+  statNum: { fontSize: 26, fontWeight: "700" },
+  statLabel: { fontSize: 12, color: C.muted, marginTop: 0 },
   section: { fontSize: 15, fontWeight: "900", color: C.ink, marginTop: 8 },
   card: { ...W.card, overflow: "hidden" },
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, minHeight: 50 },

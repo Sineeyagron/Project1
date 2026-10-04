@@ -129,7 +129,7 @@ function ItemCard({
 
   return (
     <TouchableOpacity
-      style={[s.card, { borderLeftColor: status.border }, item.status === "retired" && s.cardRetired]}
+      style={[s.card, item.status === "retired" && s.cardRetired]}
       activeOpacity={0.88}
       onPress={() => onPress(item)}
     >
@@ -713,7 +713,7 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
   },
   iconBtn: {
-    ...W.small, width: 44, height: 44,
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -861,7 +861,6 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     marginBottom: 13,
-    borderLeftWidth: 3,
   },
   itemIconBox: {
     width: 46,

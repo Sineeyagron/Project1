@@ -259,7 +259,7 @@ export default function Scan() {
             <Ionicons name="chevron-back" size={21} color="#172033" />
           </TouchableOpacity>
           <Text style={styles.headerText}>เพิ่มอุปกรณ์</Text>
-          <View style={{ width: 44 }} />
+          <View style={{ width: 38 }} />
         </View>
 
         <StepBar />
@@ -407,7 +407,7 @@ export default function Scan() {
           <Ionicons name="chevron-back" size={21} color="#172033" />
         </TouchableOpacity>
         <Text style={styles.headerText}>ยืนยัน & บันทึก</Text>
-        <View style={{ width: 44 }} />
+        <View style={{ width: 38 }} />
       </View>
 
       <StepBar />
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   headerText: { color: "#172033", fontSize: 20, fontWeight: "700" },
-  backBtn: { ...W.small, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  backBtn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
 
   permText: { fontSize: 14, color: "#64748b", textAlign: "center" },
   permBtn: { ...W.primarySolid, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 15 },

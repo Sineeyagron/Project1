@@ -59,6 +59,15 @@ export const W = {
     ...gradient("linear-gradient(160deg, #FFFFFF 0%, #EEF4FF 100%)"),
     boxShadow: SMALL_SHADOW,
   } as ViewStyle,
+  // ปุ่มไอคอนมุมหัว (← รีเฟรช กระดิ่ง เพิ่ม ออกจากระบบ) ขนาดเดียวกันทุกหน้า
+  iconBtn: {
+    borderRadius: 13,
+    backgroundColor: "#F7FAFF",
+    ...gradient("linear-gradient(160deg, #FFFFFF 0%, #EEF4FF 100%)"),
+    boxShadow: SMALL_SHADOW,
+    width: 38,
+    height: 38,
+  } as ViewStyle,
   // ปุ่มหลักสีน้ำเงิน
   primary: {
     borderRadius: 15,
@@ -115,4 +124,11 @@ export function iconDot(color: string, size = 34): ViewStyle {
     justifyContent: "center",
     boxShadow: `0 4px 10px ${color}55`,
   };
+}
+
+// สีอ่อนทึบจากสีหลัก (ผสมขาว) — ใช้ไล่สีพื้นการ์ดตามสถานะ ไม่ให้โปร่งจนเห็นพื้นหลังแล้วหม่น
+export function tint(hex: string, white = 0.88) {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * white);
+  return `rgb(${mix((n >> 16) & 255)}, ${mix((n >> 8) & 255)}, ${mix(n & 255)})`;
 }

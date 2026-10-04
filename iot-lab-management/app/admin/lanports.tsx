@@ -20,6 +20,7 @@ import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { useRoomLive } from "../../lib/roomRealtime";
 import { W, NG } from "../../lib/theme";
+import StatWidget from "../../components/StatWidget";
 
 // กด port = เปลี่ยนสถานะวนตามลำดับนี้
 const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
@@ -225,18 +226,9 @@ export default function AdminLanPorts() {
 
           {/* สถิติ */}
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { borderLeftColor: "#10B981" }]}>
-              <Text style={[styles.statNum, { color: "#047857" }]}>{available}</Text>
-              <Text style={styles.statLabel}>ใช้งานได้</Text>
-            </View>
-            <View style={[styles.statCard, { borderLeftColor: "#f59e0b" }]}>
-              <Text style={[styles.statNum, { color: "#b45309" }]}>{repair}</Text>
-              <Text style={styles.statLabel}>ซ่อม</Text>
-            </View>
-            <View style={[styles.statCard, { borderLeftColor: "#ef4444" }]}>
-              <Text style={[styles.statNum, { color: "#dc2626" }]}>{broken}</Text>
-              <Text style={styles.statLabel}>เสีย</Text>
-            </View>
+            <StatWidget tone="green" icon="checkmark" label="ใช้งานได้" value={available} />
+            <StatWidget tone="amber" icon="construct-outline" label="ซ่อม" value={repair} />
+            <StatWidget tone="red" icon="close" label="เสีย" value={broken} />
           </View>
 
           {/* คำใบ้ */}
@@ -342,7 +334,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   backBtn: {
-    ...W.small, width: 44, height: 44,
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -362,7 +354,7 @@ const styles = StyleSheet.create({
 
   scroll: { padding: 16 },
 
-  statsRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
+  statsRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
   statCard: { ...W.card, flex: 1, padding: 12, borderLeftWidth: 4, alignItems: "center" },
   statNum: { fontSize: 22, fontWeight: "800" },
   statLabel: { fontSize: 10, color: "#94a3b8", marginTop: 2 },

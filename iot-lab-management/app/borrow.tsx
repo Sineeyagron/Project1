@@ -177,7 +177,7 @@ export default function Borrow() {
               {recentResults.map((r) => {
                 const res = REQUEST_RESULT[r.status] ?? REQUEST_RESULT.expired;
                 return (
-                  <View key={r.id} style={[s.card, { borderLeftColor: res.color }]}>
+                  <View key={r.id} style={s.card}>
                     <View style={s.cardBody}>
                       <Text style={s.cardName} numberOfLines={1}>
                         {KIND_TH[r.kind]} {r.items?.item_code || r.items?.name || "อุปกรณ์"}
@@ -215,7 +215,7 @@ export default function Borrow() {
                 return (
                   <View
                     key={b.id}
-                    style={[s.card, { borderLeftColor: cfg.border }, overdue && s.cardOverdue]}
+                    style={[s.card, overdue && s.cardOverdue]}
                   >
                     {/* รูปหรือ icon */}
                     {img ? (
@@ -278,7 +278,7 @@ const s = StyleSheet.create({
     gap: 10,
   },
   backBtn: {
-    ...W.small, width: 44, height: 44,
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -302,9 +302,8 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    borderLeftWidth: 4,
   },
-  cardOverdue: { borderColor: "#fca5a5", borderWidth: 1.5, borderLeftWidth: 4 },
+  cardOverdue: { borderColor: "#fca5a5", borderWidth: 1.5 },
   iconBox: { width: 46, height: 46, borderRadius: 15, justifyContent: "center", alignItems: "center", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
   itemImg: { width: 46, height: 46, borderRadius: 15 },
 
@@ -314,7 +313,7 @@ const s = StyleSheet.create({
   cardDue:  { fontSize: 12, color: "#64748B", marginTop: 1 },
   cardDueOverdue: { color: "#dc2626", fontWeight: "700" },
   tapHint: { fontSize: 10, color: "#f97316", marginTop: 4, fontWeight: "600" },
-  reqCard: { borderLeftColor: "#fb923c" },
+  reqCard: {},
   countdown: { fontSize: 12, color: "#c2410c", fontWeight: "600", marginTop: 2 },
   cancelBtn: {
     borderWidth: 1, borderColor: "#FCA5A5", backgroundColor: "#FFF5F5", borderRadius: 12,

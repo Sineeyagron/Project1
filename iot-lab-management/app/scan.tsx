@@ -474,7 +474,7 @@ const s = StyleSheet.create({
     gap: 10,
   },
   headerBtn: {
-    ...W.small, width: 44, height: 44,
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },

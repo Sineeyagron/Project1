@@ -28,7 +28,7 @@ import {
   thDate,
   todayBkk,
 } from "../../lib/report";
-import { W, NG } from "../../lib/theme";
+import { W, NG, gradient, tint } from "../../lib/theme";
 
 // รายงานการยืม-คืน (เฟส 5.1) — admin + TA / ส่งออก CSV (Excel) และ PDF
 // ตรรกะคำนวณอยู่ใน lib/report.ts
@@ -178,7 +178,7 @@ export default function BorrowReport() {
   };
 
   const Stat = ({ label, value, color }: { label: string; value: string | number; color?: string }) => (
-    <View style={st.stat}>
+    <View style={[st.stat, gradient(`linear-gradient(160deg, #FFFFFF 0%, ${tint(color || "#2563EB")} 100%)`)]}>
       <Text style={[st.statNum, color ? { color } : null]}>{value}</Text>
       <Text style={st.statLabel}>{label}</Text>
     </View>
@@ -325,7 +325,7 @@ const st = StyleSheet.create({
     gap: 12,
   },
   iconBtn: {
-    ...W.small, width: 44, height: 44,
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -369,8 +369,8 @@ const st = StyleSheet.create({
     flexBasis: "30%",
     padding: 12,
   },
-  statNum: { fontSize: 24, fontWeight: "900", color: C.ink },
-  statLabel: { fontSize: 12.5, color: C.muted, fontWeight: "700", marginTop: 2 },
+  statNum: { fontSize: 26, fontWeight: "700", color: C.ink },
+  statLabel: { fontSize: 12, color: C.muted, marginTop: 0 },
   line: { fontSize: 13.5, color: C.ink, lineHeight: 20 },
   topRow: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 32 },
   topRank: { width: 20, fontSize: 13, fontWeight: "900", color: C.faint },

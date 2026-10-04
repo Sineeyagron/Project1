@@ -337,7 +337,7 @@ const s = StyleSheet.create({
   headerTitle: { color: "#172033", fontSize: 26, fontWeight: "700" },
   headerActions: { flexDirection: "row", gap: 9 },
   iconBtn: {
-    ...W.small, width: 44, height: 44,
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },

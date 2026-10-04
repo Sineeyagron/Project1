@@ -274,10 +274,10 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  backBtn: { ...W.small, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  backBtn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
   headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700" },
   headerSub: { color: "#475569", fontSize: 12, marginTop: 1 },
-  markAllBtn: { ...W.small, height: 40, paddingHorizontal: 12, justifyContent: "center" },
+  markAllBtn: { ...W.small, borderRadius: 13, height: 38, paddingHorizontal: 12, justifyContent: "center" },
   markAllTxt: { color: "#1D4ED8", fontSize: 13, fontWeight: "600" },
 
   newBanner: {
@@ -303,7 +303,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 10,
   },
-  cardUnread: { borderLeftWidth: 4, borderLeftColor: "#2563EB" },
+  cardUnread: { borderColor: "#BFDBFE" },
   dot: { width: 8, height: 8, borderRadius: 4, position: "absolute", top: 14, left: 6 },
   iconBox: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", marginLeft: 4, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
   cardContent: { flex: 1 },

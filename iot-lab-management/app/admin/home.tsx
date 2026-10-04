@@ -105,6 +105,8 @@ export default function AdminHome() {
   const [available, setAvailable] = useState(0);
   const [borrowed, setBorrowed] = useState(0);
   const [repair, setRepair] = useState(0);
+  // ข้อมูลกราฟย้อนหลัง 7 วัน (จุดสุดท้าย = ตัวเลขปัจจุบัน)
+  const [series, setSeries] = useState<{ total: number[]; available: number[]; borrowed: number[]; repair: number[] }>({ total: [], available: [], borrowed: [], repair: [] });
   const [statusBorrowed, setStatusBorrowed] = useState(0);
   const [statusReturned, setStatusReturned] = useState(0);
   const [statusRepair, setStatusRepair] = useState(0);
@@ -199,15 +201,21 @@ export default function AdminHome() {
       activeBorrowCount,
       returnedCount,
       activeRepairCount,
+      { data: loanHistory },
     ] = await Promise.all([
       // ของที่จำหน่ายแล้วไม่นับในสต็อก แต่ยังต้องใช้ชื่อในกิจกรรมล่าสุด
-      supabase.from("items").select("id, name, item_code, status"),
+      supabase.from("items").select("id, name, item_code, status, created_at, retired_at"),
       supabase.from("borrow_records").select("*").order("borrow_date", { ascending: false }).limit(12),
       supabase.from("repair_records").select("*").order("reported_at", { ascending: false }).limit(6),
       supabase.from("computer_stations").select("id, room_id, group_no, name"),
       supabase.from("borrow_records").select("id", { count: "exact", head: true }).in("status", ["borrowed", "pending_return"]),
       supabase.from("borrow_records").select("id", { count: "exact", head: true }).eq("status", "returned"),
       supabase.from("repair_records").select("id", { count: "exact", head: true }).in("status", ["pending", "in-repair"]),
+      // การยืมที่ยังค้างอยู่ช่วง 7 วันที่ผ่านมา (ใช้คำนวณกราฟ "ถูกยืม" ย้อนหลัง)
+      supabase
+        .from("borrow_records")
+        .select("item_id, borrow_date, return_date, status")
+        .or(`return_date.is.null,return_date.gte.${new Date(Date.now() - 7 * 86400000).toISOString()}`),
     ]);
 
     const safeItems = items || [];
@@ -219,6 +227,7 @@ export default function AdminHome() {
     setAvailable(stockItems.filter((i: any) => i.status === "available").length);
     setBorrowed(stockItems.filter((i: any) => i.status === "borrowed").length);
     setRepair(stockItems.filter((i: any) => i.status === "repair").length);
+    setSeries(buildSeries(safeItems, loanHistory || []));
     setStatusBorrowed(activeBorrowCount.count || 0);
     setStatusReturned(returnedCount.count || 0);
     setStatusRepair(activeRepairCount.count || 0);
@@ -293,10 +302,10 @@ export default function AdminHome() {
   };
 
   const stats = [
-    { icon: "cube-outline", iconBg: "#dbeafe", color: C.blue, num: total, label: "ทั้งหมด", trend: total > 0 ? `+${total}` : "0" },
-    { icon: "checkmark-circle-outline", iconBg: "#ECFDF5", color: C.green, num: available, label: "ว่าง", trend: available > 0 ? `+${available}` : "0" },
-    { icon: "time-outline", iconBg: "#ffedd5", color: C.orangeDark, num: borrowed, label: "ถูกยืม", trend: borrowed > 0 ? `-${borrowed}` : "0" },
-    { icon: "construct-outline", iconBg: "#fee2e2", color: C.red, num: repair, label: "ซ่อม", trend: repair > 0 ? `-${repair}` : "0" },
+    { icon: "cube-outline", iconBg: "#dbeafe", color: C.blue, num: total, label: "ทั้งหมด", data: series.total },
+    { icon: "checkmark-circle-outline", iconBg: "#ECFDF5", color: C.green, num: available, label: "ว่าง", data: series.available },
+    { icon: "time-outline", iconBg: "#ffedd5", color: C.orangeDark, num: borrowed, label: "ถูกยืม", data: series.borrowed },
+    { icon: "construct-outline", iconBg: "#fee2e2", color: C.red, num: repair, label: "ซ่อม", data: series.repair },
   ];
 
   return (
@@ -535,8 +544,15 @@ function TodayItem({ icon, color, num, label, date }: { icon: any; color: string
   );
 }
 
-function MiniLine({ color, value }: { color: string; value: number }) {
-  const points = "0,15 18,13 36,14 54,11 72,12 90,9 108,10 126,7";
+// กราฟเส้นเล็กจากข้อมูลจริง 7 วัน (สเกลตามค่าต่ำสุด–สูงสุดของช่วงนั้น / ค่าเท่ากันทั้งช่วง = เส้นตรงกลาง)
+function MiniLine({ color, data }: { color: string; data: number[] }) {
+  const values = data.length ? data : [0, 0];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const step = 126 / Math.max(values.length - 1, 1);
+  const y = (v: number) => (max === min ? 11 : 19 - ((v - min) / (max - min)) * 16);
+  const points = values.map((v, i) => `${(i * step).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const empty = values.every((v) => v === 0);
 
   return (
     <View style={s.lineChart}>
@@ -545,15 +561,45 @@ function MiniLine({ color, value }: { color: string; value: number }) {
           points={points}
           fill="none"
           stroke={color}
-          strokeWidth={value > 0 ? "2.3" : "2"}
-          strokeDasharray={value > 0 ? undefined : "5 5"}
+          strokeWidth={empty ? "2" : "2.3"}
+          strokeDasharray={empty ? "5 5" : undefined}
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity={value > 0 ? 0.95 : 0.38}
+          opacity={empty ? 0.38 : 0.95}
         />
       </Svg>
     </View>
   );
+}
+
+// สร้างตัวเลขย้อนหลัง 7 วัน (สิ้นวันของแต่ละวัน วันนี้ = ตอนนี้)
+// ทั้งหมด = ของที่เพิ่มแล้วและยังไม่จำหน่าย / ถูกยืม = ยืมไปแล้วยังไม่คืน ณ เวลานั้น (รายการเก่าที่คืนแล้วแต่ไม่มีวันคืน ไม่นับ)
+// ซ่อม = ไม่มีประวัติย้อนหลังในระบบ ใช้ค่าปัจจุบัน / ว่าง = ทั้งหมด − ถูกยืม − ซ่อม
+// จุดสุดท้ายยึดตามสถานะจริงของตอนนี้ ให้ตรงกับตัวเลขบนการ์ดเสมอ
+function buildSeries(items: any[], loans: any[]) {
+  const now = Date.now();
+  const days = Array.from({ length: 7 }, (_, i) => {
+    if (i === 6) return now;
+    const d = new Date(now - (6 - i) * 86400000);
+    d.setHours(23, 59, 59, 999);
+    return d.getTime();
+  });
+  const stock = items.filter((i) => i.status !== "retired");
+  const current = {
+    total: stock.length,
+    borrowed: stock.filter((i) => i.status === "borrowed").length,
+    repair: stock.filter((i) => i.status === "repair").length,
+    available: stock.filter((i) => i.status === "available").length,
+  };
+  const time = (v: string | null) => (v ? new Date(v).getTime() : null);
+  const total = days.map((t) => items.filter((i) => (time(i.created_at) ?? 0) <= t && (!i.retired_at || (time(i.retired_at) as number) > t)).length);
+  const borrowed = days.map((t) => loans.filter((l) => (time(l.borrow_date) ?? Infinity) <= t && (l.return_date ? (time(l.return_date) as number) > t : l.status !== "returned")).length);
+  const repair = days.map(() => current.repair);
+  const available = days.map((_, i) => Math.max(total[i] - borrowed[i] - repair[i], 0));
+  total[6] = current.total;
+  borrowed[6] = current.borrowed;
+  available[6] = current.available;
+  return { total, available, borrowed, repair };
 }
 
 function StatCard({
@@ -562,15 +608,18 @@ function StatCard({
   color,
   num,
   label,
-  trend,
+  data,
 }: {
   icon: any;
   iconBg: string;
   color: string;
   num: number;
   label: string;
-  trend: string;
+  data: number[];
 }) {
+  // เปลี่ยนไปเท่าไรเทียบกับ 7 วันก่อน
+  const diff = data.length ? data[data.length - 1] - data[0] : 0;
+  const trend = diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : "0";
   return (
     <View
       style={[
@@ -590,7 +639,7 @@ function StatCard({
       </View>
       <Text style={[s.statNum, { color }]}>{num}</Text>
       <Text style={s.statLabel}>{label}</Text>
-      <MiniLine color={color} value={num} />
+      <MiniLine color={color} data={data} />
     </View>
   );
 }
@@ -683,9 +732,7 @@ const s = StyleSheet.create({
   },
   bellBadgeText: { color: "#fff", fontSize: 10.5, fontWeight: "900" },
   logoutBtn: {
-    ...W.small,
-    width: 44,
-    height: 44,
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -694,14 +741,14 @@ const s = StyleSheet.create({
     alignItems: "stretch",
     marginTop: 16,
     ...W.card,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
   },
   todayItem: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 5,
   },
   todayNum: {
     color: "#172033",
@@ -722,7 +769,7 @@ const s = StyleSheet.create({
     width: 1,
     backgroundColor: "#DCE7FA",
     marginVertical: 2,
-    marginHorizontal: 10,
+    marginHorizontal: 6,
   },
   body: {
     paddingHorizontal: 16,
@@ -810,7 +857,7 @@ const s = StyleSheet.create({
   statCard: {
     ...W.card,
     width: "48.2%",
-    height: 138,
+    minHeight: 138,
     paddingHorizontal: 14,
     paddingVertical: 13,
   },

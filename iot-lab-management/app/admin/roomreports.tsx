@@ -261,7 +261,7 @@ export default function RoomReports() {
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   header: { paddingTop: 30, paddingBottom: 18, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 12 },
-  iconBtn: { ...W.small, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  iconBtn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
   headerTitle: { color: "#172033", fontSize: 18, fontWeight: "900" },
   headerSub: { color: "#475569", fontSize: 12, fontWeight: "800", marginTop: 2 },
   filterScroll: { maxHeight: 54 },

@@ -414,7 +414,7 @@ const s = StyleSheet.create({
   },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   backBtn: {
-    ...W.small, width: 44, height: 44,
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },

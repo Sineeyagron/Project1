@@ -483,7 +483,7 @@ const s = StyleSheet.create({
   },
   heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerIconBtn: {
-    ...W.small, width: 44, height: 44,
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
