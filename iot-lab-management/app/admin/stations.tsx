@@ -20,6 +20,7 @@ import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { useRoomLive } from "../../lib/roomRealtime";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 
 const C = {
   bg: "#EAF1FC",
@@ -327,20 +328,14 @@ export default function AdminStations() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View style={s.headerTop}>
-          <TouchableOpacity style={s.backBtn} onPress={() => goBack("/admin/room")} activeOpacity={0.82}>
-            <Ionicons name="chevron-back" size={22} color="#172033" />
-          </TouchableOpacity>
-          <View style={s.headerTextWrap}>
-            <Text style={s.headerTitle}>จัดการเครื่องคอม</Text>
-            <Text style={s.headerSub}>ห้อง {selectedRoom || "-"} · {activeStations.length} เครื่อง</Text>
-          </View>
-          {isAdmin ? (
-            <TouchableOpacity style={s.backBtn} onPress={openAdd} activeOpacity={0.82} accessibilityLabel="เพิ่มเครื่อง">
-              <Ionicons name="add" size={22} color="#1D4ED8" />
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        <ScreenHeader
+          title={"จัดการเครื่องคอม"}
+          subtitle={`ห้อง ${selectedRoom || "-"} · ${activeStations.length} เครื่อง`}
+          onBack={() => goBack("/admin/room")}
+          right={isAdmin ? <HeaderButton icon="add" label="เพิ่มเครื่อง" onPress={openAdd} /> : null}
+          bleed={16}
+          style={{ marginBottom: 0 }}
+        />
 
         <View style={s.roomTabs}>
           {rooms.map((room) => {

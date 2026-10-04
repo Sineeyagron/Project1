@@ -14,6 +14,7 @@ import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { W } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 function SignaturePreview({ svgString }: { svgString: string }) {
   if (!svgString || !svgString.startsWith("<svg")) return null;
@@ -174,15 +175,11 @@ export default function AdminHistory() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={goBack} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <View>
-          <Text style={s.headerTitle}>ประวัติยืม-คืน</Text>
-          <Text style={s.headerSub}>{records.length} รายการทั้งหมด</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"ประวัติยืม-คืน"}
+        subtitle={`${records.length} รายการทั้งหมด`}
+        onBack={() => goBack()}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 60 }} />

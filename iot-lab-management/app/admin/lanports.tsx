@@ -21,6 +21,7 @@ import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { useRoomLive } from "../../lib/roomRealtime";
 import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
+import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 
 // กด port = เปลี่ยนสถานะวนตามลำดับนี้
 const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
@@ -175,20 +176,11 @@ export default function AdminLanPorts() {
     <View style={styles.container}>
 
       {/* HEADER */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => goBack("/admin/room")} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <Text style={styles.headerText}>จัดการ LAN Port</Text>
-        {isAdmin ? (
-          <TouchableOpacity
-            onPress={() => selectedRoom ? setAddModal(true) : notify("ยังไม่มีห้อง", "ต้องมีห้องก่อนถึงจะเพิ่ม Port ได้")}>
-            <Ionicons name="add-circle-outline" size={26} color="#1D4ED8" />
-          </TouchableOpacity>
-        ) : (
-          <View style={{ width: 26 }} />
-        )}
-      </View>
+      <ScreenHeader
+        title={"จัดการ LAN Port"}
+        onBack={() => goBack("/admin/room")}
+        right={isAdmin ? <HeaderButton icon="add" label="เพิ่ม Port" onPress={() => selectedRoom ? setAddModal(true) : notify("ยังไม่มีห้อง", "ต้องมีห้องก่อนถึงจะเพิ่ม Port ได้")} /> : null}
+      />
 
       {/* ROOM SELECTOR */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}

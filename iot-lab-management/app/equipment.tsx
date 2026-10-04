@@ -19,6 +19,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { W, NG } from "../lib/theme";
 import TabBar from "../components/TabBar";
 import StatWidget from "../components/StatWidget";
+import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 
 // ของที่ยังไม่มีหมวด (ของเก่าก่อนมีตาราง categories) รวมไว้ที่หมวดนี้
 const OTHER = "อื่นๆ";
@@ -166,25 +167,14 @@ export default function Equipment() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity style={styles.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
-            <Ionicons name="chevron-back" size={21} color={C.ink} />
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerSub}>คลังอุปกรณ์สำหรับนักเรียน</Text>
-            <Text style={styles.headerTitle}>อุปกรณ์ IoT</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.headerBtn}
-            onPress={() => {
-              setSearch("");
-              setActiveType("ทั้งหมด");
-            }}
-            activeOpacity={0.84}
-          >
-            <Ionicons name="options-outline" size={20} color={C.headerDark} />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title={"อุปกรณ์ IoT"}
+          subtitle={"คลังอุปกรณ์สำหรับนักเรียน"}
+          onBack={() => goBack("/home")}
+          right={<HeaderButton icon="options-outline" label="ล้างตัวกรอง" onPress={() => { setSearch(""); setActiveType("ทั้งหมด"); }} />}
+          bleed={16}
+          style={{ marginBottom: 14 }}
+        />
 
         <TouchableOpacity style={styles.scanBtn} onPress={() => router.push("/scan")} activeOpacity={0.88}>
           <Ionicons name="scan" size={18} color="#FFFFFF" />
@@ -347,10 +337,11 @@ const styles = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 52,
+    paddingTop: 0,
     paddingBottom: 6,
   },
   headerTop: {
+    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",

@@ -20,6 +20,7 @@ import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMe
 import { addYears, isValidDate, thaiDate } from "../../lib/itemInfo";
 import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
+import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 
 const C = {
   bg: "#EAF1FC",
@@ -451,18 +452,14 @@ export default function AdminItems() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View style={s.headerTop}>
-          <TouchableOpacity style={s.iconBtn} onPress={goBack} activeOpacity={0.82}>
-            <Ionicons name="chevron-back" size={22} color="#172033" />
-          </TouchableOpacity>
-          <View style={s.titleBlock}>
-            <Text style={s.headerSub}>ระบบจัดการอุปกรณ์ IoT</Text>
-            <Text style={s.headerTitle}>อุปกรณ์ IoT</Text>
-          </View>
-          <TouchableOpacity ref={headerSortRef} style={s.iconBtn} onPress={() => openSort(headerSortRef)} activeOpacity={0.82}>
-            <Ionicons name="options-outline" size={21} color="#1D4ED8" />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title={"อุปกรณ์ IoT"}
+          subtitle={"ระบบจัดการอุปกรณ์ IoT"}
+          onBack={() => goBack()}
+          right={<HeaderButton ref={headerSortRef} icon="options-outline" label="เรียงลำดับ" onPress={() => openSort(headerSortRef)} />}
+          bleed={16}
+          style={{ marginBottom: 14 }}
+        />
 
         <View style={s.statRow}>
           <StatWidget tone="blue" icon="cube-outline" label="ทั้งหมด" value={activeItems.length} />

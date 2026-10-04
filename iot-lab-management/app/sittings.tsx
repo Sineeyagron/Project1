@@ -7,6 +7,7 @@ import supabase from "../lib/supabase";
 import { goBack } from "../lib/nav";
 import { confirmAction } from "../lib/notify";
 import { W } from "../lib/theme";
+import ScreenHeader from "../components/ScreenHeader";
 
 export default function Settings() {
   const router = useRouter();
@@ -36,12 +37,10 @@ export default function Settings() {
     <View style={s.container}>
 
       {/* HEADER */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => goBack("/profile")} activeOpacity={0.84}>
-          <Ionicons name="chevron-back" size={21} color="#172033" />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>ตั้งค่า</Text>
-      </View>
+      <ScreenHeader
+        title={"ตั้งค่า"}
+        onBack={() => goBack("/profile")}
+      />
 
       <View style={s.body}>
 
@@ -103,9 +102,10 @@ export default function Settings() {
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
 
-  header: {
+  header: { ...W.headerBar,
     paddingTop: 52,
-    paddingBottom: 12,
+    paddingBottom: 10,
+    marginBottom: 8,
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",

@@ -20,6 +20,7 @@ import LoadError from "../../components/LoadError";
 import { useRole } from "../../lib/roles";
 import { useRoomLive } from "../../lib/roomRealtime";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 
 const C = {
   bg: "#EAF1FC",
@@ -213,19 +214,13 @@ export default function AdminRoom() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View style={s.headerTop}>
-          <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-            <Ionicons name="chevron-back" size={21} color="#172033" />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>จัดการห้อง</Text>
-          {isAdmin ? (
-            <TouchableOpacity style={s.iconBtn} onPress={openAdd} activeOpacity={0.82} accessibilityLabel="เพิ่มห้อง">
-              <Ionicons name="add" size={22} color="#1D4ED8" />
-            </TouchableOpacity>
-          ) : (
-            <View style={{ width: 38 }} />
-          )}
-        </View>
+        <ScreenHeader
+          title={"จัดการห้อง"}
+          onBack={() => goBack("/admin/home")}
+          right={isAdmin ? <HeaderButton icon="add" label="เพิ่มห้อง" onPress={openAdd} /> : null}
+          bleed={16}
+          style={{ marginBottom: 14 }}
+        />
 
         <View style={s.summaryRow}>
           <HeaderStat value={totals.rooms} label="ห้องที่เปิดอยู่" />

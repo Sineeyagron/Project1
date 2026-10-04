@@ -7,6 +7,10 @@ import {
   ActivityIndicator,
   RefreshControl,
   AppState,
+  Animated,
+  Pressable,
+  LayoutAnimation,
+  Platform,
 } from "react-native";
 import { Text } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +20,8 @@ import { useRealtime } from "../lib/realtime";
 import { currentUser } from "../lib/session";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { W } from "../lib/theme";
+import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
+import { haptic } from "../components/Motion";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
   borrow:         { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
@@ -114,13 +120,17 @@ export default function Notifications() {
     else setLoading(false);
   }, []);
 
+  // อัปเดตจอทันที (ไฮไลต์ยังไม่อ่านค่อย ๆ จางหาย + สั่นเบา ๆ) แล้วค่อยบันทึกลงฐานข้อมูลเบื้องหลัง — พลาดก็โหลดใหม่
   const markAllRead = async () => {
-    const user = await currentUser();
-    if (!user) return;
-    await supabase.from("notifications").update({ read: true })
-      .eq("user_id", user.id).eq("read", false);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setNewCount(0);
+    haptic("success");
+    const user = await currentUser();
+    if (!user) return;
+    const { error } = await supabase.from("notifications").update({ read: true })
+      .eq("user_id", user.id).eq("read", false);
+    if (error) fetchNotifications(true);
   };
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
@@ -161,8 +171,9 @@ export default function Notifications() {
   // กดแจ้งเตือน → อ่านแล้ว + ไปหน้าที่เกี่ยวข้อง
   const openNotification = async (n: any) => {
     if (!n.read) {
-      await supabase.from("notifications").update({ read: true }).eq("id", n.id);
+      // ไม่ต้องรอฐานข้อมูลก่อนเปิดหน้าถัดไป
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+      supabase.from("notifications").update({ read: true }).eq("id", n.id).then(() => {});
     }
     // ระบบห้องคอม: ผู้ดูแล → คิวคำแจ้ง / ผู้แจ้ง → อ่านผลในข้อความพอ ไม่พาไปหน้าการยืม
     if (n.type === "room_report") {
@@ -188,22 +199,12 @@ export default function Notifications() {
     <View style={s.container}>
 
       {/* HEADER */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => goBack(isStaff ? "/admin/home" : "/home")} activeOpacity={0.84}>
-          <Ionicons name="chevron-back" size={21} color="#172033" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>การแจ้งเตือน</Text>
-          {unreadCount > 0 && (
-            <Text style={s.headerSub}>{unreadCount} รายการยังไม่ได้อ่าน</Text>
-          )}
-        </View>
-        {unreadCount > 0 ? (
-          <TouchableOpacity onPress={markAllRead} style={s.markAllBtn}>
-            <Text style={s.markAllTxt}>อ่านทั้งหมด</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
+      <ScreenHeader
+        title={"การแจ้งเตือน"}
+        subtitle={unreadCount > 0 ? `${unreadCount} รายการยังไม่ได้อ่าน` : undefined}
+        onBack={() => goBack(isStaff ? "/admin/home" : "/home")}
+        right={unreadCount > 0 ? <HeaderButton icon="checkmark-done-outline" label="อ่านทั้งหมด" onPress={markAllRead} /> : null}
+      />
 
       {/* new banner */}
       {newCount > 0 && (
@@ -228,14 +229,14 @@ export default function Notifications() {
         >
           <Text style={s.sectionLabel}>การแจ้งเตือนทั้งหมด ({notifications.length})</Text>
 
-          {notifications.map(n => {
+          {notifications.map((n, i) => {
             const cfg = TYPE_CFG[n.type] || TYPE_CFG.borrow;
             return (
-              <TouchableOpacity
+              <NotifCard
                 key={n.id}
+                index={i}
                 style={[s.card, !n.read && s.cardUnread]}
-                onPress={() => openNotification(n)}
-                activeOpacity={0.85}
+                onPress={() => { haptic("light"); openNotification(n); }}
               >
                 {!n.read && <View style={[s.dot, { backgroundColor: cfg.dot }]} />}
                 <View style={[s.iconBox, { backgroundColor: cfg.iconBg }]}>
@@ -252,7 +253,7 @@ export default function Notifications() {
                     <Text style={s.cardDateTime}>{formatDateTime(n.created_at)}</Text>
                   </View>
                 </View>
-              </TouchableOpacity>
+              </NotifCard>
             );
           })}
 
@@ -263,12 +264,38 @@ export default function Notifications() {
   );
 }
 
+// การ์ดแจ้งเตือน: ตอนเปิดหน้าค่อย ๆ ลอยขึ้นทีละใบ (เฉพาะ 8 ใบแรก ใบที่เหลือโผล่ทันที) + กดแล้วยุบนิดหนึ่ง
+// ใช้ Animated แบบ native driver — ไม่กระทบการโหลดข้อมูล
+function NotifCard({ index, style, onPress, children }: { index: number; style: any; onPress: () => void; children: React.ReactNode }) {
+  const animate = index < 8;
+  const appear = useRef(new Animated.Value(animate ? 0 : 1)).current;
+  const press = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!animate) return;
+    Animated.timing(appear, { toValue: 1, duration: 260, delay: index * 45, useNativeDriver: true }).start();
+  }, []);
+  const to = (v: number) => Animated.spring(press, { toValue: v, speed: 40, bounciness: 6, useNativeDriver: true }).start();
+  return (
+    <Animated.View
+      style={{
+        opacity: appear,
+        transform: [{ translateY: appear.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }, { scale: press }],
+      }}
+    >
+      <Pressable style={style} onPress={onPress} onPressIn={() => to(0.97)} onPressOut={() => to(1)}>
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
 
-  header: {
+  header: { ...W.headerBar,
     paddingTop: 52,
-    paddingBottom: 12,
+    paddingBottom: 10,
+    marginBottom: 8,
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
@@ -307,11 +334,12 @@ const s = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, position: "absolute", top: 14, left: 6 },
   iconBox: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", marginLeft: 4, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
   cardContent: { flex: 1 },
-  cardTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 3 },
-  cardTitle: { fontSize: 14, fontWeight: "500", color: "#475569", flex: 1, marginRight: 6 },
-  cardTitleUnread: { fontWeight: "600", color: "#172033" },
-  cardAgo: { fontSize: 11, color: "#475569", flexShrink: 0 },
-  cardBody: { fontSize: 12.5, color: "#475569", lineHeight: 18, marginBottom: 6 },
+  // หัวข้อเข้ม-ใหญ่ / รายละเอียดเทากลาง / เวลาเทาอ่อนเล็ก — แยกระดับกันชัด (ยังไม่อ่าน = หัวข้อหนาขึ้น + จุดสี)
+  cardTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+  cardTitle: { fontSize: 15, fontWeight: "600", color: "#1E293B", flex: 1, marginRight: 6 },
+  cardTitleUnread: { fontWeight: "700", color: "#0F172A" },
+  cardAgo: { fontSize: 12, color: "#64748B", flexShrink: 0 },
+  cardBody: { fontSize: 13.5, color: "#475569", lineHeight: 20, marginBottom: 6 },
   cardMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
-  cardDateTime: { fontSize: 11, color: "#475569" },
+  cardDateTime: { fontSize: 12, color: "#64748B" },
 });

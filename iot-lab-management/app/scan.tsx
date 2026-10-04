@@ -15,10 +15,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { goBack } from "../lib/nav";
+import { currentUser } from "../lib/session";
 import { notify, confirmAction } from "../lib/notify";
 import { canTakeLivePhoto, takeLivePhoto, uploadBorrowPhoto } from "../lib/borrowPhotos";
 import Countdown from "../components/Countdown";
 import { W, NG } from "../lib/theme";
+import ScreenHeader from "../components/ScreenHeader";
 
 // นักศึกษาสแกน QR ที่ตัวของ ณ ห้อง → ขอยืม / ขอคืน / ขอยืมต่อ (แผน 2.6)
 // กติกาทั้งหมดอยู่ใน RPC ฝั่งฐานข้อมูล หน้านี้แค่เก็บข้อมูลแล้วส่ง
@@ -63,6 +65,8 @@ export default function StudentScan() {
   const [loading, setLoading] = useState(false);
   const [manualCode, setManualCode] = useState("");
   const [justSent, setJustSent] = useState("");
+  // จำนวนที่ยืม/รออนุมัติอยู่ (นับแบบเดียวกับ RPC request_borrow) — ครบโควตา = เตือนก่อน ไม่ให้กดขอยืม
+  const [activeCount, setActiveCount] = useState<number | null>(null);
 
   // ฟอร์ม
   const [mode, setMode] = useState<FormMode | null>(null);
@@ -92,6 +96,22 @@ export default function StudentScan() {
     }
     resetForm();
     setLookup(data as Lookup);
+    setActiveCount(null);
+    if ((data as Lookup)?.state === "available") loadActiveCount();
+  };
+
+  // นับอย่างเดียว (head) ไม่ดึงแถว — ถ้านับไม่ได้ปล่อยปุ่มไว้ ให้ RPC เป็นด่านจริงเหมือนเดิม
+  const loadActiveCount = async () => {
+    const user = await currentUser();
+    if (!user) return;
+    const [loans, reqs] = await Promise.all([
+      supabase.from("borrow_records").select("id", { count: "exact", head: true })
+        .eq("user_id", user.id).in("status", ["borrowed", "pending_return"]),
+      supabase.from("borrow_requests").select("id", { count: "exact", head: true })
+        .eq("user_id", user.id).eq("kind", "borrow").eq("status", "pending"),
+    ]);
+    if (loans.error || reqs.error) return;
+    setActiveCount((loans.count || 0) + (reqs.count || 0));
   };
 
   const refresh = () => {
@@ -180,15 +200,11 @@ export default function StudentScan() {
 
   // ── ส่วนหัว ──
   const Header = (
-    <View style={s.header}>
-      <TouchableOpacity style={s.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
-        <Ionicons name="chevron-back" size={22} color="#172033" />
-      </TouchableOpacity>
-      <View style={{ flex: 1 }}>
-        <Text style={s.headerTitle}>สแกนยืม / คืน</Text>
-        <Text style={s.headerSub}>สแกน QR ที่ติดบนอุปกรณ์ในห้อง</Text>
-      </View>
-    </View>
+    <ScreenHeader
+      title={"สแกนยืม / คืน"}
+      subtitle={"สแกน QR ที่ติดบนอุปกรณ์ในห้อง"}
+      onBack={() => goBack("/home")}
+    />
   );
 
   // ── ยังไม่ได้สแกน ──
@@ -289,18 +305,40 @@ export default function StudentScan() {
         )}
 
         {/* สถานะ */}
-        {state === "available" && !mode && (
-          <>
-            <View style={[s.banner, s.bannerOk]}>
-              <Ionicons name="checkmark-circle-outline" size={18} color={C.green} />
-              <Text style={[s.bannerText, { color: "#166534" }]}>ว่าง พร้อมให้ยืม</Text>
-            </View>
-            <TouchableOpacity style={s.primaryBtn} onPress={() => openForm("borrow")} activeOpacity={0.85}>
-              <Ionicons name="hand-left-outline" size={18} color="#fff" />
-              <Text style={s.primaryBtnText}>ขอยืมอุปกรณ์นี้</Text>
-            </TouchableOpacity>
-          </>
-        )}
+        {state === "available" && !mode && (() => {
+          const max = lookup.max_active_borrows ?? 3;
+          const atLimit = activeCount !== null && activeCount >= max;
+          return (
+            <>
+              <View style={[s.banner, s.bannerOk]}>
+                <Ionicons name="checkmark-circle-outline" size={18} color={C.green} />
+                <Text style={[s.bannerText, { color: "#166534" }]}>ว่าง พร้อมให้ยืม</Text>
+              </View>
+              {atLimit ? (
+                <View style={[s.banner, s.bannerWarn]}>
+                  <Ionicons name="alert-circle-outline" size={18} color="#B45309" />
+                  <Text style={[s.bannerText, { color: "#92400E", flex: 1 }]}>
+                    คุณยืม/รออนุมัติอยู่ครบ {max} ชิ้นแล้ว คืนของก่อนจึงจะยืมชิ้นใหม่ได้
+                  </Text>
+                </View>
+              ) : null}
+              <TouchableOpacity
+                style={[s.primaryBtn, atLimit && { opacity: 0.45 }]}
+                onPress={() => openForm("borrow")}
+                disabled={atLimit}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="hand-left-outline" size={18} color="#fff" />
+                <Text style={s.primaryBtnText}>ขอยืมอุปกรณ์นี้</Text>
+              </TouchableOpacity>
+              {atLimit ? (
+                <TouchableOpacity style={s.secondaryBtn} onPress={() => router.push("/borrow")} activeOpacity={0.85}>
+                  <Text style={s.secondaryBtnText}>ดูของที่ยืมอยู่</Text>
+                </TouchableOpacity>
+              ) : null}
+            </>
+          );
+        })()}
 
         {state === "mine" && !mode && (
           <>
@@ -465,9 +503,10 @@ export default function StudentScan() {
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: {
+  header: { ...W.headerBar,
     paddingTop: 52,
-    paddingBottom: 12,
+    paddingBottom: 10,
+    marginBottom: 8,
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",

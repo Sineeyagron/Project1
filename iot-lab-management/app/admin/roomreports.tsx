@@ -16,6 +16,7 @@ import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRealtime } from "../../lib/realtime";
 import LoadError from "../../components/LoadError";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // คิวคำแจ้งปัญหาจากนักศึกษา (ระบบห้อง R3) — Admin/TA รับเป็นงานซ่อม หรือปิดพร้อมเหตุผล
 // ตัดสินผ่าน RPC decide_room_report (รับเครื่อง = สร้างงานซ่อม + เครื่องเป็น "กำลังซ่อม" / รับ LAN = port เป็น "กำลังซ่อม")
@@ -142,15 +143,11 @@ export default function RoomReports() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/room")} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>คำแจ้งปัญหาห้องคอม</Text>
-          <Text style={s.headerSub}>{counts.open} รายการรอตรวจ</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"คำแจ้งปัญหาห้องคอม"}
+        subtitle={`${counts.open} รายการรอตรวจ`}
+        onBack={() => goBack("/admin/room")}
+      />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={s.filterRow}>
         {FILTERS.map((f) => {

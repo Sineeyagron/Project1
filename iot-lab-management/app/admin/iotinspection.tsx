@@ -17,6 +17,7 @@ import { currentUser } from "../../lib/session";
 import { notify } from "../../lib/notify";
 import { goBack } from "../../lib/nav";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 const C = {
   bg: "#f4f4f7",
@@ -231,13 +232,12 @@ export default function IotInspectionPage() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View style={s.headerRow}>
-          <TouchableOpacity style={s.backBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-            <Ionicons name="chevron-back" size={21} color="#172033" />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>ตรวจสภาพ IoT ประจำเทอม</Text>
-          <View style={s.headerSpacer} />
-        </View>
+        <ScreenHeader
+          title={"ตรวจสภาพ IoT ประจำเทอม"}
+          onBack={() => goBack("/admin/home")}
+          bleed={16}
+          style={{ marginBottom: 14 }}
+        />
 
         <View style={s.searchRow}>
           <TextInput

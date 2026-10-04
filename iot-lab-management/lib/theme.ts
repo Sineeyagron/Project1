@@ -70,11 +70,11 @@ export const W = {
   } as ViewStyle,
   // แถบหัวหน้าบาง ๆ (หน้าเครื่องมือผู้ดูแล): เต็มความกว้าง พื้นขาวโปร่งไล่สีจาง + เส้นบางด้านล่าง แยกหัวข้อออกจากเนื้อหา
   headerBar: {
-    backgroundColor: "rgba(255,255,255,0.6)",
-    ...gradient("linear-gradient(180deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.5) 100%)"),
-    borderBottomWidth: 0.5,
-    borderBottomColor: "rgba(148,163,184,0.45)",
-    boxShadow: "0 2px 8px rgba(37,99,235,0.05)",
+    // ไม่มีเส้นขอบ — ขาวด้านบนแล้วค่อย ๆ จางเป็นโปร่งใส ให้สีพื้นหลังของหน้าโผล่ขึ้นมาเอง (ไม่ใส่สีฟ้าเพิ่ม จะได้ไม่เพี้ยนจากพื้น)
+    backgroundColor: "transparent",
+    ...gradient("linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.72) 55%, rgba(255,255,255,0.54) 78%, rgba(255,255,255,0.22) 92%, rgba(255,255,255,0) 100%)"),
+    // เงาฟ้าจาง ๆ ใต้หัว (spread ติดลบ = ไม่เป็นเส้น แค่รู้สึกว่าหัวลอยเหนือเนื้อหา)
+    boxShadow: "0 10px 22px -14px rgba(37,99,235,0.28)",
   } as ViewStyle,
   // ปุ่มหลักสีน้ำเงิน
   primary: {
@@ -140,3 +140,12 @@ export function tint(hex: string, white = 0.88) {
   const mix = (c: number) => Math.round(c + (255 - c) * white);
   return `rgb(${mix((n >> 16) & 255)}, ${mix((n >> 8) & 255)}, ${mix(n & 255)})`;
 }
+
+// ตัวเลขในป้ายวงกลมเล็ก (แจ้งเตือน/คำขอ): ใช้ฟอนต์ระบบ — Noto Sans Thai เผื่อที่ด้านบนไว้ให้สระ/วรรณยุกต์ ตัวเลขเลยตกต่ำกว่ากลางวง
+export const BADGE_TEXT = {
+  fontFamily: Platform.select({ ios: "System", android: "sans-serif", default: "system-ui, -apple-system, sans-serif" }),
+  fontWeight: "700",
+  textAlign: "center",
+  includeFontPadding: false,
+  textAlignVertical: "center",
+} as const;

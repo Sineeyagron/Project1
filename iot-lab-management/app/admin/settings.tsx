@@ -17,6 +17,7 @@ import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { ALLOWED_DOMAIN } from "../../lib/googleAuth";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // ตั้งค่าระบบ (ตาราง app_settings) — แก้ได้เฉพาะ admin (RLS)
 // ค่าเหล่านี้ RPC ฝั่งฐานข้อมูลอ่านเองทุกครั้ง เปลี่ยนแล้วมีผลทันที
@@ -142,15 +143,11 @@ export default function AdminSettings() {
 
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>ตั้งค่าระบบ</Text>
-          <Text style={s.headerSub}>เกณฑ์แจ้งเตือนและกติกาการยืม</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"ตั้งค่าระบบ"}
+        subtitle={"เกณฑ์แจ้งเตือนและกติกาการยืม"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />

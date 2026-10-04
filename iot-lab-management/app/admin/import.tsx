@@ -32,6 +32,7 @@ import {
   summary,
 } from "../../lib/importItems";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // นำเข้าอุปกรณ์จาก CSV (แผนเฟส 2 ข้อ 3) — ตรรกะตรวจทั้งหมดอยู่ใน lib/importItems.ts
 // ขั้นตอน: เลือกไฟล์ (เว็บ/มือถือ) หรือวางข้อความ → ตรวจ+พรีวิว → แก้หมวดในแอปได้ → ติ๊กรับทราบคำเตือน
@@ -299,15 +300,11 @@ export default function ImportItems() {
 
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>นำเข้าจาก CSV</Text>
-          <Text style={s.headerSub}>เพิ่มอุปกรณ์ทีละหลายรายการ</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"นำเข้าจาก CSV"}
+        subtitle={"เพิ่มอุปกรณ์ทีละหลายรายการ"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
         {result ? (

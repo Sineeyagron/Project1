@@ -21,6 +21,7 @@ import { currentUser } from "../lib/session";
 import RoomReportForm from "../components/RoomReportForm";
 import { useRoomLive } from "../lib/roomRealtime";
 import { W } from "../lib/theme";
+import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 
 const EQUIP_LABELS: Record<string, string> = {
   mouse:    "🖱️ เมาส์",
@@ -190,18 +191,12 @@ export default function RoomMap() {
     <View style={s.container}>
 
       {/* HEADER */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
-          <Ionicons name="chevron-back" size={23} color="#172033" />
-        </TouchableOpacity>
-        <View style={s.headerTitleBlock}>
-          <Text style={s.headerText}>ผังห้อง {roomName}</Text>
-          <Text style={s.headerSub}>{roomPlace(roomInfo)} · {stations.length} เครื่อง · {lanPorts.length} LAN port</Text>
-        </View>
-        <TouchableOpacity style={s.headerBtn} onPress={onRefresh} activeOpacity={0.84}>
-          <Ionicons name="refresh" size={19} color="#1D4ED8" />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={`ผังห้อง ${roomName}`}
+        subtitle={`${roomPlace(roomInfo)} · ${stations.length} เครื่อง · ${lanPorts.length} LAN port`}
+        onBack={() => goBack("/home")}
+        right={<HeaderButton icon="refresh" label="รีเฟรช" onPress={onRefresh} />}
+      />
 
       {/* LEGEND */}
       <View style={s.legend}>
@@ -457,9 +452,10 @@ export default function RoomMap() {
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: {
+  header: { ...W.headerBar,
     paddingTop: 52,
-    paddingBottom: 12,
+    paddingBottom: 10,
+    marginBottom: 8,
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",

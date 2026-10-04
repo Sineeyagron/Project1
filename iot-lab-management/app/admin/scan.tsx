@@ -19,6 +19,7 @@ import { goBack as navBack } from "../../lib/nav";
 import { addYears, isValidDate } from "../../lib/itemInfo";
 import { notify } from "../../lib/notify";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 const FS = FileSystem as any;
 const SUPABASE_URL = "https://enupmlxmajjwskvzgcdq.supabase.co";
@@ -254,13 +255,10 @@ export default function Scan() {
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backBtn} onPress={goBack} activeOpacity={0.82}>
-            <Ionicons name="chevron-back" size={21} color="#172033" />
-          </TouchableOpacity>
-          <Text style={styles.headerText}>เพิ่มอุปกรณ์</Text>
-          <View style={{ width: 38 }} />
-        </View>
+        <ScreenHeader
+          title={"เพิ่มอุปกรณ์"}
+          onBack={() => goBack()}
+        />
 
         <StepBar />
 
@@ -402,13 +400,10 @@ export default function Scan() {
   // ── RENDER: Step 2 — Preview & Save ──
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => setStep("details")} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={21} color="#172033" />
-        </TouchableOpacity>
-        <Text style={styles.headerText}>ยืนยัน & บันทึก</Text>
-        <View style={{ width: 38 }} />
-      </View>
+      <ScreenHeader
+        title="ยืนยัน & บันทึก"
+        onBack={() => setStep("details")}
+      />
 
       <StepBar />
 

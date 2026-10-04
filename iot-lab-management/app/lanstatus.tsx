@@ -17,6 +17,7 @@ import LoadError from "../components/LoadError";
 import { fetchRooms } from "../lib/rooms";
 import { useRoomLive } from "../lib/roomRealtime";
 import { W, NG } from "../lib/theme";
+import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 
 type LanPort = {
   id: string;
@@ -112,20 +113,14 @@ export default function LanStatus() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View style={s.headerTop}>
-          <TouchableOpacity style={s.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
-            <Ionicons name="chevron-back" size={23} color="#172033" />
-          </TouchableOpacity>
-          <View style={s.titleBlock}>
-            <Text style={s.title}>สถานะ LAN Port</Text>
-            <Text style={s.subtitle}>
-              ห้อง {selectedRoom || "-"} · {ports.length} port
-            </Text>
-          </View>
-          <TouchableOpacity style={s.headerBtn} onPress={onRefresh} activeOpacity={0.84}>
-            <Ionicons name="refresh" size={19} color="#1D4ED8" />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title={"สถานะ LAN Port"}
+          subtitle={`ห้อง ${selectedRoom || "-"} · ${ports.length} port`}
+          onBack={() => goBack("/home")}
+          right={<HeaderButton icon="refresh" label="รีเฟรช" onPress={onRefresh} />}
+          bleed={16}
+          style={{ marginBottom: 14 }}
+        />
 
         <View style={s.roomTabs}>
           {rooms.map((room) => {
@@ -233,10 +228,11 @@ const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 52,
+    paddingTop: 0,
     paddingBottom: 15,
   },
   headerTop: {
+    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

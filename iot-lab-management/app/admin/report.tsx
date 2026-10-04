@@ -29,6 +29,7 @@ import {
   todayBkk,
 } from "../../lib/report";
 import { W, NG, gradient, tint } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // รายงานการยืม-คืน (เฟส 5.1) — admin + TA / ส่งออก CSV (Excel) และ PDF
 // ตรรกะคำนวณอยู่ใน lib/report.ts
@@ -200,15 +201,11 @@ export default function BorrowReport() {
 
   return (
     <KeyboardAvoidingView style={st.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={st.header}>
-        <TouchableOpacity style={st.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={st.headerTitle}>รายงานการยืม-คืน</Text>
-          <Text style={st.headerSub}>สรุปตามช่วงเวลา · ส่งออก Excel / PDF</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"รายงานการยืม-คืน"}
+        subtitle={"สรุปตามช่วงเวลา · ส่งออก Excel / PDF"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       <ScrollView
         contentContainerStyle={st.body}

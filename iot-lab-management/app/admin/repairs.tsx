@@ -18,6 +18,7 @@ import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { naturalNo } from "../../lib/roomStatus";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 
 const C = {
   bg: "#EAF1FC",
@@ -233,20 +234,14 @@ export default function RepairsPage() {
   return (
     <View style={s.container}>
       <View style={s.hero}>
-        <View style={s.heroTop}>
-          <TouchableOpacity style={s.headerIconBtn} onPress={() => goBack("/admin/room")} activeOpacity={0.82}>
-            <Ionicons name="chevron-back" size={22} color="#172033" />
-          </TouchableOpacity>
-
-          <View style={s.titleBlock}>
-            <Text style={s.headerTitle}>ซ่อมบำรุง</Text>
-            <Text style={s.headerSub}>เครื่องคอมพิวเตอร์ในห้องแล็บ</Text>
-          </View>
-
-          <TouchableOpacity style={s.headerIconBtn} onPress={openAdd} activeOpacity={0.82}>
-            <Ionicons name="add" size={22} color="#1D4ED8" />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title={"ซ่อมบำรุง"}
+          subtitle={"เครื่องคอมพิวเตอร์ในห้องแล็บ"}
+          onBack={() => goBack("/admin/room")}
+          right={<HeaderButton icon="add" label="เพิ่มงานซ่อม" onPress={openAdd} />}
+          bleed={16}
+          style={{ marginBottom: 0 }}
+        />
 
         <View style={s.statsRow}>
           <RepairStat value={counts.pending} label="รอซ่อม" dotColor={C.red} />

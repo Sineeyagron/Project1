@@ -18,6 +18,7 @@ import { naturalNo } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 
 const EQUIP_TYPES = ["mouse", "keyboard", "monitor"] as const;
 type EquipType = (typeof EQUIP_TYPES)[number];
@@ -340,15 +341,13 @@ export default function InspectionPage() {
   return (
     <View style={st.container}>
       <View style={st.header}>
-        <View style={st.topBar}>
-          <TouchableOpacity style={st.backBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-            <Ionicons name="chevron-back" size={22} color="#172033" />
-          </TouchableOpacity>
-          <Text style={st.headerTitle}>ตรวจสภาพอุปกรณ์</Text>
-          <TouchableOpacity style={st.backBtn} onPress={() => fetchData(loadedTerm, selectedRoom)} activeOpacity={0.82}>
-            <Ionicons name="refresh" size={19} color="#1D4ED8" />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title={"ตรวจสภาพอุปกรณ์"}
+          onBack={() => goBack("/admin/home")}
+          right={<HeaderButton icon="refresh" label="รีเฟรช" onPress={() => fetchData(loadedTerm, selectedRoom)} />}
+          bleed={16}
+          style={{ marginBottom: 14 }}
+        />
 
         <View style={st.termRow}>
           <TextInput

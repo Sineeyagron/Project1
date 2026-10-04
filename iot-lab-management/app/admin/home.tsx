@@ -18,9 +18,11 @@ import supabase from "../../lib/supabase";
 import { useRealtime } from "../../lib/realtime";
 import { currentUser } from "../../lib/session";
 import { useRefreshOnFocus } from "../../lib/nav";
+import GreetingLine from "../../components/GreetingLine";
+import { FadeIn, PressScale, Pulse } from "../../components/Motion";
 import { confirmAction, notify } from "../../lib/notify";
 import { canAccess, isStaffRole, ROLE_LABEL, useRole } from "../../lib/roles";
-import { W, NG, gradient, iconDot } from "../../lib/theme";
+import { W, NG, gradient, iconDot, BADGE_TEXT } from "../../lib/theme";
 
 const C = {
   bg: "#EAF1FC",
@@ -41,28 +43,76 @@ const C = {
 };
 
 // แผน 2.6: Admin ยืม/คืนแทนนักศึกษาไม่ได้ สแกน = ดูสถานะ / อนุมัติผ่านกล่องคำขอ
+// ทางลัด = งานยืม-คืนที่ทำแทบทุกวัน (ฟีเจอร์หลักของแอป) — ที่เหลือแยกตามหมวดใน TOOL_GROUPS ด้านล่าง
 const PRIMARY = [
-  { icon: "scan-outline", title: "สแกนดูสถานะ", sub: "ผู้ยืม · ประวัติ", route: "/admin/lookup", bg: "#2347ae" },
-  { icon: "add-circle-outline", title: "เพิ่มอุปกรณ์", sub: "ออกรหัสให้อัตโนมัติ", route: "/admin/scan", bg: C.orange },
+  { icon: "scan-outline", title: "สแกนดูสถานะ", sub: "ผู้ยืม · ประวัติ", route: "/admin/lookup", bg: "blue" },
+  { icon: "add-circle-outline", title: "เพิ่มอุปกรณ์", sub: "ออกรหัสให้อัตโนมัติ", route: "/admin/scan", bg: "orange" },
+  { icon: "cube-outline", title: "จัดการอุปกรณ์", sub: "ค้นหา · แก้ไข", route: "/admin/items", bg: "teal" },
+  { icon: "receipt-outline", title: "ประวัติยืม", sub: "ยืม-คืนทั้งหมด", route: "/admin/history", bg: "green" },
 ] as const;
 
-const TOOLS = [
-  { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room", color: "#3B82F6", bg: "#DBEAFE" },
-  { icon: "cube-outline", label: "จัดการอุปกรณ์", route: "/admin/items", color: "#0ea5e9", bg: "#e0f2fe" },
-  { icon: "qr-code-outline", label: "สร้าง QR", route: "/admin/qrgen", color: "#6366f1", bg: "#DBEAFE" },
-  { icon: "pricetags-outline", label: "หมวดหมู่", route: "/admin/categories", color: "#db2777", bg: "#fce7f3" },
-  { icon: "bar-chart-outline", label: "รายงานสต็อก", route: "/admin/stock", color: "#0891b2", bg: "#cffafe" },
-  { icon: "document-attach-outline", label: "รายงานยืม-คืน", route: "/admin/report", color: "#0d9488", bg: "#ccfbf1" },
-  { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings", color: "#475569", bg: "#f1f5f9" },
-  { icon: "people-outline", label: "จัดการ TA", route: "/admin/users", color: "#2563EB", bg: "#DBEAFE" },
-  { icon: "document-text-outline", label: "นำเข้า CSV", route: "/admin/import", color: "#059669", bg: "#d1fae5" },
-  { icon: "receipt-outline", label: "ประวัติยืม", route: "/admin/history", color: C.muted, bg: "#f1f5f9" },
-  { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations", color: C.red, bg: "#fee2e2" },
-  { icon: "git-network-outline", label: "จัดการแลน", route: "/admin/lanports", color: C.purple, bg: "#DBEAFE" },
-  { icon: "clipboard-outline", label: "ตรวจอุปกรณ์", route: "/admin/inspection", color: "#0d9488", bg: "#ccfbf1" },
-  { icon: "hardware-chip-outline", label: "ตรวจสภาพ IoT", route: "/admin/iotinspection", color: "#a855f7", bg: "#EEF5FF" },
-  { icon: "construct-outline", label: "ซ่อมบำรุง", route: "/admin/repairs", color: C.orangeDark, bg: "#ffedd5" },
-] as const;
+// โทนสีของการ์ดทางลัด (bg ของ PRIMARY = ชื่อโทน): พื้นไล่สีของโทนนั้นชัด ๆ + แถบสีซ้าย + ไอคอนไล่สี
+const TONES: Record<string, { accent: string; icon: string; tint: string }> = {
+  blue: { accent: "#2563EB", icon: "linear-gradient(145deg, #7AA7FF 0%, #3B6FF0 55%, #2D56E0 100%)", tint: "linear-gradient(150deg, #E6EFFF 0%, #CFE0FF 55%, #B4CEFF 100%)" },
+  orange: { accent: "#EA6A1F", icon: "linear-gradient(145deg, #FFB648 0%, #F7862F 55%, #F06A2A 100%)", tint: "linear-gradient(150deg, #FFF0E3 0%, #FFDDC3 55%, #FFC59E 100%)" },
+  teal: { accent: "#1F7F96", icon: "linear-gradient(145deg, #4FB8C2 0%, #2A8FA8 55%, #2C6FA5 100%)", tint: "linear-gradient(150deg, #E3F4F7 0%, #CAE9EF 55%, #ACDBE5 100%)" },
+  green: { accent: "#2E8B57", icon: "linear-gradient(145deg, #5CC489 0%, #36A066 55%, #2A8253 100%)", tint: "linear-gradient(150deg, #E6F5EB 0%, #CDEBD7 55%, #B1DFC1 100%)" },
+  indigo: { accent: "#4F46E5", icon: "linear-gradient(145deg, #8B85FF 0%, #5B54F0 55%, #4338CA 100%)", tint: "linear-gradient(150deg, #ECEBFF 0%, #DAD7FF 55%, #C4BFFF 100%)" },
+};
+
+// ลายน้ำไอคอนใหญ่จาง ๆ มุมขวาล่าง บอกว่าการ์ดนี้ทำอะไร (ตาม route) — ⊕ เส้นบางกว่าตัวอื่น จึงเข้มกว่าเล็กน้อย (0.1 แทน 0.06)
+const MARKS: Record<string, string> = {
+  "/admin/lookup": "qr-code-outline",
+  "/admin/scan": "add-circle-outline",
+  "/admin/items": "cube-outline",
+  "/admin/history": "time-outline",
+  "/admin/qrgen": "print-outline",
+  "/home": "bag-handle-outline",
+};
+
+// เครื่องมือแยกหมวด (เรียงหมวดและปุ่มในหมวดจากใช้บ่อย → นาน ๆ ครั้ง)
+const TOOL_GROUPS = [
+  {
+    icon: "cube-outline",
+    title: "อุปกรณ์ IoT",
+    items: [
+      { icon: "cube-outline", label: "จัดการอุปกรณ์", route: "/admin/items", color: "#0ea5e9", bg: "#e0f2fe" },
+      { icon: "receipt-outline", label: "ประวัติยืม", route: "/admin/history", color: C.muted, bg: "#f1f5f9" },
+      { icon: "qr-code-outline", label: "สร้าง QR", route: "/admin/qrgen", color: "#6366f1", bg: "#DBEAFE" },
+      { icon: "pricetags-outline", label: "หมวดหมู่", route: "/admin/categories", color: "#db2777", bg: "#fce7f3" },
+      { icon: "document-text-outline", label: "นำเข้า CSV", route: "/admin/import", color: "#059669", bg: "#d1fae5" },
+    ],
+  },
+  {
+    icon: "desktop-outline",
+    title: "ห้องคอม",
+    items: [
+      { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room", color: "#3B82F6", bg: "#DBEAFE" },
+      { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations", color: C.red, bg: "#fee2e2" },
+      { icon: "git-network-outline", label: "จัดการแลน", route: "/admin/lanports", color: C.purple, bg: "#DBEAFE" },
+      { icon: "construct-outline", label: "ซ่อมบำรุง", route: "/admin/repairs", color: C.orangeDark, bg: "#ffedd5" },
+      { icon: "megaphone-outline", label: "แจ้งปัญหาห้อง", route: "/admin/roomreports", color: "#7c3aed", bg: "#ede9fe" },
+    ],
+  },
+  {
+    icon: "calendar-outline",
+    title: "ตรวจสภาพ & รายงาน",
+    items: [
+      { icon: "clipboard-outline", label: "ตรวจเครื่องคอม", route: "/admin/inspection", color: "#0d9488", bg: "#ccfbf1" },
+      { icon: "hardware-chip-outline", label: "ตรวจสภาพ IoT", route: "/admin/iotinspection", color: "#a855f7", bg: "#EEF5FF" },
+      { icon: "document-attach-outline", label: "รายงานยืม-คืน", route: "/admin/report", color: "#0d9488", bg: "#ccfbf1" },
+      { icon: "bar-chart-outline", label: "รายงานสต็อก", route: "/admin/stock", color: "#0891b2", bg: "#cffafe" },
+    ],
+  },
+  {
+    icon: "options-outline",
+    title: "ระบบ",
+    items: [
+      { icon: "people-outline", label: "จัดการ TA", route: "/admin/users", color: "#2563EB", bg: "#DBEAFE" },
+      { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings", color: "#475569", bg: "#f1f5f9" },
+    ],
+  },
+];
 
 type ActivityItem = {
   id: string;
@@ -74,16 +124,6 @@ type ActivityItem = {
   time: string;
 };
 
-function getGreeting(date = new Date()) {
-  const hour = date.getHours();
-  if (hour >= 5 && hour < 8) return { text: "สวัสดีตอนเช้า", icon: "sunny-outline", color: "#F59E0B" };
-  if (hour >= 8 && hour < 12) return { text: "สวัสดีตอนสาย", icon: "partly-sunny-outline", color: "#F59E0B" };
-  if (hour >= 12 && hour < 16) return { text: "สวัสดีตอนบ่าย", icon: "sunny-outline", color: "#EA580C" };
-  if (hour >= 16 && hour < 19) return { text: "สวัสดีตอนเย็น", icon: "partly-sunny-outline", color: "#EA580C" };
-  if (hour >= 19 && hour < 22) return { text: "สวัสดีตอนค่ำ", icon: "moon-outline", color: "#2563EB" };
-  return { text: "สวัสดีตอนดึก", icon: "moon-outline", color: "#1D4ED8" };
-}
-
 type Tile = { icon: string; title?: string; sub?: string; label?: string; route: string; color?: string; bg: string };
 
 export default function AdminHome() {
@@ -92,13 +132,16 @@ export default function AdminHome() {
   // TA เห็นเฉพาะเมนูที่มีสิทธิ์ (lib/roles.ts) + ทางไปหน้านักศึกษาเพื่อยืมของเอง
   const primary: Tile[] = [
     ...PRIMARY.filter((t) => canAccess(role, t.route)),
-    ...(role === "ta" ? [{ icon: "qr-code-outline", title: "พิมพ์ป้าย QR", sub: "ป้ายติดอุปกรณ์", route: "/admin/qrgen", bg: "#4f46e5" }] : []),
+    ...(role === "ta" ? [
+      { icon: "qr-code-outline", title: "พิมพ์ป้าย QR", sub: "ป้ายติดอุปกรณ์", route: "/admin/qrgen", bg: "indigo" },
+      { icon: "person-outline", title: "ยืมของ", sub: "หน้านักศึกษา", route: "/home", bg: "orange" },
+    ] : []),
   ];
-  // เครื่องมือ: ไม่ซ้ำกับปุ่มใหญ่ด้านบน
-  const tools: Tile[] = [
-    ...TOOLS.filter((t) => canAccess(role, t.route) && !primary.some((p) => p.route === t.route)),
-    ...(role === "ta" ? [{ icon: "person-outline", label: "ยืมของ (หน้านักศึกษา)", route: "/home", color: C.green, bg: "#ECFDF5" }] : []),
-  ];
+  // เครื่องมือแต่ละหมวด: เฉพาะที่มีสิทธิ์ + ไม่ซ้ำกับทางลัดด้านบน / หมวดที่ว่างไม่แสดง
+  const groups = TOOL_GROUPS.map((g) => ({
+    ...g,
+    items: (g.items as Tile[]).filter((t) => canAccess(role, t.route) && !primary.some((p) => p.route === t.route)),
+  })).filter((g) => g.items.length > 0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [total, setTotal] = useState(0);
@@ -151,7 +194,6 @@ export default function AdminHome() {
   useRealtime("user", "notification", refreshUnread);
   useRealtime("staff", "request", () => { refreshPending(); });
 
-  const greeting = useMemo(() => getGreeting(), []);
 
   const today = useMemo(() => {
     const d = new Date();
@@ -318,30 +360,29 @@ export default function AdminHome() {
       <View style={s.hero}>
         <View style={s.heroTop}>
           <View>
-            <View style={s.greetRow}>
-              <Ionicons name={greeting.icon as any} size={13} color={greeting.color} />
-              <Text style={s.greet}>{greeting.text} · {role ? ROLE_LABEL[role] : ""}</Text>
-              <OnlineDot />
-            </View>
+            <GreetingLine roleLabel={role ? ROLE_LABEL[role] : undefined} />
             <Text style={s.heroTitle}>
               {role === "ta" ? "TA" : "Admin"} <Text style={s.heroTitleAccent}>Dashboard</Text>
             </Text>
           </View>
 
           <View style={s.headerBtns}>
-            <TouchableOpacity
-              style={s.logoutBtn}
-              onPress={() => router.push("/notifications")}
-              activeOpacity={0.85}
-              accessibilityLabel={unread ? `แจ้งเตือน ยังไม่อ่าน ${unread}` : "แจ้งเตือน"}
-            >
-              <Ionicons name="notifications-outline" size={20} color="#1D4ED8" />
+            {/* ป้ายตัวเลขวางเป็นชั้นแยกทับบนปุ่ม (ถ้าอยู่ในปุ่ม พื้นไล่สีของปุ่มบน iOS จะทับป้าย) */}
+            <View style={s.bellWrap}>
+              <TouchableOpacity
+                style={s.logoutBtn}
+                onPress={() => router.push("/notifications")}
+                activeOpacity={0.85}
+                accessibilityLabel={unread ? `แจ้งเตือน ยังไม่อ่าน ${unread}` : "แจ้งเตือน"}
+              >
+                <Ionicons name="notifications-outline" size={20} color="#1D4ED8" />
+              </TouchableOpacity>
               {unread > 0 && (
-                <View style={s.bellBadge}>
+                <View style={s.bellBadge} pointerEvents="none">
                   <Text style={s.bellBadgeText}>{unread > 99 ? "99+" : unread}</Text>
                 </View>
               )}
-            </TouchableOpacity>
+            </View>
             <TouchableOpacity style={s.logoutBtn} onPress={confirmLogout} activeOpacity={0.85} accessibilityLabel="ออกจากระบบ">
               <Ionicons name="log-out-outline" size={20} color="#1D4ED8" />
             </TouchableOpacity>
@@ -367,11 +408,13 @@ export default function AdminHome() {
           </View>
         ) : (
           <>
+            {/* ลูกเล่น: แต่ละส่วนค่อย ๆ ลอยขึ้นทีละส่วนตอนเปิดหน้า + ปุ่มกดแล้วยุบ/สั่นเบา ๆ (components/Motion) */}
             {/* กล่องคำขอจากนักศึกษา (เฟส 3) */}
-            <TouchableOpacity
+            <FadeIn>
+            <PressScale
               style={[s.inboxCard, pendingRequests > 0 && s.inboxCardHot]}
               onPress={() => router.push("/admin/requests" as any)}
-              activeOpacity={0.86}
+              scaleTo={0.98}
             >
               <View style={s.inboxIcon}>
                 <Ionicons name="file-tray-full-outline" size={24} color={pendingRequests > 0 ? "#fff" : C.purple} />
@@ -383,60 +426,87 @@ export default function AdminHome() {
                 </Text>
               </View>
               {pendingRequests > 0 && (
-                <View style={s.inboxBadge}>
-                  <Text style={s.inboxBadgeText}>{pendingRequests}</Text>
+                <View style={s.inboxBadgeWrap}>
+                  {/* มีคำขอรอ → วงชีพจรรอบตัวเลข เรียกสายตาเบา ๆ */}
+                  <Pulse color="#ef4444" size={26} />
+                  <View style={s.inboxBadge}>
+                    <Text style={s.inboxBadgeText}>{pendingRequests}</Text>
+                  </View>
                 </View>
               )}
               <Ionicons name="chevron-forward" size={20} color={pendingRequests > 0 ? "#fff" : C.muted} />
-            </TouchableOpacity>
+            </PressScale>
+            </FadeIn>
 
-            <View style={s.primaryGrid}>
-              {primary.map((item) => (
-                <TouchableOpacity
-                  key={item.route}
-                  activeOpacity={0.86}
-                  style={[s.primaryTile, { backgroundColor: item.bg }]}
-                  onPress={() => router.push(item.route as any)}
-                >
-                  <View style={s.tileOrb} />
-                  <View style={s.primaryIcon}>
-                    <Ionicons name={item.icon as any} size={22} color="#fff" />
-                  </View>
-                  <View>
-                    <Text style={s.primaryTitle}>{item.title}</Text>
-                    <View style={s.primarySubRow}>
-                      <Text style={s.primarySub}>{item.sub}</Text>
-                      <Ionicons name="arrow-forward" size={12} color="#fff" />
+            <FadeIn delay={70} style={s.primaryGrid}>
+              {primary.map((item) => {
+                const tone = TONES[item.bg] || TONES.blue;
+                return (
+                  <PressScale
+                    key={item.route}
+                    style={[s.primaryTile, gradient(tone.tint)]}
+                    onPress={() => router.push(item.route as any)}
+                    accessibilityLabel={item.title}
+                  >
+                    {/* ลายน้ำไอคอนตามหน้าที่ของการ์ด */}
+                    <View style={[s.tileMark, item.route === "/admin/scan" && { opacity: 0.1 }]} pointerEvents="none">
+                      <Ionicons name={(MARKS[item.route] || item.icon) as any} size={108} color={tone.accent} />
                     </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    <View style={[s.tileStripe, { backgroundColor: tone.accent }]} />
+                    <View style={[s.tilePill, { backgroundColor: tone.accent }]} />
+                    <View style={[s.primaryIcon, gradient(tone.icon), { backgroundColor: tone.accent, boxShadow: `0 6px 14px ${tone.accent}55` }]}>
+                      <Ionicons name={item.icon as any} size={22} color="#fff" />
+                    </View>
+                    <Text style={s.primaryTitle} numberOfLines={1}>{item.title}</Text>
+                    <Text style={s.primarySub} numberOfLines={1}>{item.sub}</Text>
+                    <View style={[s.tileArrow, { boxShadow: `0 4px 10px ${tone.accent}33` }]}>
+                      <Ionicons name="arrow-forward" size={18} color={tone.accent} />
+                    </View>
+                  </PressScale>
+                );
+              })}
+            </FadeIn>
 
+            <FadeIn delay={140}>
             <SectionLabel icon="cube-outline" title="ภาพรวมอุปกรณ์" />
-            <View style={s.statGrid}>
-              {stats.map((item) => (
-                <StatCard key={item.label} {...item} />
-              ))}
-            </View>
-
-            <SectionLabel icon="settings-outline" title="เครื่องมือทั้งหมด" />
-            <View style={s.toolGrid}>
-              {tools.map((item) => (
-                <TouchableOpacity
-                  key={item.route}
-                  activeOpacity={0.85}
-                  style={s.toolBtn}
-                  onPress={() => router.push(item.route as any)}
-                >
-                  <View style={[s.toolIcon, { backgroundColor: item.bg }]}>
-                    <Ionicons name={item.icon as any} size={23} color={item.color} />
+            {/* แถวเดียว 4 ตัวเลข (เดิมเป็นการ์ด 4 ใบ + กราฟ 7 วัน = StatCard ด้านล่าง เก็บไว้เผื่อกลับไปใช้) */}
+            <View style={s.statRow}>
+              {stats.map((item, i) => (
+                <View key={item.label} style={[s.statCell, i > 0 && s.statCellDivider]}>
+                  <View style={s.statCellTop}>
+                    <View style={iconDot(item.color, 20)}>
+                      <Ionicons name={item.icon as any} size={11} color="#FFFFFF" />
+                    </View>
+                    <Text style={[s.statCellNum, { color: item.color }]}>{item.num}</Text>
                   </View>
-                  <Text style={s.toolText} numberOfLines={2}>{item.label}</Text>
-                </TouchableOpacity>
+                  <Text style={s.statCellLabel}>{item.label}</Text>
+                </View>
               ))}
             </View>
+            </FadeIn>
 
+            {groups.map((g, gi) => (
+              <FadeIn key={g.title} delay={200 + gi * 60}>
+                <SectionLabel icon={g.icon} title={g.title} />
+                <View style={s.toolGrid}>
+                  {g.items.map((item, i) => (
+                    <PressScale
+                      key={item.route}
+                      style={[s.toolBtn, i % 3 !== 2 && s.toolBtnGap]}
+                      onPress={() => router.push(item.route as any)}
+                      accessibilityLabel={item.label}
+                    >
+                      <View style={[s.toolIcon, { backgroundColor: item.bg }]}>
+                        <Ionicons name={item.icon as any} size={22} color={item.color} />
+                      </View>
+                      <Text style={s.toolText} numberOfLines={2}>{item.label}</Text>
+                    </PressScale>
+                  ))}
+                </View>
+              </FadeIn>
+            ))}
+
+            <FadeIn delay={200 + groups.length * 60}>
             <View style={s.activityHeader}>
               <SectionLabel icon="time-outline" title="กิจกรรมล่าสุด" compact />
               <TouchableOpacity activeOpacity={0.75} onPress={() => router.push("/admin/history" as any)}>
@@ -465,6 +535,7 @@ export default function AdminHome() {
                 ))}
               </View>
             )}
+            </FadeIn>
           </>
         )}
       </View>
@@ -501,33 +572,6 @@ function SectionLabel({ icon, title, compact }: { icon: any; title: string; comp
     <View style={[s.sectionRow, compact && s.sectionRowCompact]}>
       <Ionicons name={icon} size={13} color="#3B82F6" />
       <Text style={s.sectionLabel}>{title}</Text>
-    </View>
-  );
-}
-
-// จุดเขียวกระพริบ = กำลังออนไลน์ (วงแสงขยายแล้วจางหาย วนไปเรื่อย ๆ)
-function OnlineDot() {
-  const pulse = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.out(Easing.ease), useNativeDriver: Platform.OS !== "web" }),
-      { resetBeforeIteration: true }
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulse]);
-  return (
-    <View style={s.onlineWrap} accessibilityLabel="ออนไลน์">
-      <Animated.View
-        style={[
-          s.onlineRing,
-          {
-            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
-            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.5] }) }],
-          },
-        ]}
-      />
-      <Animated.View style={[s.onlineDot, { opacity: pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.35, 1] }) }]} />
     </View>
   );
 }
@@ -664,6 +708,7 @@ const s = StyleSheet.create({
   },
   inboxTitle: { fontSize: 16, fontWeight: "600", color: "#172033" },
   inboxSub: { fontSize: 12.5, color: "#475569", marginTop: 1 },
+  inboxBadgeWrap: { alignItems: "center", justifyContent: "center" },
   inboxBadge: {
     ...NG,
     minWidth: 26,
@@ -674,7 +719,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 7,
   },
-  inboxBadgeText: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  inboxBadgeText: { ...BADGE_TEXT, color: "#fff", fontSize: 13, lineHeight: 16 },
   container: {
     ...W.page,
     flex: 1,
@@ -683,27 +728,16 @@ const s = StyleSheet.create({
     paddingBottom: 30,
   },
   hero: {
-    paddingTop: 52,
+    paddingTop: 0,
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
   heroTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-  greetRow: {
+    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "space-between",
   },
-  greet: {
-    color: "#475569",
-    fontSize: 13,
-  },
-  onlineWrap: { width: 10, height: 10, marginLeft: 3, alignItems: "center", justifyContent: "center" },
-  onlineRing: { position: "absolute", width: 10, height: 10, borderRadius: 5, backgroundColor: "#22C55E" },
-  onlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#22C55E", boxShadow: "0 0 6px rgba(34,197,94,0.7)" },
   heroTitle: {
     color: "#172033",
     fontSize: 26,
@@ -715,9 +749,12 @@ const s = StyleSheet.create({
     color: "#2563EB",
   },
   headerBtns: { flexDirection: "row", gap: 8 },
+  bellWrap: { zIndex: 2 },
   bellBadge: {
     ...NG,
     position: "absolute",
+    zIndex: 3,
+    elevation: 3,
     top: -5,
     right: -5,
     minWidth: 18,
@@ -730,7 +767,7 @@ const s = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#fff",
   },
-  bellBadgeText: { color: "#fff", fontSize: 10.5, fontWeight: "900" },
+  bellBadgeText: { ...BADGE_TEXT, color: "#fff", fontSize: 11, lineHeight: 13 },
   logoutBtn: {
     ...W.iconBtn,
     alignItems: "center",
@@ -788,50 +825,60 @@ const s = StyleSheet.create({
   },
   primaryGrid: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 12,
+    marginBottom: 20,
   },
   primaryTile: {
-    flex: 1,
-    height: 124,
+    width: "48.2%",
+    height: 148,
     borderRadius: 22,
-    padding: 14,
-    justifyContent: "space-between",
+    paddingLeft: 18,
+    paddingRight: 14,
+    paddingTop: 16,
+    paddingBottom: 14,
     overflow: "hidden",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35), 0 2px 4px rgba(15,23,42,0.12), 0 12px 24px rgba(37,99,235,0.22)",
+    backgroundColor: "#F7FAFF",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.9)",
+    boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 4px rgba(15,23,42,0.05), 0 12px 24px rgba(37,99,235,0.12)",
   },
-  tileOrb: {
-    position: "absolute",
-    right: -16,
-    top: -16,
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: "rgba(255,255,255,0.10)",
-  },
+  tileStripe: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
+  tilePill: { position: "absolute", top: 14, right: 14, width: 22, height: 5, borderRadius: 3, opacity: 0.4 },
+  tileMark: { position: "absolute", right: -28, bottom: -30, opacity: 0.06, transform: [{ rotate: "-12deg" }] },
   primaryIcon: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.4)",
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 12,
   },
   primaryTitle: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  primarySubRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 8,
+    color: C.ink,
+    fontSize: 17,
+    fontWeight: "700",
   },
   primarySub: {
-    color: "rgba(255,255,255,0.92)",
+    color: C.muted,
     fontSize: 12,
+    marginTop: 2,
+    paddingRight: 40,
+  },
+  // ปุ่มลูกศร: วงขาวโปร่ง ลอยเด่นจากพื้นสีของการ์ด
+  tileArrow: {
+    position: "absolute",
+    right: 12,
+    bottom: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
   sectionRow: {
     flexDirection: "row",
@@ -847,6 +894,17 @@ const s = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  statRow: {
+    ...W.card,
+    flexDirection: "row",
+    paddingVertical: 12,
+    marginBottom: 20,
+  },
+  statCell: { flex: 1, alignItems: "center", gap: 2 },
+  statCellDivider: { borderLeftWidth: 1, borderLeftColor: "#E2EAF6" },
+  statCellTop: { flexDirection: "row", alignItems: "center", gap: 5 },
+  statCellNum: { fontSize: 20, fontWeight: "700", lineHeight: 28 },
+  statCellLabel: { color: C.muted, fontSize: 12 },
   statGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -906,23 +964,24 @@ const s = StyleSheet.create({
     marginHorizontal: 0,
     overflow: "hidden",
   },
+  // 3 คอลัมน์ ชิดซ้าย (แถวสุดท้ายที่ไม่เต็มจะไม่ถูกกระจายห่าง)
   toolGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: 12,
-    marginBottom: 24,
+    rowGap: 10,
+    marginBottom: 20,
   },
   toolBtn: {
-    width: "48.2%",
+    width: "31.33%",
     ...W.card,
-    minHeight: 96,
-    paddingHorizontal: 12,
-    paddingVertical: 13,
+    minHeight: 92,
+    paddingHorizontal: 6,
+    paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
   },
+  toolBtnGap: { marginRight: "3%" },
   toolIcon: {
     width: 44,
     height: 44,

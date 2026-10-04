@@ -21,6 +21,7 @@ import { notify } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import { ageText, thaiDate, warrantyInfo } from "../../lib/itemInfo";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // Admin สแกน = ดูสถานะอย่างเดียว (แผน 2.6): ชื่อ รหัส สถานะ ผู้ยืม กำหนดคืน อายุ ประกัน ประวัติ
 // การยืม/คืนต้องให้นักศึกษาสแกนขอเอง แล้วผู้ดูแลอนุมัติในกล่องคำขอ
@@ -169,15 +170,11 @@ export default function AdminLookup() {
 
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>สแกนดูสถานะ</Text>
-          <Text style={s.headerSub}>ดูข้อมูลอุปกรณ์ ผู้ยืม และประวัติ</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"สแกนดูสถานะ"}
+        subtitle={"ดูข้อมูลอุปกรณ์ ผู้ยืม และประวัติ"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       <ScrollView contentContainerStyle={s.body}>
         {!item && (

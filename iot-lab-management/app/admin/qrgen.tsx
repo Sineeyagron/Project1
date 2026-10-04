@@ -22,6 +22,7 @@ import { useRole } from "../../lib/roles";
 import { notify } from "../../lib/notify";
 import { LABELS_PER_SHEET, buildLabelSheetHtml, formatItemNo, qrMatrix } from "../../lib/labels";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 const FS = FileSystem as any;
 
@@ -303,25 +304,13 @@ export default function QRGen() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View style={s.headerTop}>
-          <TouchableOpacity style={s.iconBtn} onPress={goBack} activeOpacity={0.82}>
-            <Ionicons name="chevron-back" size={22} color="#172033" />
-          </TouchableOpacity>
-          <View style={s.titleWrap}>
-            <View style={s.titleRow}>
-              <Text style={s.headerTitle}>สร้าง QR Code</Text>
-              <View style={s.adminPill}>
-                <Ionicons name="shield-checkmark" size={11} color="#1D4ED8" />
-                <Text style={s.adminPillText}>{role === "ta" ? "TA" : "Admin"}</Text>
-              </View>
-            </View>
-            <View style={s.subtitleRow}>
-              <Ionicons name="information-circle-outline" size={12} color="#64748B" />
-              <Text style={s.headerSub}>พิมพ์ติดอุปกรณ์เพื่อสแกนยืม-คืน</Text>
-            </View>
-          </View>
-          {/* (เดิมมีปุ่มนาฬิกาไปหน้าประวัติยืม ซึ่งไม่เกี่ยวกับป้าย QR — ดูประวัติได้ที่หน้าแรก) */}
-        </View>
+        <ScreenHeader
+          title={"สร้าง QR Code"}
+          subtitle={"พิมพ์ติดอุปกรณ์เพื่อสแกนยืม-คืน"}
+          onBack={() => goBack()}
+          bleed={16}
+          style={{ marginBottom: 0 }}
+        />
 
         <View style={s.modeTabs}>
           <TouchableOpacity

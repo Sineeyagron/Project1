@@ -16,6 +16,7 @@ import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { ageMonths, ageText, warrantyInfo } from "../../lib/itemInfo";
 import { W, gradient, tint } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // Stock Report (แผนเฟส 2 ข้อ 1): นับจำนวนชิ้นตามสถานะ แยกตามหมวด + อายุ + ประกันรายชิ้น
 // กลุ่ม "ต้องดูแล" ใช้เกณฑ์ปีจาก app_settings (age_warn_years / age_replace_years) ที่ Admin ตั้งเอง
@@ -139,15 +140,11 @@ export default function StockReport() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>รายงานสต็อก</Text>
-          <Text style={s.headerSub}>จำนวนชิ้นตามสถานะ อายุ และประกัน</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"รายงานสต็อก"}
+        subtitle={"จำนวนชิ้นตามสถานะ อายุ และประกัน"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />

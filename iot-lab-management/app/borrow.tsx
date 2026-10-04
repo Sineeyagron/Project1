@@ -20,6 +20,7 @@ import { confirmAction, notify } from "../lib/notify";
 import Countdown from "../components/Countdown";
 import { W } from "../lib/theme";
 import StatWidget from "../components/StatWidget";
+import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 
 const KIND_TH: Record<string, string> = { borrow: "ขอยืม", return: "ขอคืน", renew: "ขอยืมต่อ" };
 
@@ -120,18 +121,12 @@ export default function Borrow() {
   return (
     <View style={s.container}>
       {/* HEADER */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>ประวัติการยืม</Text>
-          <Text style={s.headerSub}>อุปกรณ์ของฉัน</Text>
-        </View>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.push("/scan")} activeOpacity={0.84}>
-          <Ionicons name="scan" size={20} color="#1D4ED8" />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={"ประวัติการยืม"}
+        subtitle={"อุปกรณ์ของฉัน"}
+        onBack={() => goBack("/home")}
+        right={<HeaderButton icon="scan" label="สแกน" onPress={() => router.push("/scan")} />}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 60 }} />
@@ -269,9 +264,10 @@ export default function Borrow() {
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
 
-  header: {
+  header: { ...W.headerBar,
     paddingTop: 52,
-    paddingBottom: 12,
+    paddingBottom: 10,
+    marginBottom: 8,
     paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",

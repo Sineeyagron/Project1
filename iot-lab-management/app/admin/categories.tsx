@@ -16,6 +16,7 @@ import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // จัดการหมวดหมู่อุปกรณ์ (แผน 2.2.1): เพิ่ม / แก้ชื่อ / เลื่อนลำดับ / ปิด-เปิด / ลบ
 // ลบหมวดที่มีของ (รวมของที่จำหน่ายแล้ว) ต้องเลือกหมวดปลายทางก่อน → ย้ายของทั้งหมดไป แล้วค่อยลบ ไม่มีของหลุดหมวด
@@ -175,15 +176,11 @@ export default function AdminCategories() {
 
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>หมวดหมู่อุปกรณ์</Text>
-          <Text style={s.headerSub}>เพิ่ม แก้ชื่อ เรียงลำดับ หรือปิดหมวด</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"หมวดหมู่อุปกรณ์"}
+        subtitle={"เพิ่ม แก้ชื่อ เรียงลำดับ หรือปิดหมวด"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />

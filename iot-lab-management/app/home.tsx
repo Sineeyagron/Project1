@@ -19,6 +19,9 @@ import Svg, { Circle } from "react-native-svg";
 import TabBar from "../components/TabBar";
 import StatWidget from "../components/StatWidget";
 import { HeaderButton } from "../components/ScreenHeader";
+import { FadeIn, PressScale } from "../components/Motion";
+import GreetingLine from "../components/GreetingLine";
+import { useUnreadCount } from "../lib/unread";
 import { C, W, gradient, iconDot } from "../lib/theme";
 
 type Station = {
@@ -33,6 +36,7 @@ type Station = {
 
 export default function Home() {
   const router = useRouter();
+  const unread = useUnreadCount();
   // TA/admin ที่มาหน้านักศึกษา (เช่น มายืมของเอง) → มีปุ่มกลับแดชบอร์ด
   const [isStaff, setIsStaff] = useState(false);
   useEffect(() => {
@@ -121,8 +125,11 @@ export default function Home() {
       >
         <View style={s.headerTop}>
           <View>
-            <Text style={s.headerKicker}>ระบบจัดการห้องแล็บ</Text>
-            <Text style={s.headerTitle}>ห้องเรียน IoT</Text>
+            {/* เหมือนหัวแดชบอร์ด Admin: ทักทาย + อากาศ + บทบาท / staff ที่มายืมของ = โหมดนักศึกษา */}
+            <GreetingLine roleLabel={isStaff ? "โหมดนักศึกษา" : "นักศึกษา"} />
+            <Text style={s.headerTitle}>
+              ห้องเรียน <Text style={s.headerTitleAccent}>IoT</Text>
+            </Text>
           </View>
           <View style={{ flexDirection: "row", gap: 8 }}>
             {isStaff && (
@@ -133,15 +140,15 @@ export default function Home() {
                 onPress={() => router.dismissTo("/admin/home")}
               />
             )}
-            <HeaderButton icon="notifications-outline" label="แจ้งเตือน" onPress={() => router.push("/notifications")} />
+            <HeaderButton icon="notifications-outline" label="แจ้งเตือน" count={unread} onPress={() => router.push("/notifications")} />
           </View>
         </View>
 
-        <View style={s.statsRow}>
+        <FadeIn style={s.statsRow}>
           <StatWidget tone="blue" icon="desktop-outline" label="ทั้งหมด" value={totalStations} />
           <StatWidget tone="green" icon="checkmark" label="ใช้งานได้" value={onlineStations} />
           <StatWidget tone="amber" icon="alert" label="มีปัญหา" value={problemStations} />
-        </View>
+        </FadeIn>
 
         <View style={s.searchBox}>
           <Ionicons name="search-outline" size={19} color={C.faint} />
@@ -199,7 +206,7 @@ export default function Home() {
           <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 40 }} />
         ) : (
           <>
-            <View style={viewMode === "grid" ? s.roomGrid : s.roomList}>
+            <FadeIn delay={80} style={viewMode === "grid" ? s.roomGrid : s.roomList}>
               {filteredRooms.map((room) => {
                 const hasProblem = room.problem > 0;
                 const open = () => router.push({ pathname: "/roommap", params: { room_id: room.room } });
@@ -213,7 +220,7 @@ export default function Home() {
                 );
                 if (viewMode === "grid") {
                   return (
-                    <TouchableOpacity key={room.room} style={[s.roomCard, s.roomCardGrid]} onPress={open} activeOpacity={0.88}>
+                    <PressScale key={room.room} style={[s.roomCard, s.roomCardGrid]} onPress={open} accessibilityLabel={`ห้อง ${room.room}`}>
                       <Text style={s.roomName} numberOfLines={1}>{room.room}</Text>
                       <Text style={s.roomSub} numberOfLines={1}>{room.floor}</Text>
                       <View style={s.ringRow}>
@@ -224,11 +231,11 @@ export default function Home() {
                         </View>
                       </View>
                       {pill}
-                    </TouchableOpacity>
+                    </PressScale>
                   );
                 }
                 return (
-                  <TouchableOpacity key={room.room} style={[s.roomCard, s.roomCardRow]} onPress={open} activeOpacity={0.88}>
+                  <PressScale key={room.room} style={[s.roomCard, s.roomCardRow]} onPress={open} scaleTo={0.98} accessibilityLabel={`ห้อง ${room.room}`}>
                     <Ring value={room.online} total={room.total} />
                     <View style={s.roomInfo}>
                       <View style={s.roomTitleRow}>
@@ -248,10 +255,10 @@ export default function Home() {
                       </View>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={C.faint} />
-                  </TouchableOpacity>
+                  </PressScale>
                 );
               })}
-            </View>
+            </FadeIn>
 
             {filteredRooms.length === 0 && !loadError ? (
               <View style={s.empty}>
@@ -262,7 +269,7 @@ export default function Home() {
 
             <Text style={s.quickTitle}>ลิงก์ด่วน</Text>
             {/* ทางเข้าหลักของการยืม-คืน (แผน 2.6: ยืม/คืนได้ทางเดียวคือสแกน QR ที่ตัวของ) */}
-            <TouchableOpacity style={s.scanCard} onPress={() => router.push("/scan")} activeOpacity={0.88}>
+            <PressScale style={s.scanCard} onPress={() => router.push("/scan")} scaleTo={0.98}>
               <View style={s.scanCardIcon}>
                 <Ionicons name="scan" size={23} color="#fff" />
               </View>
@@ -271,9 +278,9 @@ export default function Home() {
                 <Text style={s.scanCardSub}>สแกน QR ที่ติดบนอุปกรณ์ในห้อง</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#fff" />
-            </TouchableOpacity>
+            </PressScale>
             <View style={s.quickGrid}>
-              <TouchableOpacity style={s.quickCard} onPress={() => router.push("/lanstatus")} activeOpacity={0.88}>
+              <PressScale style={s.quickCard} onPress={() => router.push("/lanstatus")}>
                 <View style={iconDot("#6366F1", 38)}>
                   <Ionicons name="git-network-outline" size={19} color="#FFFFFF" />
                 </View>
@@ -281,8 +288,8 @@ export default function Home() {
                   <Text style={s.quickName}>สถานะสายแลน</Text>
                   <Text style={s.quickSub}>Server / Patch Panel</Text>
                 </View>
-              </TouchableOpacity>
-              <TouchableOpacity style={s.quickCard} onPress={() => router.push("/borrow")} activeOpacity={0.88}>
+              </PressScale>
+              <PressScale style={s.quickCard} onPress={() => router.push("/borrow")}>
                 <View style={iconDot("#0EA5E9", 38)}>
                   <Ionicons name="time-outline" size={19} color="#FFFFFF" />
                 </View>
@@ -290,7 +297,7 @@ export default function Home() {
                   <Text style={s.quickName}>ประวัติการยืม</Text>
                   <Text style={s.quickSub}>รายการยืม-คืน</Text>
                 </View>
-              </TouchableOpacity>
+              </PressScale>
             </View>
 
             {problemStations > 0 ? (
@@ -356,15 +363,17 @@ function Ring({ value, total }: { value: number; total: number }) {
 
 const s = StyleSheet.create({
   container: { ...W.page },
-  body: { paddingHorizontal: 18, paddingTop: 52 },
+  body: { paddingHorizontal: 18, paddingTop: 0 },
   headerTop: {
+    ...W.headerBar, marginHorizontal: -18, paddingTop: 52, paddingHorizontal: 18, paddingBottom: 10,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: 16,
   },
   headerKicker: { color: C.text2, fontSize: 13, marginBottom: 2 },
-  headerTitle: { color: C.ink, fontSize: 26, fontWeight: "700" },
+  headerTitle: { color: C.ink, fontSize: 26, fontWeight: "700", lineHeight: 34, marginTop: 2 },
+  headerTitleAccent: { color: C.primary },
   statsRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
   searchBox: {
     ...W.input,

@@ -55,16 +55,24 @@ const dueText = (dateValue: string) => {
   return `เหลืออีก ${diff} วัน`;
 };
 
+// ข้อมูลหน้าโปรไฟล์ชุดล่าสุด (อยู่ในหน่วยความจำ) — เปิดหน้าซ้ำไม่ต้องรอหมุน / ล้างเมื่อออกจากระบบ
+let cache: {
+  email: string; role: string; totalBorrows: number; activeLoans: number; returnedLoans: number; unread: number; recent: any[];
+} | null = null;
+// ออกจากระบบจากหน้าไหนก็ได้ (โปรไฟล์/ตั้งค่า/หมดอายุ) → ล้าง กันคนถัดไปบนเครื่องเดียวกันเห็นข้อมูลคนเก่า
+supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") cache = null; });
+
 export default function Profile() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState("user");
-  const [totalBorrows, setTotalBorrows] = useState(0);
-  const [activeLoans, setActiveLoans] = useState(0);
-  const [returnedLoans, setReturnedLoans] = useState(0);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [recentBorrows, setRecentBorrows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // เปิดซ้ำ → แสดงข้อมูลชุดล่าสุดทันที (cache) แล้วค่อยอัปเดตเบื้องหลัง
+  const [email, setEmail] = useState(cache?.email ?? "");
+  const [role, setRole] = useState(cache?.role ?? "user");
+  const [totalBorrows, setTotalBorrows] = useState(cache?.totalBorrows ?? 0);
+  const [activeLoans, setActiveLoans] = useState(cache?.activeLoans ?? 0);
+  const [returnedLoans, setReturnedLoans] = useState(cache?.returnedLoans ?? 0);
+  const [unreadNotifications, setUnreadNotifications] = useState(cache?.unread ?? 0);
+  const [recentBorrows, setRecentBorrows] = useState<any[]>(cache?.recent ?? []);
+  const [loading, setLoading] = useState(!cache);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -81,14 +89,12 @@ export default function Profile() {
       return;
     }
 
-    const { data: profile } = await supabase.from("profiles").select("email, role").eq("id", user.id).maybeSingle();
-    setEmail(profile?.email || user.email || "");
-    setRole(profile?.role || "user");
-
-    const [{ data: borrows }, totalRes, activeRes, returnedRes, unreadRes] = await Promise.all([
+    // ยิงพร้อมกันรอบเดียว (เดิม 3 รอบต่อกัน: profile → นับ → ชื่ออุปกรณ์) / ชื่ออุปกรณ์ดึงมากับประวัติผ่าน FK item_id
+    const [{ data: profile }, { data: borrows }, totalRes, activeRes, returnedRes, unreadRes] = await Promise.all([
+      supabase.from("profiles").select("email, role").eq("id", user.id).maybeSingle(),
       supabase
         .from("borrow_records")
-        .select("id, status, borrow_date, due_date, item_id")
+        .select("id, status, borrow_date, due_date, item_id, items(name, item_code)")
         .eq("user_id", user.id)
         .order("borrow_date", { ascending: false })
         .limit(6),
@@ -110,20 +116,26 @@ export default function Profile() {
         .eq("read", false),
     ]);
 
-    const itemIds = Array.from(new Set((borrows || []).map((record: any) => record.item_id).filter(Boolean)));
-    const itemMap: Record<string, string> = {};
-    if (itemIds.length > 0) {
-      const { data: items } = await supabase.from("items").select("id, name, item_code, type").in("id", itemIds);
-      (items || []).forEach((item: any) => {
-        itemMap[item.id] = item.item_code || item.name;
-      });
-    }
-
-    setTotalBorrows(totalRes.count || 0);
-    setActiveLoans(activeRes.count || 0);
-    setReturnedLoans(returnedRes.count || 0);
-    setUnreadNotifications(unreadRes.count || 0);
-    setRecentBorrows((borrows || []).map((record: any) => ({ ...record, itemName: itemMap[record.item_id] || "อุปกรณ์" })));
+    const next = {
+      email: profile?.email || user.email || "",
+      role: profile?.role || "user",
+      totalBorrows: totalRes.count || 0,
+      activeLoans: activeRes.count || 0,
+      returnedLoans: returnedRes.count || 0,
+      unread: unreadRes.count || 0,
+      recent: (borrows || []).map((record: any) => ({
+        ...record,
+        itemName: record.items?.item_code || record.items?.name || "อุปกรณ์",
+      })),
+    };
+    cache = next;
+    setEmail(next.email);
+    setRole(next.role);
+    setTotalBorrows(next.totalBorrows);
+    setActiveLoans(next.activeLoans);
+    setReturnedLoans(next.returnedLoans);
+    setUnreadNotifications(next.unread);
+    setRecentBorrows(next.recent);
     setLoading(false);
     setRefreshing(false);
   };
@@ -135,6 +147,7 @@ export default function Profile() {
 
   const logout = () => {
     confirmAction("ออกจากระบบ", "ต้องการออกจากระบบหรือไม่?", "ออกจากระบบ", async () => {
+      cache = null;
       await supabase.auth.signOut();
       router.replace("/login");
     }, true);
@@ -156,12 +169,18 @@ export default function Profile() {
     <View style={s.container}>
       <View style={s.header}>
         <View style={s.headerTop}>
-          <Text style={s.headerTitle}>โปรไฟล์</Text>
+          <View>
+            <Text style={s.headerKicker}>บัญชีของฉัน</Text>
+            <Text style={s.headerTitle}>โปรไฟล์</Text>
+          </View>
           <View style={s.headerActions}>
-            <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/notifications")} activeOpacity={0.84}>
-              <Ionicons name="notifications-outline" size={20} color="#1D4ED8" />
-              {unreadNotifications > 0 ? <View style={s.actionDot} /> : null}
-            </TouchableOpacity>
+            {/* จุดแดงวางเป็นชั้นแยกทับบนปุ่ม (ถ้าอยู่ในปุ่ม พื้นไล่สีของปุ่มบน iOS จะทับ) */}
+            <View style={{ zIndex: 2 }}>
+              <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/notifications")} activeOpacity={0.84}>
+                <Ionicons name="notifications-outline" size={20} color="#1D4ED8" />
+              </TouchableOpacity>
+              {unreadNotifications > 0 ? <View style={s.actionDot} pointerEvents="none" /> : null}
+            </View>
             <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/sittings")} activeOpacity={0.84}>
               <Ionicons name="settings-outline" size={20} color="#1D4ED8" />
             </TouchableOpacity>
@@ -330,10 +349,11 @@ const s = StyleSheet.create({
   centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: C.bg },
   header: {
     paddingHorizontal: 16,
-    paddingTop: 52,
+    paddingTop: 0,
     paddingBottom: 16,
   },
-  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
+  headerTop: { ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
+  headerKicker: { color: "#475569", fontSize: 13, marginBottom: 2 },
   headerTitle: { color: "#172033", fontSize: 26, fontWeight: "700" },
   headerActions: { flexDirection: "row", gap: 9 },
   iconBtn: {
@@ -343,6 +363,7 @@ const s = StyleSheet.create({
   },
   actionDot: {
     position: "absolute",
+    zIndex: 3,
     top: 8,
     right: 9,
     width: 7,

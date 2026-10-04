@@ -17,6 +17,7 @@ import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { useRole } from "../../lib/roles";
 import { W } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // จัดการ TA (เฟส 4.1) — admin เท่านั้น (ด่านใน _layout + RPC set_user_role ตรวจซ้ำในฐานข้อมูล)
 // แต่งตั้ง/ถอดได้แค่ ผู้ใช้ ↔ TA / ตั้ง admin หรือแตะบัญชี admin ในแอปไม่ได้ / เปลี่ยนสิทธิ์ตัวเองไม่ได้
@@ -103,15 +104,11 @@ export default function ManageTA() {
 
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>จัดการ TA</Text>
-          <Text style={s.headerSub}>แต่งตั้ง / ถอดผู้ช่วยดูแลการยืมคืน</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"จัดการ TA"}
+        subtitle={"แต่งตั้ง / ถอดผู้ช่วยดูแลการยืมคืน"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />

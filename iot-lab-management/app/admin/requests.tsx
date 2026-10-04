@@ -21,6 +21,7 @@ import { photoStamp } from "../../lib/borrowPhotos";
 import Countdown from "../../components/Countdown";
 import { useRole } from "../../lib/roles";
 import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // กล่องคำขอของผู้ดูแล: อนุมัติ / ปฏิเสธ คำขอยืม-คืน-ยืมต่อ (แผน 2.4, 2.6)
 // การตัดสินทั้งหมดผ่าน RPC decide_request (ตรวจสิทธิ์ + ล็อกแถวในฐานข้อมูล)
@@ -270,15 +271,11 @@ export default function AdminRequests() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="chevron-back" size={22} color="#172033" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>กล่องคำขอ</Text>
-          <Text style={s.headerSub}>ยืม · คืน · ยืมต่อ ที่นักศึกษาส่งมา</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"กล่องคำขอ"}
+        subtitle={"ยืม · คืน · ยืมต่อ ที่นักศึกษาส่งมา"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       <View style={s.tabs}>
         <TouchableOpacity style={[s.tab, tab === "pending" && s.tabActive]} onPress={() => setTab("pending")} activeOpacity={0.85}>
