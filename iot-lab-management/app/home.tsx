@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import SearchBar from "../components/SearchBar";
 import { Text, TextInput } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -129,6 +130,8 @@ export default function Home() {
       <ScrollView
         contentContainerStyle={s.body}
         showsVerticalScrollIndicator={false}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
       >
         <View style={s.headerTop}>
@@ -158,38 +161,17 @@ export default function Home() {
           <StatWidget tone="amber" icon="alert" label="มีปัญหา" value={problemStations} />
         </FadeIn>
 
-        <View style={s.searchBox}>
-          <Ionicons name="search-outline" size={19} color={C.faint} />
-          <TextInput
-            placeholder="ค้นหาห้องเรียน..."
-            placeholderTextColor={C.faint}
-            style={s.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-            onSubmitEditing={runSearch}
-          />
-          {activeSearch.length > 0 ? (
-            <TouchableOpacity
-              style={s.clearSearchBtn}
-              onPress={() => {
-                setSearch("");
-                setActiveSearch("");
-              }}
-              activeOpacity={0.82}
-            >
-              <Ionicons name="close" size={15} color={C.muted} />
-            </TouchableOpacity>
-          ) : null}
-          <TouchableOpacity style={s.filterBtn} onPress={runSearch} activeOpacity={0.84}>
-            <Ionicons name="search" size={17} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
+        <SearchBar
+          style={{ marginBottom: 18 }}
+          value={search}
+          onChangeText={(text) => { setSearch(text); setActiveSearch(text.trim()); }}
+          placeholder="ค้นหาห้องเรียน"
+        />
 
         <View style={s.sectionHead}>
           <View>
             <Text style={s.sectionTitle}>ห้องที่มีให้เลือก</Text>
-            <Text style={s.sectionSub}>{roomSummaries.length} ห้อง</Text>
+            <Text style={s.sectionSub}>{activeSearch ? `พบ ${filteredRooms.length} จาก ${roomSummaries.length} ห้อง` : `${roomSummaries.length} ห้อง`}</Text>
           </View>
           <View style={s.viewToggle}>
             <TouchableOpacity

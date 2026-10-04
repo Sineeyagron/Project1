@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import SearchBar from "../../components/SearchBar";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -340,6 +341,8 @@ export default function QRGen() {
           contentContainerStyle={s.body}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
           showsVerticalScrollIndicator
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
         >
           <View style={s.sectionWithAction}>
             <Section index={1} title="เลือกอุปกรณ์" right={`เลือก ${printTargets.length} รายการ`} />
@@ -350,19 +353,7 @@ export default function QRGen() {
             )}
           </View>
 
-          <View style={s.searchBox}>
-            <Ionicons name="search-outline" size={18} color={C.faint} />
-            <TextInput
-              style={s.searchInput}
-              placeholder="ค้นหาอุปกรณ์..."
-              placeholderTextColor={C.faint}
-              value={search}
-              onChangeText={setSearch}
-            />
-            <TouchableOpacity style={s.filterBtn} onPress={() => setSearch("")} activeOpacity={0.82}>
-              <Ionicons name="options-outline" size={18} color={C.purple} />
-            </TouchableOpacity>
-          </View>
+          <SearchBar value={search} onChangeText={setSearch} placeholder="ค้นหาอุปกรณ์" />
 
           <View style={s.itemList}>
             {filtered.length === 0 ? (

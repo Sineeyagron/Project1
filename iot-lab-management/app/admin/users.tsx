@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import SearchBar from "../../components/SearchBar";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -150,6 +151,7 @@ export default function ManageTA() {
         <ScrollView
           contentContainerStyle={s.body}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}
         >
           <View style={s.card}>
@@ -186,23 +188,7 @@ export default function ManageTA() {
 
           <Text style={s.section}>นักศึกษา</Text>
           <View style={s.card}>
-            <View style={s.searchWrap}>
-              <Ionicons name="search-outline" size={18} color={C.faint} />
-              <TextInput
-                style={s.searchInput}
-                value={query}
-                onChangeText={setQuery}
-                placeholder="ค้นหาชื่อ อีเมล หรือรหัส นศ."
-                placeholderTextColor={C.faint}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              {!!query && (
-                <TouchableOpacity onPress={() => setQuery("")} hitSlop={8}>
-                  <Ionicons name="close-circle" size={18} color={C.faint} />
-                </TouchableOpacity>
-              )}
-            </View>
+            <SearchBar value={query} onChangeText={setQuery} placeholder="ค้นหาชื่อ อีเมล หรือรหัส นศ." style={{ marginBottom: 6 }} />
             {candidates.length === 0 && (
               <Text style={s.empty}>{q ? "ไม่พบผู้ใช้นี้ (ต้องสมัครแอปก่อน)" : "ยังไม่มีผู้ใช้"}</Text>
             )}

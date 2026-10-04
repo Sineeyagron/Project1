@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import SearchBar from "../../components/SearchBar";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -164,6 +165,7 @@ export default function AdminItems() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("code");
   const [filter, setFilter] = useState<FilterKey>("all");
   const [sheet, setSheet] = useState<Sheet | null>(null);
@@ -467,28 +469,17 @@ export default function AdminItems() {
           <StatWidget tone="amber" icon="swap-horizontal" label="ถูกยืม/ซ่อม" value={borrowedCount + repairCount} />
         </View>
 
-        <View style={s.searchWrap}>
-          <Ionicons name="search-outline" size={19} color="#94a3b8" />
-          <TextInput
-            style={s.searchInput}
-            placeholder="พิมพ์ชื่อ รหัส หรือรหัสสแกน..."
-            placeholderTextColor="#94a3b8"
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-            autoCorrect={false}
-            autoCapitalize="none"
-            clearButtonMode="while-editing"
-          />
-          {!!search && (
-            <TouchableOpacity style={s.clearBtn} onPress={() => setSearch("")} activeOpacity={0.8}>
-              <Ionicons name="close-circle" size={20} color="#94a3b8" />
+        <SearchBar
+          value={search}
+          onChangeText={setSearch}
+          placeholder="พิมพ์ชื่อ รหัส หรือรหัสสแกน"
+          onFocusChange={setSearchFocused}
+          accessory={
+            <TouchableOpacity style={s.scanBtn} onPress={() => router.push("/admin/scan" as any)} activeOpacity={0.82} accessibilityLabel="เพิ่มอุปกรณ์">
+              <Ionicons name="add" size={22} color={C.purple} />
             </TouchableOpacity>
-          )}
-          <TouchableOpacity style={s.scanBtn} onPress={() => router.push("/admin/scan" as any)} activeOpacity={0.82}>
-            <Ionicons name="add" size={22} color={C.purple} />
-          </TouchableOpacity>
-        </View>
+          }
+        />
       </View>
 
       {loading ? (
@@ -498,8 +489,11 @@ export default function AdminItems() {
           contentContainerStyle={s.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
           showsVerticalScrollIndicator
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
         >
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
+          {/* ชิปซ่อนระหว่างพิมพ์ค้นหา */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow} style={searchFocused && { display: "none" }}>
             {chips.map((chip) => {
               const active = filter === chip.key;
               return (
