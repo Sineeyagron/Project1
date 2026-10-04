@@ -6,11 +6,10 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { File as FSFile, Paths } from "expo-file-system";
@@ -32,19 +31,20 @@ import {
   Row,
   summary,
 } from "../../lib/importItems";
+import { W, NG } from "../../lib/theme";
 
 // นำเข้าอุปกรณ์จาก CSV (แผนเฟส 2 ข้อ 3) — ตรรกะตรวจทั้งหมดอยู่ใน lib/importItems.ts
 // ขั้นตอน: เลือกไฟล์ (เว็บ/มือถือ) หรือวางข้อความ → ตรวจ+พรีวิว → แก้หมวดในแอปได้ → ติ๊กรับทราบคำเตือน
 // → ตรวจซ้ำกับข้อมูลล่าสุด → ยืนยัน → insert ครั้งเดียว (ผิดแถวเดียว = ไม่บันทึกเลย) → ยกเลิกการนำเข้าได้
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
-  line: "#e2e8f0",
-  green: "#16a34a",
+  line: "#DCE6F5",
+  green: "#047857",
   amber: "#b45309",
   red: "#dc2626",
 };
@@ -301,7 +301,7 @@ export default function ImportItems() {
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={s.header}>
         <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={22} color="#172033" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>นำเข้าจาก CSV</Text>
@@ -528,9 +528,8 @@ function SumPill({ color, icon, label }: { color: string; icon: any; label: stri
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
     paddingTop: 52,
     paddingBottom: 16,
     paddingHorizontal: 18,
@@ -539,29 +538,26 @@ const s = StyleSheet.create({
     gap: 12,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 12, paddingBottom: 48 },
-  card: { backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 14, gap: 10 },
-  cardWarn: { borderColor: "#fcd34d", backgroundColor: "#fffbeb" },
+  card: { ...W.card, padding: 14, gap: 10 },
+  cardWarn: { ...NG, borderColor: "#fcd34d", backgroundColor: "#fffbeb" },
   stepTitle: { fontSize: 15.5, fontWeight: "900", color: C.ink },
   help: { fontSize: 13, color: C.muted, lineHeight: 20 },
   bold: { fontWeight: "800", color: C.ink },
   rowCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
   primaryBtn: {
+    ...W.primarySolid,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: C.purple,
-    borderRadius: 12,
+    borderRadius: 15,
     minHeight: 48,
     paddingHorizontal: 14,
   },
@@ -618,7 +614,7 @@ const s = StyleSheet.create({
     backgroundColor: "#fff",
   },
   chipSuggest: { borderColor: C.purple, borderStyle: "dashed" },
-  chipOn: { backgroundColor: C.purple, borderColor: C.purple, borderStyle: "solid" },
+  chipOn: { ...NG, backgroundColor: C.purple, borderColor: C.purple, borderStyle: "solid" },
   chipText: { fontSize: 14, fontWeight: "700", color: C.ink },
   sumRow: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   sumPill: {
@@ -635,8 +631,8 @@ const s = StyleSheet.create({
   toggleRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 40 },
   toggleText: { fontSize: 13.5, color: C.ink, fontWeight: "700" },
   row: { flexDirection: "row", gap: 10, paddingVertical: 9, borderTopWidth: 1, borderTopColor: C.line },
-  rowBad: { backgroundColor: "#fef2f2", marginHorizontal: -14, paddingHorizontal: 14 },
-  rowWarn: { backgroundColor: "#fffbeb", marginHorizontal: -14, paddingHorizontal: 14 },
+  rowBad: { ...NG, backgroundColor: "#fef2f2", marginHorizontal: -14, paddingHorizontal: 14 },
+  rowWarn: { ...NG, backgroundColor: "#fffbeb", marginHorizontal: -14, paddingHorizontal: 14 },
   rowLine: { width: 46, fontSize: 12, color: C.faint, fontWeight: "700", paddingTop: 2 },
   rowName: { fontSize: 14.5, fontWeight: "800", color: C.ink },
   rowMeta: { fontSize: 12.5, color: C.muted, marginTop: 2 },

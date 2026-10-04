@@ -1,8 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, Modal, ActivityIndicator, RefreshControl,
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Modal,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
+import { Text } from "../components/AppText";
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
@@ -14,6 +20,7 @@ import { notify } from "../lib/notify";
 import { currentUser } from "../lib/session";
 import RoomReportForm from "../components/RoomReportForm";
 import { useRoomLive } from "../lib/roomRealtime";
+import { W } from "../lib/theme";
 
 const EQUIP_LABELS: Record<string, string> = {
   mouse:    "🖱️ เมาส์",
@@ -185,14 +192,14 @@ export default function RoomMap() {
       {/* HEADER */}
       <View style={s.header}>
         <TouchableOpacity style={s.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
-          <Ionicons name="arrow-back" size={23} color="#fff" />
+          <Ionicons name="chevron-back" size={23} color="#172033" />
         </TouchableOpacity>
         <View style={s.headerTitleBlock}>
           <Text style={s.headerText}>ผังห้อง {roomName}</Text>
           <Text style={s.headerSub}>{roomPlace(roomInfo)} · {stations.length} เครื่อง · {lanPorts.length} LAN port</Text>
         </View>
         <TouchableOpacity style={s.headerBtn} onPress={onRefresh} activeOpacity={0.84}>
-          <Ionicons name="refresh" size={19} color="#fff" />
+          <Ionicons name="refresh" size={19} color="#1D4ED8" />
         </TouchableOpacity>
       </View>
 
@@ -208,11 +215,11 @@ export default function RoomMap() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}
           contentContainerStyle={s.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}>
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D4ED8" />}>
 
           {!!loadError && <LoadError message={loadError} onRetry={onRefresh} />}
 
@@ -449,29 +456,23 @@ export default function RoomMap() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#edf5ff" },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: "#2563eb",
-    paddingTop: 54,
-    paddingBottom: 17,
-    paddingHorizontal: 30,
+    paddingTop: 52,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   headerBtn: {
-    width: 39,
-    height: 39,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.23)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitleBlock: { flex: 1, paddingHorizontal: 14 },
-  headerText: { fontSize: 21, fontWeight: "900", color: "#fff" },
-  headerSub: { color: "#dbeafe", fontSize: 11, fontWeight: "800", marginTop: 2 },
+  headerTitleBlock: { flex: 1, paddingHorizontal: 10 },
+  headerText: { fontSize: 20, fontWeight: "700", color: "#172033" },
+  headerSub: { color: "#475569", fontSize: 12, marginTop: 1 },
 
   legend: {
     flexDirection: "row",
@@ -480,26 +481,26 @@ const s = StyleSheet.create({
     alignItems: "center",
     flexWrap: "wrap",
     paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingTop: 0,
   },
   legItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  legDot: { width: 10, height: 10, borderRadius: 5 },
-  legTxt: { fontSize: 11, color: "#64748b" },
-  viewOnly: { marginLeft: "auto", fontSize: 10, color: "#94a3b8" },
+  legDot: { width: 10, height: 10, borderRadius: 3 },
+  legTxt: { fontSize: 12, color: "#475569" },
+  viewOnly: { marginLeft: "auto", fontSize: 12, color: "#64748B" },
 
   scrollContent: { paddingHorizontal: 16 },
 
-  board: { backgroundColor: "#2563eb", borderRadius: 10, padding: 10, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 10 },
+  board: { ...W.primary, padding: 10, flexDirection: "row", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 10 },
   boardTxt: { color: "#fff", fontWeight: "600", fontSize: 13 },
-  teacherDesk: { backgroundColor: "#dbeafe", borderRadius: 10, padding: 10, alignItems: "center", marginBottom: 14, borderWidth: 1.5, borderStyle: "dashed", borderColor: "#93c5fd" },
-  teacherTxt: { color: "#1e3a8a", fontWeight: "600", fontSize: 12 },
+  teacherDesk: { ...W.small, borderRadius: 12, padding: 8, alignItems: "center", marginBottom: 14 },
+  teacherTxt: { color: "#475569", fontSize: 12 },
 
-  groupBox: { marginBottom: 16 },
-  groupLabel: { fontSize: 11, fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 },
+  groupBox: { ...W.card, padding: 10, marginBottom: 12 },
+  groupLabel: { fontSize: 13, fontWeight: "600", color: "#172033", marginBottom: 8 },
   groupRow: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
   stationsWrap: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 6 },
 
-  station: { width: 60, height: 66, borderRadius: 10, alignItems: "center", justifyContent: "center", gap: 2, position: "relative" },
+  station: { width: 54, height: 60, borderRadius: 15, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 4px rgba(15,23,42,0.06)", alignItems: "center", justifyContent: "center", gap: 2, position: "relative" },
   stationName: { fontSize: 9, fontWeight: "700" },
   stationSub: { fontSize: 7.5, fontWeight: "600" },
   equipWarnDot: {
@@ -507,47 +508,47 @@ const s = StyleSheet.create({
     width: 7, height: 7, borderRadius: 4, backgroundColor: "#f97316",
   },
 
-  serverCard: { width: 66, backgroundColor: "#eff6ff", borderRadius: 12, padding: 8, alignItems: "center", gap: 3, borderWidth: 1.5, borderColor: "#bfdbfe" },
-  serverCardWarn: { backgroundColor: "#fffbeb", borderColor: "#fde68a" },
+  serverCard: { width: 64, backgroundColor: "#EEF5FF", borderRadius: 15, padding: 8, alignItems: "center", gap: 3, borderWidth: 1, borderColor: "#BFDBFE", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
+  serverCardWarn: { backgroundColor: "#FFFBEB", borderColor: "#FCD34D" },
   serverLabel: { fontSize: 10, fontWeight: "700" },
   serverPort: { fontSize: 9, color: "#94a3b8" },
-  warnBadge: { backgroundColor: "#fef3c7", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6 },
-  warnBadgeTxt: { fontSize: 8, color: "#b45309", fontWeight: "700" },
+  warnBadge: { backgroundColor: "#F59E0B", paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999 },
+  warnBadgeTxt: { fontSize: 9, color: "#FFFFFF", fontWeight: "600" },
 
   empty: { padding: 40, alignItems: "center", gap: 10 },
   emptyTxt: { color: "#94a3b8", fontSize: 14 },
 
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(23,32,51,0.4)", justifyContent: "flex-end" },
+  modalBox: { ...W.sheet, padding: 20, paddingBottom: 36 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
-  modalTitle: { fontSize: 16, fontWeight: "bold", color: "#1e293b" },
+  modalTitle: { fontSize: 20, fontWeight: "700", color: "#172033" },
   modalSub: { fontSize: 12, color: "#64748b", marginTop: 2 },
 
-  statusBigBox: { alignItems: "center", paddingVertical: 20, gap: 8, borderRadius: 16, marginBottom: 14 },
-  statusBigLabel: { fontSize: 20, fontWeight: "800" },
+  statusBigBox: { alignItems: "center", paddingVertical: 18, gap: 6, borderRadius: 18, marginBottom: 14, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
+  statusBigLabel: { fontSize: 18, fontWeight: "700" },
   statusNote: { fontSize: 12, color: "#64748b", textAlign: "center" },
 
-  checklistTitle: { fontSize: 12, fontWeight: "700", color: "#1e293b", marginBottom: 8 },
+  checklistTitle: { fontSize: 13, fontWeight: "600", color: "#172033", marginBottom: 8 },
   checklistGrid: { flexDirection: "row", gap: 8, marginBottom: 16 },
   checklistItem: {
-    flex: 1, borderRadius: 12, padding: 10,
+    flex: 1, borderRadius: 15, padding: 10, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
     alignItems: "center", gap: 4,
   },
   checklistLabel: { fontSize: 11, fontWeight: "700", textAlign: "center" },
   checklistStatus: { fontSize: 10, fontWeight: "600" },
   staffHint: { fontSize: 11, color: "#64748b", marginTop: 8, textAlign: "center" },
-  logBox: { marginTop: 12, backgroundColor: "#f8fafc", borderRadius: 12, padding: 10 },
+  logBox: { marginTop: 12, backgroundColor: "#F5F8FE", borderRadius: 15, padding: 10 },
   logRow: { fontSize: 11, color: "#334155", marginTop: 4 },
-  reportBtn: { marginTop: 12, minHeight: 42, borderRadius: 10, borderWidth: 1, borderColor: "#fdba74", backgroundColor: "#fff7ed", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  reportBtnTxt: { color: "#c2410c", fontWeight: "800", fontSize: 13 },
+  reportBtn: { marginTop: 12, minHeight: 46, borderRadius: 15, borderWidth: 1, borderColor: "#fdba74", backgroundColor: "#fff7ed", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
+  reportBtnTxt: { color: "#c2410c", fontWeight: "600", fontSize: 14 },
 
   portGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
-  portCell: { width: "22%", borderRadius: 10, padding: 8, alignItems: "center", gap: 2, borderWidth: 1 },
+  portCell: { width: "22%", borderRadius: 12, padding: 8, alignItems: "center", gap: 2, borderWidth: 1 },
   portNo: { fontSize: 11, fontWeight: "700" },
   portStatus: { fontSize: 8, fontWeight: "600" },
   portLabel: { fontSize: 7, color: "#94a3b8", textAlign: "center" },
   portLegend: { flexDirection: "row", gap: 12, marginBottom: 8 },
 
-  closeBtn: { backgroundColor: "#f1f5f9", padding: 14, borderRadius: 12, alignItems: "center", marginTop: 4 },
-  closeBtnTxt: { color: "#64748b", fontWeight: "600" },
+  closeBtn: { backgroundColor: "#EEF2F7", padding: 14, borderRadius: 15, alignItems: "center", marginTop: 4 },
+  closeBtnTxt: { color: "#172033", fontWeight: "600", fontSize: 14 },
 });

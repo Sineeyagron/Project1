@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text, TextInput } from "./AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
 import { notify } from "../lib/notify";
@@ -76,7 +77,7 @@ export default function RoomReportForm({
 const s = StyleSheet.create({
   box: { marginTop: 12, backgroundColor: "#fff7ed", borderRadius: 12, borderWidth: 1, borderColor: "#fed7aa", padding: 12 },
   title: { fontSize: 13, fontWeight: "800", color: "#9a3412", marginBottom: 8 },
-  input: { minHeight: 64, backgroundColor: "#fff", borderRadius: 10, borderWidth: 1, borderColor: "#e2e8f0", padding: 10, fontSize: 14, color: "#0f172a", textAlignVertical: "top" },
+  input: { minHeight: 64, backgroundColor: "#fff", borderRadius: 10, borderWidth: 1, borderColor: "#DCE6F5", padding: 10, fontSize: 14, color: "#172033", textAlignVertical: "top" },
   row: { flexDirection: "row", gap: 8, marginTop: 10 },
   cancel: { flex: 1, minHeight: 42, borderRadius: 10, backgroundColor: "#f1f5f9", alignItems: "center", justifyContent: "center" },
   cancelText: { color: "#334155", fontWeight: "800" },

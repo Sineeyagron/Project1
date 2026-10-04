@@ -6,24 +6,24 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { currentUser } from "../../lib/session";
 import { notify } from "../../lib/notify";
 import { goBack } from "../../lib/nav";
+import { W, NG } from "../../lib/theme";
 
 const C = {
   bg: "#f4f4f7",
-  purple: "#7c3aed",
-  purpleDark: "#6d28d9",
-  ink: "#111827",
-  text: "#1f2937",
+  purple: "#2563EB",
+  purpleDark: "#1D4ED8",
+  ink: "#172033",
+  text: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
   line: "#dddde5",
@@ -34,7 +34,7 @@ const C = {
 };
 
 const CONDITION_CFG: Record<string, { color: string; bg: string; label: string; short: string; icon: any }> = {
-  good: { color: C.green, bg: "#dcfce7", label: "ใช้งานได้", short: "ปกติ", icon: "hardware-chip-outline" },
+  good: { color: C.green, bg: "#ECFDF5", label: "ใช้งานได้", short: "ปกติ", icon: "hardware-chip-outline" },
   damaged: { color: C.orange, bg: "#fef3c7", label: "กำลังซ่อมแซม", short: "ซ่อมแซม", icon: "construct-outline" },
   missing: { color: C.red, bg: "#fee2e2", label: "เสีย", short: "เสีย", icon: "desktop-outline" },
 };
@@ -233,7 +233,7 @@ export default function IotInspectionPage() {
       <View style={s.header}>
         <View style={s.headerRow}>
           <TouchableOpacity style={s.backBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={21} color="#ffffff" />
+            <Ionicons name="chevron-back" size={21} color="#172033" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>ตรวจสภาพ IoT ประจำเทอม</Text>
           <View style={s.headerSpacer} />
@@ -250,7 +250,7 @@ export default function IotInspectionPage() {
             onSubmitEditing={submitSearch}
           />
           <TouchableOpacity style={s.searchBtn} onPress={submitSearch} activeOpacity={0.82}>
-            <Ionicons name="search-outline" size={22} color="#1f2937" />
+            <Ionicons name="search-outline" size={22} color="#172033" />
           </TouchableOpacity>
         </View>
       </View>
@@ -406,36 +406,28 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
-    paddingTop: 22,
-    paddingHorizontal: 24,
-    paddingBottom: 18,
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
+  headerRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     flex: 1,
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "900",
-    textAlign: "center",
+    color: "#172033",
+    fontSize: 20,
+    fontWeight: "700",
   },
-  headerSpacer: { width: 36 },
+  headerSpacer: { width: 0 },
   searchRow: {
-    height: 30,
-    borderRadius: 4,
-    backgroundColor: "#ffffff",
+    ...W.input,
+    height: 44,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
@@ -468,12 +460,9 @@ const s = StyleSheet.create({
   loadingText: { color: C.faint, fontSize: 13, fontWeight: "700" },
   statGrid: { flexDirection: "row", gap: 9, marginBottom: 12 },
   summaryCard: {
+    ...W.card,
     flex: 1,
     minHeight: 60,
-    borderRadius: 10,
-    backgroundColor: C.card,
-    borderWidth: 1,
-    borderColor: C.line,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -491,6 +480,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   filterChipActive: {
+    ...NG,
     backgroundColor: C.purple,
     borderColor: C.purple,
     shadowColor: C.purple,
@@ -504,21 +494,13 @@ const s = StyleSheet.create({
   sectionTitle: { color: C.text, fontSize: 12, fontWeight: "600", marginBottom: 10 },
   list: { gap: 11 },
   itemCard: {
+    ...W.card,
     minHeight: 76,
-    backgroundColor: C.card,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: C.line,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 11,
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
   },
   itemIcon: {
     width: 48,
@@ -545,10 +527,7 @@ const s = StyleSheet.create({
   statusPillText: { fontSize: 10, fontWeight: "900" },
   updatedText: { color: "#374151", fontSize: 10, fontWeight: "600", marginTop: 9, textAlign: "right" },
   emptyBox: {
-    backgroundColor: C.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.line,
+    ...W.card,
     alignItems: "center",
     paddingVertical: 42,
     gap: 8,

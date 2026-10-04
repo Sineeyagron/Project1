@@ -6,17 +6,17 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { goBack } from "../lib/nav";
 import { notify } from "../lib/notify";
 import { authErrorThai, PASSWORD_HINT, passwordProblem } from "../lib/password";
+import { W } from "../lib/theme";
 
 export default function Signup() {
   const router = useRouter();
@@ -83,7 +83,7 @@ export default function Signup() {
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => goBack("/login")} disabled={isLoading}>
-          <Ionicons name="arrow-back" size={23} color="#fff" />
+          <Ionicons name="chevron-back" size={23} color="#172033" />
         </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>สมัครสมาชิก</Text>
@@ -151,7 +151,7 @@ export default function Signup() {
           </View>
 
           <View style={styles.termsRow}>
-            <Ionicons name="shield-checkmark-outline" size={17} color="#16a34a" />
+            <Ionicons name="shield-checkmark-outline" size={17} color="#047857" />
             <Text style={styles.termsText}>
               เมื่อสมัครคุณยอมรับ <Text style={styles.termsLink}>เงื่อนไขการใช้งาน</Text> ของห้องแล็บ
             </Text>
@@ -184,12 +184,11 @@ export default function Signup() {
 
 const styles = StyleSheet.create({
   screen: {
+    ...W.page,
     flex: 1,
-    backgroundColor: "#f1f5f9",
   },
   header: {
     minHeight: 88,
-    backgroundColor: "#2563eb",
     paddingTop: 10,
     paddingHorizontal: 26,
     flexDirection: "row",
@@ -197,19 +196,20 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backBtn: {
-    width: 28,
-    height: 40,
+    ...W.small,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    color: "#fff",
+    color: "#172033",
     fontSize: 24,
     fontWeight: "900",
     lineHeight: 28,
   },
   headerSub: {
-    color: "#dbeafe",
+    color: "#475569",
     fontSize: 12,
     fontWeight: "700",
     marginTop: 5,
@@ -221,17 +221,13 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   card: {
+    ...W.card,
     width: "100%",
     maxWidth: 430,
     alignSelf: "center",
-    backgroundColor: "#fff",
-    borderRadius: 22,
     paddingHorizontal: 24,
     paddingTop: 26,
     paddingBottom: 22,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    elevation: 2,
   },
   title: {
     color: "#1e293b",
@@ -247,7 +243,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   label: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontSize: 13,
     fontWeight: "800",
     marginBottom: 8,
@@ -259,14 +255,14 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: "#f1f5f9",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#DCE6F5",
     borderRadius: 12,
     paddingHorizontal: 13,
     marginBottom: 14,
   },
   input: {
     flex: 1,
-    color: "#0f172a",
+    color: "#172033",
     fontSize: 15,
     paddingVertical: 12,
   },
@@ -284,7 +280,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   termsLink: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontWeight: "900",
   },
   primaryBtn: {
@@ -314,7 +310,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   footerLink: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontSize: 14,
     fontWeight: "900",
   },

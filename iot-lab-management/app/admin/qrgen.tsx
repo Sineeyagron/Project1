@@ -5,11 +5,10 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as MediaLibrary from "expo-media-library/legacy";
@@ -22,21 +21,22 @@ import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRole } from "../../lib/roles";
 import { notify } from "../../lib/notify";
 import { LABELS_PER_SHEET, buildLabelSheetHtml, formatItemNo, qrMatrix } from "../../lib/labels";
+import { W, NG } from "../../lib/theme";
 
 const FS = FileSystem as any;
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  purpleDeep: "#6d28d9",
-  purpleDark: "#3f2a8f",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  purpleDeep: "#1D4ED8",
+  purpleDark: "#1D4ED8",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
   line: "#dbe3ec",
   card: "#ffffff",
-  greenBg: "#dcfce7",
-  green: "#16a34a",
+  greenBg: "#ECFDF5",
+  green: "#047857",
 };
 
 function normalize(value?: string) {
@@ -305,23 +305,22 @@ export default function QRGen() {
       <View style={s.header}>
         <View style={s.headerTop}>
           <TouchableOpacity style={s.iconBtn} onPress={goBack} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color="#172033" />
           </TouchableOpacity>
           <View style={s.titleWrap}>
             <View style={s.titleRow}>
               <Text style={s.headerTitle}>สร้าง QR Code</Text>
               <View style={s.adminPill}>
-                <Ionicons name="shield-checkmark" size={11} color="#fff" />
+                <Ionicons name="shield-checkmark" size={11} color="#1D4ED8" />
                 <Text style={s.adminPillText}>{role === "ta" ? "TA" : "Admin"}</Text>
               </View>
             </View>
             <View style={s.subtitleRow}>
-              <Ionicons name="information-circle-outline" size={12} color="#ddd6fe" />
+              <Ionicons name="information-circle-outline" size={12} color="#64748B" />
               <Text style={s.headerSub}>พิมพ์ติดอุปกรณ์เพื่อสแกนยืม-คืน</Text>
             </View>
           </View>
           {/* (เดิมมีปุ่มนาฬิกาไปหน้าประวัติยืม ซึ่งไม่เกี่ยวกับป้าย QR — ดูประวัติได้ที่หน้าแรก) */}
-          <View style={{ width: 36 }} />
         </View>
 
         <View style={s.modeTabs}>
@@ -330,7 +329,7 @@ export default function QRGen() {
             onPress={() => setMode("single")}
             activeOpacity={0.84}
           >
-            <Ionicons name="grid-outline" size={14} color="#fff" />
+            <Ionicons name="grid-outline" size={14} color="#1D4ED8" />
             <Text style={s.modeTabText}>ทีละตัว</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -338,7 +337,7 @@ export default function QRGen() {
             onPress={() => setMode("batch")}
             activeOpacity={0.84}
           >
-            <Ionicons name="albums-outline" size={14} color="#ddd6fe" />
+            <Ionicons name="albums-outline" size={14} color="#1D4ED8" />
             <Text style={s.modeTabText}>หลายตัว (Batch)</Text>
             <View style={s.newPill}><Text style={s.newPillText}>ใหม่</Text></View>
           </TouchableOpacity>
@@ -539,9 +538,8 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: C.line, alignItems: "center", justifyContent: "center",
   },
   stepperValue: { minWidth: 24, textAlign: "center", fontSize: 15, fontWeight: "900", color: C.ink },
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
     paddingTop: 52,
     paddingHorizontal: 31,
     paddingBottom: 9,
@@ -552,37 +550,32 @@ const s = StyleSheet.create({
     gap: 12,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   titleWrap: { flex: 1 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  headerTitle: { color: "#fff", fontSize: 24, fontWeight: "900", lineHeight: 28 },
+  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700", lineHeight: 28 },
   adminPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(255,255,255,0.78)", boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 8px rgba(37,99,235,0.10)",
     borderRadius: 999,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
-  adminPillText: { color: "#fff", fontSize: 10, fontWeight: "900" },
+  adminPillText: { color: "#475569", fontSize: 10, fontWeight: "900" },
   subtitleRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
-  headerSub: { color: "#ddd6fe", fontSize: 11, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12 },
   modeTabs: {
     minHeight: 39,
     flexDirection: "row",
     gap: 4,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.78)", boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 8px rgba(37,99,235,0.10)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "#D3E0F5",
     borderRadius: 11,
     padding: 4,
     marginTop: 18,
@@ -595,15 +588,15 @@ const s = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
   },
-  modeTabActive: { backgroundColor: C.purpleDark },
-  modeTabText: { color: "#fff", fontSize: 12, fontWeight: "900" },
+  modeTabActive: { ...NG, backgroundColor: "#FFFFFF", boxShadow: "0 2px 6px rgba(37,99,235,0.18)" },
+  modeTabText: { color: "#172033", fontSize: 13, fontWeight: "600" },
   newPill: { backgroundColor: "#fde047", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
   newPillText: { color: "#854d0e", fontSize: 9, fontWeight: "900" },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   body: { paddingHorizontal: 31, paddingTop: 15, paddingBottom: 28 },
   sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   sectionLeft: { flexDirection: "row", alignItems: "center", gap: 9 },
-  stepBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: C.purple, alignItems: "center", justifyContent: "center" },
+  stepBadge: { ...NG, width: 22, height: 22, borderRadius: 11, backgroundColor: C.purple, alignItems: "center", justifyContent: "center" },
   stepText: { color: "#fff", fontSize: 12, fontWeight: "900" },
   sectionTitle: { color: C.ink, fontSize: 14, fontWeight: "900" },
   sectionRight: { color: C.muted, fontSize: 11, fontWeight: "900" },
@@ -612,28 +605,25 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    ...W.input,
+    borderWidth: 0,
     paddingLeft: 14,
     paddingRight: 6,
     marginBottom: 14,
   },
   searchInput: { flex: 1, color: C.ink, fontSize: 13, fontWeight: "700", paddingVertical: 10 },
-  filterBtn: { width: 34, height: 34, borderRadius: 9, backgroundColor: "#f3e8ff", alignItems: "center", justifyContent: "center" },
+  filterBtn: { width: 34, height: 34, borderRadius: 9, backgroundColor: "#EEF5FF", alignItems: "center", justifyContent: "center" },
   itemList: { gap: 9, marginBottom: 18 },
   itemCard: {
+    ...W.card,
     minHeight: 60,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#dbe3ec",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
-  itemCardActive: { borderColor: C.purple, backgroundColor: "#f5f3ff" },
+  itemCardActive: { ...NG, borderColor: C.purple, backgroundColor: "#EEF5FF" },
   itemIcon: { width: 45, height: 45, borderRadius: 11, backgroundColor: C.greenBg, alignItems: "center", justifyContent: "center" },
   itemTextWrap: { flex: 1, minWidth: 0 },
   itemName: { color: C.ink, fontSize: 14, fontWeight: "900" },
@@ -649,14 +639,14 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   checkBoxActive: {
+    ...NG,
     backgroundColor: C.purple,
     borderColor: C.purple,
   },
-  emptyCard: { minHeight: 60, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+  emptyCard: { ...W.card, minHeight: 60, alignItems: "center", justifyContent: "center" },
   emptyText: { color: C.faint, fontSize: 13, fontWeight: "800" },
   settingsCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
+    ...W.card,
     padding: 13,
     marginBottom: 18,
   },
@@ -673,7 +663,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  optionBoxActive: { borderColor: C.purple, backgroundColor: "#faf5ff" },
+  optionBoxActive: { ...NG, borderColor: C.purple, backgroundColor: "#F5F9FF" },
   optionLabel: { color: C.ink, fontSize: 12, fontWeight: "900" },
   optionLabelActive: { color: C.purple },
   optionDetail: { color: C.muted, fontSize: 10.5, fontWeight: "700", marginTop: 2 },
@@ -697,18 +687,15 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   previewCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    borderWidth: 1,
+    ...W.card,
     borderStyle: "dashed",
-    borderColor: "#c4b5fd",
     padding: 19,
   },
   previewTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   brandText: { color: C.faint, fontSize: 11, fontWeight: "900", letterSpacing: 0.8 },
   previewName: { color: C.ink, fontSize: 16, fontWeight: "900", marginTop: 2 },
   previewCode: { color: C.muted, fontSize: 12, fontWeight: "900", marginTop: 2 },
-  typeBadge: { backgroundColor: "#ede9fe", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  typeBadge: { ...NG, backgroundColor: "#DBEAFE", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   typeBadgeText: { color: C.purple, fontSize: 10, fontWeight: "900" },
   qrImage: { width: 178, height: 178, alignSelf: "center", marginTop: 11 },
   locationRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginTop: 4 },

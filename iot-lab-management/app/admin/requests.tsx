@@ -7,11 +7,10 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
@@ -21,18 +20,19 @@ import { notify } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import Countdown from "../../components/Countdown";
 import { useRole } from "../../lib/roles";
+import { W, NG } from "../../lib/theme";
 
 // กล่องคำขอของผู้ดูแล: อนุมัติ / ปฏิเสธ คำขอยืม-คืน-ยืมต่อ (แผน 2.4, 2.6)
 // การตัดสินทั้งหมดผ่าน RPC decide_request (ตรวจสิทธิ์ + ล็อกแถวในฐานข้อมูล)
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
-  line: "#e2e8f0",
-  green: "#16a34a",
+  line: "#DCE6F5",
+  green: "#047857",
   orange: "#c2410c",
   red: "#ef4444",
   blue: "#2563eb",
@@ -40,12 +40,12 @@ const C = {
 
 const KIND: Record<string, { label: string; icon: any; color: string; bg: string }> = {
   borrow: { label: "ขอยืม", icon: "hand-left-outline", color: C.blue, bg: "#dbeafe" },
-  return: { label: "ขอคืน", icon: "return-down-back-outline", color: C.green, bg: "#dcfce7" },
+  return: { label: "ขอคืน", icon: "return-down-back-outline", color: C.green, bg: "#ECFDF5" },
   renew: { label: "ขอยืมต่อ", icon: "refresh-outline", color: C.orange, bg: "#ffedd5" },
 };
 
 const RESULT: Record<string, { label: string; color: string; bg: string }> = {
-  approved: { label: "อนุมัติ", color: C.green, bg: "#dcfce7" },
+  approved: { label: "อนุมัติ", color: C.green, bg: "#ECFDF5" },
   declined: { label: "ปฏิเสธ", color: "#dc2626", bg: "#fee2e2" },
   expired: { label: "หมดอายุ", color: C.muted, bg: "#f1f5f9" },
   cancelled: { label: "ผู้ขอยกเลิก", color: C.muted, bg: "#f1f5f9" },
@@ -272,7 +272,7 @@ export default function AdminRequests() {
     <View style={s.container}>
       <View style={s.header}>
         <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={22} color="#172033" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>กล่องคำขอ</Text>
@@ -395,9 +395,8 @@ export default function AdminRequests() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
     paddingTop: 52,
     paddingBottom: 16,
     paddingHorizontal: 18,
@@ -406,19 +405,16 @@ const s = StyleSheet.create({
     gap: 12,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
 
   tabs: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 14 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", borderWidth: 1, borderColor: C.line },
-  tabActive: { backgroundColor: C.purple, borderColor: C.purple },
+  tabActive: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
   tabText: { color: C.muted, fontWeight: "800", fontSize: 13 },
   tabTextActive: { color: "#fff" },
 
@@ -426,7 +422,7 @@ const s = StyleSheet.create({
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
   emptyText: { color: C.faint, fontSize: 14, fontWeight: "800" },
 
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 14, gap: 10, borderWidth: 1, borderColor: "rgba(15,23,42,0.05)" },
+  card: { ...W.card, padding: 14, gap: 10 },
   cardFocus: { borderColor: C.purple, borderWidth: 2 },
   cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   kindPill: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },

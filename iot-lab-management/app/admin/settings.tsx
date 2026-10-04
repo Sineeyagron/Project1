@@ -6,28 +6,28 @@ import {
   ScrollView,
   Switch,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { ALLOWED_DOMAIN } from "../../lib/googleAuth";
+import { W, NG } from "../../lib/theme";
 
 // ตั้งค่าระบบ (ตาราง app_settings) — แก้ได้เฉพาะ admin (RLS)
 // ค่าเหล่านี้ RPC ฝั่งฐานข้อมูลอ่านเองทุกครั้ง เปลี่ยนแล้วมีผลทันที
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
-  line: "#e2e8f0",
+  line: "#DCE6F5",
   red: "#dc2626",
 };
 
@@ -144,7 +144,7 @@ export default function AdminSettings() {
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={s.header}>
         <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={22} color="#172033" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>ตั้งค่าระบบ</Text>
@@ -213,9 +213,8 @@ export default function AdminSettings() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
     paddingTop: 52,
     paddingBottom: 16,
     paddingHorizontal: 18,
@@ -224,18 +223,15 @@ const s = StyleSheet.create({
     gap: 12,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 14, paddingBottom: 40 },
   section: { fontSize: 15, fontWeight: "900", color: C.ink },
-  card: { backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: C.line },
+  card: { ...W.card },
   field: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
   divider: { borderTopWidth: 1, borderTopColor: C.line },
   label: { fontSize: 15, fontWeight: "800", color: C.ink },
@@ -252,9 +248,9 @@ const s = StyleSheet.create({
     fontWeight: "800",
     color: C.ink,
   },
-  inputError: { borderColor: C.red, backgroundColor: "#fef2f2" },
+  inputError: { ...NG, borderColor: C.red, backgroundColor: "#fef2f2" },
   unit: { width: 48, fontSize: 13, color: C.muted, fontWeight: "700" },
-  saveBtn: { backgroundColor: C.purple, borderRadius: 14, paddingVertical: 15, alignItems: "center", marginTop: 4 },
+  saveBtn: { ...W.primarySolid, borderRadius: 15, paddingVertical: 15, alignItems: "center", marginTop: 4 },
   saveText: { color: "#fff", fontSize: 16, fontWeight: "900" },
   note: { fontSize: 12, color: C.faint, textAlign: "center" },
 });

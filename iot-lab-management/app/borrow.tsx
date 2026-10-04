@@ -1,8 +1,14 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Image, RefreshControl,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Image,
+  RefreshControl,
 } from "react-native";
+import { Text } from "../components/AppText";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
@@ -12,12 +18,14 @@ import { RECORD_STATUS } from "../lib/status";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { confirmAction, notify } from "../lib/notify";
 import Countdown from "../components/Countdown";
+import { W } from "../lib/theme";
+import StatWidget from "../components/StatWidget";
 
 const KIND_TH: Record<string, string> = { borrow: "ขอยืม", return: "ขอคืน", renew: "ขอยืมต่อ" };
 
 // ผลคำขอที่จบแล้ว (แสดงย้อนหลังไม่กี่รายการ)
 const REQUEST_RESULT: Record<string, { label: string; color: string; bg: string }> = {
-  approved:      { label: "อนุมัติแล้ว",     color: "#16a34a", bg: "#dcfce7" },
+  approved:      { label: "อนุมัติแล้ว",     color: "#047857", bg: "#ECFDF5" },
   declined:      { label: "ถูกปฏิเสธ",      color: "#dc2626", bg: "#fee2e2" },
   expired:       { label: "หมดอายุ",        color: "#64748b", bg: "#f1f5f9" },
   cancelled:     { label: "ยกเลิกแล้ว",     color: "#64748b", bg: "#f1f5f9" },
@@ -114,38 +122,29 @@ export default function Borrow() {
       {/* HEADER */}
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={22} color="#172033" />
         </TouchableOpacity>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>ประวัติการยืม</Text>
           <Text style={s.headerSub}>อุปกรณ์ของฉัน</Text>
         </View>
         <TouchableOpacity style={s.backBtn} onPress={() => router.push("/scan")} activeOpacity={0.84}>
-          <Ionicons name="scan" size={20} color="#fff" />
+          <Ionicons name="scan" size={20} color="#1D4ED8" />
         </TouchableOpacity>
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 60 }} />
+        <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 60 }} />
       ) : (
         <ScrollView
           contentContainerStyle={s.body}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D4ED8" />}
         >
           {/* STATS */}
           <View style={s.statsRow}>
-            <View style={[s.statCard, { borderLeftColor: "#3b82f6" }]}>
-              <Text style={s.statNum}>{borrows.length}</Text>
-              <Text style={s.statLabel}>ทั้งหมด</Text>
-            </View>
-            <View style={[s.statCard, { borderLeftColor: "#f59e0b" }]}>
-              <Text style={[s.statNum, { color: "#b45309" }]}>{activeBorrows}</Text>
-              <Text style={s.statLabel}>กำลังยืม</Text>
-            </View>
-            <View style={[s.statCard, { borderLeftColor: "#22c55e" }]}>
-              <Text style={[s.statNum, { color: "#16a34a" }]}>{returned}</Text>
-              <Text style={s.statLabel}>คืนแล้ว</Text>
-            </View>
+            <StatWidget tone="blue" icon="layers-outline" label="ทั้งหมด" value={borrows.length} />
+            <StatWidget tone="amber" icon="time-outline" label="กำลังยืม" value={activeBorrows} />
+            <StatWidget tone="green" icon="checkmark" label="คืนแล้ว" value={returned} />
           </View>
 
           {/* คำขอที่รอผู้ดูแล */}
@@ -268,71 +267,65 @@ export default function Borrow() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+  container: { ...W.page, flex: 1 },
 
   header: {
-    backgroundColor: "#2563eb",
-    paddingTop: 54, paddingBottom: 20, paddingHorizontal: 20,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingTop: 52,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   backBtn: {
-    width: 39,
-    height: 39,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.23)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", textAlign: "center" },
-  headerSub:   { color: "#93c5fd", fontSize: 12, textAlign: "center", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700" },
+  headerSub:   { color: "#475569", fontSize: 12, marginTop: 1 },
 
-  body: { padding: 16 },
+  body: { padding: 16, paddingTop: 4, paddingBottom: 40 },
 
-  statsRow: { flexDirection: "row", gap: 8, marginBottom: 20 },
-  statCard: {
-    flex: 1, backgroundColor: "#fff", borderRadius: 14,
-    padding: 14, borderLeftWidth: 4,
-  },
-  statNum:   { fontSize: 24, fontWeight: "800", color: "#1e293b" },
-  statLabel: { fontSize: 11, color: "#94a3b8", marginTop: 2 },
+  statsRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
 
   sectionLabel: {
-    fontSize: 11, fontWeight: "700", color: "#64748b",
-    textTransform: "uppercase", letterSpacing: 0.5,
+    fontSize: 16, fontWeight: "600", color: "#172033",
     marginBottom: 10,
   },
 
   card: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 14,
-    marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12,
+    ...W.card,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
     borderLeftWidth: 4,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
   },
   cardOverdue: { borderColor: "#fca5a5", borderWidth: 1.5, borderLeftWidth: 4 },
-  iconBox: { width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center" },
-  itemImg: { width: 48, height: 48, borderRadius: 12 },
+  iconBox: { width: 46, height: 46, borderRadius: 15, justifyContent: "center", alignItems: "center", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
+  itemImg: { width: 46, height: 46, borderRadius: 15 },
 
   cardBody: { flex: 1 },
-  cardName: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
-  cardDate: { fontSize: 11, color: "#94a3b8", marginTop: 3 },
-  cardDue:  { fontSize: 11, color: "#64748b", marginTop: 2 },
+  cardName: { fontSize: 15, fontWeight: "600", color: "#172033" },
+  cardDate: { fontSize: 12, color: "#64748B", marginTop: 2 },
+  cardDue:  { fontSize: 12, color: "#64748B", marginTop: 1 },
   cardDueOverdue: { color: "#dc2626", fontWeight: "700" },
   tapHint: { fontSize: 10, color: "#f97316", marginTop: 4, fontWeight: "600" },
   reqCard: { borderLeftColor: "#fb923c" },
-  countdown: { fontSize: 12, color: "#c2410c", fontWeight: "800", marginTop: 3 },
+  countdown: { fontSize: 12, color: "#c2410c", fontWeight: "600", marginTop: 2 },
   cancelBtn: {
-    borderWidth: 1.5, borderColor: "#ef4444", borderRadius: 10,
+    borderWidth: 1, borderColor: "#FCA5A5", backgroundColor: "#FFF5F5", borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 7,
   },
-  cancelBtnText: { color: "#ef4444", fontSize: 12, fontWeight: "800" },
+  cancelBtnText: { color: "#B91C1C", fontSize: 13, fontWeight: "600" },
 
   badge: {
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, alignSelf: "flex-start",
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, alignSelf: "center",
   },
-  badgeText: { fontSize: 10, fontWeight: "700" },
+  badgeText: { fontSize: 12, fontWeight: "600" },
 
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
   emptyTitle: { fontSize: 17, fontWeight: "700", color: "#475569", marginTop: 8 },

@@ -4,10 +4,10 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
@@ -15,18 +15,19 @@ import { ITEM_STATUS } from "../../lib/status";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { ageMonths, ageText, warrantyInfo } from "../../lib/itemInfo";
+import { W } from "../../lib/theme";
 
 // Stock Report (แผนเฟส 2 ข้อ 1): นับจำนวนชิ้นตามสถานะ แยกตามหมวด + อายุ + ประกันรายชิ้น
 // กลุ่ม "ต้องดูแล" ใช้เกณฑ์ปีจาก app_settings (age_warn_years / age_replace_years) ที่ Admin ตั้งเอง
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
-  line: "#e2e8f0",
-  green: "#16a34a",
+  line: "#DCE6F5",
+  green: "#047857",
   orange: "#c2410c",
   red: "#dc2626",
 };
@@ -140,7 +141,7 @@ export default function StockReport() {
     <View style={s.container}>
       <View style={s.header}>
         <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={22} color="#172033" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>รายงานสต็อก</Text>
@@ -263,9 +264,8 @@ function ItemRow({ item, showCategory, warnDays }: { item: Item; showCategory?: 
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
     paddingTop: 52,
     paddingBottom: 16,
     paddingHorizontal: 18,
@@ -274,32 +274,26 @@ const s = StyleSheet.create({
     gap: 12,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   stat: {
+    ...W.card,
     flexGrow: 1,
     flexBasis: "30%",
-    backgroundColor: "#fff",
-    borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: C.line,
   },
   statWide: { flexBasis: "100%" },
   statNum: { fontSize: 24, fontWeight: "900" },
   statLabel: { fontSize: 12.5, color: C.muted, fontWeight: "700", marginTop: 2 },
   section: { fontSize: 15, fontWeight: "900", color: C.ink, marginTop: 8 },
-  card: { backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  card: { ...W.card, overflow: "hidden" },
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, minHeight: 50 },
   rowDivider: { borderTopWidth: 1, borderTopColor: C.line },
   rowLabel: { flex: 1, fontSize: 14.5, fontWeight: "700", color: C.ink },

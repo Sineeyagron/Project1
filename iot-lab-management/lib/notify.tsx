@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { ActionSheetIOS, Alert, Modal, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActionSheetIOS, Alert, Modal, Platform, Pressable, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "../components/AppText";
+import { W, NG } from "./theme";
 
 // Alert.alert ของ React Native ไม่ทำงานบนเว็บ (react-native-web ทำเป็น no-op)
 // และ window.alert/confirm ถูกซ่อนในบางที่ (เช่นแผง Browser ของ Claude)
@@ -168,19 +170,18 @@ const s = StyleSheet.create({
     padding: 24,
   },
   box: {
+    ...W.card,
     width: "100%",
     maxWidth: 380,
-    backgroundColor: "#fff",
-    borderRadius: 18,
     padding: 20,
     gap: 8,
   },
-  title: { fontSize: 17, fontWeight: "900", color: "#0f172a" },
+  title: { fontSize: 17, fontWeight: "900", color: "#172033" },
   message: { fontSize: 13.5, lineHeight: 20, color: "#475569" },
   row: { flexDirection: "row", gap: 10, marginTop: 10 },
   btn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: "center" },
-  btnPrimary: { backgroundColor: "#7c3aed" },
-  btnDanger: { backgroundColor: "#ef4444" },
+  btnPrimary: { ...W.primarySolid },
+  btnDanger: { ...NG, backgroundColor: "#ef4444" },
   btnCancel: { backgroundColor: "#f1f5f9" },
   btnText: { color: "#fff", fontSize: 14, fontWeight: "800" },
   btnTextCancel: { color: "#475569" },
@@ -188,7 +189,7 @@ const s = StyleSheet.create({
   // แผ่นเมนูเลือก (หน้าตาแบบ Action Sheet ของ iOS)
   sheetBackdrop: { flex: 1, backgroundColor: "rgba(15,23,42,0.4)", justifyContent: "flex-end" },
   sheetWrap: { padding: 10, paddingBottom: 24, gap: 8, width: "100%", maxWidth: 520, alignSelf: "center" },
-  sheetGroup: { backgroundColor: "#fff", borderRadius: 14, overflow: "hidden" },
+  sheetGroup: { ...W.card, overflow: "hidden" },
   sheetTitle: {
     textAlign: "center",
     fontSize: 13,
@@ -196,13 +197,13 @@ const s = StyleSheet.create({
     fontWeight: "700",
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#e2e8f0",
+    borderBottomColor: "#DCE6F5",
   },
   sheetOption: {
     paddingVertical: 16,
     alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#e2e8f0",
+    borderBottomColor: "#DCE6F5",
   },
   sheetPressed: { backgroundColor: "#f1f5f9" },
   sheetOptionText: { fontSize: 17, color: "#2563eb", fontWeight: "500" },

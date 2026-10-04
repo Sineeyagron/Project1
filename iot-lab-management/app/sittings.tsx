@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { Text } from "../components/AppText";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
 import { goBack } from "../lib/nav";
 import { confirmAction } from "../lib/notify";
+import { W } from "../lib/theme";
 
 export default function Settings() {
   const router = useRouter();
@@ -35,11 +37,10 @@ export default function Settings() {
 
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => goBack("/profile")}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+        <TouchableOpacity style={s.backBtn} onPress={() => goBack("/profile")} activeOpacity={0.84}>
+          <Ionicons name="chevron-back" size={21} color="#172033" />
         </TouchableOpacity>
         <Text style={s.headerTitle}>ตั้งค่า</Text>
-        <View style={{ width: 22 }} />
       </View>
 
       <View style={s.body}>
@@ -61,7 +62,7 @@ export default function Settings() {
         {/* เปิดมาจากหน้าโปรไฟล์ → ถอยกลับไป ไม่เปิดซ้อน (เดิม โปรไฟล์ ↔ ตั้งค่า วนซ้อนได้ไม่จบ) */}
         <TouchableOpacity style={s.menuItem} onPress={() => router.dismissTo("/profile")}>
           <View style={[s.menuIcon, { backgroundColor: "#eff6ff" }]}>
-            <Ionicons name="person-outline" size={20} color="#1e3a8a" />
+            <Ionicons name="person-outline" size={20} color="#1D4ED8" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.menuTitle}>โปรไฟล์</Text>
@@ -100,27 +101,32 @@ export default function Settings() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+  container: { ...W.page, flex: 1 },
 
   header: {
-    backgroundColor: "#1e3a8a",
-    paddingTop: 58, paddingBottom: 20, paddingHorizontal: 20,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingTop: 52,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  backBtn: { ...W.small, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700" },
 
   body: { padding: 16 },
 
   userCard: {
-    backgroundColor: "#fff", borderRadius: 16, padding: 16,
-    flexDirection: "row", alignItems: "center", gap: 14,
+    ...W.card,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
     marginBottom: 24,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
   },
   avatarCircle: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: "#1e3a8a", justifyContent: "center", alignItems: "center",
+    backgroundColor: "#1D4ED8", justifyContent: "center", alignItems: "center",
   },
   avatarInitial: { color: "#fff", fontSize: 22, fontWeight: "800" },
   userName: { fontSize: 16, fontWeight: "700", color: "#1e293b" },
@@ -133,20 +139,20 @@ const s = StyleSheet.create({
   },
 
   menuItem: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 14,
-    flexDirection: "row", alignItems: "center", gap: 14,
+    ...W.card,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
     marginBottom: 8,
-    shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
   },
   menuIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   menuTitle: { fontSize: 14, fontWeight: "600", color: "#1e293b" },
   menuSub: { fontSize: 11, color: "#94a3b8", marginTop: 2 },
 
   logoutBtn: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 14,
+    ...W.card, padding: 14,
     flexDirection: "row", alignItems: "center", gap: 14,
-    borderWidth: 1, borderColor: "#fee2e2",
   },
   logoutTxt: { fontSize: 14, fontWeight: "600", color: "#dc2626" },
 

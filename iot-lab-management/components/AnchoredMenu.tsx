@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { Animated, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Text } from "./AppText";
+import { W } from "../lib/theme";
 
 // เมนูเล็กที่โผล่ใต้ปุ่มที่กด (แบบ pull-down menu ของ iOS) ไม่ใช้ Modal
 // วิธีใช้: ปุ่มเรียก measureInWindow แล้วส่ง anchor มา / วาง <AnchoredMenu /> เป็นลูกตัวสุดท้ายของ View ชั้นนอกสุดของหน้า
@@ -80,19 +82,11 @@ export default function AnchoredMenu({
 
 const s = StyleSheet.create({
   menu: {
+    ...W.card,
     position: "absolute",
     minWidth: 220,
     maxWidth: 280,
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
     overflow: "hidden",
-    shadowColor: "#0f172a",
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#e2e8f0",
   },
   title: { fontSize: 12, color: "#94a3b8", fontWeight: "700", paddingHorizontal: 16, paddingTop: 10, paddingBottom: 8 },
   row: {
@@ -103,9 +97,9 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#e2e8f0" },
+  rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#DCE6F5" },
   pressed: { backgroundColor: "#f1f5f9" },
-  label: { fontSize: 15, color: "#0f172a", fontWeight: "500" },
+  label: { fontSize: 15, color: "#172033", fontWeight: "500" },
   labelActive: { fontWeight: "800" },
   check: { width: 16, fontSize: 15, color: "#2563eb", fontWeight: "800", textAlign: "right" },
 });

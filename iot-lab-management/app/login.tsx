@@ -6,17 +6,17 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { setRememberLogin } from "../lib/session";
 import { notify } from "../lib/notify";
 import { getAllowedDomain, isAllowedEmail, signInWithGoogle, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
+import { W, NG } from "../lib/theme";
 
 export default function Login() {
   const router = useRouter();
@@ -213,7 +213,7 @@ export default function Login() {
             LabHub
           </Text>
           <View style={styles.subtitleRow}>
-            <Ionicons name="time-outline" size={11} color="#7c3aed" />
+            <Ionicons name="time-outline" size={11} color="#2563EB" />
             <Text style={styles.appSubtitle}>ทุกอุปกรณ์ในห้องแล็บ รวมไว้ที่เดียว</Text>
           </View>
         </View>
@@ -225,7 +225,7 @@ export default function Login() {
           <Text style={styles.label}>อีเมล</Text>
           <View style={[styles.inputBox, fieldErrors.email && styles.inputBoxError, focusedField === "email" && styles.inputBoxFocused]}>
             <View style={styles.inputIconBox}>
-              <Ionicons name="mail-outline" size={18} color={focusedField === "email" ? "#7c3aed" : "#7f8ea3"} />
+              <Ionicons name="mail-outline" size={18} color={focusedField === "email" ? "#2563EB" : "#7f8ea3"} />
             </View>
             <TextInput
               placeholder={focusedField === "email" ? "" : "student@iotlab.ac.th"}
@@ -238,7 +238,7 @@ export default function Login() {
               autoCapitalize="none"
               keyboardType="email-address"
               textContentType="emailAddress"
-              selectionColor="#7c3aed"
+              selectionColor="#2563EB"
             />
           </View>
           {!!fieldErrors.email && (
@@ -257,7 +257,7 @@ export default function Login() {
 
           <View style={[styles.inputBox, fieldErrors.password && styles.inputBoxError, focusedField === "password" && styles.inputBoxFocused]}>
             <View style={styles.inputIconBox}>
-              <Ionicons name="lock-closed-outline" size={18} color={focusedField === "password" ? "#7c3aed" : "#7f8ea3"} />
+              <Ionicons name="lock-closed-outline" size={18} color={focusedField === "password" ? "#2563EB" : "#7f8ea3"} />
             </View>
             <TextInput
               placeholder={focusedField === "password" ? "" : "กรอกรหัสผ่าน"}
@@ -269,7 +269,7 @@ export default function Login() {
               onFocus={() => setFocusedField("password")}
               onBlur={() => setFocusedField(null)}
               textContentType="password"
-              selectionColor="#7c3aed"
+              selectionColor="#2563EB"
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} hitSlop={10}>
               <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#7f8ea3" />
@@ -322,7 +322,7 @@ export default function Login() {
             activeOpacity={0.85}
           >
             {googleLoading ? (
-              <ActivityIndicator color="#0f172a" />
+              <ActivityIndicator color="#172033" />
             ) : (
               <>
                 <Ionicons name="logo-google" size={18} color="#ea4335" />
@@ -340,7 +340,7 @@ export default function Login() {
         </View>
 
         <View style={styles.sslPill}>
-          <Ionicons name="shield-checkmark" size={14} color="#16a34a" />
+          <Ionicons name="shield-checkmark" size={14} color="#047857" />
           <Text style={styles.sslText}>ปลอดภัย เข้ารหัส SSL</Text>
         </View>
       </ScrollView>
@@ -357,14 +357,14 @@ const styles = StyleSheet.create({
     minHeight: 50,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#DCE6F5",
     backgroundColor: "#ffffff",
     marginTop: 4,
   },
-  googleText: { fontSize: 15, fontWeight: "800", color: "#0f172a" },
+  googleText: { fontSize: 14, fontWeight: "600", color: "#172033", flexShrink: 1 },
   screen: {
+    ...W.page,
     flex: 1,
-    backgroundColor: "#dfeafb",
   },
   topBand: {
     position: "absolute",
@@ -372,7 +372,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "#dfeafb",
   },
   content: {
     flexGrow: 1,
@@ -398,7 +397,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.80)",
-    shadowColor: "#7c3aed",
+    shadowColor: "#2563EB",
     shadowOpacity: 0.2,
     shadowRadius: 22,
     shadowOffset: { width: 0, height: 10 },
@@ -415,6 +414,7 @@ const styles = StyleSheet.create({
     borderColor: "#60a5fa",
   },
   logoBadge: {
+    ...NG,
     position: "absolute",
     top: -5,
     right: -4,
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   appName: {
-    color: "#0f172a",
+    color: "#172033",
     fontSize: 31,
     fontWeight: "900",
     textAlign: "center",
@@ -448,24 +448,16 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   card: {
+    ...W.card,
     width: "100%",
     maxWidth: 430,
     alignSelf: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: 21,
     paddingHorizontal: 22,
     paddingTop: 24,
     paddingBottom: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.85)",
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 4,
   },
   title: {
-    color: "#0f172a",
+    color: "#172033",
     fontSize: 20,
     fontWeight: "900",
   },
@@ -494,20 +486,22 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     paddingHorizontal: 11,
     marginBottom: 16,
-    shadowColor: "#0f172a",
+    shadowColor: "#172033",
     shadowOpacity: 0.03,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
   },
   inputBoxFocused: {
-    borderColor: "#7c3aed",
+    ...NG,
+    borderColor: "#2563EB",
     backgroundColor: "#ffffff",
-    shadowColor: "#7c3aed",
+    shadowColor: "#2563EB",
     shadowOpacity: 0.12,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
   inputBoxError: {
+    ...NG,
     borderColor: "#fca5a5",
     backgroundColor: "#fff7f7",
   },
@@ -515,13 +509,13 @@ const styles = StyleSheet.create({
     width: 31,
     height: 31,
     borderRadius: 8,
-    backgroundColor: "#f1eefb",
+    backgroundColor: "#EEF5FF",
     alignItems: "center",
     justifyContent: "center",
   },
   input: {
     flex: 1,
-    color: "#1f2937",
+    color: "#172033",
     fontSize: 14,
     paddingVertical: 12,
     fontWeight: "500",
@@ -562,12 +556,13 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 5,
     borderWidth: 1,
-    borderColor: "#7c3aed",
+    borderColor: "#2563EB",
     alignItems: "center",
     justifyContent: "center",
   },
   checkboxChecked: {
-    backgroundColor: "#7c3aed",
+    ...NG,
+    backgroundColor: "#2563EB",
   },
   rememberText: {
     color: "#475569",
@@ -575,19 +570,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   loginBtn: {
+    ...W.primarySolid,
     minHeight: 44,
-    backgroundColor: "#7c3aed",
-    borderRadius: 11,
+    borderRadius: 15,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     marginTop: 0,
-    shadowColor: "#7c3aed",
-    shadowOpacity: 0.38,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 7,
   },
   loginBtnDisabled: {
     opacity: 0.55,
@@ -606,7 +596,7 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: "#DCE6F5",
   },
   dividerText: {
     color: "#a2aec0",
@@ -626,7 +616,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   signup: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontSize: 12.5,
     fontWeight: "900",
   },
@@ -644,7 +634,7 @@ const styles = StyleSheet.create({
     borderColor: "#bbf7d0",
   },
   sslText: {
-    color: "#16a34a",
+    color: "#047857",
     fontSize: 10.5,
     fontWeight: "900",
   },

@@ -6,11 +6,10 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
@@ -19,16 +18,18 @@ import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
 import { addYears, isValidDate, thaiDate } from "../../lib/itemInfo";
+import { W, NG } from "../../lib/theme";
+import StatWidget from "../../components/StatWidget";
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  purpleSoft: "#8b5cf6",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  purpleSoft: "#3B82F6",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
   card: "#ffffff",
-  green: "#22c55e",
+  green: "#10B981",
   orange: "#f59e0b",
   red: "#ef4444",
   blue: "#3b82f6",
@@ -43,10 +44,10 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string; bor
 };
 
 const TYPE_CFG: Record<string, { icon: any; color: string; bg: string; filter: string; label: string }> = {
-  microcontroller: { icon: "hardware-chip-outline", color: "#16a34a", bg: "#dcfce7", filter: "microcontroller", label: "Microcontroller" },
-  sensor: { icon: "pulse-outline", color: "#16a34a", bg: "#dcfce7", filter: "sensor", label: "Sensor" },
+  microcontroller: { icon: "hardware-chip-outline", color: "#047857", bg: "#ECFDF5", filter: "microcontroller", label: "Microcontroller" },
+  sensor: { icon: "pulse-outline", color: "#047857", bg: "#ECFDF5", filter: "sensor", label: "Sensor" },
   module: { icon: "cube-outline", color: "#ef4444", bg: "#fee2e2", filter: "module", label: "Module" },
-  default: { icon: "cube-outline", color: "#d97706", bg: "#fef3c7", filter: "other", label: "อื่นๆ" },
+  default: { icon: "cube-outline", color: "#B45309", bg: "#fef3c7", filter: "other", label: "อื่นๆ" },
 };
 
 // "all" | "retired" | ชื่อหมวด (จากตาราง categories)
@@ -452,10 +453,10 @@ export default function AdminItems() {
       <View style={s.header}>
         <View style={s.headerTop}>
           <TouchableOpacity style={s.iconBtn} onPress={goBack} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color="#172033" />
           </TouchableOpacity>
           <TouchableOpacity ref={headerSortRef} style={s.iconBtn} onPress={() => openSort(headerSortRef)} activeOpacity={0.82}>
-            <Ionicons name="options-outline" size={21} color="#fff" />
+            <Ionicons name="options-outline" size={21} color="#1D4ED8" />
           </TouchableOpacity>
         </View>
 
@@ -465,9 +466,9 @@ export default function AdminItems() {
         </View>
 
         <View style={s.statRow}>
-          <HeaderStat icon="cube-outline" label="ทั้งหมด" value={activeItems.length} dotColor="#ffffff" />
-          <HeaderStat icon="ellipse" label="พร้อมใช้" value={availableCount} dotColor="#22c55e" />
-          <HeaderStat icon="ellipse" label="ถูกยืม/ซ่อม" value={borrowedCount + repairCount} dotColor="#facc15" />
+          <StatWidget tone="blue" icon="cube-outline" label="ทั้งหมด" value={activeItems.length} />
+          <StatWidget tone="green" icon="checkmark" label="พร้อมใช้" value={availableCount} />
+          <StatWidget tone="amber" icon="swap-horizontal" label="ถูกยืม/ซ่อม" value={borrowedCount + repairCount} />
         </View>
 
         <View style={s.searchWrap}>
@@ -692,35 +693,12 @@ export default function AdminItems() {
   );
 }
 
-function HeaderStat({
-  icon,
-  label,
-  value,
-  dotColor,
-}: {
-  icon: any;
-  label: string;
-  value: number;
-  dotColor: string;
-}) {
-  return (
-    <View style={s.headerStat}>
-      <View style={s.headerStatLabelRow}>
-        <Ionicons name={icon} size={12} color={dotColor} />
-        <Text style={s.headerStatLabel}>{label}</Text>
-      </View>
-      <Text style={s.headerStatValue}>{value}</Text>
-    </View>
-  );
-}
-
 const s = StyleSheet.create({
   container: {
+    ...W.page,
     flex: 1,
-    backgroundColor: C.bg,
   },
   header: {
-    backgroundColor: C.purple,
     paddingTop: 54,
     paddingHorizontal: 18,
     paddingBottom: 17,
@@ -735,12 +713,7 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -750,55 +723,29 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
   headerTitle: {
-    color: "#fff",
+    color: "#172033",
     fontSize: 28,
     fontWeight: "900",
     lineHeight: 32,
   },
   headerSub: {
-    color: "#ddd6fe",
+    color: "#475569",
     fontSize: 12,
     fontWeight: "900",
     marginBottom: 2,
   },
   statRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: 10,
     marginBottom: 14,
-  },
-  headerStat: {
-    flex: 1,
-    minHeight: 64,
-    borderRadius: 11,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-  },
-  headerStatLabelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  headerStatLabel: {
-    color: "#ede9fe",
-    fontSize: 10,
-    fontWeight: "900",
-  },
-  headerStatValue: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "900",
-    marginTop: 6,
   },
   searchWrap: {
     minHeight: 46,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    ...W.input,
+    borderWidth: 0,
     paddingLeft: 14,
     paddingRight: 7,
   },
@@ -813,7 +760,7 @@ const s = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: "#f5f3ff",
+    backgroundColor: "#EEF5FF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -836,11 +783,11 @@ const s = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 13,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#DCE6F5",
   },
   editLabel: { fontSize: 13, fontWeight: "800", color: C.ink, marginTop: 4 },
   editError: { fontSize: 12.5, color: C.red, fontWeight: "700" },
-  inputError: { borderColor: C.red, backgroundColor: "#fef2f2" },
+  inputError: { ...NG, borderColor: C.red, backgroundColor: "#fef2f2" },
   editChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   editChip: {
     minHeight: 36,
@@ -849,11 +796,12 @@ const s = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: C.purpleSoft,
-    backgroundColor: "#f5f3ff",
+    backgroundColor: "#EEF5FF",
   },
   editChipText: { fontSize: 13, fontWeight: "700", color: C.purple },
-  chipManage: { borderStyle: "dashed", borderColor: C.purpleSoft, backgroundColor: "#f5f3ff" },
+  chipManage: { borderStyle: "dashed", borderColor: C.purpleSoft, backgroundColor: "#EEF5FF" },
   chipActive: {
+    ...NG,
     backgroundColor: C.purple,
     borderColor: C.purple,
     shadowColor: C.purple,
@@ -905,9 +853,8 @@ const s = StyleSheet.create({
     fontWeight: "900",
   },
   card: {
+    ...W.card,
     minHeight: 82,
-    backgroundColor: C.card,
-    borderRadius: 14,
     paddingHorizontal: 13,
     paddingVertical: 12,
     flexDirection: "row",
@@ -915,13 +862,6 @@ const s = StyleSheet.create({
     gap: 12,
     marginBottom: 13,
     borderLeftWidth: 3,
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.04)",
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.16,
-    shadowRadius: 11,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
   },
   itemIconBox: {
     width: 46,
@@ -981,9 +921,10 @@ const s = StyleSheet.create({
     elevation: 6,
   },
   cardActionMuted: {
+    ...NG,
     backgroundColor: "#f8fafc",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#DCE6F5",
   },
   sortRow: {
     flexDirection: "row",
@@ -1031,7 +972,7 @@ const s = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#f8fafc",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#DCE6F5",
   },
   sheetBtnText: {
     color: C.ink,
@@ -1060,7 +1001,7 @@ const s = StyleSheet.create({
   },
   reasonInput: {
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#DCE6F5",
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,

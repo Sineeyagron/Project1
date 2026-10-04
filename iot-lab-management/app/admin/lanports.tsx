@@ -1,8 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, RefreshControl, Modal, TextInput,
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Modal,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useRole } from "../../lib/roles";
@@ -13,6 +19,7 @@ import { LAN_STATUS, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { useRoomLive } from "../../lib/roomRealtime";
+import { W, NG } from "../../lib/theme";
 
 // กด port = เปลี่ยนสถานะวนตามลำดับนี้
 const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
@@ -169,13 +176,13 @@ export default function AdminLanPorts() {
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => goBack("/admin/room")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={22} color="#172033" />
         </TouchableOpacity>
         <Text style={styles.headerText}>จัดการ LAN Port</Text>
         {isAdmin ? (
           <TouchableOpacity
             onPress={() => selectedRoom ? setAddModal(true) : notify("ยังไม่มีห้อง", "ต้องมีห้องก่อนถึงจะเพิ่ม Port ได้")}>
-            <Ionicons name="add-circle-outline" size={26} color="#fff" />
+            <Ionicons name="add-circle-outline" size={26} color="#1D4ED8" />
           </TouchableOpacity>
         ) : (
           <View style={{ width: 26 }} />
@@ -209,17 +216,17 @@ export default function AdminLanPorts() {
       </ScrollView>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}>
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D4ED8" />}>
 
           {!!loadError && <LoadError message={loadError} onRetry={retry} />}
 
           {/* สถิติ */}
           <View style={styles.statsRow}>
-            <View style={[styles.statCard, { borderLeftColor: "#22c55e" }]}>
-              <Text style={[styles.statNum, { color: "#16a34a" }]}>{available}</Text>
+            <View style={[styles.statCard, { borderLeftColor: "#10B981" }]}>
+              <Text style={[styles.statNum, { color: "#047857" }]}>{available}</Text>
               <Text style={styles.statLabel}>ใช้งานได้</Text>
             </View>
             <View style={[styles.statCard, { borderLeftColor: "#f59e0b" }]}>
@@ -325,39 +332,38 @@ export default function AdminLanPorts() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: "#7c3aed", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerText: { color: "#fff", fontSize: 17, fontWeight: "bold" },
+  headerText: { color: "#475569", fontSize: 17, fontWeight: "bold" },
 
   selectorScroll: { maxHeight: 52 },
   selectorRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
-  selectorBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 10, backgroundColor: "#e2e8f0" },
-  selectorBtnActive: { backgroundColor: "#1e3a8a" },
+  selectorBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 10, backgroundColor: "#DCE6F5" },
+  selectorBtnActive: { ...NG, backgroundColor: "#1D4ED8" },
   selectorTxt: { fontSize: 13, fontWeight: "600", color: "#64748b" },
   selectorTxtActive: { color: "#fff" },
 
-  groupBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0" },
-  groupBtnActive: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
+  groupBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 10, backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5" },
+  groupBtnActive: { ...NG, backgroundColor: "#2563EB", borderColor: "#2563EB" },
   groupBtnTxt: { fontSize: 12, fontWeight: "600", color: "#64748b" },
   groupBtnTxtActive: { color: "#fff" },
 
   scroll: { padding: 16 },
 
   statsRow: { flexDirection: "row", gap: 8, marginBottom: 12 },
-  statCard: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 12, borderLeftWidth: 4, alignItems: "center" },
+  statCard: { ...W.card, flex: 1, padding: 12, borderLeftWidth: 4, alignItems: "center" },
   statNum: { fontSize: 22, fontWeight: "800" },
   statLabel: { fontSize: 10, color: "#94a3b8", marginTop: 2 },
 
@@ -384,7 +390,7 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 16, fontWeight: "bold", color: "#1e293b" },
   modalSub: { fontSize: 12, color: "#64748b", marginBottom: 14 },
   fieldLabel: { fontSize: 11, fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, marginTop: 10 },
-  input: { backgroundColor: "#f8fafc", borderRadius: 12, padding: 13, fontSize: 14, borderWidth: 1, borderColor: "#e2e8f0" },
-  addBtn: { backgroundColor: "#1e3a8a", padding: 16, borderRadius: 12, alignItems: "center", marginTop: 16 },
+  input: { backgroundColor: "#f8fafc", borderRadius: 12, padding: 13, fontSize: 14, borderWidth: 1, borderColor: "#DCE6F5" },
+  addBtn: { ...W.primarySolid, padding: 16, borderRadius: 15, alignItems: "center", marginTop: 16 },
   addBtnTxt: { color: "#fff", fontWeight: "700", fontSize: 15 },
 });

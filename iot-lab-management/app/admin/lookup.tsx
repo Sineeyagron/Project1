@@ -7,11 +7,10 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -21,18 +20,19 @@ import { goBack } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import { ageText, thaiDate, warrantyInfo } from "../../lib/itemInfo";
+import { W, NG } from "../../lib/theme";
 
 // Admin สแกน = ดูสถานะอย่างเดียว (แผน 2.6): ชื่อ รหัส สถานะ ผู้ยืม กำหนดคืน อายุ ประกัน ประวัติ
 // การยืม/คืนต้องให้นักศึกษาสแกนขอเอง แล้วผู้ดูแลอนุมัติในกล่องคำขอ
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
-  line: "#e2e8f0",
-  green: "#16a34a",
+  line: "#DCE6F5",
+  green: "#047857",
   orange: "#c2410c",
   red: "#dc2626",
 };
@@ -171,7 +171,7 @@ export default function AdminLookup() {
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={s.header}>
         <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={22} color="#172033" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>สแกนดูสถานะ</Text>
@@ -350,9 +350,8 @@ function InfoRow({ label, value, color }: { label: string; value?: string | null
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
     paddingTop: 52,
     paddingBottom: 16,
     paddingHorizontal: 18,
@@ -361,25 +360,19 @@ const s = StyleSheet.create({
     gap: 12,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 12 },
 
   cameraBox: {
+    ...W.card,
     height: 260,
-    borderRadius: 18,
     overflow: "hidden",
-    backgroundColor: "#fff",
-    borderWidth: 1.5,
     borderStyle: "dashed",
-    borderColor: "#c4b5fd",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -396,14 +389,14 @@ const s = StyleSheet.create({
     fontSize: 14,
     color: C.ink,
   },
-  manualBtn: { backgroundColor: C.purple, borderRadius: 12, paddingHorizontal: 16, justifyContent: "center" },
+  manualBtn: { ...W.primarySolid, borderRadius: 15, paddingHorizontal: 16, justifyContent: "center" },
   manualBtnText: { color: "#fff", fontWeight: "900" },
   notFound: { textAlign: "center", color: C.red, fontWeight: "800" },
 
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 14, gap: 8 },
+  card: { ...W.card, padding: 14, gap: 8 },
   itemTop: { flexDirection: "row", gap: 12, alignItems: "center", marginBottom: 4 },
   itemImage: { width: 72, height: 72, borderRadius: 12 },
-  itemImageEmpty: { backgroundColor: "#ede9fe", alignItems: "center", justifyContent: "center" },
+  itemImageEmpty: { backgroundColor: "#DBEAFE", alignItems: "center", justifyContent: "center" },
   itemCode: { fontSize: 21, fontWeight: "900", color: C.ink },
   itemName: { fontSize: 13, fontWeight: "700", color: C.muted },
   pill: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
@@ -413,7 +406,7 @@ const s = StyleSheet.create({
   infoLabel: { width: 100, fontSize: 12.5, color: C.muted, fontWeight: "700" },
   infoValue: { flex: 1, fontSize: 13, color: C.ink, fontWeight: "800" },
 
-  pendingCard: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#fff7ed", borderWidth: 1, borderColor: "#fdba74" },
+  pendingCard: { ...NG, flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#fff7ed", borderWidth: 1, borderColor: "#fdba74" },
   pendingTitle: { fontSize: 14.5, fontWeight: "900", color: C.orange },
   pendingSub: { fontSize: 12, fontWeight: "700", color: C.muted, marginTop: 2 },
 
@@ -428,10 +421,10 @@ const s = StyleSheet.create({
   thumbLabel: { fontSize: 10, color: C.muted, fontWeight: "700" },
 
   againBtn: {
+    ...W.primarySolid,
     flexDirection: "row",
     gap: 8,
-    backgroundColor: C.purple,
-    borderRadius: 14,
+    borderRadius: 15,
     paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",

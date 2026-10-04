@@ -5,11 +5,10 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
@@ -20,14 +19,15 @@ import { ROOM_CODE_RE, Room, fetchRooms, roomPlace } from "../../lib/rooms";
 import LoadError from "../../components/LoadError";
 import { useRole } from "../../lib/roles";
 import { useRoomLive } from "../../lib/roomRealtime";
+import { W, NG } from "../../lib/theme";
 
 const C = {
-  bg: "#eef2f8",
-  purple: "#7c3aed",
-  purpleDeep: "#5b21b6",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  purpleDeep: "#1E40AF",
   card: "#ffffff",
-  ink: "#111827",
-  text: "#1f2937",
+  ink: "#172033",
+  text: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
   line: "#d8dde8",
@@ -215,15 +215,15 @@ export default function AdminRoom() {
       <View style={s.header}>
         <View style={s.headerTop}>
           <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={22} color="#ffffff" />
+            <Ionicons name="chevron-back" size={21} color="#172033" />
           </TouchableOpacity>
           <Text style={s.headerTitle}>จัดการห้อง</Text>
           {isAdmin ? (
             <TouchableOpacity style={s.iconBtn} onPress={openAdd} activeOpacity={0.82} accessibilityLabel="เพิ่มห้อง">
-              <Ionicons name="add" size={21} color="#ffffff" />
+              <Ionicons name="add" size={22} color="#1D4ED8" />
             </TouchableOpacity>
           ) : (
-            <View style={{ width: 31 }} />
+            <View style={{ width: 44 }} />
           )}
         </View>
 
@@ -401,73 +401,57 @@ function ActionButton({ icon, label, onPress }: { icon: any; label: string; onPr
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
-    paddingTop: 23,
-    paddingHorizontal: 28,
-    paddingBottom: 24,
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
   headerTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 15,
+    marginBottom: 14,
   },
   iconBtn: {
-    width: 31,
-    height: 31,
-    borderRadius: 8,
-    backgroundColor: "rgba(39, 18, 98, 0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(18, 11, 54, 0.18)",
+    ...W.small,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "900",
+    color: "#172033",
+    fontSize: 20,
+    fontWeight: "700",
   },
-  summaryRow: { flexDirection: "row", gap: 8 },
+  summaryRow: { flexDirection: "row", gap: 10 },
   headerStat: {
     flex: 1,
-    minHeight: 88,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.13)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    minHeight: 80,
+    ...W.statBlue,
     alignItems: "center",
     justifyContent: "center",
   },
   headerStatValue: {
-    color: "#ffffff",
-    fontSize: 18,
-    fontWeight: "900",
-    lineHeight: 22,
+    color: "#172033",
+    fontSize: 26,
+    fontWeight: "700",
+    lineHeight: 32,
   },
   headerStatLabel: {
-    color: "#ede9fe",
-    fontSize: 10.5,
-    fontWeight: "800",
-    marginTop: 9,
+    color: "#64748B",
+    fontSize: 12,
+    marginTop: 2,
     textAlign: "center",
   },
   loadingBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   loadingText: { color: C.faint, fontSize: 13, fontWeight: "700" },
   scroll: { paddingHorizontal: 23, paddingTop: 14 },
   roomCard: {
-    backgroundColor: C.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.line,
+    ...W.card,
     marginBottom: 13,
     overflow: "hidden",
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
   },
   roomHeader: {
     flexDirection: "row",
@@ -480,7 +464,7 @@ const s = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: "#ede9fe",
+    backgroundColor: "#DBEAFE",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 11,
@@ -489,6 +473,7 @@ const s = StyleSheet.create({
   roomName: { fontSize: 14.5, fontWeight: "900", color: C.ink, lineHeight: 18 },
   roomSub: { fontSize: 11, color: "#374151", fontWeight: "600", marginTop: 2 },
   warnBadge: {
+    ...NG,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
@@ -499,10 +484,11 @@ const s = StyleSheet.create({
   },
   warnText: { fontSize: 10.5, color: "#c2410c", fontWeight: "800" },
   okBadge: {
+    ...NG,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#dcfce7",
+    backgroundColor: "#ECFDF5",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
@@ -544,10 +530,10 @@ const s = StyleSheet.create({
   },
   actionText: { color: C.ink, fontSize: 12, fontWeight: "800" },
   roomCardClosed: { opacity: 0.7 },
-  reportsBanner: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: C.card, borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 14, marginBottom: 13 },
-  reportsBannerHot: { backgroundColor: "#fff7ed", borderColor: "#fdba74" },
+  reportsBanner: { ...W.card, flexDirection: "row", alignItems: "center", gap: 10, padding: 14, marginBottom: 13 },
+  reportsBannerHot: { ...NG, backgroundColor: "#fff7ed", borderColor: "#fdba74" },
   reportsText: { flex: 1, fontSize: 13, fontWeight: "900", color: C.ink },
-  closedBadge: { backgroundColor: "#e2e8f0", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+  closedBadge: { ...NG, backgroundColor: "#DCE6F5", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   closedText: { fontSize: 10.5, color: C.muted, fontWeight: "900" },
   editBtn: { marginLeft: 8, width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#f1f5f9" },
   emptyText: { color: C.faint, fontSize: 14, fontWeight: "800", textAlign: "center", marginTop: 40 },
@@ -556,9 +542,9 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   modalTitle: { color: C.ink, fontSize: 18, fontWeight: "900" },
   fieldLabel: { color: C.muted, fontSize: 12, fontWeight: "900", marginTop: 10, marginBottom: 7 },
-  input: { minHeight: 45, borderRadius: 12, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#e2e8f0", paddingHorizontal: 13, color: C.ink, fontSize: 14, fontWeight: "800" },
+  input: { minHeight: 45, borderRadius: 12, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#DCE6F5", paddingHorizontal: 13, color: C.ink, fontSize: 14, fontWeight: "800" },
   hint: { color: "#b45309", fontSize: 11, fontWeight: "700", marginTop: 6 },
-  saveBtn: { minHeight: 48, borderRadius: 12, backgroundColor: C.purple, alignItems: "center", justifyContent: "center", marginTop: 18 },
+  saveBtn: { ...W.primarySolid, minHeight: 48, borderRadius: 15, alignItems: "center", justifyContent: "center", marginTop: 18 },
   saveBtnText: { color: "#fff", fontSize: 15, fontWeight: "900" },
   modalActions: { flexDirection: "row", gap: 10, marginTop: 10 },
   secondaryBtn: { flex: 1, minHeight: 46, borderRadius: 12, backgroundColor: "#f1f5f9", alignItems: "center", justifyContent: "center" },

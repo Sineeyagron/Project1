@@ -4,15 +4,16 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
+import { W } from "../../lib/theme";
 
 function SignaturePreview({ svgString }: { svgString: string }) {
   if (!svgString || !svgString.startsWith("<svg")) return null;
@@ -40,16 +41,16 @@ function SignaturePreview({ svgString }: { svgString: string }) {
 }
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
   blue: "#1e4fae",
-  ink: "#0f172a",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
   card: "#ffffff",
   orange: "#f59e0b",
   red: "#ef4444",
-  green: "#22c55e",
+  green: "#10B981",
 };
 
 const FILTERS = [
@@ -82,7 +83,7 @@ function isOverdue(record: any) {
 
 function statusConfig(record: any) {
   if (record.status === "returned") {
-    return { label: "คืนแล้ว", color: "#16a34a", bg: "#dcfce7", icon: "server-outline", iconBg: "#dcfce7" };
+    return { label: "คืนแล้ว", color: "#047857", bg: "#ECFDF5", icon: "server-outline", iconBg: "#ECFDF5" };
   }
   if (isOverdue(record)) {
     return { label: "เกินกำหนด", color: "#dc2626", bg: "#fee2e2", icon: "hardware-chip-outline", iconBg: "#fef3c7" };
@@ -175,7 +176,7 @@ export default function AdminHistory() {
     <View style={s.container}>
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={goBack} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={22} color="#172033" />
         </TouchableOpacity>
         <View>
           <Text style={s.headerTitle}>ประวัติยืม-คืน</Text>
@@ -304,12 +305,11 @@ export default function AdminHistory() {
 
 const s = StyleSheet.create({
   container: {
+    ...W.page,
     flex: 1,
-    backgroundColor: C.bg,
   },
   header: {
     minHeight: 122,
-    backgroundColor: C.purple,
     paddingTop: 58,
     paddingHorizontal: 35,
     paddingBottom: 17,
@@ -318,23 +318,18 @@ const s = StyleSheet.create({
     gap: 12,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    color: "#fff",
+    color: "#172033",
     fontSize: 25,
     fontWeight: "900",
     lineHeight: 29,
   },
   headerSub: {
-    color: "#ddd6fe",
+    color: "#475569",
     fontSize: 12,
     fontWeight: "900",
     marginTop: 4,
@@ -364,15 +359,9 @@ const s = StyleSheet.create({
     fontWeight: "900",
   },
   card: {
-    backgroundColor: C.card,
-    borderRadius: 14,
+    ...W.card,
     padding: 14,
     marginBottom: 12,
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.16,
-    shadowRadius: 11,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
   },
   cardMain: {
     flexDirection: "row",
@@ -443,7 +432,7 @@ const s = StyleSheet.create({
   },
   expandedLine: {
     height: 1,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: "#DCE6F5",
     marginBottom: 10,
   },
   detailRow: {
@@ -471,7 +460,7 @@ const s = StyleSheet.create({
     minHeight: 84,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#DCE6F5",
     padding: 8,
     justifyContent: "center",
   },

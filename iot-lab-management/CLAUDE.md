@@ -9,6 +9,12 @@
 
 ---
 
+## 🎨 หน้าตา (UI)
+- **ใช้ `docs/DESIGN.md` เท่านั้น** (ระบบสีฟ้า #2563EB + Material 3 / React Native Paper แบบปรับเอง) — ไฟล์นี้เป็นของโปรเจกต์นี้โปรเจกต์เดียว ห้ามเอา design system อื่นมาผสม
+- ทำตัวอย่าง (mockup) ให้เจ้าของโปรเจกต์ดูและเห็นด้วยก่อน แล้วค่อยแก้โค้ดจริง
+
+---
+
 ## 🧱 Tech Stack
 - **Framework**: React Native + Expo (expo-router)
 - **Backend**: Supabase (Auth + Database + Storage)

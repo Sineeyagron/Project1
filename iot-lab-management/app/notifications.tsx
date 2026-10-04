@@ -1,25 +1,32 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
-  View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator, RefreshControl, AppState,
+  View,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  AppState,
 } from "react-native";
+import { Text } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { useRealtime } from "../lib/realtime";
 import { currentUser } from "../lib/session";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
+import { W } from "../lib/theme";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
   borrow:         { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
-  return:         { icon: "checkmark-circle-outline", iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  return:         { icon: "checkmark-circle-outline", iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
   // ถึงผู้ดูแล: มีคำขอใหม่
   request_borrow: { icon: "hand-left-outline",        iconColor: "#2563eb", iconBg: "#dbeafe", dot: "#3b82f6" },
-  request_return: { icon: "return-down-back-outline", iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  request_return: { icon: "return-down-back-outline", iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
   request_renew:  { icon: "refresh-outline",          iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
   // ถึงผู้ขอ: ผลคำขอ
-  approved:       { icon: "checkmark-circle-outline", iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
-  renewed:        { icon: "calendar-outline",         iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  approved:       { icon: "checkmark-circle-outline", iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
+  renewed:        { icon: "calendar-outline",         iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
   declined:       { icon: "close-circle-outline",     iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
   expired:        { icon: "time-outline",             iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
   cancelled:      { icon: "ban-outline",              iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
@@ -33,10 +40,10 @@ const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; d
   age_warn:         { icon: "eye-outline",            iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
   age_replace:      { icon: "refresh-circle-outline", iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
   // สิทธิ์ TA เปลี่ยน (เฟส 4.1)
-  role_changed:     { icon: "shield-checkmark-outline", iconColor: "#7c3aed", iconBg: "#ede9fe", dot: "#8b5cf6" },
+  role_changed:     { icon: "shield-checkmark-outline", iconColor: "#2563EB", iconBg: "#DBEAFE", dot: "#3B82F6" },
   // ระบบห้องคอม R3: คำแจ้งปัญหาเครื่อง/LAN (แยกจากระบบยืม-คืน)
   room_report:          { icon: "megaphone-outline",        iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
-  room_report_accepted: { icon: "construct-outline",        iconColor: "#16a34a", iconBg: "#dcfce7", dot: "#22c55e" },
+  room_report_accepted: { icon: "construct-outline",        iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
   room_report_closed:   { icon: "chatbox-ellipses-outline", iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
 };
 
@@ -182,10 +189,10 @@ export default function Notifications() {
 
       {/* HEADER */}
       <View style={s.header}>
-        <TouchableOpacity onPress={() => goBack(isStaff ? "/admin/home" : "/home")}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+        <TouchableOpacity style={s.backBtn} onPress={() => goBack(isStaff ? "/admin/home" : "/home")} activeOpacity={0.84}>
+          <Ionicons name="chevron-back" size={21} color="#172033" />
         </TouchableOpacity>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>การแจ้งเตือน</Text>
           {unreadCount > 0 && (
             <Text style={s.headerSub}>{unreadCount} รายการยังไม่ได้อ่าน</Text>
@@ -195,9 +202,7 @@ export default function Notifications() {
           <TouchableOpacity onPress={markAllRead} style={s.markAllBtn}>
             <Text style={s.markAllTxt}>อ่านทั้งหมด</Text>
           </TouchableOpacity>
-        ) : (
-          <View style={{ width: 70 }} />
-        )}
+        ) : null}
       </View>
 
       {/* new banner */}
@@ -209,7 +214,7 @@ export default function Notifications() {
       )}
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 60 }} />
+        <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 60 }} />
       ) : notifications.length === 0 ? (
         <View style={s.empty}>
           <Ionicons name="notifications-off-outline" size={52} color="#cbd5e1" />
@@ -219,7 +224,7 @@ export default function Notifications() {
       ) : (
         <ScrollView
           contentContainerStyle={s.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D4ED8" />}
         >
           <Text style={s.sectionLabel}>การแจ้งเตือนทั้งหมด ({notifications.length})</Text>
 
@@ -259,49 +264,54 @@ export default function Notifications() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+  container: { ...W.page, flex: 1 },
 
   header: {
-    backgroundColor: "#1e3a8a",
-    paddingTop: 54, paddingBottom: 16, paddingHorizontal: 20,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingTop: 52,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "bold" },
-  headerSub: { color: "#93c5fd", fontSize: 11, marginTop: 2 },
-  markAllBtn: { paddingHorizontal: 10, paddingVertical: 6, backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 8 },
-  markAllTxt: { color: "#fff", fontSize: 11, fontWeight: "600" },
+  backBtn: { ...W.small, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700" },
+  headerSub: { color: "#475569", fontSize: 12, marginTop: 1 },
+  markAllBtn: { ...W.small, height: 40, paddingHorizontal: 12, justifyContent: "center" },
+  markAllTxt: { color: "#1D4ED8", fontSize: 13, fontWeight: "600" },
 
   newBanner: {
-    backgroundColor: "#1d4ed8", flexDirection: "row", alignItems: "center",
-    justifyContent: "center", gap: 8, paddingVertical: 10,
+    ...W.primary, flexDirection: "row", alignItems: "center",
+    justifyContent: "center", gap: 8, paddingVertical: 10, marginHorizontal: 16, marginBottom: 4,
   },
-  newBannerTxt: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  newBannerTxt: { color: "#fff", fontSize: 13, fontWeight: "600" },
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingBottom: 60 },
   emptyTitle: { fontSize: 17, fontWeight: "700", color: "#475569", marginTop: 8 },
   emptyText: { fontSize: 13, color: "#94a3b8", textAlign: "center", lineHeight: 20 },
 
-  list: { padding: 16 },
+  list: { padding: 16, paddingTop: 4, paddingBottom: 40 },
   sectionLabel: {
-    fontSize: 11, fontWeight: "700", color: "#94a3b8",
-    textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 12,
+    fontSize: 16, fontWeight: "600", color: "#172033", marginBottom: 12,
   },
 
   card: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 14,
-    marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 10,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    ...W.card,
+    padding: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  cardUnread: { borderLeftWidth: 3, borderLeftColor: "#1e3a8a" },
+  cardUnread: { borderLeftWidth: 4, borderLeftColor: "#2563EB" },
   dot: { width: 8, height: 8, borderRadius: 4, position: "absolute", top: 14, left: 6 },
-  iconBox: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center", marginLeft: 4 },
+  iconBox: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", marginLeft: 4, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
   cardContent: { flex: 1 },
   cardTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 3 },
-  cardTitle: { fontSize: 13, fontWeight: "600", color: "#475569", flex: 1, marginRight: 6 },
-  cardTitleUnread: { fontWeight: "700", color: "#1e293b" },
-  cardAgo: { fontSize: 10, color: "#94a3b8", flexShrink: 0 },
-  cardBody: { fontSize: 12, color: "#64748b", lineHeight: 17, marginBottom: 6 },
+  cardTitle: { fontSize: 14, fontWeight: "500", color: "#475569", flex: 1, marginRight: 6 },
+  cardTitleUnread: { fontWeight: "600", color: "#172033" },
+  cardAgo: { fontSize: 11, color: "#94a3b8", flexShrink: 0 },
+  cardBody: { fontSize: 12.5, color: "#64748B", lineHeight: 18, marginBottom: 6 },
   cardMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
-  cardDateTime: { fontSize: 10, color: "#94a3b8" },
+  cardDateTime: { fontSize: 11, color: "#94a3b8" },
 });

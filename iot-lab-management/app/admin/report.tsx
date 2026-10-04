@@ -6,11 +6,10 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
@@ -29,18 +28,19 @@ import {
   thDate,
   todayBkk,
 } from "../../lib/report";
+import { W, NG } from "../../lib/theme";
 
 // รายงานการยืม-คืน (เฟส 5.1) — admin + TA / ส่งออก CSV (Excel) และ PDF
 // ตรรกะคำนวณอยู่ใน lib/report.ts
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
-  line: "#e2e8f0",
-  green: "#16a34a",
+  line: "#DCE6F5",
+  green: "#047857",
   amber: "#b45309",
   red: "#dc2626",
 };
@@ -202,7 +202,7 @@ export default function BorrowReport() {
     <KeyboardAvoidingView style={st.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={st.header}>
         <TouchableOpacity style={st.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={22} color="#172033" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={st.headerTitle}>รายงานการยืม-คืน</Text>
@@ -315,9 +315,8 @@ export default function BorrowReport() {
 }
 
 const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
     paddingTop: 52,
     paddingBottom: 16,
     paddingHorizontal: 18,
@@ -326,17 +325,14 @@ const st = StyleSheet.create({
     gap: 12,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
-  card: { backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 14, gap: 8 },
+  card: { ...W.card, padding: 14, gap: 8 },
   cardTitle: { fontSize: 15, fontWeight: "900", color: C.ink },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
@@ -348,7 +344,7 @@ const st = StyleSheet.create({
     borderColor: C.line,
     backgroundColor: "#fff",
   },
-  chipOn: { backgroundColor: C.purple, borderColor: C.purple },
+  chipOn: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
   chipText: { fontSize: 14, fontWeight: "700", color: C.ink },
   dateRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   dateInput: {
@@ -362,18 +358,15 @@ const st = StyleSheet.create({
     color: C.ink,
     backgroundColor: "#f8fafc",
   },
-  inputError: { borderColor: C.red, backgroundColor: "#fef2f2" },
+  inputError: { ...NG, borderColor: C.red, backgroundColor: "#fef2f2" },
   dateDash: { fontSize: 14, color: C.muted, fontWeight: "700" },
   help: { fontSize: 12.5, color: C.muted, lineHeight: 18 },
   rangeText: { fontSize: 13.5, fontWeight: "800", color: C.purple },
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   stat: {
+    ...W.card,
     flexGrow: 1,
     flexBasis: "30%",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.line,
     padding: 12,
   },
   statNum: { fontSize: 24, fontWeight: "900", color: C.ink },

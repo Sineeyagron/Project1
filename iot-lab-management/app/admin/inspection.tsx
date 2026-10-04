@@ -4,11 +4,10 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { notify } from "../../lib/notify";
@@ -18,6 +17,7 @@ import { currentTerm } from "../../lib/term";
 import { naturalNo } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
+import { W, NG } from "../../lib/theme";
 
 const EQUIP_TYPES = ["mouse", "keyboard", "monitor"] as const;
 type EquipType = (typeof EQUIP_TYPES)[number];
@@ -329,7 +329,7 @@ export default function InspectionPage() {
           <Ionicons
             name={isGood ? "checkmark" : isIssue ? "construct-outline" : "clipboard-outline"}
             size={14}
-            color="#111827"
+            color="#172033"
           />
           <Text style={st.cardButtonText}>{isGood ? "ตรวจแล้ว" : isIssue ? "มีปัญหา" : "ตรวจ"}</Text>
         </View>
@@ -342,11 +342,11 @@ export default function InspectionPage() {
       <View style={st.header}>
         <View style={st.topBar}>
           <TouchableOpacity style={st.backBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color="#172033" />
           </TouchableOpacity>
           <Text style={st.headerTitle}>ตรวจสภาพอุปกรณ์</Text>
           <TouchableOpacity style={st.backBtn} onPress={() => fetchData(loadedTerm, selectedRoom)} activeOpacity={0.82}>
-            <Ionicons name="refresh" size={19} color="#fff" />
+            <Ionicons name="refresh" size={19} color="#1D4ED8" />
           </TouchableOpacity>
         </View>
 
@@ -361,7 +361,7 @@ export default function InspectionPage() {
             onSubmitEditing={() => fetchData(term, selectedRoom)}
           />
           <TouchableOpacity style={st.searchBtn} onPress={() => fetchData(term, selectedRoom)} activeOpacity={0.84}>
-            <Ionicons name="search" size={19} color="#111827" />
+            <Ionicons name="search" size={19} color="#172033" />
           </TouchableOpacity>
         </View>
 
@@ -379,7 +379,7 @@ export default function InspectionPage() {
                 onPress={() => setSelectedRoom(room)}
                 activeOpacity={0.84}
               >
-                <Ionicons name="business-outline" size={14} color={active ? "#fff" : "#6d28d9"} />
+                <Ionicons name="business-outline" size={14} color={active ? "#fff" : "#1D4ED8"} />
                 <Text style={[st.roomTabText, active && st.roomTabTextActive]}>{room}</Text>
               </TouchableOpacity>
             );
@@ -403,7 +403,7 @@ export default function InspectionPage() {
           <Text style={st.termHint}>กำลังแสดงเทอม {loadedTerm} · กดค้นหาเพื่อเปิดเทอม {term.trim() || "-"}</Text>
         ) : null}
 
-        {loading ? <ActivityIndicator color="#7c3aed" style={{ marginTop: 24 }} /> : null}
+        {loading ? <ActivityIndicator color="#2563EB" style={{ marginTop: 24 }} /> : null}
 
         {!loading && !loadError && stations.length === 0 ? (
           <Text style={st.emptyText}>ยังไม่มีเครื่องคอมพิวเตอร์ในห้อง {selectedRoom}</Text>
@@ -516,10 +516,9 @@ export default function InspectionPage() {
 }
 
 const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#eef2f8" },
+  container: { ...W.page, flex: 1 },
   termHint: { color: "#b45309", backgroundColor: "#fef3c7", borderRadius: 10, padding: 10, fontSize: 12, fontWeight: "700", marginBottom: 12 },
   header: {
-    backgroundColor: "#7c3aed",
     paddingHorizontal: 24,
     paddingTop: 30,
     paddingBottom: 16,
@@ -531,34 +530,28 @@ const st = StyleSheet.create({
     marginBottom: 14,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    color: "#fff",
+    color: "#172033",
     fontSize: 18,
     fontWeight: "900",
   },
   termRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 5,
-    height: 31,
+    ...W.input,
+    height: 44,
     overflow: "hidden",
-    marginBottom: 11,
+    marginBottom: 12,
   },
   termInput: {
     flex: 1,
     height: "100%",
     paddingHorizontal: 11,
-    color: "#111827",
+    color: "#172033",
     fontSize: 14,
     fontWeight: "800",
   },
@@ -581,7 +574,7 @@ const st = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 1.5,
     borderColor: "#d8b4fe",
-    backgroundColor: "#f5f3ff",
+    backgroundColor: "#EEF5FF",
     paddingHorizontal: 11,
     flexDirection: "row",
     alignItems: "center",
@@ -594,11 +587,12 @@ const st = StyleSheet.create({
     elevation: 2,
   },
   roomTabActive: {
-    backgroundColor: "#5b21b6",
+    ...NG,
+    backgroundColor: "#1E40AF",
     borderColor: "#fff",
   },
   roomTabText: {
-    color: "#5b21b6",
+    color: "#1E40AF",
     fontSize: 12,
     fontWeight: "900",
   },
@@ -611,12 +605,12 @@ const st = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 5,
   },
-  progressLabel: { color: "#ddd6fe", fontSize: 11, fontWeight: "800" },
-  progressCount: { color: "#fff", fontSize: 11, fontWeight: "900" },
+  progressLabel: { color: "#475569", fontSize: 11, fontWeight: "800" },
+  progressCount: { color: "#172033", fontSize: 11, fontWeight: "900" },
   progressTrack: {
     height: 4,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "#DCE7FA",
     overflow: "hidden",
   },
   progressFill: {
@@ -649,9 +643,9 @@ const st = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: "#ede9fe",
+    backgroundColor: "#DBEAFE",
   },
-  groupPillText: { color: "#6d28d9", fontSize: 11, fontWeight: "900" },
+  groupPillText: { color: "#1D4ED8", fontSize: 11, fontWeight: "900" },
   cardGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -659,26 +653,19 @@ const st = StyleSheet.create({
     rowGap: 8,
   },
   stationCard: {
+    ...W.card,
     width: "48.5%",
     minHeight: 109,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#d7dce5",
     paddingHorizontal: 11,
     paddingTop: 13,
     paddingBottom: 10,
-    shadowColor: "#64748b",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
   },
   stationCardGood: {
+    ...NG,
     borderColor: "#10b981",
     backgroundColor: "#f8fffc",
   },
-  stationCardIssue: {
+  stationCardIssue: { ...NG,
     borderColor: "#ef4444",
     backgroundColor: "#fffafa",
   },
@@ -693,10 +680,11 @@ const st = StyleSheet.create({
     justifyContent: "center",
   },
   cornerIconMuted: {
+    ...NG,
     backgroundColor: "#f1f5f9",
   },
   stationName: {
-    color: "#111827",
+    color: "#172033",
     fontSize: 19,
     fontWeight: "900",
     marginBottom: 12,
@@ -721,7 +709,7 @@ const st = StyleSheet.create({
     gap: 4,
   },
   cardButtonText: {
-    color: "#111827",
+    color: "#172033",
     fontSize: 12,
     fontWeight: "900",
   },
@@ -744,7 +732,7 @@ const st = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 14,
   },
-  modalTitle: { color: "#111827", fontSize: 20, fontWeight: "900" },
+  modalTitle: { color: "#172033", fontSize: 20, fontWeight: "900" },
   modalSubtitle: { color: "#64748b", fontSize: 12, fontWeight: "700", marginTop: 2 },
   closeBtn: {
     width: 34,
@@ -755,6 +743,7 @@ const st = StyleSheet.create({
     justifyContent: "center",
   },
   quickGoodBtn: {
+    ...NG,
     height: 44,
     borderRadius: 12,
     backgroundColor: "#ecfdf5",
@@ -780,7 +769,7 @@ const st = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10,
   },
-  equipTitle: { color: "#111827", fontSize: 14, fontWeight: "900" },
+  equipTitle: { color: "#172033", fontSize: 14, fontWeight: "900" },
   statusChip: {
     borderRadius: 999,
     paddingHorizontal: 9,
@@ -809,24 +798,19 @@ const st = StyleSheet.create({
     backgroundColor: "#f8fafc",
     marginTop: 10,
     paddingHorizontal: 12,
-    color: "#111827",
+    color: "#172033",
     fontSize: 12,
     fontWeight: "700",
   },
   saveBtn: {
+    ...W.primarySolid,
     height: 48,
-    borderRadius: 13,
-    backgroundColor: "#7c3aed",
+    borderRadius: 15,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 7,
     marginTop: 4,
-    shadowColor: "#6d28d9",
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 5,
   },
   saveBtnText: { color: "#fff", fontSize: 14, fontWeight: "900" },
 });

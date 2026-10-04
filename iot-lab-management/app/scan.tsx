@@ -6,11 +6,10 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../components/AppText";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -19,21 +18,22 @@ import { goBack } from "../lib/nav";
 import { notify, confirmAction } from "../lib/notify";
 import { canTakeLivePhoto, takeLivePhoto, uploadBorrowPhoto } from "../lib/borrowPhotos";
 import Countdown from "../components/Countdown";
+import { W, NG } from "../lib/theme";
 
 // นักศึกษาสแกน QR ที่ตัวของ ณ ห้อง → ขอยืม / ขอคืน / ขอยืมต่อ (แผน 2.6)
 // กติกาทั้งหมดอยู่ใน RPC ฝั่งฐานข้อมูล หน้านี้แค่เก็บข้อมูลแล้วส่ง
 
 const C = {
-  bg: "#edf5ff",
+  bg: "#EAF1FC",
   header: "#2563eb",
-  ink: "#0f172a",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
   line: "#dbe3ec",
-  green: "#16a34a",
-  orange: "#d97706",
+  green: "#047857",
+  orange: "#B45309",
   red: "#ef4444",
-  purple: "#7c3aed",
+  purple: "#2563EB",
 };
 
 type Lookup = {
@@ -182,7 +182,7 @@ export default function StudentScan() {
   const Header = (
     <View style={s.header}>
       <TouchableOpacity style={s.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
-        <Ionicons name="arrow-back" size={22} color="#fff" />
+        <Ionicons name="chevron-back" size={22} color="#172033" />
       </TouchableOpacity>
       <View style={{ flex: 1 }}>
         <Text style={s.headerTitle}>สแกนยืม / คืน</Text>
@@ -306,7 +306,7 @@ export default function StudentScan() {
           <>
             <View style={[s.banner, s.bannerInfo]}>
               <Ionicons name="time-outline" size={18} color={C.header} />
-              <Text style={[s.bannerText, { color: "#1e3a8a" }]}>คุณยืมอยู่ · กำหนดคืน {thaiDate(lookup.due_date)}</Text>
+              <Text style={[s.bannerText, { color: "#1D4ED8" }]}>คุณยืมอยู่ · กำหนดคืน {thaiDate(lookup.due_date)}</Text>
             </View>
             <TouchableOpacity style={s.primaryBtn} onPress={() => openForm("return")} activeOpacity={0.85}>
               <Ionicons name="return-down-back-outline" size={18} color="#fff" />
@@ -464,113 +464,106 @@ export default function StudentScan() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.header,
     paddingTop: 52,
-    paddingBottom: 16,
-    paddingHorizontal: 18,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
   },
   headerBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 20, fontWeight: "900" },
-  headerSub: { color: "#dbeafe", fontSize: 12, fontWeight: "700", marginTop: 2 },
-  body: { padding: 18, gap: 12 },
+  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700" },
+  headerSub: { color: "#475569", fontSize: 12, marginTop: 1 },
+  body: { padding: 16, paddingTop: 4, gap: 12 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
 
   cameraBox: {
+    ...W.card,
     height: 280,
-    borderRadius: 18,
     overflow: "hidden",
-    backgroundColor: "#fff",
-    borderWidth: 1.5,
     borderStyle: "dashed",
-    borderColor: "#93c5fd",
     alignItems: "center",
     justifyContent: "center",
   },
   cameraAsk: { alignItems: "center", gap: 8 },
-  cameraAskText: { color: C.header, fontSize: 13, fontWeight: "800" },
-  hint: { textAlign: "center", color: C.muted, fontSize: 12.5, fontWeight: "700" },
+  cameraAskText: { color: C.header, fontSize: 14, fontWeight: "600" },
+  hint: { textAlign: "center", color: C.muted, fontSize: 12.5 },
   manualRow: { flexDirection: "row", gap: 8 },
   manualInput: {
     flex: 1,
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    borderRadius: 15,
+    backgroundColor: "rgba(255,255,255,0.92)",
     borderWidth: 1,
-    borderColor: C.line,
+    borderColor: "#D3E0F5",
     paddingHorizontal: 12,
     paddingVertical: 11,
     fontSize: 14,
     color: C.ink,
   },
-  manualBtn: { backgroundColor: C.header, borderRadius: 12, paddingHorizontal: 16, justifyContent: "center" },
-  manualBtnText: { color: "#fff", fontWeight: "900" },
+  manualBtn: { ...W.primary, paddingHorizontal: 16, justifyContent: "center" },
+  manualBtnText: { color: "#fff", fontWeight: "600" },
 
   itemCard: {
+    ...W.card,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 12,
+    padding: 14,
   },
-  itemImage: { width: 64, height: 64, borderRadius: 12 },
-  itemImageEmpty: { backgroundColor: "#dbeafe", alignItems: "center", justifyContent: "center" },
-  itemCode: { fontSize: 20, fontWeight: "900", color: C.ink },
-  itemName: { fontSize: 13, fontWeight: "700", color: C.muted, marginTop: 2 },
+  itemImage: { width: 60, height: 60, borderRadius: 16 },
+  itemImageEmpty: { backgroundColor: "#DBEAFE", boxShadow: "inset 0 1px 0 #FFFFFF", alignItems: "center", justifyContent: "center" },
+  itemCode: { fontSize: 17, fontWeight: "700", color: C.ink },
+  itemName: { fontSize: 12, color: C.muted, marginTop: 1 },
   itemMeta: { fontSize: 12, color: C.faint, marginTop: 2 },
 
-  banner: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, padding: 12 },
-  bannerText: { flex: 1, fontSize: 13.5, fontWeight: "800" },
-  bannerOk: { backgroundColor: "#dcfce7" },
+  banner: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 15, padding: 12, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
+  bannerText: { flex: 1, fontSize: 13.5, fontWeight: "600" },
+  bannerOk: { ...NG, backgroundColor: "#ECFDF5" },
   bannerInfo: { backgroundColor: "#dbeafe" },
-  bannerWarn: { backgroundColor: "#fef3c7" },
-  bannerBad: { backgroundColor: "#fee2e2" },
+  bannerWarn: { ...NG, backgroundColor: "#fef3c7" },
+  bannerBad: { ...NG, backgroundColor: "#fee2e2" },
 
-  pendingBox: { alignItems: "center", gap: 6, backgroundColor: "#fff", borderRadius: 16, padding: 18 },
-  countdown: { fontSize: 15, fontWeight: "900", color: C.orange },
-  bigText: { fontSize: 16, fontWeight: "900", color: C.ink, textAlign: "center" },
+  pendingBox: { ...W.card, alignItems: "center", gap: 6, padding: 18 },
+  countdown: { fontSize: 15, fontWeight: "700", color: C.orange },
+  bigText: { fontSize: 16, fontWeight: "600", color: C.ink, textAlign: "center" },
   note: { fontSize: 12, color: C.muted, textAlign: "center" },
 
-  form: { backgroundColor: "#fff", borderRadius: 16, padding: 16, gap: 8 },
-  formTitle: { fontSize: 17, fontWeight: "900", color: C.ink },
-  label: { fontSize: 12, fontWeight: "800", color: C.muted, marginTop: 6 },
+  form: { ...W.card, padding: 14, gap: 8 },
+  formTitle: { fontSize: 16, fontWeight: "600", color: C.ink },
+  label: { fontSize: 13, color: "#475569", marginTop: 6 },
   chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: C.line,
-    backgroundColor: "#f8fafc",
+    borderColor: "#D3E0F5",
+    backgroundColor: "#FFFFFF",
   },
-  chipActive: { backgroundColor: C.header, borderColor: C.header },
-  chipGood: { backgroundColor: C.green, borderColor: C.green },
-  chipBad: { backgroundColor: C.red, borderColor: C.red },
-  chipText: { fontSize: 13, fontWeight: "800", color: C.muted },
-  chipTextActive: { color: "#fff" },
+  chipActive: { ...NG, backgroundColor: C.header, borderColor: C.header },
+  chipGood: { ...NG, backgroundColor: C.green, borderColor: C.green },
+  chipBad: { ...NG, backgroundColor: C.red, borderColor: C.red },
+  chipText: { fontSize: 14, color: "#475569" },
+  chipTextActive: { color: "#fff", fontWeight: "600" },
   input: {
     borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 12,
+    borderColor: "#D3E0F5",
+    backgroundColor: "#F8FAFF",
+    borderRadius: 14,
     padding: 12,
-    minHeight: 48,
+    minHeight: 46,
     fontSize: 14,
     color: C.ink,
     textAlignVertical: "top",
   },
   inputError: { borderColor: C.red },
-  photo: { width: "100%", height: 220, borderRadius: 12 },
+  photo: { width: "100%", height: 220, borderRadius: 18 },
   retake: {
     position: "absolute",
     right: 10,
@@ -583,50 +576,49 @@ const s = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  retakeText: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  retakeText: { color: "#fff", fontSize: 12, fontWeight: "600" },
   photoBtn: {
-    height: 120,
-    borderRadius: 12,
+    height: 96,
+    borderRadius: 18,
     borderWidth: 1.5,
     borderStyle: "dashed",
-    borderColor: "#93c5fd",
+    borderColor: "#93C5FD",
+    backgroundColor: "#EEF5FF",
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
   },
-  photoBtnText: { color: C.header, fontWeight: "800" },
+  photoBtnText: { color: "#1D4ED8", fontWeight: "600", fontSize: 14 },
 
   primaryBtn: {
+    ...W.primary,
     flexDirection: "row",
     gap: 8,
-    backgroundColor: C.header,
-    borderRadius: 14,
-    paddingVertical: 15,
+    minHeight: 52,
+    paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 4,
   },
-  primaryBtnText: { color: "#fff", fontSize: 15, fontWeight: "900" },
+  primaryBtnText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   secondaryBtn: {
-    borderRadius: 14,
-    paddingVertical: 13,
+    ...W.small,
+    paddingVertical: 14,
     alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: C.header,
-    backgroundColor: "#fff",
   },
-  secondaryBtnText: { color: C.header, fontSize: 14, fontWeight: "900" },
+  secondaryBtnText: { color: "#1D4ED8", fontSize: 14, fontWeight: "600" },
   dangerOutline: {
     marginTop: 8,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingVertical: 11,
     paddingHorizontal: 22,
-    borderWidth: 1.5,
-    borderColor: C.red,
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FFF5F5",
   },
-  dangerOutlineText: { color: C.red, fontWeight: "900" },
+  dangerOutlineText: { color: "#B91C1C", fontWeight: "600" },
   textBtn: { alignItems: "center", paddingVertical: 10 },
-  textBtnText: { color: C.muted, fontSize: 13.5, fontWeight: "800" },
+  textBtnText: { color: C.muted, fontSize: 14, fontWeight: "500" },
   footerRow: { flexDirection: "row", justifyContent: "space-around" },
   disabled: { opacity: 0.45 },
 });

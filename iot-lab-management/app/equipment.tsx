@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import supabase from "../lib/supabase";
 import { ITEM_STATUS } from "../lib/status";
-import { goBack, goTab, useRefreshOnFocus } from "../lib/nav";
+import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { notify } from "../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../components/AnchoredMenu";
 import {
@@ -10,13 +10,15 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../components/AppText";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { W, NG } from "../lib/theme";
+import TabBar from "../components/TabBar";
+import StatWidget from "../components/StatWidget";
 
 // ของที่ยังไม่มีหมวด (ของเก่าก่อนมีตาราง categories) รวมไว้ที่หมวดนี้
 const OTHER = "อื่นๆ";
@@ -33,15 +35,15 @@ const formatDue = (value: string) =>
   new Date(value).toLocaleDateString("th-TH", { day: "numeric", month: "short" });
 
 const C = {
-  bg: "#edf5ff",
+  bg: "#EAF1FC",
   header: "#2563eb",
   headerDark: "#1d4ed8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
+  purple: "#2563EB",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
-  green: "#16a34a",
-  orange: "#d97706",
+  green: "#047857",
+  orange: "#B45309",
   red: "#ef4444",
 };
 
@@ -166,8 +168,12 @@ export default function Equipment() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <TouchableOpacity style={styles.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={21} color={C.ink} />
           </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerSub}>คลังอุปกรณ์สำหรับนักเรียน</Text>
+            <Text style={styles.headerTitle}>อุปกรณ์ IoT</Text>
+          </View>
           <TouchableOpacity
             style={styles.headerBtn}
             onPress={() => {
@@ -176,26 +182,23 @@ export default function Equipment() {
             }}
             activeOpacity={0.84}
           >
-            <Ionicons name="options-outline" size={20} color="#fff" />
+            <Ionicons name="options-outline" size={20} color={C.headerDark} />
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.headerSub}>คลังอุปกรณ์สำหรับนักเรียน</Text>
-        <Text style={styles.headerTitle}>อุปกรณ์ IoT</Text>
-
         <TouchableOpacity style={styles.scanBtn} onPress={() => router.push("/scan")} activeOpacity={0.88}>
-          <Ionicons name="scan" size={18} color={C.header} />
+          <Ionicons name="scan" size={18} color="#FFFFFF" />
           <Text style={styles.scanBtnText}>สแกนยืม / คืน</Text>
         </TouchableOpacity>
 
         <View style={styles.statsRow}>
-          <HeaderStat icon="cube-outline" label="ทั้งหมด" value={items.length} />
-          <HeaderStat dot="#22c55e" label="พร้อมใช้" value={available} />
-          <HeaderStat dot="#facc15" label="ถูกยืม/ซ่อม" value={problem} />
+          <StatWidget tone="blue" icon="cube-outline" label="ทั้งหมด" value={items.length} />
+          <StatWidget tone="green" icon="checkmark" label="พร้อมใช้" value={available} />
+          <StatWidget tone="amber" icon="swap-horizontal" label="ถูกยืม/ซ่อม" value={problem} />
         </View>
 
         <View style={styles.searchBox}>
-          <Ionicons name="search-outline" size={18} color={C.faint} />
+          <Ionicons name="search-outline" size={19} color={C.faint} />
           <TextInput
             placeholder="ค้นหาชื่อ หรือ ประเภท..."
             style={styles.searchInput}
@@ -325,24 +328,7 @@ export default function Equipment() {
         </ScrollView>
       )}
 
-      <View style={styles.tab}>
-        <TouchableOpacity style={styles.tabItem} onPress={() => goTab("/home", "/equipment")} activeOpacity={0.82}>
-          <Ionicons name="home-outline" size={22} color={C.faint} />
-          <Text style={styles.tabText}>ห้องเรียน</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem} activeOpacity={0.82}>
-          <Ionicons name="cube" size={22} color={C.purple} />
-          <Text style={[styles.tabText, styles.tabActive]}>อุปกรณ์</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem} onPress={() => goTab("/notifications", "/equipment")} activeOpacity={0.82}>
-          <Ionicons name="notifications-outline" size={22} color={C.faint} />
-          <Text style={styles.tabText}>แจ้งเตือน</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabItem} onPress={() => goTab("/profile", "/equipment")} activeOpacity={0.82}>
-          <Ionicons name="person-outline" size={22} color={C.faint} />
-          <Text style={styles.tabText}>โปรไฟล์</Text>
-        </TouchableOpacity>
-      </View>
+      <TabBar current="/equipment" />
 
       {/* เมนูเรียงตาม โผล่ใต้ปุ่ม (ต้องเป็นลูกตัวสุดท้ายของหน้า จะได้อยู่บนสุด) */}
       <AnchoredMenu
@@ -357,106 +343,64 @@ export default function Equipment() {
   );
 }
 
-function HeaderStat({
-  icon,
-  dot,
-  label,
-  value,
-}: {
-  icon?: keyof typeof Ionicons.glyphMap;
-  dot?: string;
-  label: string;
-  value: number;
-}) {
-  return (
-    <View style={styles.statCard}>
-      {icon ? <Ionicons name={icon} size={14} color="#dbeafe" /> : <View style={[styles.statDot, { backgroundColor: dot }]} />}
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statNumber}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.header,
-    paddingHorizontal: 25,
-    paddingTop: 35,
-    paddingBottom: 30,
+    paddingHorizontal: 18,
+    paddingTop: 52,
+    paddingBottom: 6,
   },
   headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 9,
+    gap: 10,
+    marginBottom: 14,
   },
   headerBtn: {
-    width: 37,
-    height: 37,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.23)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerSub: { color: "#dbeafe", fontSize: 11, fontWeight: "800", marginLeft: 58 },
-  headerTitle: { color: "#fff", fontSize: 24, fontWeight: "900", marginLeft: 58, marginTop: 1, marginBottom: 12 },
-  statsRow: { flexDirection: "row", gap: 9, marginBottom: 14 },
-  statCard: {
-    flex: 1,
-    minHeight: 66,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.19)",
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-  },
-  statDot: { width: 7, height: 7, borderRadius: 99, marginBottom: 5 },
-  statLabel: { color: "#e0ecff", fontSize: 10, fontWeight: "800" },
-  statNumber: { color: "#fff", fontSize: 22, fontWeight: "900", marginTop: 3 },
+  headerSub: { color: "#475569", fontSize: 12 },
+  headerTitle: { color: "#172033", fontSize: 22, fontWeight: "700" },
+  statsRow: { flexDirection: "row", gap: 10, marginBottom: 14 },
   searchBox: {
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: "#fff",
+    ...W.input,
+    borderWidth: 0,
+    height: 48,
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
     paddingLeft: 14,
     paddingRight: 7,
   },
-  searchInput: { flex: 1, color: C.ink, fontSize: 13, fontWeight: "700" },
+  searchInput: { flex: 1, color: C.ink, fontSize: 15 },
   searchAction: {
     width: 34,
     height: 34,
-    borderRadius: 10,
-    backgroundColor: "#f3e8ff",
+    borderRadius: 11,
+    backgroundColor: "#EEF5FF",
     alignItems: "center",
     justifyContent: "center",
   },
   filterWrap: { marginTop: -1, paddingVertical: 11 },
-  filterRow: { gap: 8, paddingHorizontal: 24 },
+  filterRow: { gap: 8, paddingHorizontal: 18 },
   filterChip: {
-    minHeight: 32,
+    minHeight: 34,
     borderRadius: 999,
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255,255,255,0.92)",
     borderWidth: 1,
-    borderColor: "#dbe4f0",
+    borderColor: "#D3E0F5",
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    shadowColor: "#1e3a8a",
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    boxShadow: "0 2px 6px rgba(37,99,235,0.08)",
   },
-  filterChipActive: { backgroundColor: C.purple, borderColor: C.purple },
-  filterText: { color: C.muted, fontSize: 12, fontWeight: "900", maxWidth: 118 },
-  filterTextActive: { color: "#fff" },
+  filterChipActive: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
+  filterText: { color: "#475569", fontSize: 13, maxWidth: 118 },
+  filterTextActive: { color: "#fff", fontWeight: "600" },
   filterCount: {
     minWidth: 20,
     height: 20,
@@ -466,72 +410,65 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 5,
   },
-  filterCountActive: { backgroundColor: "rgba(255,255,255,0.2)" },
-  filterCountText: { color: C.purple, fontSize: 10, fontWeight: "900" },
+  filterCountActive: { ...NG, backgroundColor: "rgba(255,255,255,0.2)" },
+  filterCountText: { color: C.purple, fontSize: 10, fontWeight: "600" },
   filterCountTextActive: { color: "#fff" },
   titleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 24,
-    marginBottom: 8,
+    paddingHorizontal: 18,
+    marginBottom: 10,
   },
-  sectionTitle: { fontSize: 14, fontWeight: "900", color: C.ink },
-  sortText: { fontSize: 11, color: C.purple, fontWeight: "900" },
-  list: { paddingHorizontal: 24 },
+  sectionTitle: { fontSize: 17, fontWeight: "600", color: C.ink, flexShrink: 1 },
+  sortText: { fontSize: 12, color: C.headerDark, overflow: "hidden", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.9)" },
+  list: { paddingHorizontal: 18, paddingTop: 2 },
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
-  emptyText: { color: C.faint, fontSize: 14, fontWeight: "800" },
+  emptyText: { color: C.faint, fontSize: 14, fontWeight: "600" },
   itemCardDim: { opacity: 0.6 },
   scanBtn: {
+    ...W.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    paddingVertical: 11,
-    marginTop: 12,
-    marginBottom: 2,
+    minHeight: 46,
+    marginBottom: 14,
   },
-  scanBtnText: { color: C.header, fontSize: 14.5, fontWeight: "900" },
+  scanBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
   itemCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 12,
+    ...W.card,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     marginBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    borderLeftWidth: 3,
-    shadowColor: "#1e3a8a",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
   },
-  itemImage: { width: 55, height: 55, borderRadius: 14, backgroundColor: "#f1f5f9" },
+  itemImage: { width: 54, height: 54, borderRadius: 16, backgroundColor: "#EEF5FF" },
   iconBox: {
-    width: 55,
-    height: 55,
-    borderRadius: 14,
+    width: 54,
+    height: 54,
+    borderRadius: 16,
+    boxShadow: "inset 0 1px 0 #FFFFFF",
     justifyContent: "center",
     alignItems: "center",
   },
   itemInfo: { flex: 1, minWidth: 0 },
-  itemName: { fontSize: 14, fontWeight: "900", color: C.ink },
-  itemType: { fontSize: 10, color: C.muted, marginTop: 2, fontWeight: "700" },
+  itemName: { fontSize: 15, fontWeight: "600", color: C.ink },
+  itemType: { fontSize: 12, color: C.muted, marginTop: 1 },
   itemMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 7, flexWrap: "wrap" },
   statusPill: {
     borderRadius: 999,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
   },
-  statusDot: { width: 5, height: 5, borderRadius: 99 },
-  statusText: { fontSize: 10, fontWeight: "900" },
-  qtyText: { color: C.faint, fontSize: 10, fontWeight: "800" },
+  statusDot: { width: 6, height: 6, borderRadius: 99 },
+  statusText: { fontSize: 12, fontWeight: "600" },
+  qtyText: { color: C.muted, fontSize: 12 },
   actionBtn: {
     width: 38,
     height: 38,
@@ -539,32 +476,11 @@ const styles = StyleSheet.create({
     backgroundColor: C.purple,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: C.purple,
-    shadowOpacity: 0.26,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 4,
   },
   actionBtnMuted: {
-    backgroundColor: "#f8fafc",
+    ...NG,
+    backgroundColor: "#F5F8FE",
     borderWidth: 1,
-    borderColor: "#dbe4f0",
-    shadowOpacity: 0,
+    borderColor: "#D3E0F5",
   },
-  tab: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    minHeight: 65,
-    paddingTop: 8,
-    paddingBottom: 12,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#dbe4f0",
-    flexDirection: "row",
-  },
-  tabItem: { flex: 1, alignItems: "center", justifyContent: "center", gap: 3 },
-  tabText: { fontSize: 10, color: C.faint, fontWeight: "800" },
-  tabActive: { color: C.purple },
 });

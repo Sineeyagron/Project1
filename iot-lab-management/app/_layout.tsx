@@ -5,6 +5,8 @@ import supabase from "../lib/supabase";
 import { DialogHost } from "../lib/notify";
 import { applyRememberLogin } from "../lib/session";
 import { isAdminPath } from "../lib/roles";
+import { useFonts, NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from "@expo-google-fonts/noto-sans-thai";
+import { C } from "../lib/theme";
 
 // หน้าที่เปิดได้โดยไม่ต้องล็อกอิน (หน้าอื่นทั้งหมดต้องล็อกอิน — หน้า /admin มีด่านของตัวเองใน app/admin/_layout.tsx)
 const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/forgot", "/reset-password"]);
@@ -12,6 +14,8 @@ const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/forgot", "/reset-passw
 export default function Layout() {
   const router = useRouter();
   const pathname = usePathname();
+  // ฟอนต์เดียวทั้งแอป (ไทย + อังกฤษ) — ดู components/AppText.tsx
+  const [fontsLoaded, fontError] = useFonts({ NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold });
 
   // ด่านหน้านักศึกษา: ยังไม่ล็อกอิน (เช่น เปิดลิงก์ตรง / session หมดอายุ) → ไปหน้าล็อกอิน
   // เดิมเปิดได้แต่ข้อมูลว่างและ error 401 เพราะ RLS กันไว้
@@ -107,9 +111,11 @@ export default function Layout() {
     };
   }, []);
 
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <>
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
       {/* Auth */}
       <Stack.Screen name="login" />
       <Stack.Screen name="signup" />

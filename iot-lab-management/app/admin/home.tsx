@@ -1,13 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import Svg, { Polyline } from "react-native-svg";
@@ -17,22 +20,23 @@ import { currentUser } from "../../lib/session";
 import { useRefreshOnFocus } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { canAccess, isStaffRole, ROLE_LABEL, useRole } from "../../lib/roles";
+import { W, NG, gradient, iconDot } from "../../lib/theme";
 
 const C = {
-  bg: "#eef3f8",
-  hero: "#7c3aed",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  hero: "#2563EB",
+  ink: "#172033",
   text: "#1e293b",
   muted: "#64748b",
   faint: "#94a3b8",
   card: "#ffffff",
   blue: "#1d4ed8",
   blueDark: "#1f3f9e",
-  green: "#16a34a",
+  green: "#047857",
   orange: "#fb5a0a",
   orangeDark: "#ea580c",
   red: "#dc2626",
-  purple: "#7c3aed",
+  purple: "#2563EB",
   cyan: "#0891b2",
 };
 
@@ -43,20 +47,20 @@ const PRIMARY = [
 ] as const;
 
 const TOOLS = [
-  { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room", color: "#8b5cf6", bg: "#ede9fe" },
+  { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room", color: "#3B82F6", bg: "#DBEAFE" },
   { icon: "cube-outline", label: "จัดการอุปกรณ์", route: "/admin/items", color: "#0ea5e9", bg: "#e0f2fe" },
-  { icon: "qr-code-outline", label: "สร้าง QR", route: "/admin/qrgen", color: "#6366f1", bg: "#ede9fe" },
+  { icon: "qr-code-outline", label: "สร้าง QR", route: "/admin/qrgen", color: "#6366f1", bg: "#DBEAFE" },
   { icon: "pricetags-outline", label: "หมวดหมู่", route: "/admin/categories", color: "#db2777", bg: "#fce7f3" },
   { icon: "bar-chart-outline", label: "รายงานสต็อก", route: "/admin/stock", color: "#0891b2", bg: "#cffafe" },
   { icon: "document-attach-outline", label: "รายงานยืม-คืน", route: "/admin/report", color: "#0d9488", bg: "#ccfbf1" },
   { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings", color: "#475569", bg: "#f1f5f9" },
-  { icon: "people-outline", label: "จัดการ TA", route: "/admin/users", color: "#7c3aed", bg: "#ede9fe" },
+  { icon: "people-outline", label: "จัดการ TA", route: "/admin/users", color: "#2563EB", bg: "#DBEAFE" },
   { icon: "document-text-outline", label: "นำเข้า CSV", route: "/admin/import", color: "#059669", bg: "#d1fae5" },
   { icon: "receipt-outline", label: "ประวัติยืม", route: "/admin/history", color: C.muted, bg: "#f1f5f9" },
   { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations", color: C.red, bg: "#fee2e2" },
-  { icon: "git-network-outline", label: "จัดการแลน", route: "/admin/lanports", color: C.purple, bg: "#ede9fe" },
+  { icon: "git-network-outline", label: "จัดการแลน", route: "/admin/lanports", color: C.purple, bg: "#DBEAFE" },
   { icon: "clipboard-outline", label: "ตรวจอุปกรณ์", route: "/admin/inspection", color: "#0d9488", bg: "#ccfbf1" },
-  { icon: "hardware-chip-outline", label: "ตรวจสภาพ IoT", route: "/admin/iotinspection", color: "#a855f7", bg: "#f3e8ff" },
+  { icon: "hardware-chip-outline", label: "ตรวจสภาพ IoT", route: "/admin/iotinspection", color: "#a855f7", bg: "#EEF5FF" },
   { icon: "construct-outline", label: "ซ่อมบำรุง", route: "/admin/repairs", color: C.orangeDark, bg: "#ffedd5" },
 ] as const;
 
@@ -72,12 +76,12 @@ type ActivityItem = {
 
 function getGreeting(date = new Date()) {
   const hour = date.getHours();
-  if (hour >= 5 && hour < 8) return { text: "สวัสดีตอนเช้า", icon: "sunny-outline", color: "#fde68a" };
-  if (hour >= 8 && hour < 12) return { text: "สวัสดีตอนสาย", icon: "partly-sunny-outline", color: "#fcd34d" };
-  if (hour >= 12 && hour < 16) return { text: "สวัสดีตอนบ่าย", icon: "sunny-outline", color: "#fb923c" };
-  if (hour >= 16 && hour < 19) return { text: "สวัสดีตอนเย็น", icon: "partly-sunny-outline", color: "#fdba74" };
-  if (hour >= 19 && hour < 22) return { text: "สวัสดีตอนค่ำ", icon: "moon-outline", color: "#c4b5fd" };
-  return { text: "สวัสดีตอนดึก", icon: "moon-outline", color: "#bfdbfe" };
+  if (hour >= 5 && hour < 8) return { text: "สวัสดีตอนเช้า", icon: "sunny-outline", color: "#F59E0B" };
+  if (hour >= 8 && hour < 12) return { text: "สวัสดีตอนสาย", icon: "partly-sunny-outline", color: "#F59E0B" };
+  if (hour >= 12 && hour < 16) return { text: "สวัสดีตอนบ่าย", icon: "sunny-outline", color: "#EA580C" };
+  if (hour >= 16 && hour < 19) return { text: "สวัสดีตอนเย็น", icon: "partly-sunny-outline", color: "#EA580C" };
+  if (hour >= 19 && hour < 22) return { text: "สวัสดีตอนค่ำ", icon: "moon-outline", color: "#2563EB" };
+  return { text: "สวัสดีตอนดึก", icon: "moon-outline", color: "#1D4ED8" };
 }
 
 type Tile = { icon: string; title?: string; sub?: string; label?: string; route: string; color?: string; bg: string };
@@ -93,7 +97,7 @@ export default function AdminHome() {
   // เครื่องมือ: ไม่ซ้ำกับปุ่มใหญ่ด้านบน
   const tools: Tile[] = [
     ...TOOLS.filter((t) => canAccess(role, t.route) && !primary.some((p) => p.route === t.route)),
-    ...(role === "ta" ? [{ icon: "person-outline", label: "ยืมของ (หน้านักศึกษา)", route: "/home", color: C.green, bg: "#dcfce7" }] : []),
+    ...(role === "ta" ? [{ icon: "person-outline", label: "ยืมของ (หน้านักศึกษา)", route: "/home", color: C.green, bg: "#ECFDF5" }] : []),
   ];
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -243,7 +247,7 @@ export default function AdminHome() {
       return {
         id: `borrow-${record.id}`,
         icon: isReturned ? "arrow-down-outline" : "arrow-up-outline",
-        iconBg: isReturned ? "#dbeafe" : "#dcfce7",
+        iconBg: isReturned ? "#dbeafe" : "#ECFDF5",
         color: isReturned ? C.blue : C.green,
         title: `${isReturned ? "คืน" : "ยืม"} ${itemMap.get(record.item_id) || "อุปกรณ์"}`,
         sub: emailMap[record.user_id] || "-",
@@ -290,7 +294,7 @@ export default function AdminHome() {
 
   const stats = [
     { icon: "cube-outline", iconBg: "#dbeafe", color: C.blue, num: total, label: "ทั้งหมด", trend: total > 0 ? `+${total}` : "0" },
-    { icon: "checkmark-circle-outline", iconBg: "#dcfce7", color: C.green, num: available, label: "ว่าง", trend: available > 0 ? `+${available}` : "0" },
+    { icon: "checkmark-circle-outline", iconBg: "#ECFDF5", color: C.green, num: available, label: "ว่าง", trend: available > 0 ? `+${available}` : "0" },
     { icon: "time-outline", iconBg: "#ffedd5", color: C.orangeDark, num: borrowed, label: "ถูกยืม", trend: borrowed > 0 ? `-${borrowed}` : "0" },
     { icon: "construct-outline", iconBg: "#fee2e2", color: C.red, num: repair, label: "ซ่อม", trend: repair > 0 ? `-${repair}` : "0" },
   ];
@@ -308,6 +312,7 @@ export default function AdminHome() {
             <View style={s.greetRow}>
               <Ionicons name={greeting.icon as any} size={13} color={greeting.color} />
               <Text style={s.greet}>{greeting.text} · {role ? ROLE_LABEL[role] : ""}</Text>
+              <OnlineDot />
             </View>
             <Text style={s.heroTitle}>
               {role === "ta" ? "TA" : "Admin"} <Text style={s.heroTitleAccent}>Dashboard</Text>
@@ -321,7 +326,7 @@ export default function AdminHome() {
               activeOpacity={0.85}
               accessibilityLabel={unread ? `แจ้งเตือน ยังไม่อ่าน ${unread}` : "แจ้งเตือน"}
             >
-              <Ionicons name="notifications-outline" size={20} color="#fff" />
+              <Ionicons name="notifications-outline" size={20} color="#1D4ED8" />
               {unread > 0 && (
                 <View style={s.bellBadge}>
                   <Text style={s.bellBadgeText}>{unread > 99 ? "99+" : unread}</Text>
@@ -329,19 +334,19 @@ export default function AdminHome() {
               )}
             </TouchableOpacity>
             <TouchableOpacity style={s.logoutBtn} onPress={confirmLogout} activeOpacity={0.85} accessibilityLabel="ออกจากระบบ">
-              <Ionicons name="log-out-outline" size={20} color="#fff" />
+              <Ionicons name="log-out-outline" size={20} color="#1D4ED8" />
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={s.todayCard}>
-          <TodayItem icon="arrow-up-outline" color="#86efac" num={statusBorrowed} label="ยืม" />
+          <TodayItem icon="arrow-up-outline" color="#10B981" num={statusBorrowed} label="ยืม" />
           <View style={s.todayDivider} />
-          <TodayItem icon="arrow-down-outline" color="#bfdbfe" num={statusReturned} label="คืน" />
+          <TodayItem icon="arrow-down-outline" color="#2563EB" num={statusReturned} label="คืน" />
           <View style={s.todayDivider} />
-          <TodayItem icon="construct-outline" color="#fde68a" num={statusRepair} label="ซ่อม" />
+          <TodayItem icon="construct-outline" color="#F59E0B" num={statusRepair} label="ซ่อม" />
           <View style={s.todayDivider} />
-          <TodayItem icon="calendar-outline" color="#fca5a5" num={today.compact} label={today.dayName} date />
+          <TodayItem icon="calendar-outline" color="#EF4444" num={today.compact} label={today.dayName} date />
         </View>
       </View>
 
@@ -364,7 +369,7 @@ export default function AdminHome() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[s.inboxTitle, pendingRequests > 0 && { color: "#fff" }]}>กล่องคำขอ</Text>
-                <Text style={[s.inboxSub, pendingRequests > 0 && { color: "#ede9fe" }]}>
+                <Text style={[s.inboxSub, pendingRequests > 0 && { color: "#DBEAFE" }]}>
                   {pendingRequests > 0 ? `มี ${pendingRequests} คำขอรออนุมัติ` : "ไม่มีคำขอที่รออยู่"}
                 </Text>
               </View>
@@ -485,8 +490,35 @@ function timeScore(label: string) {
 function SectionLabel({ icon, title, compact }: { icon: any; title: string; compact?: boolean }) {
   return (
     <View style={[s.sectionRow, compact && s.sectionRowCompact]}>
-      <Ionicons name={icon} size={13} color="#8b5cf6" />
+      <Ionicons name={icon} size={13} color="#3B82F6" />
       <Text style={s.sectionLabel}>{title}</Text>
+    </View>
+  );
+}
+
+// จุดเขียวกระพริบ = กำลังออนไลน์ (วงแสงขยายแล้วจางหาย วนไปเรื่อย ๆ)
+function OnlineDot() {
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.out(Easing.ease), useNativeDriver: Platform.OS !== "web" }),
+      { resetBeforeIteration: true }
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+  return (
+    <View style={s.onlineWrap} accessibilityLabel="ออนไลน์">
+      <Animated.View
+        style={[
+          s.onlineRing,
+          {
+            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
+            transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.5] }) }],
+          },
+        ]}
+      />
+      <Animated.View style={[s.onlineDot, { opacity: pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.35, 1] }) }]} />
     </View>
   );
 }
@@ -540,12 +572,18 @@ function StatCard({
   trend: string;
 }) {
   return (
-    <View style={s.statCard}>
+    <View
+      style={[
+        s.statCard,
+        gradient(`linear-gradient(160deg, #FFFFFF 0%, ${iconBg} 100%)`),
+        { backgroundColor: iconBg },
+      ]}
+    >
       <View style={s.statTop}>
-        <View style={[s.statIcon, { backgroundColor: iconBg }]}>
-          <Ionicons name={icon} size={20} color={color} />
+        <View style={iconDot(color, 36)}>
+          <Ionicons name={icon} size={19} color="#FFFFFF" />
         </View>
-        <View style={[s.trendPill, { backgroundColor: iconBg }]}>
+        <View style={[s.trendPill, { backgroundColor: "rgba(255,255,255,0.75)" }]}>
           <Ionicons name={trend.startsWith("-") ? "trending-down" : trend === "0" ? "remove" : "trending-up"} size={10} color={color} />
           <Text style={[s.trendText, { color }]}>{trend}</Text>
         </View>
@@ -559,28 +597,26 @@ function StatCard({
 
 const s = StyleSheet.create({
   inboxCard: {
+    ...W.card,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#fff",
-    borderRadius: 18,
     padding: 14,
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#ede9fe",
   },
-  inboxCardHot: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
+  inboxCardHot: { ...W.primary, borderRadius: 22 },
   inboxIcon: {
     width: 46,
     height: 46,
-    borderRadius: 13,
-    backgroundColor: "rgba(124,58,237,0.12)",
+    borderRadius: 23,
+    backgroundColor: "rgba(37,99,235,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
-  inboxTitle: { fontSize: 16, fontWeight: "900", color: "#0f172a" },
-  inboxSub: { fontSize: 12.5, fontWeight: "700", color: "#64748b", marginTop: 2 },
+  inboxTitle: { fontSize: 16, fontWeight: "600", color: "#172033" },
+  inboxSub: { fontSize: 12.5, color: "#64748b", marginTop: 1 },
   inboxBadge: {
+    ...NG,
     minWidth: 26,
     height: 26,
     borderRadius: 13,
@@ -591,17 +627,16 @@ const s = StyleSheet.create({
   },
   inboxBadgeText: { color: "#fff", fontSize: 13, fontWeight: "900" },
   container: {
+    ...W.page,
     flex: 1,
-    backgroundColor: C.bg,
   },
   content: {
     paddingBottom: 30,
   },
   hero: {
-    backgroundColor: C.hero,
-    paddingTop: 42,
-    paddingHorizontal: 22,
-    paddingBottom: 20,
+    paddingTop: 52,
+    paddingHorizontal: 18,
+    paddingBottom: 16,
   },
   heroTop: {
     flexDirection: "row",
@@ -614,22 +649,25 @@ const s = StyleSheet.create({
     gap: 6,
   },
   greet: {
-    color: "#dbeafe",
-    fontSize: 12,
-    fontWeight: "800",
+    color: "#475569",
+    fontSize: 13,
   },
+  onlineWrap: { width: 10, height: 10, marginLeft: 3, alignItems: "center", justifyContent: "center" },
+  onlineRing: { position: "absolute", width: 10, height: 10, borderRadius: 5, backgroundColor: "#22C55E" },
+  onlineDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#22C55E", boxShadow: "0 0 6px rgba(34,197,94,0.7)" },
   heroTitle: {
-    color: "#fff",
+    color: "#172033",
     fontSize: 26,
-    fontWeight: "900",
-    lineHeight: 31,
-    marginTop: 4,
+    fontWeight: "700",
+    lineHeight: 34,
+    marginTop: 2,
   },
   heroTitleAccent: {
-    color: "#bfdbfe",
+    color: "#2563EB",
   },
   headerBtns: { flexDirection: "row", gap: 8 },
   bellBadge: {
+    ...NG,
     position: "absolute",
     top: -5,
     right: -5,
@@ -645,25 +683,19 @@ const s = StyleSheet.create({
   },
   bellBadgeText: { color: "#fff", fontSize: 10.5, fontWeight: "900" },
   logoutBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.small,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
   },
   todayCard: {
     flexDirection: "row",
     alignItems: "stretch",
     marginTop: 16,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    ...W.card,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   todayItem: {
     flex: 1,
@@ -672,24 +704,23 @@ const s = StyleSheet.create({
     gap: 7,
   },
   todayNum: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "900",
-    lineHeight: 18,
+    color: "#172033",
+    fontSize: 17,
+    fontWeight: "700",
+    lineHeight: 22,
   },
   todayDateNum: {
     fontSize: 13,
     lineHeight: 16,
   },
   todayLabel: {
-    color: "#dbeafe",
-    fontSize: 10,
-    fontWeight: "800",
-    marginTop: 1,
+    color: "#64748B",
+    fontSize: 11,
+    marginTop: 0,
   },
   todayDivider: {
     width: 1,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "#DCE7FA",
     marginVertical: 2,
     marginHorizontal: 10,
   },
@@ -698,12 +729,9 @@ const s = StyleSheet.create({
     paddingTop: 14,
   },
   loadingCard: {
-    backgroundColor: C.card,
-    borderRadius: 16,
+    ...W.card,
     padding: 28,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.05)",
   },
   loadingText: {
     color: C.muted,
@@ -719,11 +747,11 @@ const s = StyleSheet.create({
   primaryTile: {
     flex: 1,
     height: 124,
-    borderRadius: 14,
+    borderRadius: 22,
     padding: 14,
     justifyContent: "space-between",
     overflow: "hidden",
-    elevation: 10,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35), 0 2px 4px rgba(15,23,42,0.12), 0 12px 24px rgba(37,99,235,0.22)",
   },
   tileOrb: {
     position: "absolute",
@@ -737,17 +765,16 @@ const s = StyleSheet.create({
   primaryIcon: {
     width: 40,
     height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.4)",
     alignItems: "center",
     justifyContent: "center",
   },
   primaryTitle: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "900",
+    fontWeight: "600",
   },
   primarySubRow: {
     flexDirection: "row",
@@ -757,8 +784,7 @@ const s = StyleSheet.create({
   },
   primarySub: {
     color: "rgba(255,255,255,0.92)",
-    fontSize: 11,
-    fontWeight: "800",
+    fontSize: 12,
   },
   sectionRow: {
     flexDirection: "row",
@@ -770,9 +796,9 @@ const s = StyleSheet.create({
     marginBottom: 0,
   },
   sectionLabel: {
-    color: C.muted,
-    fontSize: 12,
-    fontWeight: "900",
+    color: C.ink,
+    fontSize: 16,
+    fontWeight: "600",
   },
   statGrid: {
     flexDirection: "row",
@@ -782,19 +808,11 @@ const s = StyleSheet.create({
     marginBottom: 20,
   },
   statCard: {
+    ...W.card,
     width: "48.2%",
     height: 138,
-    backgroundColor: C.card,
-    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 13,
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.05)",
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.16,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 4,
   },
   statTop: {
     flexDirection: "row",
@@ -804,9 +822,10 @@ const s = StyleSheet.create({
   statIcon: {
     width: 36,
     height: 36,
-    borderRadius: 11,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
   },
   trendPill: {
     flexDirection: "row",
@@ -819,20 +838,19 @@ const s = StyleSheet.create({
     borderRadius: 999,
   },
   trendText: {
-    fontSize: 10.5,
-    fontWeight: "900",
+    fontSize: 11,
+    fontWeight: "600",
   },
   statNum: {
-    fontSize: 32,
-    fontWeight: "900",
-    lineHeight: 35,
-    marginTop: 8,
+    fontSize: 30,
+    fontWeight: "700",
+    lineHeight: 38,
+    marginTop: 6,
   },
   statLabel: {
-    color: C.faint,
+    color: C.muted,
     fontSize: 12,
-    fontWeight: "700",
-    marginTop: 2,
+    marginTop: 0,
   },
   lineChart: {
     alignSelf: "stretch",
@@ -850,33 +868,26 @@ const s = StyleSheet.create({
   },
   toolBtn: {
     width: "48.2%",
+    ...W.card,
     minHeight: 96,
-    backgroundColor: C.card,
-    borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 13,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.05)",
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
   },
   toolIcon: {
     width: 44,
     height: 44,
-    borderRadius: 13,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
   },
   toolText: {
-    color: C.text,
-    fontSize: 12,
-    fontWeight: "900",
+    color: C.ink,
+    fontSize: 13,
+    fontWeight: "600",
     textAlign: "center",
     lineHeight: 16,
   },
@@ -887,19 +898,16 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   viewAll: {
-    color: C.blueDark,
-    fontSize: 14,
-    fontWeight: "900",
+    color: "#2563EB",
+    fontSize: 13,
+    fontWeight: "600",
   },
   emptyActivity: {
+    ...W.card,
     minHeight: 78,
-    backgroundColor: C.card,
-    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.05)",
   },
   emptyActivityText: {
     color: C.faint,
@@ -910,42 +918,37 @@ const s = StyleSheet.create({
     gap: 10,
   },
   activityCard: {
+    ...W.card,
     minHeight: 58,
-    backgroundColor: C.card,
-    borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 9,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.05)",
-    elevation: 1,
   },
   activityIcon: {
     width: 42,
     height: 42,
-    borderRadius: 12,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
   },
   activityTextWrap: {
     flex: 1,
   },
   activityTitle: {
     color: C.ink,
-    fontSize: 13,
-    fontWeight: "900",
+    fontSize: 14,
+    fontWeight: "600",
   },
   activitySub: {
-    color: C.faint,
-    fontSize: 11,
-    fontWeight: "700",
+    color: C.muted,
+    fontSize: 12,
     marginTop: 2,
   },
   activityTime: {
     color: C.faint,
-    fontSize: 10,
-    fontWeight: "900",
+    fontSize: 11,
   },
 });

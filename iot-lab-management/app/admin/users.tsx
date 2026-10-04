@@ -6,29 +6,29 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { useRole } from "../../lib/roles";
+import { W } from "../../lib/theme";
 
 // จัดการ TA (เฟส 4.1) — admin เท่านั้น (ด่านใน _layout + RPC set_user_role ตรวจซ้ำในฐานข้อมูล)
 // แต่งตั้ง/ถอดได้แค่ ผู้ใช้ ↔ TA / ตั้ง admin หรือแตะบัญชี admin ในแอปไม่ได้ / เปลี่ยนสิทธิ์ตัวเองไม่ได้
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
-  line: "#e2e8f0",
-  green: "#16a34a",
+  line: "#DCE6F5",
+  green: "#047857",
   red: "#dc2626",
 };
 
@@ -105,7 +105,7 @@ export default function ManageTA() {
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <View style={s.header}>
         <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={22} color="#172033" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>จัดการ TA</Text>
@@ -202,9 +202,8 @@ export default function ManageTA() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
     paddingTop: 52,
     paddingBottom: 16,
     paddingHorizontal: 18,
@@ -213,34 +212,31 @@ const s = StyleSheet.create({
     gap: 12,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
-  card: { backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 14, gap: 8 },
+  card: { ...W.card, padding: 14, gap: 8 },
   cardTitle: { fontSize: 15, fontWeight: "900", color: C.ink, marginBottom: 2 },
   ruleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   ruleText: { fontSize: 13.5, color: C.ink, flex: 1 },
   section: { fontSize: 15, fontWeight: "900", color: C.ink, marginTop: 8 },
   person: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48 },
-  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#e2e8f0", alignItems: "center", justifyContent: "center" },
-  avatarTa: { backgroundColor: "#ede9fe" },
+  avatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#DCE6F5", alignItems: "center", justifyContent: "center" },
+  avatarTa: { backgroundColor: "#DBEAFE" },
   avatarAdmin: { backgroundColor: "#fee2e2" },
   avatarText: { fontSize: 15, fontWeight: "900", color: C.ink },
   email: { fontSize: 14.5, fontWeight: "700", color: C.ink },
   you: { fontSize: 12, color: C.purple, fontWeight: "700" },
   addBtn: {
+    ...W.primarySolid,
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: C.purple,
-    borderRadius: 10,
+    borderRadius: 15,
     paddingHorizontal: 12,
     minHeight: 40,
   },

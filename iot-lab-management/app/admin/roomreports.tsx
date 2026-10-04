@@ -5,17 +5,17 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRealtime } from "../../lib/realtime";
 import LoadError from "../../components/LoadError";
+import { W, NG } from "../../lib/theme";
 
 // คิวคำแจ้งปัญหาจากนักศึกษา (ระบบห้อง R3) — Admin/TA รับเป็นงานซ่อม หรือปิดพร้อมเหตุผล
 // ตัดสินผ่าน RPC decide_room_report (รับเครื่อง = สร้างงานซ่อม + เครื่องเป็น "กำลังซ่อม" / รับ LAN = port เป็น "กำลังซ่อม")
@@ -36,7 +36,7 @@ type Report = {
 
 const STATUS_CFG: Record<Report["status"], { label: string; color: string; bg: string }> = {
   open: { label: "รอตรวจ", color: "#c2410c", bg: "#ffedd5" },
-  accepted: { label: "รับเป็นงานซ่อม", color: "#16a34a", bg: "#dcfce7" },
+  accepted: { label: "รับเป็นงานซ่อม", color: "#047857", bg: "#ECFDF5" },
   closed: { label: "ปิดแล้ว", color: "#64748b", bg: "#f1f5f9" },
 };
 
@@ -144,7 +144,7 @@ export default function RoomReports() {
     <View style={s.container}>
       <View style={s.header}>
         <TouchableOpacity style={s.iconBtn} onPress={() => goBack("/admin/room")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
+          <Ionicons name="chevron-back" size={22} color="#172033" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
           <Text style={s.headerTitle}>คำแจ้งปัญหาห้องคอม</Text>
@@ -164,11 +164,11 @@ export default function RoomReports() {
       </ScrollView>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#7c3aed" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />
       ) : (
         <ScrollView
           contentContainerStyle={s.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#7c3aed" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#2563EB" />}
         >
           {!!loadError && <LoadError message={loadError} onRetry={load} />}
           {!loadError && shown.length === 0 ? (
@@ -183,8 +183,8 @@ export default function RoomReports() {
             return (
               <View key={r.id} style={s.card}>
                 <View style={s.cardTop}>
-                  <View style={[s.kindIcon, { backgroundColor: r.kind === "lan" ? "#ede9fe" : "#dbeafe" }]}>
-                    <Ionicons name={r.kind === "lan" ? "git-network-outline" : "desktop-outline"} size={18} color={r.kind === "lan" ? "#7c3aed" : "#1d4ed8"} />
+                  <View style={[s.kindIcon, { backgroundColor: r.kind === "lan" ? "#DBEAFE" : "#dbeafe" }]}>
+                    <Ionicons name={r.kind === "lan" ? "git-network-outline" : "desktop-outline"} size={18} color={r.kind === "lan" ? "#2563EB" : "#1d4ed8"} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={s.cardTitle}>{r.room_id} · {r.label}</Text>
@@ -259,39 +259,39 @@ export default function RoomReports() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#eef2f8" },
-  header: { backgroundColor: "#7c3aed", paddingTop: 30, paddingBottom: 18, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 12 },
-  iconBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.20)", alignItems: "center", justifyContent: "center" },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "800", marginTop: 2 },
+  container: { ...W.page, flex: 1 },
+  header: { paddingTop: 30, paddingBottom: 18, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 12 },
+  iconBtn: { ...W.small, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  headerTitle: { color: "#172033", fontSize: 18, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "800", marginTop: 2 },
   filterScroll: { maxHeight: 54 },
   filterRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
-  filterBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0" },
-  filterBtnActive: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
+  filterBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5" },
+  filterBtnActive: { ...NG, backgroundColor: "#2563EB", borderColor: "#2563EB" },
   filterText: { fontSize: 12, fontWeight: "800", color: "#64748b" },
   filterTextActive: { color: "#fff" },
   list: { paddingHorizontal: 16, paddingTop: 4 },
   empty: { alignItems: "center", paddingVertical: 60, gap: 8 },
   emptyText: { color: "#94a3b8", fontSize: 14, fontWeight: "800" },
-  card: { backgroundColor: "#fff", borderRadius: 14, padding: 14, marginBottom: 12, borderWidth: 1, borderColor: "#e2e8f0" },
+  card: { ...W.card, padding: 14, marginBottom: 12 },
   cardTop: { flexDirection: "row", alignItems: "center", gap: 10 },
   kindIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
-  cardTitle: { fontSize: 14, fontWeight: "900", color: "#0f172a" },
+  cardTitle: { fontSize: 14, fontWeight: "900", color: "#172033" },
   cardSub: { fontSize: 11, color: "#64748b", marginTop: 2 },
   pill: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999 },
   pillText: { fontSize: 10.5, fontWeight: "900" },
-  desc: { fontSize: 14, color: "#1f2937", marginTop: 10, lineHeight: 20 },
+  desc: { fontSize: 14, color: "#172033", marginTop: 10, lineHeight: 20 },
   handled: { fontSize: 11, color: "#64748b", marginTop: 8 },
   actions: { flexDirection: "row", gap: 8, marginTop: 12 },
   closeBtn: { flex: 1, minHeight: 42, borderRadius: 10, backgroundColor: "#f1f5f9", alignItems: "center", justifyContent: "center" },
   closeBtnText: { color: "#334155", fontWeight: "800", fontSize: 13 },
-  acceptBtn: { flex: 2, minHeight: 42, borderRadius: 10, backgroundColor: "#16a34a", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
+  acceptBtn: { flex: 2, minHeight: 42, borderRadius: 10, backgroundColor: "#047857", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
   rejectBtn: { flex: 2, minHeight: 42, borderRadius: 10, backgroundColor: "#64748b", alignItems: "center", justifyContent: "center" },
   acceptBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   overlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.38)", justifyContent: "flex-end" },
   modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
-  modalTitle: { fontSize: 16, fontWeight: "900", color: "#0f172a" },
+  modalTitle: { fontSize: 16, fontWeight: "900", color: "#172033" },
   modalDesc: { fontSize: 13, color: "#475569", marginTop: 6 },
   fieldLabel: { fontSize: 12, fontWeight: "900", color: "#64748b", marginTop: 14, marginBottom: 6 },
-  input: { minHeight: 70, borderRadius: 12, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#e2e8f0", padding: 12, fontSize: 14, color: "#0f172a", textAlignVertical: "top" },
+  input: { minHeight: 70, borderRadius: 12, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#DCE6F5", padding: 12, fontSize: 14, color: "#172033", textAlignVertical: "top" },
 });

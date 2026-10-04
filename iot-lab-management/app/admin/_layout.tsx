@@ -56,8 +56,8 @@ export default function AdminLayout() {
   // ระหว่างรอเช็กสิทธิ์ / กำลังพากลับ ไม่แสดงหน้าที่ไม่มีสิทธิ์
   if (!role || blocked) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#eef3f8" }}>
-        <ActivityIndicator size="large" color="#7c3aed" />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#EAF1FC" }}>
+        <ActivityIndicator size="large" color="#2563EB" />
       </View>
     );
   }

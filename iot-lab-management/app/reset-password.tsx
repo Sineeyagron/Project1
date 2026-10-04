@@ -1,19 +1,19 @@
 import React, { useState } from "react";
 import {
   View,
-  Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Image,
   ActivityIndicator,
   Modal,
 } from "react-native";
+import { Text, TextInput } from "../components/AppText";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
 import { authErrorThai, PASSWORD_HINT, passwordProblem } from "../lib/password";
 import { goBack } from "../lib/nav";
+import { W } from "../lib/theme";
 
 type ResultState = {
   visible: boolean;
@@ -148,11 +148,11 @@ export default function ResetPassword() {
             <Ionicons
               name={password === confirmPassword ? "checkmark-circle" : "close-circle"}
               size={14}
-              color={password === confirmPassword ? "#16a34a" : "#dc2626"}
+              color={password === confirmPassword ? "#047857" : "#dc2626"}
             />
             <Text style={[
               styles.matchTxt,
-              { color: password === confirmPassword ? "#16a34a" : "#dc2626" },
+              { color: password === confirmPassword ? "#047857" : "#dc2626" },
             ]}>
               {password === confirmPassword ? "รหัสผ่านตรงกัน" : "รหัสผ่านไม่ตรงกัน"}
             </Text>
@@ -192,13 +192,13 @@ export default function ResetPassword() {
             <View
               style={[
                 styles.modalIconCircle,
-                { backgroundColor: result.type === "success" ? "#dcfce7" : "#fee2e2" },
+                { backgroundColor: result.type === "success" ? "#ECFDF5" : "#fee2e2" },
               ]}
             >
               <Ionicons
                 name={result.type === "success" ? "checkmark-circle" : "alert-circle"}
                 size={48}
-                color={result.type === "success" ? "#16a34a" : "#dc2626"}
+                color={result.type === "success" ? "#047857" : "#dc2626"}
               />
             </View>
             <Text style={styles.modalTitle}>{result.title}</Text>
@@ -206,7 +206,7 @@ export default function ResetPassword() {
             <TouchableOpacity
               style={[
                 styles.modalBtn,
-                { backgroundColor: result.type === "success" ? "#16a34a" : "#1e3a8a" },
+                { backgroundColor: result.type === "success" ? "#047857" : "#1D4ED8" },
               ]}
               onPress={handleCloseModal}
               activeOpacity={0.85}
@@ -224,8 +224,8 @@ export default function ResetPassword() {
 
 const styles = StyleSheet.create({
   container: {
+    ...W.page,
     flex: 1,
-    backgroundColor: "#f1f5f9",
     padding: 20,
   },
 
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 26,
     fontWeight: "bold",
-    color: "#1e3a8a",
+    color: "#1D4ED8",
   },
 
   subtitle: {
@@ -254,11 +254,9 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
+    ...W.card,
     padding: 20,
     marginTop: 20,
-    elevation: 3,
   },
 
   welcome: {
@@ -274,7 +272,7 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     marginBottom: 5,
-    color: "#1e3a8a",
+    color: "#1D4ED8",
   },
 
   inputBox: {
@@ -302,9 +300,9 @@ const styles = StyleSheet.create({
   matchTxt: { fontSize: 11, fontWeight: "600" },
 
   loginBtn: {
-    backgroundColor: "#1e3a8a",
+    ...W.primarySolid,
     padding: 15,
-    borderRadius: 12,
+    borderRadius: 15,
     alignItems: "center",
     marginTop: 10,
   },
@@ -321,7 +319,7 @@ const styles = StyleSheet.create({
   },
 
   signup: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontWeight: "bold",
   },
 
@@ -334,10 +332,9 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modalBox: {
+    ...W.card,
     width: "100%",
     maxWidth: 360,
-    backgroundColor: "#fff",
-    borderRadius: 20,
     padding: 24,
     alignItems: "center",
   },

@@ -4,10 +4,10 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import supabase from "../lib/supabase";
@@ -16,6 +16,7 @@ import { LAN_STATUS, roomStatus } from "../lib/roomStatus";
 import LoadError from "../components/LoadError";
 import { fetchRooms } from "../lib/rooms";
 import { useRoomLive } from "../lib/roomRealtime";
+import { W, NG } from "../lib/theme";
 
 type LanPort = {
   id: string;
@@ -27,17 +28,17 @@ type LanPort = {
 };
 
 const C = {
-  bg: "#edf5ff",
+  bg: "#EAF1FC",
   header: "#2563eb",
   headerDark: "#1d4ed8",
-  purple: "#7c3aed",
-  purpleDark: "#6d28d9",
-  ink: "#0f172a",
+  purple: "#2563EB",
+  purpleDark: "#1D4ED8",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
-  green: "#16a34a",
+  green: "#047857",
   red: "#dc2626",
-  orange: "#d97706",
+  orange: "#B45309",
   blue: "#2563eb",
 };
 
@@ -113,7 +114,7 @@ export default function LanStatus() {
       <View style={s.header}>
         <View style={s.headerTop}>
           <TouchableOpacity style={s.headerBtn} onPress={() => goBack("/home")} activeOpacity={0.84}>
-            <Ionicons name="arrow-back" size={23} color="#ffffff" />
+            <Ionicons name="chevron-back" size={23} color="#172033" />
           </TouchableOpacity>
           <View style={s.titleBlock}>
             <Text style={s.title}>สถานะ LAN Port</Text>
@@ -122,7 +123,7 @@ export default function LanStatus() {
             </Text>
           </View>
           <TouchableOpacity style={s.headerBtn} onPress={onRefresh} activeOpacity={0.84}>
-            <Ionicons name="refresh" size={19} color="#ffffff" />
+            <Ionicons name="refresh" size={19} color="#1D4ED8" />
           </TouchableOpacity>
         </View>
 
@@ -229,9 +230,8 @@ export default function LanStatus() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.header,
     paddingHorizontal: 32,
     paddingTop: 56,
     paddingBottom: 15,
@@ -243,24 +243,19 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
   headerBtn: {
-    width: 39,
-    height: 39,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.23)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   titleBlock: { flex: 1, paddingHorizontal: 15 },
-  title: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  subtitle: { color: "#dbeafe", fontSize: 11, fontWeight: "800", marginTop: 2 },
+  title: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  subtitle: { color: "#475569", fontSize: 11, fontWeight: "800", marginTop: 2 },
   roomTabs: {
     height: 39,
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.78)", boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 8px rgba(37,99,235,0.10)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
+    borderColor: "#D3E0F5",
     padding: 4,
     flexDirection: "row",
     gap: 4,
@@ -272,14 +267,15 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   roomTabActive: {
+    ...NG,
     backgroundColor: "#fff",
-    shadowColor: "#1e3a8a",
+    shadowColor: "#1D4ED8",
     shadowOpacity: 0.12,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  roomTabText: { color: "#dbeafe", fontSize: 13, fontWeight: "900" },
+  roomTabText: { color: "#475569", fontSize: 13, fontWeight: "900" },
   roomTabTextActive: { color: C.headerDark },
   body: {
     paddingHorizontal: 35,
@@ -299,24 +295,18 @@ const s = StyleSheet.create({
     gap: 3,
     borderWidth: 1,
   },
-  summaryGreen: { backgroundColor: "#dcfce7", borderColor: "#bbf7d0" },
+  summaryGreen: { backgroundColor: "#ECFDF5", borderColor: "#bbf7d0" },
   summaryRed: { backgroundColor: "#fee2e2", borderColor: "#fecaca" },
   summaryBlue: { backgroundColor: "#eff6ff", borderColor: "#dbeafe" },
   summaryNumber: { fontSize: 28, fontWeight: "900", lineHeight: 32 },
   summaryLabel: { color: C.ink, fontSize: 11, fontWeight: "800" },
   groupCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    ...W.card,
     paddingHorizontal: 15,
     paddingTop: 14,
     paddingBottom: 15,
     marginTop: 5,
     marginBottom: 7,
-    shadowColor: "#1e3a8a",
-    shadowOpacity: 0.08,
-    shadowRadius: 11,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
   },
   groupHeader: {
     flexDirection: "row",
@@ -346,7 +336,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   problemPillText: { color: C.orange, fontSize: 10, fontWeight: "900" },
-  okPill: { backgroundColor: "#dcfce7" },
+  okPill: { backgroundColor: "#ECFDF5" },
   okPillText: { color: C.green },
   portGrid: {
     flexDirection: "row",

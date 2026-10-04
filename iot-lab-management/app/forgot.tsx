@@ -6,11 +6,10 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Linking from "expo-linking";
@@ -18,6 +17,7 @@ import supabase from "../lib/supabase";
 import { notify } from "../lib/notify";
 import { authErrorThai } from "../lib/password";
 import { goBack } from "../lib/nav";
+import { W, NG } from "../lib/theme";
 
 export default function ForgotPassword() {
   const router = useRouter();
@@ -60,7 +60,7 @@ export default function ForgotPassword() {
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerBack} onPress={() => goBack("/login")} disabled={isLoading}>
-          <Ionicons name="arrow-back" size={23} color="#fff" />
+          <Ionicons name="chevron-back" size={23} color="#172033" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>ลืมรหัสผ่าน</Text>
       </View>
@@ -71,7 +71,7 @@ export default function ForgotPassword() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.iconBadge}>
-          <Ionicons name="lock-closed-outline" size={42} color="#1e3a8a" />
+          <Ionicons name="lock-closed-outline" size={42} color="#1D4ED8" />
           <View style={styles.keyBadge}>
             <Ionicons name="key" size={15} color="#fff" />
           </View>
@@ -109,7 +109,7 @@ export default function ForgotPassword() {
           </View>
 
           <View style={styles.noteRow}>
-            <Ionicons name="information-circle-outline" size={15} color="#1e3a8a" />
+            <Ionicons name="information-circle-outline" size={15} color="#1D4ED8" />
             <Text style={styles.noteText}>
               ใช้อีเมลที่ลงทะเบียนไว้กับห้องแล็บ — โดยปกติคือ <Text style={styles.noteStrong}>@iotlab.ac.th</Text>
             </Text>
@@ -145,12 +145,11 @@ export default function ForgotPassword() {
 
 const styles = StyleSheet.create({
   screen: {
+    ...W.page,
     flex: 1,
-    backgroundColor: "#f1f5f9",
   },
   header: {
     minHeight: 72,
-    backgroundColor: "#2563eb",
     paddingTop: 10,
     paddingHorizontal: 22,
     flexDirection: "row",
@@ -158,13 +157,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   headerBack: {
-    width: 28,
-    height: 40,
+    ...W.small,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    color: "#fff",
+    color: "#172033",
     fontSize: 24,
     fontWeight: "900",
   },
@@ -176,6 +176,7 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
   iconBadge: {
+    ...NG,
     width: 96,
     height: 96,
     borderRadius: 25,
@@ -185,20 +186,21 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   keyBadge: {
+    ...NG,
     position: "absolute",
     right: 10,
     bottom: 10,
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: "#1e3a8a",
+    backgroundColor: "#1D4ED8",
     borderWidth: 3,
     borderColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
-    color: "#0f172a",
+    color: "#172033",
     fontSize: 24,
     fontWeight: "900",
     textAlign: "center",
@@ -218,10 +220,11 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   stepActive: {
+    ...NG,
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: "#1e3a8a",
+    backgroundColor: "#1D4ED8",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -231,7 +234,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   stepActiveLabel: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontSize: 11,
     fontWeight: "900",
     marginLeft: 7,
@@ -243,12 +246,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   stepMuted: {
+    ...NG,
     width: 22,
     height: 22,
     borderRadius: 11,
     backgroundColor: "#fff",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#DCE6F5",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -264,19 +268,15 @@ const styles = StyleSheet.create({
     marginLeft: 7,
   },
   card: {
+    ...W.card,
     width: "100%",
     maxWidth: 430,
-    backgroundColor: "#fff",
-    borderRadius: 22,
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 20,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    elevation: 2,
   },
   label: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontSize: 13,
     fontWeight: "800",
     marginBottom: 8,
@@ -288,14 +288,14 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: "#f1f5f9",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#DCE6F5",
     borderRadius: 12,
     paddingHorizontal: 13,
     marginBottom: 14,
   },
   input: {
     flex: 1,
-    color: "#0f172a",
+    color: "#172033",
     fontSize: 15,
     paddingVertical: 12,
   },
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   noteStrong: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontWeight: "900",
   },
   primaryBtn: {
@@ -345,7 +345,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   footerLink: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontSize: 14,
     fontWeight: "900",
   },

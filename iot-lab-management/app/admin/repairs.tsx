@@ -5,11 +5,10 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { notify } from "../../lib/notify";
@@ -18,20 +17,21 @@ import { REPAIR_STATUS, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { naturalNo } from "../../lib/roomStatus";
+import { W, NG } from "../../lib/theme";
 
 const C = {
-  bg: "#eef2f8",
-  purple: "#7c3aed",
-  purpleDeep: "#5b21b6",
-  ink: "#111827",
-  text: "#1f2937",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  purpleDeep: "#1E40AF",
+  ink: "#172033",
+  text: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
   line: "#d9dde7",
   card: "#ffffff",
   red: "#ef4444",
-  yellow: "#facc15",
-  green: "#22c55e",
+  yellow: "#F59E0B",
+  green: "#10B981",
   orange: "#f59e0b",
 };
 
@@ -235,7 +235,7 @@ export default function RepairsPage() {
       <View style={s.hero}>
         <View style={s.heroTop}>
           <TouchableOpacity style={s.headerIconBtn} onPress={() => goBack("/admin/room")} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={22} color="#ffffff" />
+            <Ionicons name="chevron-back" size={22} color="#172033" />
           </TouchableOpacity>
 
           <View style={s.titleBlock}>
@@ -244,7 +244,7 @@ export default function RepairsPage() {
           </View>
 
           <TouchableOpacity style={s.headerIconBtn} onPress={openAdd} activeOpacity={0.82}>
-            <Ionicons name="add" size={21} color="#06133a" />
+            <Ionicons name="add" size={22} color="#1D4ED8" />
           </TouchableOpacity>
         </View>
 
@@ -332,7 +332,7 @@ export default function RepairsPage() {
 
       <View style={s.bottomBar}>
         <TouchableOpacity style={s.bottomAddBtn} onPress={openAdd} activeOpacity={0.86}>
-          <Ionicons name="add" size={17} color={C.ink} />
+          <Ionicons name="add" size={18} color="#FFFFFF" />
           <Text style={s.bottomAddText}>แจ้งซ่อมใหม่</Text>
         </TouchableOpacity>
         <View style={s.downFab}>
@@ -475,43 +475,33 @@ function RepairStat({ value, label, dotColor }: { value: number; label: string; 
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   hero: {
-    backgroundColor: C.purple,
     paddingTop: 29,
     paddingHorizontal: 29,
     paddingBottom: 24,
   },
   heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   titleBlock: { alignItems: "center", flex: 1 },
-  headerTitle: { color: "#ffffff", fontSize: 16, fontWeight: "900", lineHeight: 20 },
-  headerSub: { color: "#ede9fe", fontSize: 11, fontWeight: "800", marginTop: 1 },
-  statsRow: { flexDirection: "row", gap: 10, marginTop: 22 },
+  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700", lineHeight: 28 },
+  headerSub: { color: "#475569", fontSize: 12, marginTop: 0 },
+  statsRow: { flexDirection: "row", gap: 10, marginTop: 16 },
   statCard: {
     flex: 1,
     minHeight: 78,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.13)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    ...W.card,
     alignItems: "center",
     justifyContent: "center",
   },
-  statDot: { width: 7, height: 7, borderRadius: 4, marginBottom: 4 },
-  statValue: { color: "#ffffff", fontSize: 25, fontWeight: "900", lineHeight: 29 },
-  statLabel: { color: "#ede9fe", fontSize: 10.5, fontWeight: "900", marginTop: 5 },
+  statDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
+  statValue: { color: "#172033", fontSize: 26, fontWeight: "700", lineHeight: 32 },
+  statLabel: { color: "#64748B", fontSize: 12, marginTop: 1 },
   filterShell: {
-    backgroundColor: C.bg,
     paddingTop: 14,
     paddingHorizontal: 26,
   },
@@ -527,6 +517,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   filterBtnActive: {
+    ...NG,
     backgroundColor: C.purple,
     borderColor: C.purple,
     shadowColor: C.purple,
@@ -543,11 +534,8 @@ const s = StyleSheet.create({
   loadingText: { color: C.faint, fontSize: 13, fontWeight: "700" },
   list: { paddingHorizontal: 27, paddingBottom: 20 },
   card: {
+    ...W.card,
     minHeight: 96,
-    backgroundColor: C.card,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: C.line,
     marginBottom: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
@@ -556,11 +544,6 @@ const s = StyleSheet.create({
     gap: 13,
     position: "relative",
     overflow: "hidden",
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.12,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
   },
   cardLine: {
     position: "absolute",
@@ -604,22 +587,19 @@ const s = StyleSheet.create({
     position: "absolute",
     left: 26,
     right: 26,
-    bottom: 13,
-    height: 35,
+    bottom: 18,
+    height: 46,
     justifyContent: "center",
   },
   bottomAddBtn: {
-    height: 34,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: "#bfc5d1",
-    backgroundColor: "#f8fafc",
+    height: 46,
+    ...W.primary,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 8,
   },
-  bottomAddText: { color: C.ink, fontSize: 13, fontWeight: "800" },
+  bottomAddText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
   downFab: {
     position: "absolute",
     alignSelf: "center",
@@ -659,7 +639,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  roomBtnActive: { backgroundColor: C.purple, borderColor: C.purple },
+  roomBtnActive: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
   roomBtnText: { color: C.muted, fontSize: 13, fontWeight: "800" },
   roomBtnTextActive: { color: "#ffffff" },
   chipRow: { gap: 7, paddingVertical: 2 },
@@ -671,7 +651,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  chipActive: { backgroundColor: C.purple, borderColor: C.purple },
+  chipActive: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
   chipText: { color: C.muted, fontSize: 12, fontWeight: "800" },
   chipTextActive: { color: "#ffffff" },
   textArea: {

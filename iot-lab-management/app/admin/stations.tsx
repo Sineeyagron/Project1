@@ -5,11 +5,10 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useRole } from "../../lib/roles";
@@ -20,16 +19,17 @@ import { STATION_STATUS, naturalNo, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { useRoomLive } from "../../lib/roomRealtime";
+import { W, NG } from "../../lib/theme";
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  purpleDark: "#6d28d9",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  purpleDark: "#1D4ED8",
+  ink: "#172033",
   muted: "#64748b",
   faint: "#94a3b8",
   card: "#ffffff",
-  green: "#16a34a",
+  green: "#047857",
   orange: "#c2410c",
   red: "#ef4444",
 };
@@ -329,7 +329,7 @@ export default function AdminStations() {
       <View style={s.header}>
         <View style={s.headerTop}>
           <TouchableOpacity style={s.backBtn} onPress={() => goBack("/admin/room")} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <Ionicons name="chevron-back" size={22} color="#172033" />
           </TouchableOpacity>
           <View style={s.headerTextWrap}>
             <Text style={s.headerTitle}>จัดการเครื่องคอม</Text>
@@ -337,7 +337,7 @@ export default function AdminStations() {
           </View>
           {isAdmin ? (
             <TouchableOpacity style={s.backBtn} onPress={openAdd} activeOpacity={0.82} accessibilityLabel="เพิ่มเครื่อง">
-              <Ionicons name="add" size={22} color="#fff" />
+              <Ionicons name="add" size={22} color="#1D4ED8" />
             </TouchableOpacity>
           ) : null}
         </View>
@@ -547,9 +547,8 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
     paddingTop: 74,
     paddingHorizontal: 33,
     paddingBottom: 16,
@@ -560,26 +559,21 @@ const s = StyleSheet.create({
     gap: 13,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.small, width: 44, height: 44,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTextWrap: { flex: 1 },
-  headerTitle: { color: "#fff", fontSize: 24, fontWeight: "900", lineHeight: 28 },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "900", marginTop: 4 },
+  headerTitle: { color: "#172033", fontSize: 24, fontWeight: "900", lineHeight: 28 },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "900", marginTop: 4 },
   roomTabs: {
     minHeight: 38,
     flexDirection: "row",
     gap: 4,
-    backgroundColor: "rgba(255,255,255,0.13)",
+    backgroundColor: "rgba(255,255,255,0.78)", boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 8px rgba(37,99,235,0.10)",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.13)",
+    borderColor: "#D3E0F5",
     padding: 4,
     marginTop: 17,
   },
@@ -589,8 +583,8 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  roomTabActive: { backgroundColor: "#fff" },
-  roomText: { color: "#ddd6fe", fontSize: 12, fontWeight: "900" },
+  roomTabActive: { ...NG, backgroundColor: "#fff" },
+  roomText: { color: "#475569", fontSize: 12, fontWeight: "900" },
   roomTextActive: { color: C.purple },
   body: {
     width: "100%",
@@ -605,28 +599,22 @@ const s = StyleSheet.create({
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { color: C.muted, fontSize: 11, fontWeight: "900" },
   groupCard: {
-    backgroundColor: C.card,
-    borderRadius: 15,
+    ...W.card,
     padding: 14,
     marginBottom: 15,
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.18,
-    shadowRadius: 13,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 4,
   },
   groupHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 13 },
   groupTitleRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   groupIcon: { width: 31, height: 31, borderRadius: 9, backgroundColor: "#dbeafe", alignItems: "center", justifyContent: "center" },
   groupTitle: { color: C.ink, fontSize: 15, fontWeight: "900" },
   groupPills: { flexDirection: "row", alignItems: "center", gap: 7 },
-  readyPill: { backgroundColor: "#dcfce7", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },
+  readyPill: { backgroundColor: "#ECFDF5", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },
   readyPillText: { color: C.green, fontSize: 11, fontWeight: "900" },
   problemPill: { backgroundColor: "#fee2e2", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   problemPillText: { color: "#ef4444", fontSize: 11, fontWeight: "900" },
   stationGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   stationCard: {
-    width: "31.5%",
+    width: "31%",
     height: 84,
     borderRadius: 11,
     borderWidth: 1,
@@ -645,17 +633,17 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   modalTitle: { color: C.ink, fontSize: 18, fontWeight: "900" },
   fieldLabel: { color: C.muted, fontSize: 12, fontWeight: "900", marginTop: 10, marginBottom: 7 },
-  input: { minHeight: 45, borderRadius: 12, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#e2e8f0", paddingHorizontal: 13, color: C.ink, fontSize: 14, fontWeight: "800" },
+  input: { minHeight: 45, borderRadius: 12, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#DCE6F5", paddingHorizontal: 13, color: C.ink, fontSize: 14, fontWeight: "800" },
   modalChips: { gap: 8, paddingVertical: 4 },
-  modalChip: { borderRadius: 999, borderWidth: 1, borderColor: "#e2e8f0", paddingHorizontal: 13, paddingVertical: 7 },
-  modalChipActive: { backgroundColor: C.purple, borderColor: C.purple },
+  modalChip: { borderRadius: 999, borderWidth: 1, borderColor: "#DCE6F5", paddingHorizontal: 13, paddingVertical: 7 },
+  modalChipActive: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
   modalChipText: { color: C.muted, fontSize: 12, fontWeight: "900" },
   modalChipTextActive: { color: "#fff" },
   statusRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
   statusBtn: { flex: 1, borderWidth: 1.5, borderRadius: 999, paddingVertical: 9, alignItems: "center" },
   statusBtnText: { fontSize: 12, fontWeight: "900" },
   modalActions: { flexDirection: "row", gap: 10 },
-  saveBtn: { flex: 1, minHeight: 48, borderRadius: 12, backgroundColor: C.purple, alignItems: "center", justifyContent: "center" },
+  saveBtn: { ...W.primarySolid, flex: 1, minHeight: 48, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   saveBtnText: { color: "#fff", fontSize: 15, fontWeight: "900" },
   deleteBtn: { flex: 1, minHeight: 48, borderRadius: 12, backgroundColor: "#fee2e2", alignItems: "center", justifyContent: "center" },
   deleteBtnText: { color: "#dc2626", fontSize: 15, fontWeight: "900" },
