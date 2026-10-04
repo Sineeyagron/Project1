@@ -21,7 +21,7 @@ import supabase from "../lib/supabase";
 import { ITEM_STATUS } from "../lib/status";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
 import AnchoredMenu, { Anchor, measureAnchor } from "../components/AnchoredMenu";
-import { C, W, gradient } from "../lib/theme";
+import { BADGE_TEXT, C, W, gradient } from "../lib/theme";
 import TabBar from "../components/TabBar";
 import ScreenHeader from "../components/ScreenHeader";
 import { FadeIn, PressScale } from "../components/Motion";
@@ -53,6 +53,38 @@ const TYPE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   [OTHER]: "ellipsis-horizontal-outline",
 };
 const iconFor = (category: string) => TYPE_ICONS[category] || "cube-outline";
+
+// สีประจำหมวด (ไอคอนไล่สี + พื้นอ่อน) — ดูปราดเดียวแยกหมวดได้ / หมวดใหม่ที่ไม่มีในนี้ใช้สีฟ้า
+const CAT_TONE: Record<string, { from: string; to: string; soft: string }> = {
+  Microcontroller: { from: "#7C8CFF", to: "#4F46E5", soft: "#EEF0FF" },
+  SBC: { from: "#B58CFF", to: "#7C3AED", soft: "#F4EEFF" },
+  Sensor: { from: "#4FD1B5", to: "#0F9D84", soft: "#E6F8F3" },
+  Actuator: { from: "#FFB45C", to: "#EA6A1F", soft: "#FFF1E4" },
+  Module: { from: "#6AA8FF", to: "#2563EB", soft: "#EAF2FF" },
+  Kit: { from: "#FF8FC0", to: "#DB2777", soft: "#FDECF4" },
+  Cable: { from: "#94A3B8", to: "#475569", soft: "#EEF2F7" },
+};
+const toneOf = (category: string) => CAT_TONE[category] || { from: "#8FA6C8", to: "#5B6B85", soft: "#EEF2F7" };
+
+// รูปอุปกรณ์ / ถ้าไม่มีรูป = ไอคอนหมวดบนพื้นสีของหมวด (ขนาดเท่ากันทุกการ์ด)
+function Thumb({ image, category, size }: { image: string | null; category: string; size: number }) {
+  const tone = toneOf(category);
+  const box = { width: size, height: size, borderRadius: size * 0.28 };
+  if (image) return <Image source={{ uri: image }} style={[box, { backgroundColor: tone.soft }]} resizeMode="cover" />;
+  return (
+    <View style={[box, { backgroundColor: tone.soft, alignItems: "center", justifyContent: "center" }]}>
+      <View
+        style={[
+          { width: size * 0.62, height: size * 0.62, borderRadius: size * 0.2, alignItems: "center", justifyContent: "center", backgroundColor: tone.to },
+          gradient(`linear-gradient(145deg, ${tone.from} 0%, ${tone.to} 100%)`),
+          { boxShadow: `0 4px 10px ${tone.to}40` },
+        ]}
+      >
+        <Ionicons name={iconFor(category)} size={size * 0.34} color="#FFFFFF" />
+      </View>
+    </View>
+  );
+}
 
 const formatDue = (value: string) => new Date(value).toLocaleDateString("th-TH", { day: "numeric", month: "short" });
 
@@ -205,7 +237,7 @@ export default function Equipment() {
             const active = activeType === type && !query;
             return (
               <PressScale key={type} style={[s.chip, active && s.chipActive]} onPress={() => setActiveType(type)} scaleTo={0.94}>
-                {type !== ALL ? <Ionicons name={iconFor(type)} size={14} color={active ? "#FFFFFF" : C.muted} /> : null}
+                {type !== ALL ? <Ionicons name={iconFor(type)} size={14} color={active ? "#FFFFFF" : toneOf(type).to} /> : null}
                 <Text style={[s.chipText, active && s.chipTextActive]} numberOfLines={1}>{type}</Text>
               </PressScale>
             );
@@ -272,37 +304,26 @@ function availTone(g: Group) {
 function GroupCard({ group: g, index, onPress }: { group: Group; index: number; onPress: () => void }) {
   const tone = availTone(g);
   const total = g.units.length;
-  const note =
-    g.available > 0
-      ? `พร้อมยืม ${g.available} ชิ้น`
-      : g.nextDue
-      ? `ว่างอีกครั้ง ~${formatDue(g.nextDue)}`
-      : "ไม่ว่าง (ซ่อมบำรุง/รออนุมัติ)";
+  const ratio = total ? g.available / total : 0;
+  // ข้อความใต้แถบ: มีว่าง = ไม่ต้องพูดซ้ำ (ตัวเลขขวาบอกแล้ว) / ไม่มีว่าง = บอกว่าจะว่างเมื่อไร
+  const note = g.available > 0 ? null : g.nextDue ? `ว่างอีกครั้ง ~${formatDue(g.nextDue)}` : "ไม่ว่างตอนนี้";
   return (
     <FadeIn delay={Math.min(index, 8) * 40}>
-      <PressScale style={[s.card, g.available === 0 && s.cardDim]} onPress={onPress} scaleTo={0.98} accessibilityLabel={`${g.name} ว่าง ${g.available} จาก ${total}`}>
-        {g.image ? (
-          <Image source={{ uri: g.image }} style={s.thumb} resizeMode="cover" />
-        ) : (
-          <View style={[s.thumb, s.thumbIcon, gradient("linear-gradient(150deg, #EAF2FF 0%, #D6E5FF 100%)")]}>
-            <Ionicons name={iconFor(g.category)} size={26} color={C.primary} />
-          </View>
-        )}
+      <PressScale style={s.card} onPress={onPress} scaleTo={0.98} accessibilityLabel={`${g.name} ว่าง ${g.available} จาก ${total}`}>
+        <Thumb image={g.image} category={g.category} size={56} />
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={s.cardName} numberOfLines={1}>{g.name}</Text>
-          <Text style={s.cardSub} numberOfLines={1}>{g.category} · {total} ชิ้น</Text>
-          {/* แถบชิ้น: เต็ม = ว่าง (สูงสุด 10 ช่อง) */}
-          <View style={s.dots}>
-            {g.units.slice(0, 10).map((u) => (
-              <View key={u.id} style={[s.dot, { backgroundColor: u.status === "available" ? tone.bar : "#D5DFEE" }]} />
-            ))}
-            {total > 10 ? <Text style={s.more}>+{total - 10}</Text> : null}
+          <Text style={s.cardSub} numberOfLines={1}>{g.category}</Text>
+          {/* แถบสัดส่วนที่ว่าง — ยาวเท่ากันทุกการ์ด */}
+          <View style={s.bar}>
+            <View style={[s.barFill, { width: `${Math.max(ratio * 100, ratio > 0 ? 6 : 0)}%`, backgroundColor: tone.bar }]} />
           </View>
-          <Text style={[s.cardNote, { color: tone.fg }]} numberOfLines={1}>{note}</Text>
+          {note ? <Text style={[s.cardNote, { color: tone.fg }]} numberOfLines={1}>{note}</Text> : null}
         </View>
+        {/* ตัวเลขว่าง: คอลัมน์กว้างคงที่ ตัวเลขใหญ่บรรทัดเดียว + "จาก N" ใต้ → ขอบขวาตรงกันทุกการ์ด */}
         <View style={[s.availBox, { backgroundColor: tone.bg }]}>
           <Text style={[s.availNum, { color: tone.fg }]}>{g.available}</Text>
-          <Text style={[s.availOf, { color: tone.fg }]}>/{total}</Text>
+          <Text style={[s.availOf, { color: tone.fg }]}>จาก {total}</Text>
         </View>
       </PressScale>
     </FadeIn>
@@ -343,13 +364,7 @@ function DetailSheet({ group, onClose, onScan }: { group: Group | null; onClose:
           <View style={s.handle} />
           <ScrollView contentContainerStyle={s.sheetBody} showsVerticalScrollIndicator={false}>
             <View style={s.sheetHead}>
-              {g.image ? (
-                <Image source={{ uri: g.image }} style={s.sheetImg} resizeMode="cover" />
-              ) : (
-                <View style={[s.sheetImg, s.thumbIcon, gradient("linear-gradient(150deg, #EAF2FF 0%, #D6E5FF 100%)")]}>
-                  <Ionicons name={iconFor(g.category)} size={36} color={C.primary} />
-                </View>
-              )}
+              <Thumb image={g.image} category={g.category} size={84} />
               <View style={{ flex: 1, minWidth: 0 }}>
                 <Text style={s.sheetName}>{g.name}</Text>
                 <Text style={s.sheetSub}>{g.category} · ห้อง {g.location}</Text>
@@ -449,19 +464,15 @@ const s = StyleSheet.create({
   sortText: { color: C.primaryDark, fontSize: 13, fontWeight: "600" },
 
   list: { paddingHorizontal: 16, paddingTop: 2 },
-  card: { ...W.card, flexDirection: "row", alignItems: "center", gap: 12, padding: 12, marginBottom: 10 },
-  cardDim: { opacity: 0.78 },
-  thumb: { width: 64, height: 64, borderRadius: 16, backgroundColor: "#EAF2FF" },
-  thumbIcon: { alignItems: "center", justifyContent: "center" },
+  card: { ...W.card, flexDirection: "row", alignItems: "center", gap: 12, padding: 12, paddingRight: 10, marginBottom: 10 },
   cardName: { color: C.ink, fontSize: 15.5, fontWeight: "700" },
   cardSub: { color: C.text2, fontSize: 12.5, marginTop: 1 },
-  dots: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 7 },
-  dot: { width: 14, height: 6, borderRadius: 3 },
-  more: { color: C.faint, fontSize: 11, marginLeft: 2 },
-  cardNote: { fontSize: 12.5, fontWeight: "600", marginTop: 5 },
-  availBox: { minWidth: 56, height: 56, borderRadius: 16, flexDirection: "row", alignItems: "baseline", justifyContent: "center", paddingTop: 10 },
-  availNum: { fontSize: 24, fontWeight: "700", lineHeight: 30 },
-  availOf: { fontSize: 13, fontWeight: "600" },
+  bar: { height: 6, borderRadius: 3, backgroundColor: "#E2E9F4", marginTop: 8, overflow: "hidden" },
+  barFill: { height: 6, borderRadius: 3 },
+  cardNote: { fontSize: 12, fontWeight: "600", marginTop: 5 },
+  availBox: { width: 60, height: 56, borderRadius: 16, alignItems: "center", justifyContent: "center" },
+  availNum: { ...BADGE_TEXT, fontSize: 22, lineHeight: 26 },
+  availOf: { fontSize: 11, fontWeight: "600", marginTop: 0 },
 
   empty: { alignItems: "center", gap: 10, paddingTop: 50 },
   emptyText: { color: C.text2, fontSize: 14 },

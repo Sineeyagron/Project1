@@ -18,11 +18,11 @@ import { Room, fetchRooms as fetchRoomList, roomPlace } from "../lib/rooms";
 import { useRoomLive } from "../lib/roomRealtime";
 import Svg, { Circle } from "react-native-svg";
 import TabBar from "../components/TabBar";
-import StatWidget from "../components/StatWidget";
 import { HeaderButton } from "../components/ScreenHeader";
 import { FadeIn, PressScale } from "../components/Motion";
 import GreetingLine from "../components/GreetingLine";
-import { useUnreadCount } from "../lib/unread";
+import LoanQuickCard from "../components/LoanSummary";
+import StatWidget from "../components/StatWidget";
 import { currentUser } from "../lib/session";
 import { C, W, gradient, iconDot } from "../lib/theme";
 
@@ -38,7 +38,6 @@ type Station = {
 
 export default function Home() {
   const router = useRouter();
-  const unread = useUnreadCount();
   // TA/admin ที่มาหน้านักศึกษา (เช่น มายืมของเอง) → มีปุ่มกลับแดชบอร์ด
   const [isStaff, setIsStaff] = useState(false);
   useEffect(() => {
@@ -56,7 +55,7 @@ export default function Home() {
   const [activeSearch, setActiveSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [loadError, setLoadError] = useState("");
   const [rooms, setRooms] = useState<Room[]>([]);
 
@@ -151,7 +150,6 @@ export default function Home() {
                 onPress={() => router.dismissTo("/admin/home")}
               />
             )}
-            <HeaderButton icon="notifications-outline" label="แจ้งเตือน" count={unread} onPress={() => router.push("/notifications")} />
           </View>
         </View>
 
@@ -174,19 +172,22 @@ export default function Home() {
             <Text style={s.sectionSub}>{activeSearch ? `พบ ${filteredRooms.length} จาก ${roomSummaries.length} ห้อง` : `${roomSummaries.length} ห้อง`}</Text>
           </View>
           <View style={s.viewToggle}>
-            <TouchableOpacity
-              style={[s.viewToggleBtn, viewMode === "grid" && s.viewToggleBtnActive]}
-              onPress={() => setViewMode("grid")}
-              activeOpacity={0.84}
-            >
-              <Ionicons name="grid-outline" size={16} color={viewMode === "grid" ? C.primaryDark : C.faint} />
-            </TouchableOpacity>
+            {/* รายการ (ค่าเริ่มต้น) อยู่ซ้าย / ตาราง อยู่ขวา */}
             <TouchableOpacity
               style={[s.viewToggleBtn, viewMode === "list" && s.viewToggleBtnActive]}
               onPress={() => setViewMode("list")}
               activeOpacity={0.84}
+              accessibilityLabel="แสดงแบบรายการ"
             >
               <Ionicons name="list-outline" size={18} color={viewMode === "list" ? C.primaryDark : C.faint} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.viewToggleBtn, viewMode === "grid" && s.viewToggleBtnActive]}
+              onPress={() => setViewMode("grid")}
+              activeOpacity={0.84}
+              accessibilityLabel="แสดงแบบตาราง"
+            >
+              <Ionicons name="grid-outline" size={16} color={viewMode === "grid" ? C.primaryDark : C.faint} />
             </TouchableOpacity>
           </View>
         </View>
@@ -279,37 +280,9 @@ export default function Home() {
                   <Text style={s.quickSub}>Server / Patch Panel</Text>
                 </View>
               </PressScale>
-              <PressScale style={s.quickCard} onPress={() => router.push("/borrow")}>
-                <View style={iconDot("#0EA5E9", 38)}>
-                  <Ionicons name="time-outline" size={19} color="#FFFFFF" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.quickName}>ประวัติการยืม</Text>
-                  <Text style={s.quickSub}>รายการยืม-คืน</Text>
-                </View>
-              </PressScale>
+              {/* การยืมของฉัน (ระบบยืม) — แทนลิงก์ "ประวัติการยืม" เดิม บอกสถานะ + สีตามความเร่ง */}
+              <LoanQuickCard style={s.quickCard} />
             </View>
-
-            {problemStations > 0 ? (
-              <TouchableOpacity
-                style={s.alertCard}
-                // เปิดผังของห้องที่มีปัญหาจริง (เดิมไม่ส่ง room_id → เปิด CP9524 เสมอ แม้ปัญหาอยู่ SC9604)
-                onPress={() => {
-                  const problemRoom = roomSummaries.find((room) => room.problem > 0)?.room;
-                  router.push({ pathname: "/roommap", params: problemRoom ? { room_id: problemRoom } : {} });
-                }}
-                activeOpacity={0.88}
-              >
-                <View style={iconDot(C.warning, 38)}>
-                  <Ionicons name="information" size={20} color="#FFFFFF" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.alertTitle}>มีอุปกรณ์ต้องตรวจสอบ</Text>
-                  <Text style={s.alertSub}>{roomSummaries.filter((room) => room.problem > 0).length} ห้อง มี {problemStations} เครื่องที่ต้องดูแล</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={C.warningInk} />
-              </TouchableOpacity>
-            ) : null}
           </>
         )}
 
@@ -400,7 +373,7 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  sectionTitle: { color: C.ink, fontSize: 17, fontWeight: "600" },
+  sectionTitle: { color: C.ink, fontSize: 17, fontWeight: "700" },
   sectionSub: { color: C.muted, fontSize: 12, marginTop: 1 },
   viewToggle: {
     flexDirection: "row",
@@ -485,13 +458,4 @@ const s = StyleSheet.create({
   },
   quickName: { color: C.ink, fontSize: 13, fontWeight: "600" },
   quickSub: { color: C.muted, fontSize: 11 },
-  alertCard: {
-    ...W.statAmber,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 14,
-  },
-  alertTitle: { color: C.warningInk, fontSize: 14, fontWeight: "600" },
-  alertSub: { color: "#92400E", fontSize: 12, marginTop: 1 },
 });

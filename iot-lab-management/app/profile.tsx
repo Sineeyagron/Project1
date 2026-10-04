@@ -8,10 +8,8 @@ import { currentUser } from "../lib/session";
 import { useRefreshOnFocus } from "../lib/nav";
 import { Role, ROLE_LABEL } from "../lib/roles";
 import { confirmAction } from "../lib/notify";
-import { useUnreadCount } from "../lib/unread";
 import { C, W, iconDot } from "../lib/theme";
 import TabBar from "../components/TabBar";
-import { HeaderButton } from "../components/ScreenHeader";
 import { FadeIn, PressScale } from "../components/Motion";
 
 // โปรไฟล์นักศึกษา (ล็อกอินด้วย Google @kkumail.com):
@@ -67,7 +65,6 @@ const TONE = {
 
 export default function Profile() {
   const router = useRouter();
-  const unread = useUnreadCount();
   const [data, setData] = useState<Data | null>(cache);
   const [canChangePassword, setCanChangePassword] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -158,7 +155,6 @@ export default function Profile() {
             <Text style={s.kicker}>บัญชีของฉัน</Text>
             <Text style={s.title}>โปรไฟล์</Text>
           </View>
-          <HeaderButton icon="notifications-outline" label="แจ้งเตือน" count={unread} onPress={() => router.push("/notifications")} />
         </View>
 
         {/* ตัวตน — มาจากบัญชีมหาวิทยาลัย แก้ในแอปไม่ได้ */}

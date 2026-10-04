@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { Text } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { useRealtime } from "../lib/realtime";
 import { currentUser } from "../lib/session";
@@ -22,6 +22,7 @@ import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { W } from "../lib/theme";
 import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 import { haptic } from "../components/Motion";
+import TabBar from "../components/TabBar";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
   borrow:         { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
@@ -88,7 +89,11 @@ export default function Notifications() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [newCount, setNewCount] = useState(0);
-  const [isStaff, setIsStaff] = useState(false);
+  // null = ยังไม่รู้ (กันแถบเมนูนักศึกษาโผล่แวบให้ staff เห็น)
+  const [isStaff, setIsStaff] = useState<boolean | null>(null);
+  // แถบเมนูล่าง: มาจากแถบเมนู (ทุกบทบาท รวม TA/Admin ที่อยู่โหมดนักศึกษา) หรือเป็นนักศึกษา
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const showTabBar = tab === "1" || isStaff === false;
   const prevCountRef = useRef(-1);
   const isFirstLoad = useRef(true);
 
@@ -257,9 +262,12 @@ export default function Notifications() {
             );
           })}
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: showTabBar ? 104 : 40 }} />
         </ScrollView>
       )}
+
+      {/* หน้านี้เป็นแท็บหนึ่งของนักศึกษา → แถบเมนูล่างเหมือนหน้าอื่น / Admin-TA เข้าจากกระดิ่งแดชบอร์ด = ไม่มี */}
+      {showTabBar ? <TabBar current="/notifications" /> : null}
     </View>
   );
 }
