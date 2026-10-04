@@ -1,148 +1,128 @@
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "../components/AppText";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
 import { currentUser } from "../lib/session";
-import { RECORD_STATUS } from "../lib/status";
 import { useRefreshOnFocus } from "../lib/nav";
 import { Role, ROLE_LABEL } from "../lib/roles";
-import { confirmAction, notify } from "../lib/notify";
-import { W, NG } from "../lib/theme";
+import { confirmAction } from "../lib/notify";
+import { useUnreadCount } from "../lib/unread";
+import { C, W, iconDot } from "../lib/theme";
 import TabBar from "../components/TabBar";
+import { HeaderButton } from "../components/ScreenHeader";
+import { FadeIn, PressScale } from "../components/Motion";
 
-const C = {
-  bg: "#EAF1FC",
-  header: "#2563eb",
-  purple: "#2563EB",
-  ink: "#172033",
-  muted: "#475569",
-  faint: "#64748B",
-  blue: "#2563eb",
-  green: "#047857",
-  orange: "#B45309",
-  red: "#ef4444",
+// โปรไฟล์นักศึกษา (ล็อกอินด้วย Google @kkumail.com):
+//   ตัวตน = ชื่อ/รูป/อีเมลจาก Google + รหัส นศ. (แก้เองไม่ได้)
+//   เน้น "ตอนนี้ยืมอะไรอยู่ คืนเมื่อไร ยืมได้อีกกี่ชิ้น" + กติกาการยืม (จาก app_settings ตรงกับระบบเสมอ)
+
+type Loan = { id: string; status: string; due_date: string | null; itemName: string };
+type Data = {
+  email: string;
+  role: string;
+  fullName: string;
+  avatarUrl: string;
+  studentId: string;
+  loans: Loan[];
+  pendingBorrows: number;
+  maxActive: number;
+  dayOptions: number[];
+  expiryMinutes: number;
 };
 
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: keyof typeof Ionicons.glyphMap }> = {
-  borrowed: { ...RECORD_STATUS.borrowed, icon: "cube-outline" },
-  pending_return: { ...RECORD_STATUS.pending_return, icon: "hourglass-outline" },
-  returned: { ...RECORD_STATUS.returned, icon: "checkmark-circle-outline" },
+// ข้อมูลชุดล่าสุด (หน่วยความจำ) — เปิดซ้ำไม่ต้องรอหมุน / ล้างเมื่อออกจากระบบ (กันคนถัดไปบนเครื่องเดียวกันเห็น)
+let cache: Data | null = null;
+supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") cache = null; });
+
+const settingNum = (rows: any[], key: string, fallback: number) => {
+  const n = Number(rows.find((r) => r.key === key)?.value);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
+const settingList = (rows: any[], key: string, fallback: number[]) => {
+  let v = rows.find((r) => r.key === key)?.value;
+  if (typeof v === "string") { try { v = JSON.parse(v); } catch { v = null; } }
+  return Array.isArray(v) && v.length ? v.map(Number).filter((n) => n > 0) : fallback;
 };
 
-const formatDate = (dateValue: string) => {
-  if (!dateValue) return "-";
-  return new Date(dateValue).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
-};
-
-const dueText = (dateValue: string) => {
-  if (!dateValue) return "ไม่ระบุกำหนดคืน";
-  const due = new Date(dateValue);
+// วันครบกำหนด → ข้อความ + โทนสี
+function dueInfo(date: string | null) {
+  if (!date) return { text: "ไม่ระบุกำหนดคืน", tone: "ok" as const };
+  const due = new Date(date);
   const today = new Date();
   due.setHours(0, 0, 0, 0);
   today.setHours(0, 0, 0, 0);
-  const diff = Math.ceil((due.getTime() - today.getTime()) / 86400000);
-  if (diff < 0) return `เกินกำหนด ${Math.abs(diff)} วัน`;
-  if (diff === 0) return "ครบกำหนดวันนี้";
-  return `เหลืออีก ${diff} วัน`;
+  const diff = Math.round((due.getTime() - today.getTime()) / 86400000);
+  if (diff < 0) return { text: `เกินกำหนด ${-diff} วัน`, tone: "late" as const };
+  if (diff === 0) return { text: "ครบกำหนดวันนี้", tone: "soon" as const };
+  if (diff === 1) return { text: "คืนพรุ่งนี้", tone: "soon" as const };
+  return { text: `เหลืออีก ${diff} วัน`, tone: "ok" as const };
+}
+const TONE = {
+  ok: { fg: C.successInk, bg: C.successBg },
+  soon: { fg: C.warningInk, bg: C.warningBg },
+  late: { fg: C.errorInk, bg: C.errorBg },
 };
-
-// ข้อมูลหน้าโปรไฟล์ชุดล่าสุด (อยู่ในหน่วยความจำ) — เปิดหน้าซ้ำไม่ต้องรอหมุน / ล้างเมื่อออกจากระบบ
-let cache: {
-  email: string; role: string; totalBorrows: number; activeLoans: number; returnedLoans: number; unread: number; recent: any[];
-} | null = null;
-// ออกจากระบบจากหน้าไหนก็ได้ (โปรไฟล์/ตั้งค่า/หมดอายุ) → ล้าง กันคนถัดไปบนเครื่องเดียวกันเห็นข้อมูลคนเก่า
-supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") cache = null; });
 
 export default function Profile() {
   const router = useRouter();
-  // เปิดซ้ำ → แสดงข้อมูลชุดล่าสุดทันที (cache) แล้วค่อยอัปเดตเบื้องหลัง
-  const [email, setEmail] = useState(cache?.email ?? "");
-  const [role, setRole] = useState(cache?.role ?? "user");
-  const [totalBorrows, setTotalBorrows] = useState(cache?.totalBorrows ?? 0);
-  const [activeLoans, setActiveLoans] = useState(cache?.activeLoans ?? 0);
-  const [returnedLoans, setReturnedLoans] = useState(cache?.returnedLoans ?? 0);
-  const [unreadNotifications, setUnreadNotifications] = useState(cache?.unread ?? 0);
-  const [recentBorrows, setRecentBorrows] = useState<any[]>(cache?.recent ?? []);
-  const [loading, setLoading] = useState(!cache);
+  const unread = useUnreadCount();
+  const [data, setData] = useState<Data | null>(cache);
+  const [canChangePassword, setCanChangePassword] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
-  useRefreshOnFocus(() => { fetchProfile(); });
+  useEffect(() => { load(); }, []);
+  useRefreshOnFocus(() => { load(); });
 
-  const fetchProfile = async () => {
+  const load = async () => {
     const user = await currentUser();
-    if (!user) {
-      setLoading(false);
-      setRefreshing(false);
-      return;
-    }
+    if (!user) { setRefreshing(false); return; }
+    // ล็อกอินด้วย Google ไม่มีรหัสผ่านในระบบเรา → ซ่อน "เปลี่ยนรหัสผ่าน" (โชว์เฉพาะบัญชีที่สมัครด้วยอีเมล)
+    const providers: string[] = (user.app_metadata as any)?.providers ?? [(user.app_metadata as any)?.provider];
+    setCanChangePassword(providers.includes("email"));
 
-    // ยิงพร้อมกันรอบเดียว (เดิม 3 รอบต่อกัน: profile → นับ → ชื่ออุปกรณ์) / ชื่ออุปกรณ์ดึงมากับประวัติผ่าน FK item_id
-    const [{ data: profile }, { data: borrows }, totalRes, activeRes, returnedRes, unreadRes] = await Promise.all([
-      supabase.from("profiles").select("email, role").eq("id", user.id).maybeSingle(),
+    // ยิงพร้อมกันรอบเดียว / ชื่ออุปกรณ์ดึงมากับรายการยืมผ่าน FK item_id
+    const [profileRes, loansRes, pendingRes, settingsRes] = await Promise.all([
+      supabase.from("profiles").select("email, role, full_name, avatar_url, student_id").eq("id", user.id).maybeSingle(),
       supabase
         .from("borrow_records")
-        .select("id, status, borrow_date, due_date, item_id, items(name, item_code)")
+        .select("id, status, due_date, items(name, item_code)")
         .eq("user_id", user.id)
-        .order("borrow_date", { ascending: false })
-        .limit(6),
-      supabase.from("borrow_records").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+        .in("status", ["borrowed", "pending_return"])
+        .order("due_date", { ascending: true }),
       supabase
-        .from("borrow_records")
+        .from("borrow_requests")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
-        .in("status", ["borrowed", "pending_return"]),
-      supabase
-        .from("borrow_records")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("status", "returned"),
-      supabase
-        .from("notifications")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id)
-        .eq("read", false),
+        .eq("kind", "borrow")
+        .eq("status", "pending"),
+      supabase.from("app_settings").select("key, value").in("key", ["max_active_borrows", "borrow_day_options", "request_expiry_minutes"]),
     ]);
 
-    const next = {
-      email: profile?.email || user.email || "",
-      role: profile?.role || "user",
-      totalBorrows: totalRes.count || 0,
-      activeLoans: activeRes.count || 0,
-      returnedLoans: returnedRes.count || 0,
-      unread: unreadRes.count || 0,
-      recent: (borrows || []).map((record: any) => ({
-        ...record,
-        itemName: record.items?.item_code || record.items?.name || "อุปกรณ์",
+    const p: any = profileRes.data || {};
+    const meta: any = user.user_metadata || {};
+    const rows = settingsRes.data || [];
+    const next: Data = {
+      email: p.email || user.email || "",
+      role: p.role || "user",
+      fullName: p.full_name || meta.full_name || meta.name || "",
+      avatarUrl: p.avatar_url || meta.avatar_url || meta.picture || "",
+      studentId: p.student_id || "",
+      loans: (loansRes.data || []).map((r: any) => ({
+        id: r.id,
+        status: r.status,
+        due_date: r.due_date,
+        itemName: r.items?.item_code || r.items?.name || "อุปกรณ์",
       })),
+      pendingBorrows: pendingRes.count || 0,
+      maxActive: settingNum(rows, "max_active_borrows", 3),
+      dayOptions: settingList(rows, "borrow_day_options", [3, 5, 7]),
+      expiryMinutes: settingNum(rows, "request_expiry_minutes", 30),
     };
     cache = next;
-    setEmail(next.email);
-    setRole(next.role);
-    setTotalBorrows(next.totalBorrows);
-    setActiveLoans(next.activeLoans);
-    setReturnedLoans(next.returnedLoans);
-    setUnreadNotifications(next.unread);
-    setRecentBorrows(next.recent);
-    setLoading(false);
+    setData(next);
     setRefreshing(false);
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchProfile();
   };
 
   const logout = () => {
@@ -153,145 +133,145 @@ export default function Profile() {
     }, true);
   };
 
-  const username = email.split("@")[0] || "student";
-  const initial = username.charAt(0).toUpperCase() || "S";
-  const activePreview = recentBorrows.filter((record) => record.status === "borrowed" || record.status === "pending_return").slice(0, 2);
-
-  if (loading) {
+  if (!data) {
     return (
-      <View style={s.centered}>
-        <ActivityIndicator size="large" color={C.header} />
+      <View style={[s.container, s.centered]}>
+        <ActivityIndicator size="large" color={C.primary} />
       </View>
     );
   }
 
+  const name = data.fullName || data.email.split("@")[0] || "นักศึกษา";
+  const used = data.loans.length + data.pendingBorrows;
+  const left = Math.max(data.maxActive - used, 0);
+  const overdue = data.loans.filter((l) => dueInfo(l.due_date).tone === "late").length;
+
   return (
     <View style={s.container}>
-      <View style={s.header}>
-        <View style={s.headerTop}>
-          <View>
-            <Text style={s.headerKicker}>บัญชีของฉัน</Text>
-            <Text style={s.headerTitle}>โปรไฟล์</Text>
-          </View>
-          <View style={s.headerActions}>
-            {/* จุดแดงวางเป็นชั้นแยกทับบนปุ่ม (ถ้าอยู่ในปุ่ม พื้นไล่สีของปุ่มบน iOS จะทับ) */}
-            <View style={{ zIndex: 2 }}>
-              <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/notifications")} activeOpacity={0.84}>
-                <Ionicons name="notifications-outline" size={20} color="#1D4ED8" />
-              </TouchableOpacity>
-              {unreadNotifications > 0 ? <View style={s.actionDot} pointerEvents="none" /> : null}
-            </View>
-            <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/sittings")} activeOpacity={0.84}>
-              <Ionicons name="settings-outline" size={20} color="#1D4ED8" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={s.profileRow}>
-          <View style={s.avatarWrap}>
-            <View style={s.avatar}>
-              <Text style={s.avatarText}>{initial}</Text>
-            </View>
-            <View style={s.onlineDot} />
-          </View>
-          <View style={s.userBlock}>
-            <Text style={s.userName}>{username}</Text>
-            <View style={s.emailRow}>
-              <Ionicons name="mail-outline" size={12} color="#64748B" />
-              <Text style={s.userEmail}>{email}</Text>
-            </View>
-            <View style={s.rolePill}>
-              <Ionicons name="school-outline" size={11} color="#1D4ED8" />
-              <Text style={s.roleText}>{ROLE_LABEL[role as Role] || ROLE_LABEL.user} · IoT Lab</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
-      <View style={s.statsCard}>
-        <Stat icon="cube-outline" bg="#dbeafe" color={C.blue} value={totalBorrows} label="ยืมทั้งหมด" />
-        <View style={s.statDivider} />
-        <Stat icon="time-outline" bg="#fef3c7" color={C.orange} value={activeLoans} label="กำลังยืม" />
-        <View style={s.statDivider} />
-        <Stat icon="checkmark-circle-outline" bg="#ECFDF5" color={C.green} value={returnedLoans} label="คืนแล้ว" />
-      </View>
-
       <ScrollView
         contentContainerStyle={s.body}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.header} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.primary} />}
       >
-        {activePreview.length > 0 ? (
-          <>
-            <View style={s.sectionHead}>
-              <Text style={s.sectionTitle}>กำลังยืมอยู่</Text>
-              <TouchableOpacity onPress={() => router.push("/borrow")} activeOpacity={0.82}>
-                <Text style={s.viewAll}>ดูทั้งหมด ›</Text>
-              </TouchableOpacity>
-            </View>
-            {activePreview.map((record) => {
-              const overdue = record.due_date && new Date(record.due_date) < new Date();
-              return (
-                <TouchableOpacity
-                  key={record.id}
-                  style={[s.borrowCard, overdue && s.borrowCardOverdue]}
-                  onPress={() => router.push("/borrow")}
-                  activeOpacity={0.86}
-                >
-                  <View style={[s.borrowIcon, overdue ? { backgroundColor: "#fee2e2" } : { backgroundColor: "#ECFDF5" }]}>
-                    <Ionicons name="hardware-chip-outline" size={22} color={overdue ? C.red : C.green} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={s.borrowTitleRow}>
-                      <Text style={s.borrowName} numberOfLines={1}>{record.itemName}</Text>
-                      <View style={[s.borrowBadge, overdue ? { backgroundColor: "#fee2e2" } : { backgroundColor: "#ECFDF5" }]}>
-                        <Text style={[s.borrowBadgeText, overdue ? { color: C.red } : { color: C.green }]}>
-                          {overdue ? "เกินกำหนด" : "ในเวลา"}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={s.smallRow}>
-                      <Ionicons name="time-outline" size={12} color={C.faint} />
-                      <Text style={s.borrowSub}>{dueText(record.due_date)}</Text>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={21} color="#94a3b8" />
-                </TouchableOpacity>
-              );
-            })}
-          </>
-        ) : null}
+        <View style={s.headerTop}>
+          <View>
+            <Text style={s.kicker}>บัญชีของฉัน</Text>
+            <Text style={s.title}>โปรไฟล์</Text>
+          </View>
+          <HeaderButton icon="notifications-outline" label="แจ้งเตือน" count={unread} onPress={() => router.push("/notifications")} />
+        </View>
 
-        <Text style={s.sectionTitle}>เมนูด่วน</Text>
-        <View style={s.quickGrid}>
-          <TouchableOpacity style={[s.quickCard, s.quickBlue]} onPress={() => router.push("/borrow")} activeOpacity={0.86}>
-            <View style={s.quickIcon}>
-              <Ionicons name="time-outline" size={23} color={C.blue} />
-            </View>
-            <Text style={s.quickTitle}>ประวัติการยืม</Text>
-            <Text style={s.quickSub}>{totalBorrows} รายการ</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[s.quickCard, s.quickYellow]} onPress={() => router.push("/notifications")} activeOpacity={0.86}>
-            <View style={[s.quickIcon, { backgroundColor: "#fff" }]}>
-              <Ionicons name="notifications-outline" size={22} color={C.orange} />
-            </View>
-            {unreadNotifications > 0 ? (
-              <View style={s.notificationBadge}>
-                <Text style={s.notificationBadgeText}>{unreadNotifications}</Text>
+        {/* ตัวตน — มาจากบัญชีมหาวิทยาลัย แก้ในแอปไม่ได้ */}
+        <FadeIn style={s.idCard}>
+          <View style={s.idTop}>
+            {data.avatarUrl ? (
+              <Image source={{ uri: data.avatarUrl }} style={s.avatar} accessibilityIgnoresInvertColors />
+            ) : (
+              <View style={[s.avatar, s.avatarFallback]}>
+                <Text style={s.avatarText}>{name.charAt(0).toUpperCase()}</Text>
               </View>
-            ) : null}
-            <Text style={s.quickTitle}>การแจ้งเตือน</Text>
-            <Text style={s.quickSub}>มี {unreadNotifications} รายการใหม่</Text>
-          </TouchableOpacity>
-        </View>
+            )}
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={s.name} numberOfLines={2}>{name}</Text>
+              <View style={s.rolePill}>
+                <Ionicons name="school-outline" size={11} color={C.primaryDark} />
+                <Text style={s.roleText}>{ROLE_LABEL[data.role as Role] || ROLE_LABEL.user}</Text>
+              </View>
+            </View>
+          </View>
+          <View style={s.idRows}>
+            <InfoRow icon="id-card-outline" label="รหัสนักศึกษา" value={data.studentId || "ยังไม่ได้กรอก"} strong={!!data.studentId} />
+            <InfoRow icon="mail-outline" label="อีเมล" value={data.email} />
+          </View>
+          {!data.studentId && data.role === "user" ? (
+            <PressScale style={s.fillBtn} onPress={() => router.push("/student-id" as any)}>
+              <Text style={s.fillBtnText}>กรอกรหัสนักศึกษา</Text>
+            </PressScale>
+          ) : null}
+        </FadeIn>
 
-        <Text style={s.sectionTitle}>การตั้งค่า</Text>
-        <View style={s.menuList}>
-          <MenuRow icon="person-circle-outline" iconBg="#DBEAFE" iconColor={C.purple} title="แก้ไขข้อมูลส่วนตัว" sub="ชื่อ อีเมล รหัสนักศึกษา" onPress={() => notify("แก้ไขข้อมูลส่วนตัว", "ตอนนี้ยังแก้ในแอปไม่ได้ — อีเมลมาจากบัญชีที่ใช้สมัคร/ล็อกอิน Google ถ้าข้อมูลผิด ติดต่อผู้ดูแล")} />
-          <MenuRow icon="shield-checkmark-outline" iconBg="#ECFDF5" iconColor={C.green} title="ความปลอดภัย" sub="เปลี่ยนรหัสผ่าน" onPress={() => router.push("/reset-password?mode=change" as any)} />
-          <MenuRow icon="help-circle-outline" iconBg="#fce7f3" iconColor="#db2777" title="ช่วยเหลือ" sub="คำถามที่พบบ่อย" onPress={() => notify("ช่วยเหลือ", "ติดต่อผู้ดูแลห้องแล็บ IoT")} />
-          <MenuRow icon="log-out-outline" iconBg="#fee2e2" iconColor={C.red} title="ออกจากระบบ" sub="" danger onPress={logout} />
-        </View>
+        {/* สิทธิ์การยืม */}
+        <FadeIn delay={70} style={s.card}>
+          <View style={s.quotaHead}>
+            <Text style={s.cardTitle}>สิทธิ์การยืม</Text>
+            <Text style={s.quotaNum}>
+              <Text style={{ color: left === 0 ? C.errorInk : C.primary }}>{used}</Text> / {data.maxActive} ชิ้น
+            </Text>
+          </View>
+          <View style={s.quotaBar}>
+            {Array.from({ length: data.maxActive }).map((_, i) => (
+              <View key={i} style={[s.quotaSeg, i < used && { backgroundColor: left === 0 ? C.error : C.primary }]} />
+            ))}
+          </View>
+          <Text style={s.quotaSub}>
+            {left > 0 ? `ยืมได้อีก ${left} ชิ้น` : "ยืมครบแล้ว คืนของก่อนจึงจะยืมชิ้นใหม่ได้"}
+            {data.pendingBorrows > 0 ? ` · รออนุมัติ ${data.pendingBorrows} คำขอ` : ""}
+          </Text>
+          {overdue > 0 ? (
+            <View style={s.lateBanner}>
+              <Ionicons name="alert-circle" size={18} color={C.errorInk} />
+              <Text style={s.lateText}>มีของเกินกำหนดคืน {overdue} ชิ้น กรุณานำไปคืนโดยเร็ว</Text>
+            </View>
+          ) : null}
+        </FadeIn>
+
+        {/* ของที่ยืมอยู่ */}
+        <FadeIn delay={140}>
+          <View style={s.sectionHead}>
+            <Text style={s.sectionTitle}>ของที่ยืมอยู่</Text>
+            <PressScale onPress={() => router.push("/borrow")} hitSlop={8}>
+              <Text style={s.viewAll}>ประวัติทั้งหมด ›</Text>
+            </PressScale>
+          </View>
+          {data.loans.length === 0 ? (
+            <View style={[s.card, s.empty]}>
+              <Ionicons name="cube-outline" size={28} color={C.primarySoft} />
+              <Text style={s.emptyText}>ยังไม่ได้ยืมอุปกรณ์</Text>
+              <PressScale style={s.scanBtn} onPress={() => router.push("/scan")}>
+                <Ionicons name="scan" size={16} color="#FFFFFF" />
+                <Text style={s.scanBtnText}>สแกน QR เพื่อยืม</Text>
+              </PressScale>
+            </View>
+          ) : (
+            data.loans.map((loan) => {
+              const due = dueInfo(loan.due_date);
+              const tone = TONE[due.tone];
+              const returning = loan.status === "pending_return";
+              return (
+                <PressScale key={loan.id} style={s.loanCard} onPress={() => router.push("/borrow")} scaleTo={0.98}>
+                  <View style={iconDot(due.tone === "late" ? C.error : C.primary, 40)}>
+                    <Ionicons name="hardware-chip-outline" size={19} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={s.loanName} numberOfLines={1}>{loan.itemName}</Text>
+                    <Text style={s.loanSub}>{returning ? "ส่งคำขอคืนแล้ว รอผู้ดูแลตรวจรับ" : "กำลังยืม"}</Text>
+                  </View>
+                  <View style={[s.duePill, { backgroundColor: tone.bg }]}>
+                    <Text style={[s.dueText, { color: tone.fg }]}>{due.text}</Text>
+                  </View>
+                </PressScale>
+              );
+            })
+          )}
+        </FadeIn>
+
+        {/* กติกา */}
+        <FadeIn delay={210} style={s.card}>
+          <Text style={s.cardTitle}>กติกาการยืม</Text>
+          <Rule icon="layers-outline" text={`ยืมพร้อมกันได้สูงสุด ${data.maxActive} ชิ้น (นับรวมที่รออนุมัติ)`} />
+          <Rule icon="calendar-outline" text={`เลือกระยะยืมได้ ${data.dayOptions.join(" / ")} วัน · ยืมต่อได้ 1 ครั้ง`} />
+          <Rule icon="timer-outline" text={`คำขอรอผู้ดูแลอนุมัติภายใน ${data.expiryMinutes} นาที ไม่มีคนตอบ = หมดอายุ`} />
+          <Rule icon="scan-outline" text="ยืม/คืน ทำได้ทางเดียวคือสแกน QR ที่ตัวอุปกรณ์ในห้อง" />
+        </FadeIn>
+
+        {/* บัญชี */}
+        <FadeIn delay={280} style={s.menu}>
+          {canChangePassword ? (
+            <MenuRow icon="key-outline" color={C.primary} title="เปลี่ยนรหัสผ่าน" onPress={() => router.push("/reset-password?mode=change" as any)} />
+          ) : null}
+          <MenuRow icon="log-out-outline" color={C.error} title="ออกจากระบบ" danger onPress={logout} />
+        </FadeIn>
+        <Text style={s.version}>IoT Lab Management · v1.0.0</Text>
 
         <View style={{ height: 92 }} />
       </ScrollView>
@@ -301,187 +281,99 @@ export default function Profile() {
   );
 }
 
-function Stat({ icon, bg, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; bg: string; color: string; value: number; label: string }) {
+function InfoRow({ icon, label, value, strong }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string; strong?: boolean }) {
   return (
-    <View style={s.statItem}>
-      <View style={[s.statIcon, { backgroundColor: bg }]}>
-        <Ionicons name={icon} size={20} color={color} />
-      </View>
-      <Text style={s.statValue}>{value}</Text>
-      <Text style={s.statLabel}>{label}</Text>
+    <View style={s.infoRow}>
+      <Ionicons name={icon} size={16} color={C.text2} />
+      <Text style={s.infoLabel}>{label}</Text>
+      <Text style={[s.infoValue, strong && s.infoStrong]} numberOfLines={1}>{value}</Text>
     </View>
   );
 }
 
-function MenuRow({
-  icon,
-  iconBg,
-  iconColor,
-  title,
-  sub,
-  danger,
-  onPress,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconBg: string;
-  iconColor: string;
-  title: string;
-  sub: string;
-  danger?: boolean;
-  onPress: () => void;
-}) {
+function Rule({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
   return (
-    <TouchableOpacity style={s.menuRow} onPress={onPress} activeOpacity={0.86}>
-      <View style={[s.menuIcon, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon} size={22} color={iconColor} />
+    <View style={s.rule}>
+      <Ionicons name={icon} size={16} color={C.primary} style={{ marginTop: 2 }} />
+      <Text style={s.ruleText}>{text}</Text>
+    </View>
+  );
+}
+
+function MenuRow({ icon, color, title, danger, onPress }: { icon: keyof typeof Ionicons.glyphMap; color: string; title: string; danger?: boolean; onPress: () => void }) {
+  return (
+    <PressScale style={s.menuRow} onPress={onPress} scaleTo={0.98}>
+      <View style={iconDot(color, 34)}>
+        <Ionicons name={icon} size={17} color="#FFFFFF" />
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[s.menuTitle, danger && { color: C.red }]}>{title}</Text>
-        {sub ? <Text style={s.menuSub}>{sub}</Text> : null}
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={danger ? "#fda4af" : C.faint} />
-    </TouchableOpacity>
+      <Text style={[s.menuTitle, danger && { color: C.errorInk }]}>{title}</Text>
+      <Ionicons name="chevron-forward" size={18} color={C.faint} />
+    </PressScale>
   );
 }
 
 const s = StyleSheet.create({
-  container: { ...W.page, flex: 1 },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: C.bg },
-  header: {
+  container: { ...W.page },
+  centered: { alignItems: "center", justifyContent: "center" },
+  body: { paddingHorizontal: 16, paddingTop: 0 },
+  headerTop: {
+    ...W.headerBar,
+    marginHorizontal: -16,
+    paddingTop: 52,
     paddingHorizontal: 16,
-    paddingTop: 0,
-    paddingBottom: 16,
-  },
-  headerTop: { ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 18 },
-  headerKicker: { color: "#475569", fontSize: 13, marginBottom: 2 },
-  headerTitle: { color: "#172033", fontSize: 26, fontWeight: "700" },
-  headerActions: { flexDirection: "row", gap: 9 },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionDot: {
-    position: "absolute",
-    zIndex: 3,
-    top: 8,
-    right: 9,
-    width: 7,
-    height: 7,
-    borderRadius: 99,
-    backgroundColor: "#ef4444",
-    borderWidth: 1,
-    borderColor: "#fff",
-  },
-  profileRow: { flexDirection: "row", alignItems: "center", gap: 17 },
-  avatarWrap: { position: "relative" },
-  avatar: {
-    ...W.primary,
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: { color: "#fff", fontSize: 28, fontWeight: "700" },
-  onlineDot: {
-    position: "absolute",
-    right: 0,
-    bottom: 8,
-    width: 14,
-    height: 14,
-    borderRadius: 99,
-    backgroundColor: "#10B981",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-  userBlock: { flex: 1 },
-  userName: { color: "#172033", fontSize: 20, fontWeight: "700" },
-  emailRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 3 },
-  userEmail: { color: "#475569", fontSize: 12 },
-  rolePill: {
-    alignSelf: "flex-start",
-    marginTop: 9,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: "#DBEAFE",
+    paddingBottom: 10,
+    marginBottom: 14,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    justifyContent: "space-between",
   },
-  roleText: { color: "#1D4ED8", fontSize: 11, fontWeight: "600" },
-  body: { paddingHorizontal: 18, paddingTop: 18 },
-  statsCard: {
-    ...W.card,
-    marginHorizontal: 18,
-    marginTop: 0,
-    minHeight: 106,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 21,
-    paddingTop: 13,
-    paddingBottom: 12,
-    marginBottom: 0,
-    zIndex: 5,
-  },
-  statItem: { flex: 1, alignItems: "center" },
-  statIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 8, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
-  statValue: { color: C.ink, fontSize: 24, fontWeight: "700", lineHeight: 30 },
-  statLabel: { color: C.muted, fontSize: 12, marginTop: 1 },
-  statDivider: { width: 1, height: 37, backgroundColor: "#D3E0F5", marginHorizontal: 1 },
-  sectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 10 },
-  sectionTitle: { color: C.ink, fontSize: 17, fontWeight: "600", marginBottom: 10 },
-  viewAll: { color: C.purple, fontSize: 13, fontWeight: "600" },
-  borrowCard: {
-    ...W.card,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 12,
-    marginBottom: 9,
-  },
-  borrowCardOverdue: { ...NG, borderColor: "#fecaca", backgroundColor: "#fffafa" },
-  borrowIcon: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
-  borrowTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  borrowName: { color: C.ink, fontSize: 15, fontWeight: "600", flex: 1 },
-  borrowBadge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  borrowBadgeText: { fontSize: 11, fontWeight: "600" },
-  smallRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  borrowSub: { color: C.muted, fontSize: 12 },
-  quickGrid: { flexDirection: "row", gap: 12, marginBottom: 18 },
-  quickCard: { flex: 1, minHeight: 105, padding: 14, position: "relative" },
-  quickBlue: { ...W.statBlue },
-  quickYellow: { ...W.statAmber },
-  quickIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", marginBottom: 12, boxShadow: "0 4px 10px rgba(37,99,235,0.14)" },
-  quickTitle: { color: C.ink, fontSize: 14, fontWeight: "600" },
-  quickSub: { color: C.muted, fontSize: 12, marginTop: 1 },
-  notificationBadge: {
-    ...NG,
-    position: "absolute",
-    top: 13,
-    right: 14,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 999,
-    backgroundColor: C.red,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 5,
-  },
-  notificationBadgeText: { color: "#fff", fontSize: 11, fontWeight: "600" },
-  menuList: { gap: 10 },
-  menuRow: {
-    ...W.card,
-    minHeight: 66,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 12,
-  },
-  menuIcon: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
-  menuTitle: { color: C.ink, fontSize: 15, fontWeight: "600" },
-  menuSub: { color: C.muted, fontSize: 12, marginTop: 1 },
+  kicker: { color: C.text2, fontSize: 13, marginBottom: 2 },
+  title: { color: C.ink, fontSize: 26, fontWeight: "700", lineHeight: 34 },
+
+  idCard: { ...W.card, padding: 16, marginBottom: 12 },
+  idTop: { flexDirection: "row", alignItems: "center", gap: 14 },
+  avatar: { width: 64, height: 64, borderRadius: 32, borderWidth: 3, borderColor: "#FFFFFF", backgroundColor: C.primaryTint },
+  avatarFallback: { backgroundColor: C.primary, alignItems: "center", justifyContent: "center" },
+  avatarText: { color: "#FFFFFF", fontSize: 26, fontWeight: "700" },
+  name: { color: C.ink, fontSize: 18, fontWeight: "700", lineHeight: 26 },
+  rolePill: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", marginTop: 4, paddingHorizontal: 9, paddingVertical: 3, borderRadius: 999, backgroundColor: C.primaryTint },
+  roleText: { color: C.primaryDark, fontSize: 12, fontWeight: "600" },
+  idRows: { marginTop: 14, gap: 8, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 12 },
+  infoRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  infoLabel: { color: C.text2, fontSize: 13, width: 92 },
+  infoValue: { flex: 1, color: C.ink, fontSize: 14, textAlign: "right" },
+  infoStrong: { fontWeight: "700", letterSpacing: 0.5 },
+  fillBtn: { ...W.primary, marginTop: 12, height: 44, alignItems: "center", justifyContent: "center" },
+  fillBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+
+  card: { ...W.card, padding: 16, marginBottom: 12 },
+  cardTitle: { color: C.ink, fontSize: 16, fontWeight: "700", marginBottom: 8 },
+  quotaHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
+  quotaNum: { color: C.ink, fontSize: 15, fontWeight: "700" },
+  quotaBar: { flexDirection: "row", gap: 6, marginTop: 2 },
+  quotaSeg: { flex: 1, height: 10, borderRadius: 5, backgroundColor: "#DCE6F5" },
+  quotaSub: { color: C.text2, fontSize: 13, marginTop: 8 },
+  lateBanner: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12, padding: 12, borderRadius: 14, backgroundColor: C.errorBg },
+  lateText: { flex: 1, color: C.errorInk, fontSize: 13, fontWeight: "600" },
+
+  sectionHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6, marginBottom: 10 },
+  sectionTitle: { color: C.ink, fontSize: 16, fontWeight: "700" },
+  viewAll: { color: C.primaryDark, fontSize: 13, fontWeight: "600" },
+  empty: { alignItems: "center", gap: 8, paddingVertical: 20 },
+  emptyText: { color: C.text2, fontSize: 14 },
+  scanBtn: { ...W.primary, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 16, height: 40, marginTop: 4 },
+  scanBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
+  loanCard: { ...W.card, flexDirection: "row", alignItems: "center", gap: 12, padding: 14, marginBottom: 10 },
+  loanName: { color: C.ink, fontSize: 15, fontWeight: "700" },
+  loanSub: { color: C.text2, fontSize: 12, marginTop: 1 },
+  duePill: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  dueText: { fontSize: 12, fontWeight: "700" },
+
+  rule: { flexDirection: "row", gap: 10, marginTop: 6 },
+  ruleText: { flex: 1, color: C.text2, fontSize: 13, lineHeight: 20 },
+
+  menu: { ...W.card, paddingVertical: 4, marginTop: 6 },
+  menuRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 12 },
+  menuTitle: { flex: 1, color: C.ink, fontSize: 15, fontWeight: "600" },
+  version: { textAlign: "center", color: C.faint, fontSize: 12, marginTop: 16 },
 });

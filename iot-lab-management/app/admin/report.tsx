@@ -13,6 +13,7 @@ import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { PERSON_COLS, who } from "../../lib/people";
 import { currentUser } from "../../lib/session";
 import { goBack } from "../../lib/nav";
 import { notify } from "../../lib/notify";
@@ -120,9 +121,9 @@ export default function BorrowReport() {
     // อีเมลผู้ยืม (user_id ไม่มี FK → ดึงแยก)
     const ids = [...new Set((recs || []).map((r: any) => r.user_id).filter(Boolean))];
     const { data: people } = ids.length
-      ? await supabase.from("profiles").select("id, email").in("id", ids)
+      ? await supabase.from("profiles").select(`id, ${PERSON_COLS}`).in("id", ids)
       : { data: [] as any[] };
-    const emailOf = new Map((people || []).map((p: any) => [p.id, p.email]));
+    const emailOf = new Map((people || []).map((p: any) => [p.id, who(p)]));
     const catOf = new Map((cats || []).map((c: any) => [c.id, c.name]));
 
     setRecords(

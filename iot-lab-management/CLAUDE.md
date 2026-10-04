@@ -104,7 +104,11 @@
 - หา user ที่ล็อกอินในงานที่เรียกบ่อย ใช้ `currentUser()` (lib/session.ts — อ่าน session ในเครื่อง) ไม่ใช่ `auth.getUser()` (ยิงเซิร์ฟเวอร์ทุกครั้ง กิน Disk IO แพ็กเกจฟรี)
 - ป๊อปอัปใช้ `notify` / `confirmAction` (lib/notify) — `Alert.alert` ไม่ทำงานบนเว็บ / กติการหัสผ่าน `lib/password.ts` (8 ตัว มีตัวอักษร+ตัวเลข ตรงกับ Supabase)
 - เปลี่ยนรหัสผ่านจากโปรไฟล์ = `/reset-password?mode=change` (ใช้ updateUser ได้ทั้งตอนล็อกอินอยู่ / ลิงก์จากอีเมลไม่มี mode) — deep link handler ใน `_layout.tsx` ต้องไม่ redirect เมื่อมี `mode=change`
-- "แก้ไขข้อมูลส่วนตัว" ในโปรไฟล์ยังไม่มีฟีเจอร์จริง (แจ้งว่ายังแก้ไม่ได้) / `profiles` มีแค่ id, role, email — ชื่อจากหน้าสมัครเก็บใน auth user metadata `full_name`
+### โปรไฟล์นักศึกษา + รหัส นศ. (6 ต.ค. 2569) — migration `profile_student_id`
+- `profiles` เพิ่ม `full_name`, `avatar_url` (คัดจาก Google metadata อัตโนมัติ: `handle_new_user` + trigger `on_auth_user_meta_updated`) และ `student_id` (รูปแบบ `^[0-9]{9}-[0-9]$` ห้ามซ้ำ)
+- `profiles_protect`: นศ. แก้ชื่อ/รูปไม่ได้ / ตั้ง `student_id` ได้ครั้งเดียว (ตอนว่าง) / admin แก้ได้ที่ `admin/users` (จัดการผู้ใช้)
+- หน้าแรกนักศึกษา: role user ที่ยังไม่มีรหัส → `/student-id` (บังคับกรอก) / หน้าโปรไฟล์ = ตัวตน + สิทธิ์การยืม + ของที่ยืมอยู่ + กติกา (`app_settings`) — ไม่มี "แก้ไขข้อมูลส่วนตัว" แล้ว / "เปลี่ยนรหัสผ่าน" โชว์เฉพาะบัญชีที่สมัครด้วยอีเมล
+- หน้าผู้ดูแลแสดงผู้ยืมด้วย `who()` ใน `lib/people.ts` = "ชื่อ · รหัส นศ." (ไม่มีชื่อ → อีเมล)
 
 ### ระบบห้อง R0 (5 ต.ค. 2569) — migration `room_r0_schema`
 - ระบบห้องคอม **แยกจากระบบยืม-คืนเด็ดขาด** (ตาราง/หน้า/กติกา/ไฟล์ lib) — งานระบบห้องห้ามแก้ไฟล์หรือตารางของระบบยืม-คืน และห้าม import ข้ามกัน (เจ้าของโปรเจกต์สั่งชัด 5 ต.ค. 2569) แผนเต็ม R0–R4 อยู่ใน PLAN/REVIEW_ระบบห้อง.md

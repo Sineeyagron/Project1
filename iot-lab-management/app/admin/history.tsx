@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
+import { PERSON_COLS, who } from "../../lib/people";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { W } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
@@ -132,8 +133,9 @@ export default function AdminHistory() {
     }
 
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from("profiles").select("id, email").in("id", userIds);
-      (profiles || []).forEach((profile: any) => { emailMap[profile.id] = profile.email; });
+      const { data: profiles } = await supabase.from("profiles").select(`id, ${PERSON_COLS}`).in("id", userIds);
+      // ชื่อ · รหัส นศ. (ไม่มีชื่อ → อีเมล) — ค้นหาด้วยชื่อ/รหัสได้ด้วย
+      (profiles || []).forEach((profile: any) => { emailMap[profile.id] = who(profile); });
     }
 
     const merged = rows.map((row: any) => ({

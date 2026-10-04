@@ -108,7 +108,7 @@ const TOOL_GROUPS = [
     icon: "options-outline",
     title: "ระบบ",
     items: [
-      { icon: "people-outline", label: "จัดการ TA", route: "/admin/users", color: "#2563EB", bg: "#DBEAFE" },
+      { icon: "people-outline", label: "จัดการผู้ใช้", route: "/admin/users", color: "#2563EB", bg: "#DBEAFE" },
       { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings", color: "#475569", bg: "#f1f5f9" },
     ],
   },

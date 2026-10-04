@@ -22,6 +22,7 @@ import { HeaderButton } from "../components/ScreenHeader";
 import { FadeIn, PressScale } from "../components/Motion";
 import GreetingLine from "../components/GreetingLine";
 import { useUnreadCount } from "../lib/unread";
+import { currentUser } from "../lib/session";
 import { C, W, gradient, iconDot } from "../lib/theme";
 
 type Station = {
@@ -41,6 +42,13 @@ export default function Home() {
   const [isStaff, setIsStaff] = useState(false);
   useEffect(() => {
     supabase.rpc("is_staff").then(({ data }) => setIsStaff(!!data));
+    // นักศึกษาที่ยังไม่มีรหัส นศ. → ไปกรอกก่อน (staff ข้าม) / อ่านไม่ได้ (เช่น ยังไม่ได้รัน migration) = ปล่อยผ่าน
+    currentUser().then((user) => {
+      if (!user) return;
+      supabase.from("profiles").select("role, student_id").eq("id", user.id).maybeSingle().then(({ data, error }) => {
+        if (!error && data && data.role === "user" && !data.student_id) router.replace("/student-id" as any);
+      });
+    });
   }, []);
   const [stations, setStations] = useState<Station[]>([]);
   const [search, setSearch] = useState("");

@@ -14,6 +14,7 @@ import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { who } from "../../lib/people";
 import { useRealtime } from "../../lib/realtime";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
@@ -58,7 +59,7 @@ const SELECT = `
   decided_at, decision_note,
   items(item_code, name, image_url),
   borrow_locations(name),
-  requester:profiles!borrow_requests_user_id_fkey(email),
+  requester:profiles!borrow_requests_user_id_fkey(email, full_name, student_id),
   decider:profiles!borrow_requests_decided_by_fkey(email),
   record:borrow_records!borrow_requests_borrow_record_id_fkey(due_date, renew_count, borrow_photo_path)
 `;
@@ -218,7 +219,7 @@ export default function AdminRequests() {
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={s.code}>{code}</Text>
             <Text style={s.meta} numberOfLines={1}>{r.items?.name} · ห้อง {r.borrow_locations?.name || "-"}</Text>
-            <Text style={s.meta} numberOfLines={1}>{r.requester?.email || "-"}</Text>
+            <Text style={s.meta} numberOfLines={1}>{who(r.requester)}</Text>
             <Text style={s.metaFaint}>ส่งเมื่อ {thaiDateTime(r.created_at)}</Text>
             {r.kind === "borrow" && <Text style={s.detail}>ยืม {r.days} วัน</Text>}
             {r.kind === "renew" && (
