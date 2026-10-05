@@ -13,7 +13,7 @@ import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
-import { PERSON_COLS, who } from "../../lib/people";
+import { fetchPeople, who } from "../../lib/people";
 import { currentUser } from "../../lib/session";
 import { goBack } from "../../lib/nav";
 import { notify } from "../../lib/notify";
@@ -67,6 +67,17 @@ function presetRange(key: PresetKey): { from: string | null; to: string } {
   return { from: null, to: today };
 }
 
+const PAGE = 1000;
+async function fetchAll(page: (from: number) => PromiseLike<{ data: any[] | null; error: any }>) {
+  const rows: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await page(from);
+    if (error) return { data: rows, error };
+    rows.push(...(data || []));
+    if (!data || data.length < PAGE) return { data: rows, error: null };
+  }
+}
+
 export default function BorrowReport() {
   const router = useRouter();
   const [preset, setPreset] = useState<PresetKey>("30d");
@@ -97,22 +108,26 @@ export default function BorrowReport() {
     const fromUtc = range.from ? new Date(`${range.from}T00:00:00+07:00`).toISOString() : null;
     const toUtc = new Date(`${addDays(range.to, 1)}T00:00:00+07:00`).toISOString();
 
-    let recQ = supabase
-      .from("borrow_records")
-      .select(
-        "id, user_id, status, borrow_date, due_date, return_date, return_condition, damage_cost, damage_note, auto_returned, renew_count, items(item_code, name, type, category_id), checker:profiles!borrow_records_return_checked_by_fkey(email)"
-      )
-      .lt("borrow_date", toUtc)
-      .order("borrow_date", { ascending: false });
-    let reqQ = supabase.from("borrow_requests").select("kind, status").lt("created_at", toUtc);
-    if (fromUtc) {
-      recQ = recQ.gte("borrow_date", fromUtc);
-      reqQ = reqQ.gte("created_at", fromUtc);
-    }
+    // Supabase ส่งกลับครั้งละไม่เกิน 1,000 แถว → ช่วง "ทั้งหมด" ที่ข้อมูลเยอะจะขาดหายเงียบ ๆ: ดึงทีละหน้าจนครบ
+    const recPage = (from: number) => {
+      let q = supabase
+        .from("borrow_records")
+        .select(
+          "id, user_id, status, borrow_date, due_date, return_date, return_condition, damage_cost, damage_note, auto_returned, renew_count, items(item_code, name, type, category_id), checker:profiles!borrow_records_return_checked_by_fkey(email)"
+        )
+        .lt("borrow_date", toUtc);
+      if (fromUtc) q = q.gte("borrow_date", fromUtc);
+      return q.order("borrow_date", { ascending: false }).order("id").range(from, from + PAGE - 1);
+    };
+    const reqPage = (from: number) => {
+      let q = supabase.from("borrow_requests").select("kind, status").lt("created_at", toUtc);
+      if (fromUtc) q = q.gte("created_at", fromUtc);
+      return q.order("created_at").order("id").range(from, from + PAGE - 1);
+    };
 
     const [{ data: recs, error }, { data: reqs }, { data: cats }, user] = await Promise.all([
-      recQ,
-      reqQ,
+      fetchAll(recPage),
+      fetchAll(reqPage),
       supabase.from("categories").select("id, name"),
       currentUser(),
     ]);
@@ -120,9 +135,7 @@ export default function BorrowReport() {
 
     // อีเมลผู้ยืม (user_id ไม่มี FK → ดึงแยก)
     const ids = [...new Set((recs || []).map((r: any) => r.user_id).filter(Boolean))];
-    const { data: people } = ids.length
-      ? await supabase.from("profiles").select(`id, ${PERSON_COLS}`).in("id", ids)
-      : { data: [] as any[] };
+    const people = await fetchPeople(ids as string[]);
     const emailOf = new Map((people || []).map((p: any) => [p.id, who(p)]));
     const catOf = new Map((cats || []).map((c: any) => [c.id, c.name]));
 

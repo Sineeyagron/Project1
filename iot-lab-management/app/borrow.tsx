@@ -44,9 +44,11 @@ const formatDate = (d: string) => {
   return new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
 };
 
+// due_date เป็นวันที่ล้วน ("2026-10-07") — new Date() ตรง ๆ อ่านเป็นเที่ยงคืน UTC (= 07:00 เวลาไทย)
+// แล้ว ceil ทำให้นับเกิน 1 วัน และวันถัดจากกำหนดยังไม่ขึ้น "เกินกำหนด" → อ่านเป็นเที่ยงคืนเวลาเครื่อง
 const getDaysLeft = (due: string) => {
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  return Math.ceil((new Date(due).getTime() - today.getTime()) / 86400000);
+  return Math.round((new Date(`${due.slice(0, 10)}T00:00:00`).getTime() - today.getTime()) / 86400000);
 };
 
 export default function Borrow() {

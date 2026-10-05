@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
-import { PERSON_COLS, who } from "../../lib/people";
+import { fetchPeople, who } from "../../lib/people";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { W } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
@@ -71,7 +71,8 @@ function daysLeft(due?: string) {
   if (!due) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return Math.ceil((new Date(due).getTime() - today.getTime()) / 86400000);
+  // due_date เป็นวันที่ล้วน → อ่านเป็นเที่ยงคืนเวลาเครื่อง (new Date(due) = เที่ยงคืน UTC ทำให้วันถัดจากกำหนดยังไม่นับว่าเกิน)
+  return Math.round((new Date(`${due.slice(0, 10)}T00:00:00`).getTime() - today.getTime()) / 86400000);
 }
 
 function isActiveBorrow(record: any) {
@@ -112,7 +113,9 @@ export default function AdminHistory() {
   const fetchHistory = useCallback(async () => {
     const { data, error } = await supabase
       .from("borrow_records")
-      .select("*");
+      .select("*")
+      // Supabase ส่งได้ครั้งละ 1,000 แถว — เรียงใหม่สุดก่อน ไม่งั้นพอข้อมูลเกิน รายการล่าสุดอาจหลุดไป
+      .order("borrow_date", { ascending: false });
 
     if (error) {
       console.error("history fetch error:", error.message);
@@ -133,7 +136,7 @@ export default function AdminHistory() {
     }
 
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from("profiles").select(`id, ${PERSON_COLS}`).in("id", userIds);
+      const profiles = await fetchPeople(userIds);
       // ชื่อ · รหัส นศ. (ไม่มีชื่อ → อีเมล) — ค้นหาด้วยชื่อ/รหัสได้ด้วย
       (profiles || []).forEach((profile: any) => { emailMap[profile.id] = who(profile); });
     }

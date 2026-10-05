@@ -16,6 +16,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import Svg, { Polyline } from "react-native-svg";
 import supabase from "../../lib/supabase";
 import { useRealtime } from "../../lib/realtime";
+import { fetchPeople, who } from "../../lib/people";
 import { currentUser } from "../../lib/session";
 import { useRefreshOnFocus } from "../../lib/nav";
 import GreetingLine from "../../components/GreetingLine";
@@ -278,13 +279,11 @@ export default function AdminHome() {
     const userIds = [...new Set(safeBorrows.map((r: any) => r.user_id).filter(Boolean))];
     let emailMap: Record<string, string> = {};
 
+    // ชื่อ · รหัส นศ. (ไม่มีชื่อ → อีเมล) เหมือนหน้าผู้ดูแลอื่น
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, email")
-        .in("id", userIds);
-      (profiles || []).forEach((p: any) => {
-        emailMap[p.id] = p.email || "";
+      const profiles = await fetchPeople(userIds as string[]);
+      profiles.forEach((p: any) => {
+        emailMap[p.id] = who(p);
       });
     }
 

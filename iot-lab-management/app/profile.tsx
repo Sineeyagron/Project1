@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
 import { currentUser } from "../lib/session";
 import { useRefreshOnFocus } from "../lib/nav";
+import { isMissingColumn } from "../lib/people";
 import { Role, ROLE_LABEL } from "../lib/roles";
 import { confirmAction } from "../lib/notify";
 import { C, W, iconDot } from "../lib/theme";
@@ -81,7 +82,9 @@ export default function Profile() {
 
     // ยิงพร้อมกันรอบเดียว / ชื่ออุปกรณ์ดึงมากับรายการยืมผ่าน FK item_id
     const [profileRes, loansRes, pendingRes, settingsRes] = await Promise.all([
-      supabase.from("profiles").select("email, role, full_name, avatar_url, student_id").eq("id", user.id).maybeSingle(),
+      supabase.from("profiles").select("email, role, full_name, avatar_url, student_id").eq("id", user.id).maybeSingle()
+        // ยังไม่ได้รัน migration profile_student_id → ดึงแค่อีเมล/บทบาท (บทบาทต้องถูก ไม่งั้น TA ขึ้นว่า "นักศึกษา")
+        .then((res) => (res.error && isMissingColumn(res.error) ? supabase.from("profiles").select("email, role").eq("id", user.id).maybeSingle() : res)),
       supabase
         .from("borrow_records")
         .select("id, status, due_date, items(name, item_code)")

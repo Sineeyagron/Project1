@@ -57,8 +57,6 @@ export default function Layout() {
     // เลยต้อง split('#') แล้ว parse เองด้วย URLSearchParams
     // ────────────────────────────────────────────────────────────────────
     const handleUrl = async (url: string) => {
-      console.log("DEEPLINK:", url);
-
       const hashPart = url.split("#")[1];
       if (hashPart) {
         const hashParams = new URLSearchParams(hashPart);

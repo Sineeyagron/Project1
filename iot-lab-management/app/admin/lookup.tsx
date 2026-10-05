@@ -15,7 +15,7 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
-import { PERSON_COLS, who } from "../../lib/people";
+import { fetchPeople, who } from "../../lib/people";
 import { ITEM_STATUS, RECORD_STATUS as RECORD_STYLE } from "../../lib/status";
 import { goBack } from "../../lib/nav";
 import { notify } from "../../lib/notify";
@@ -120,7 +120,7 @@ export default function AdminLookup() {
     const userIds = [...new Set([...list.map((r: any) => r.user_id), req?.user_id].filter(Boolean))];
     const emailMap: Record<string, string> = {};
     if (userIds.length > 0) {
-      const { data: profs } = await supabase.from("profiles").select(`id, ${PERSON_COLS}`).in("id", userIds);
+      const profs = await fetchPeople(userIds);
       (profs || []).forEach((p: any) => { emailMap[p.id] = who(p); });
     }
 

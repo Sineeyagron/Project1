@@ -14,7 +14,7 @@ import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
-import { who } from "../../lib/people";
+import { isMissingColumn, who } from "../../lib/people";
 import { useRealtime } from "../../lib/realtime";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
@@ -63,6 +63,8 @@ const SELECT = `
   decider:profiles!borrow_requests_decided_by_fkey(email),
   record:borrow_records!borrow_requests_borrow_record_id_fkey(due_date, renew_count, borrow_photo_path)
 `;
+// ยังไม่ได้รัน migration profile_student_id → ไม่มี full_name/student_id: ใช้ชุดเดิม (อีเมล) ให้กล่องคำขอยังใช้ได้
+const SELECT_LEGACY = SELECT.replace("(email, full_name, student_id)", "(email)");
 
 const thaiDate = (value?: string | null) =>
   value ? new Date(`${value}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-";
@@ -93,14 +95,17 @@ export default function AdminRequests() {
   const [saving, setSaving] = useState(false);
 
   const signedRef = useRef<Record<string, string>>({});
+  const signedAtRef = useRef(0);
 
   const load = useCallback(async () => {
     // ปล่อยคำขอที่หมดเวลาก่อน จะได้ไม่เห็นรายการที่ตัดสินไม่ได้แล้ว
     await supabase.rpc("expire_requests");
-    const [{ data: p, error }, { data: h }] = await Promise.all([
-      supabase.from("borrow_requests").select(SELECT).eq("status", "pending").order("created_at", { ascending: true }),
-      supabase.from("borrow_requests").select(SELECT).neq("status", "pending").order("decided_at", { ascending: false }).limit(40),
+    const query = (sel: string) => Promise.all([
+      supabase.from("borrow_requests").select(sel).eq("status", "pending").order("created_at", { ascending: true }),
+      supabase.from("borrow_requests").select(sel).neq("status", "pending").order("decided_at", { ascending: false }).limit(40),
     ]);
+    let [{ data: p, error }, { data: h }] = await query(SELECT);
+    if (error && isMissingColumn(error)) [{ data: p, error }, { data: h }] = await query(SELECT_LEGACY);
     if (error) notify("โหลดคำขอไม่สำเร็จ", error.message);
 
     const all = [...(p || []), ...(h || [])];
@@ -110,6 +115,11 @@ export default function AdminRequests() {
       ),
     ];
     // ขอลิงก์รูปเฉพาะรูปใหม่ (ลิงก์อายุ 1 ชม. ใช้ซ้ำได้) — ลดงานฐานข้อมูลตอนรีเฟรชอัตโนมัติ
+    // เปิดหน้าค้างไว้เกิน 50 นาที → ลิงก์เดิมใกล้หมดอายุ (รูปจะไม่ขึ้น) ล้างแล้วขอใหม่ทั้งหมด
+    if (Date.now() - signedAtRef.current > 50 * 60 * 1000) {
+      signedRef.current = {};
+      signedAtRef.current = Date.now();
+    }
     const fresh = paths.filter((path) => !signedRef.current[path]);
     if (fresh.length > 0) {
       const { data: signed } = await supabase.storage.from("borrow-photos").createSignedUrls(fresh, 60 * 60);

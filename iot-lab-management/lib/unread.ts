@@ -4,8 +4,15 @@ import { currentUser } from "./session";
 import { useRefreshOnFocus } from "./nav";
 import { useRealtime } from "./realtime";
 
+// แจ้งตัวนับทุกตัวในแอปให้โหลดใหม่ — เรียกหลังกด "อ่านแล้ว" (การอ่านไม่มีสัญญาณ Realtime ส่งมา
+// เลขบนกระดิ่งแถบล่างเลยค้างเลขเดิมจนกว่าจะเปลี่ยนหน้า)
+const listeners = new Set<() => void>();
+export function refreshUnreadCount() {
+  listeners.forEach((fn) => fn());
+}
+
 // จำนวนแจ้งเตือนที่ยังไม่อ่านของผู้ใช้ปัจจุบัน (นับอย่างเดียว ไม่ดึงข้อมูลแถว = เบามาก)
-// โหลดใหม่เมื่อ: เปิดหน้า / กลับมาหน้านี้ / มีแจ้งเตือนใหม่ผ่าน Realtime
+// โหลดใหม่เมื่อ: เปิดหน้า / กลับมาหน้านี้ / มีแจ้งเตือนใหม่ผ่าน Realtime / มีการกดอ่าน
 export function useUnreadCount() {
   const [count, setCount] = useState(0);
 
@@ -20,7 +27,11 @@ export function useUnreadCount() {
     setCount(c || 0);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    listeners.add(load);
+    return () => { listeners.delete(load); };
+  }, [load]);
   useRefreshOnFocus(() => { load(); });
   useRealtime("user", "notification", () => { load(); });
 

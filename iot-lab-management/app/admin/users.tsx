@@ -19,6 +19,7 @@ import { confirmAction, notify } from "../../lib/notify";
 import { useRole } from "../../lib/roles";
 import { W } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import { isMissingColumn } from "../../lib/people";
 
 // จัดการผู้ใช้: รหัสนักศึกษา (admin แก้ให้ได้ ตอน นศ. กรอกผิด — นศ. ตั้งเองได้ครั้งเดียว) + แต่งตั้ง TA
 // จัดการ TA (เฟส 4.1) — admin เท่านั้น (ด่านใน _layout + RPC set_user_role ตรวจซ้ำในฐานข้อมูล)
@@ -58,7 +59,9 @@ export default function ManageTA() {
   const [editValue, setEditValue] = useState("");
 
   const load = async () => {
-    const { data, error } = await supabase.from("profiles").select("id, email, role, full_name, student_id").order("email");
+    let { data, error } = await supabase.from("profiles").select("id, email, role, full_name, student_id").order("email");
+    // ยังไม่ได้รัน migration profile_student_id → ไม่มีคอลัมน์ชื่อ/รหัส: ดึงแบบเดิมให้หน้ายังใช้ได้
+    if (error && isMissingColumn(error)) ({ data, error } = await supabase.from("profiles").select("id, email, role").order("email") as any);
     if (error) notify("โหลดรายชื่อไม่สำเร็จ", error.message);
     setPeople((data || []) as Profile[]);
     setLoading(false);

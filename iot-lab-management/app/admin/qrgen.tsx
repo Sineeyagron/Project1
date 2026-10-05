@@ -55,36 +55,6 @@ function isValidDeviceCode(value?: string) {
   return /^[A-Z0-9]{4}$/.test(code) && /[A-Z]/.test(code) && /\d/.test(code);
 }
 
-function makeDeviceCode(seed: string, used: Set<string>) {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const digits = "23456789";
-  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  let hash = 0;
-
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  }
-
-  for (let salt = 0; salt < 5000; salt += 1) {
-    let value = (hash + salt * 97) >>> 0;
-    let code = "";
-    for (let i = 0; i < 4; i += 1) {
-      code += alphabet[value % alphabet.length];
-      value = Math.floor(value / alphabet.length);
-    }
-
-    if (!/[A-Z]/.test(code)) code = `${letters[(hash + salt) % letters.length]}${code.slice(1)}`;
-    if (!/\d/.test(code)) code = `${code.slice(0, 3)}${digits[(hash + salt) % digits.length]}`;
-
-    if (!used.has(code)) {
-      used.add(code);
-      return code;
-    }
-  }
-
-  throw new Error("ไม่สามารถสร้างรหัสอุปกรณ์ที่ไม่ซ้ำได้");
-}
-
 function itemCode(item?: any) {
   const code = String(item?.barcode || "").trim().toUpperCase();
   return isValidDeviceCode(code) ? code : "----";
@@ -148,38 +118,11 @@ export default function QRGen() {
     setRefreshing(false);
   };
 
-  const ensureDeviceCodes = async (list: any[]) => {
-    const used = new Set<string>();
-    const next = [...list];
-    const updates: Array<{ id: string; barcode: string }> = [];
-
-    next.forEach((item) => {
-      const code = String(item.barcode || "").trim().toUpperCase();
-      if (isValidDeviceCode(code) && !used.has(code)) {
-        used.add(code);
-      }
-    });
-
-    next.forEach((item) => {
-      const code = String(item.barcode || "").trim().toUpperCase();
-      if (isValidDeviceCode(code) && used.has(code) && next.filter((row) => String(row.barcode || "").trim().toUpperCase() === code).indexOf(item) === 0) {
-        item.barcode = code;
-        return;
-      }
-
-      if (!isValidDeviceCode(code) || next.filter((row) => String(row.barcode || "").trim().toUpperCase() === code).length > 1) {
-        const newCode = makeDeviceCode(`${item.id}-${item.name || ""}`, used);
-        item.barcode = newCode;
-        updates.push({ id: item.id, barcode: newCode });
-      }
-    });
-
-    await Promise.all(updates.map((item) =>
-      supabase.from("items").update({ barcode: item.barcode }).eq("id", item.id)
-    ));
-
-    return next;
-  };
+  // รหัสสแกน 4 ตัว (barcode) ฐานข้อมูลออกให้ตอนเพิ่มของ ไม่ซ้ำ และล็อกไว้ — หน้านี้แค่อ่านไปพิมพ์
+  // (เดิมหน้านี้สุ่มรหัสใหม่แล้วเขียนทับ ถ้าเห็นว่ารหัสเดิมผิดรูปแบบ → ป้ายที่ติดไปแล้วสแกนไม่เจอ
+  //  และบัญชี TA เขียนไม่ได้ ป้ายจะพิมพ์รหัสที่ไม่มีในระบบ)
+  const ensureDeviceCodes = async (list: any[]) =>
+    list.map((item) => ({ ...item, barcode: String(item.barcode || "").trim().toUpperCase() }));
 
   const selectedItem = useMemo(
     () => items.find((item) => item.id === selectedId) || items[0],

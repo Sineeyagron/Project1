@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Keyboard, Platform, StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, TextInput } from "./AppText";
@@ -31,18 +31,25 @@ export default function SearchBar({
 }) {
   const [focused, setFocused] = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
+  // สถานะโฟกัสจริงตอนนี้ + หน้ายังอยู่ไหม — กันตัวหน่วง blur มาทับตอนกลับมาโฟกัสเร็ว ๆ หรือหลังปิดหน้าไปแล้ว
+  const focusedRef = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
 
   const animate = (to: number) =>
     Animated.timing(anim, { toValue: to, duration: 220, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
 
   const onFocus = () => {
+    focusedRef.current = true;
     setFocused(true);
     onFocusChange?.(true);
     animate(1);
   };
   // หน่วงนิดหนึ่งก่อนหดปุ่ม "ยกเลิก": เว็บเสียโฟกัสตั้งแต่กดเมาส์ลง ถ้าหดทันที ปุ่มหลบก่อนการกดจะจบ = กดไม่ติด
   const onBlur = () => {
+    focusedRef.current = false;
     setTimeout(() => {
+      if (!alive.current || focusedRef.current) return;
       setFocused(false);
       onFocusChange?.(false);
       animate(0);

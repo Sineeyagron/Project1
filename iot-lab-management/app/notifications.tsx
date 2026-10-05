@@ -23,6 +23,7 @@ import { W } from "../lib/theme";
 import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 import { haptic } from "../components/Motion";
 import TabBar from "../components/TabBar";
+import { refreshUnreadCount } from "../lib/unread";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
   borrow:         { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
@@ -94,7 +95,7 @@ export default function Notifications() {
   // แถบเมนูล่าง: มาจากแถบเมนู (ทุกบทบาท รวม TA/Admin ที่อยู่โหมดนักศึกษา) หรือเป็นนักศึกษา
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const showTabBar = tab === "1" || isStaff === false;
-  const prevCountRef = useRef(-1);
+  const prevNewestRef = useRef("");
   const isFirstLoad = useRef(true);
 
   const fetchNotifications = useCallback(async (silent = false) => {
@@ -114,10 +115,13 @@ export default function Notifications() {
 
     const list = data || [];
 
-    if (!isFirstLoad.current && prevCountRef.current >= 0 && list.length > prevCountRef.current) {
-      setNewCount(list.length - prevCountRef.current);
+    // นับรายการที่ใหม่กว่ารายการบนสุดครั้งก่อน (เดิมเทียบจำนวนแถว → ครบ 50 รายการแล้วแถบ "มีแจ้งเตือนใหม่" ไม่ขึ้นอีกเลย)
+    const newest = prevNewestRef.current;
+    if (!isFirstLoad.current) {
+      const added = newest ? list.filter((n: any) => n.created_at > newest).length : list.length;
+      if (added > 0) setNewCount((c) => c + added);
     }
-    prevCountRef.current = list.length;
+    if (list[0]?.created_at) prevNewestRef.current = list[0].created_at;
     isFirstLoad.current = false;
 
     setNotifications(list);
@@ -136,6 +140,7 @@ export default function Notifications() {
     const { error } = await supabase.from("notifications").update({ read: true })
       .eq("user_id", user.id).eq("read", false);
     if (error) fetchNotifications(true);
+    refreshUnreadCount(); // เลขบนกระดิ่งแถบล่าง
   };
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
@@ -165,11 +170,22 @@ export default function Notifications() {
     if (!["overdue", "auto_returned"].includes(n.type) || !n.item_id) return false;
     const user = await currentUser();
     if (!user) return false;
+    // คืนอัตโนมัติ: ดูว่าคำขอคืนนั้นเป็นของเราไหม / เกินกำหนด: ดูว่าเรายังยืมชิ้นนั้นอยู่ไหม
+    // (เดิมนับประวัติทั้งหมด → TA ที่เคยยืมชิ้นนั้นเมื่อนานมาแล้ว กดแจ้งเตือนของนักศึกษาคนอื่นแล้วไปหน้าการยืมของตัวเอง)
+    if (n.type === "auto_returned" && n.request_id) {
+      const { count } = await supabase
+        .from("borrow_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("id", n.request_id)
+        .eq("user_id", user.id);
+      return (count || 0) > 0;
+    }
     const { count } = await supabase
       .from("borrow_records")
       .select("id", { count: "exact", head: true })
       .eq("item_id", n.item_id)
-      .eq("user_id", user.id);
+      .eq("user_id", user.id)
+      .in("status", n.type === "overdue" ? ["borrowed", "pending_return"] : ["borrowed", "pending_return", "returned"]);
     return (count || 0) > 0;
   };
 
@@ -178,7 +194,7 @@ export default function Notifications() {
     if (!n.read) {
       // ไม่ต้องรอฐานข้อมูลก่อนเปิดหน้าถัดไป
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
-      supabase.from("notifications").update({ read: true }).eq("id", n.id).then(() => {});
+      supabase.from("notifications").update({ read: true }).eq("id", n.id).then(() => refreshUnreadCount());
     }
     // ระบบห้องคอม: ผู้ดูแล → คิวคำแจ้ง / ผู้แจ้ง → อ่านผลในข้อความพอ ไม่พาไปหน้าการยืม
     if (n.type === "room_report") {

@@ -108,7 +108,12 @@ export default function Scan() {
       notify("วันหมดประกันไม่ถูกต้อง", "ใช้รูปแบบ ปปปป-ดด-วว เช่น 2027-10-02");
       return;
     }
-    const qty = parseInt(quantity) || 1;
+    // พิมพ์ติดลบ/ตัวอักษร/เยอะเกิน → เดิมบันทึก 0 แถวแต่ขึ้นว่าสำเร็จ หรือเพิ่มของทีละหลายร้อยชิ้นโดยไม่ตั้งใจ
+    const qty = parseInt(quantity, 10);
+    if (!Number.isInteger(qty) || qty < 1 || qty > 200) {
+      notify("จำนวนไม่ถูกต้อง", "ใส่จำนวน 1–200 ชิ้น");
+      return;
+    }
     setSaving(true);
 
     try {
@@ -346,7 +351,7 @@ export default function Scan() {
           <Text style={styles.fieldLabel}>จำนวนที่เพิ่ม</Text>
           <View style={styles.qtyRow}>
             <TouchableOpacity style={styles.qtyBtn}
-              onPress={() => setQuantity(q => String(Math.max(1, parseInt(q) - 1)))}>
+              onPress={() => setQuantity(q => String(Math.max(1, (parseInt(q, 10) || 1) - 1)))}>
               <Ionicons name="remove" size={20} color="#1D4ED8" />
             </TouchableOpacity>
             <TextInput
@@ -354,7 +359,7 @@ export default function Scan() {
               onChangeText={setQuantity} keyboardType="numeric" textAlign="center"
             />
             <TouchableOpacity style={styles.qtyBtn}
-              onPress={() => setQuantity(q => String(parseInt(q) + 1))}>
+              onPress={() => setQuantity(q => String(Math.min(200, (parseInt(q, 10) || 0) + 1)))}>
               <Ionicons name="add" size={20} color="#1D4ED8" />
             </TouchableOpacity>
           </View>

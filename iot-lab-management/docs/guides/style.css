@@ -145,11 +145,11 @@ ol.steps > li::before {
   margin: 12px 0;
   font-size: 10.8pt;
   break-inside: avoid;
-  border-left: 5px solid;
+  border: 1px solid;
 }
-.note { background: var(--tint); border-color: var(--primary); }
-.tip { background: var(--green-bg); border-color: #10b981; }
-.warn { background: var(--amber-bg); border-color: #f59e0b; }
+.note { background: var(--tint); border-color: #bfdbfe; }
+.tip { background: var(--green-bg); border-color: #a7f3d0; }
+.warn { background: var(--amber-bg); border-color: #fcd34d; }
 .note b, .tip b, .warn b { color: var(--ink); }
 
 /* ── ตาราง ───────────────────────────────── */
@@ -240,7 +240,7 @@ svg.lucide { width: 1em; height: 1em; stroke-width: 2; vertical-align: -0.15em; 
 .tile.row .t { margin-top: 0; }
 
 /* ตัวเลขใหญ่ */
-.big { font-size: 24pt; font-weight: 700; color: var(--primary-dark); line-height: 1.2; }
+.big { font-size: 24pt; font-weight: 700; color: var(--primary-dark); line-height: 1.3; }
 .big small { font-size: 11pt; color: var(--muted); font-weight: 600; }
 
 /* ไทม์ไลน์ขั้นตอนแนวนอนมีไอคอน */
@@ -257,11 +257,11 @@ svg.lucide { width: 1em; height: 1em; stroke-width: 2; vertical-align: -0.15em; 
 .banner .ic { background: rgba(255, 255, 255, 0.2); color: #ffffff; }
 .banner .t { font-size: 17pt; font-weight: 700; line-height: 1.3; }
 .banner .d { font-size: 10.5pt; opacity: 0.95; }
-.banner.blue { background: linear-gradient(135deg, #1d4ed8, #2563eb); }
-.banner.violet { background: linear-gradient(135deg, #5b21b6, #7c3aed); }
-.banner.amber { background: linear-gradient(135deg, #92400e, #b45309); }
-.banner.teal { background: linear-gradient(135deg, #115e59, #0f766e); }
-.banner.slate { background: linear-gradient(135deg, #1e293b, #334155); }
+.banner.blue { background: #1d4ed8; }
+.banner.violet { background: #4338ca; }
+.banner.amber { background: #92400e; }
+.banner.teal { background: #115e59; }
+.banner.slate { background: #1e293b; }
 
 /* การ์ดงาน: หัวมีไอคอน + ขั้นตอนเป็นชิปลูกศร */
 .task { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; margin: 10px 0; background: #ffffff; break-inside: avoid; }
