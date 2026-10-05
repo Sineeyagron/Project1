@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>LabHub คู่มือการใช้งาน</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/lucide@0.400.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<div class="cover">
+  <div class="kicker">เอกสาร 2 จาก 3 · คู่มือการใช้งาน</div>
+  <h1>คู่มือการใช้งาน LabHub</h1>
+  <p>ทำอะไร กดตรงไหน ทีละขั้น แยกตามบทบาท</p>
+  <div class="meta">ฉบับวันที่ 5 ตุลาคม 2569</div>
+</div>
+
+<div class="tiles c4">
+  <div class="tile center"><div class="ic blue"><i data-lucide="log-in"></i></div><div class="t">A · เริ่มใช้งาน</div><div class="d">ทุกคน</div></div>
+  <div class="tile center"><div class="ic blue"><i data-lucide="graduation-cap"></i></div><div class="t">B · นักศึกษา</div><div class="d">ยืม คืน ดูห้อง</div></div>
+  <div class="tile center"><div class="ic violet"><i data-lucide="user-check"></i></div><div class="t">C · TA</div><div class="d">อนุมัติ ดูแลห้อง</div></div>
+  <div class="tile center"><div class="ic amber"><i data-lucide="user-cog"></i></div><div class="t">D · Admin</div><div class="d">จัดการทั้งระบบ</div></div>
+</div>
+
+<!-- ════════ A ════════ -->
+<div class="banner slate"><div class="ic lg"><i data-lucide="log-in"></i></div><div><div class="t">A · เริ่มใช้งาน</div><div class="d">ทำครั้งแรกครั้งเดียว</div></div></div>
+
+<div class="task">
+  <div class="head"><div class="ic sm blue"><i data-lucide="log-in"></i></div><div class="t">เข้าสู่ระบบ</div></div>
+  <div class="chain"><span>เปิดแอป</span><b class="arr">›</b><span>เข้าสู่ระบบด้วย Google</span><b class="arr">›</b><span>เลือกบัญชี @kkumail.com</span><b class="arr">›</b><span>ติ๊ก "จดจำการเข้าสู่ระบบ"</span></div>
+</div>
+<div class="task">
+  <div class="head"><div class="ic sm blue"><i data-lucide="contact"></i></div><div class="t">กรอกรหัสนักศึกษา</div></div>
+  <div class="chain"><span>พิมพ์เลข 10 หลัก (ขีดใส่ให้เอง)</span><b class="arr">›</b><span>บันทึก</span><b class="arr">›</b><span>ยืนยันรหัสอีกครั้ง</span></div>
+  <div class="hint"><i data-lucide="alert-triangle"></i> บันทึกแล้วแก้เองไม่ได้ ผิดหรือซ้ำ ให้ติดต่อ Admin</div>
+</div>
+
+<div class="tiles c4">
+  <div class="tile center"><div class="ic blue"><i data-lucide="home"></i></div><div class="t">ห้องเรียน</div><div class="d">หน้าแรก</div></div>
+  <div class="tile center"><div class="ic blue"><i data-lucide="package"></i></div><div class="t">อุปกรณ์</div><div class="d">ของว่างกี่ชิ้น</div></div>
+  <div class="tile center"><div class="ic blue"><i data-lucide="bell"></i></div><div class="t">แจ้งเตือน</div><div class="d">เลขแดง = ยังไม่อ่าน</div></div>
+  <div class="tile center"><div class="ic blue"><i data-lucide="user"></i></div><div class="t">โปรไฟล์</div><div class="d">สิทธิ์ยืม · ออกจากระบบ</div></div>
+</div>
+
+<!-- ════════ B ════════ -->
+<div class="banner blue page-break"><div class="ic lg"><i data-lucide="graduation-cap"></i></div><div><div class="t">B · นักศึกษา</div><div class="d">ยืม คืน ยืมต่อ ดูห้อง แจ้งปัญหา</div></div></div>
+
+<div class="task">
+  <div class="head"><div class="ic sm blue"><i data-lucide="hand"></i></div><div><div class="t">ขอยืมอุปกรณ์</div><div class="d">ทำที่ห้อง IoT Lab ใช้แอปมือถือเท่านั้น</div></div></div>
+  <div class="chain"><span>หยิบของที่ว่าง</span><b class="arr">›</b><span>กด สแกนยืม/คืน</span><b class="arr">›</b><span>สแกน QR</span><b class="arr">›</b><span>ขอยืมอุปกรณ์นี้</span><b class="arr">›</b><span>เลือก 3/5/7 วัน</span><b class="arr">›</b><span>ถ่ายรูปสด</span><b class="arr">›</b><span>ส่ง · รอ 30 นาที</span></div>
+  <div class="hint"><i data-lucide="alert-triangle"></i> ยืมได้พร้อมกัน 3 ชิ้น ครบแล้วปุ่มขอยืมจะกดไม่ได้</div>
+</div>
+<div class="task">
+  <div class="head"><div class="ic sm green"><i data-lucide="rotate-ccw"></i></div><div class="t">ขอคืน</div></div>
+  <div class="chain"><span>สแกน QR ชิ้นที่ยืม</span><b class="arr">›</b><span>ขอคืน</span><b class="arr">›</b><span>ตรวจสภาพ + ถ่ายรูป</span><b class="arr">›</b><span>ผู้ดูแลรับคืน</span></div>
+  <div class="hint"><i data-lucide="info"></i> ไม่มีใครตอบใน 30 นาที = คืนอัตโนมัติ</div>
+</div>
+<div class="task">
+  <div class="head"><div class="ic sm violet"><i data-lucide="calendar-plus"></i></div><div class="t">ขอยืมต่อ (ได้ 1 ครั้ง)</div></div>
+  <div class="chain"><span>สแกน QR ชิ้นที่ยืม</span><b class="arr">›</b><span>ขอยืมต่อ</span><b class="arr">›</b><span>เลือกจำนวนวัน</span><b class="arr">›</b><span>รออนุมัติ</span></div>
+</div>
+<div class="task">
+  <div class="head"><div class="ic sm blue"><i data-lucide="search"></i></div><div class="t">หาอุปกรณ์ที่ว่าง</div></div>
+  <div class="chain"><span>แท็บอุปกรณ์</span><b class="arr">›</b><span>ค้นหา / เลือกหมวด</span><b class="arr">›</b><span>ดูตัวเลข "ว่าง X จาก Y"</span><b class="arr">›</b><span>กดการ์ดดูรายละเอียด</span></div>
+</div>
+
+<h3>สีที่เจอบ่อย</h3>
+<div class="legend">
+  <span style="background:#dcfce7;color:#047857"><i class="dot" style="background:#22c55e"></i>ว่าง / ปกติ</span>
+  <span style="background:#fef3c7;color:#b45309"><i class="dot" style="background:#f59e0b"></i>ใกล้กำหนด / ซ่อม</span>
+  <span style="background:#fee2e2;color:#b91c1c"><i class="dot" style="background:#ef4444"></i>เกินกำหนด / เสีย</span>
+  <span style="background:#e0ecff;color:#1d4ed8"><i class="dot" style="background:#2563eb"></i>รออนุมัติ</span>
+</div>
+
+<div class="task">
+  <div class="head"><div class="ic sm teal"><i data-lucide="layout-grid"></i></div><div><div class="t">ดูผังห้อง หาเครื่องว่าง</div><div class="d">ขาว+ไฟเขียว = ใช้ได้ · เหลือง = ซ่อม · แดง = เสีย</div></div></div>
+  <div class="chain"><span>หน้าแรก</span><b class="arr">›</b><span>กดการ์ดห้อง</span><b class="arr">›</b><span>สลับห้องที่ชิปด้านบน</span><b class="arr">›</b><span>กด "เฉพาะที่ว่าง"</span></div>
+</div>
+<div class="task">
+  <div class="head"><div class="ic sm red"><i data-lucide="message-square-warning"></i></div><div class="t">แจ้งปัญหาเครื่อง / LAN</div></div>
+  <div class="chain"><span>ผังห้อง</span><b class="arr">›</b><span>กดเครื่อง (หรือ Server → port)</span><b class="arr">›</b><span>แจ้งปัญหา</span><b class="arr">›</b><span>พิมพ์อาการ</span><b class="arr">›</b><span>ส่ง</span></div>
+  <div class="hint"><i data-lucide="info"></i> แจ้งเรื่องเดิมซ้ำไม่ได้ · สูงสุด 5 ครั้ง/วัน</div>
+</div>
+
+<div class="tiles c3">
+  <div class="tile"><div class="ic blue"><i data-lucide="history"></i></div><div class="t">ประวัติการยืม</div><div class="d">ช่อง "การยืมของฉัน" หน้าแรก หรือโปรไฟล์</div></div>
+  <div class="tile"><div class="ic amber"><i data-lucide="bell-ring"></i></div><div class="t">แจ้งเตือน</div><div class="d">ผลคำขอ · เตือนกำหนดคืน 08:00 ทุกวัน</div></div>
+  <div class="tile"><div class="ic violet"><i data-lucide="user"></i></div><div class="t">โปรไฟล์</div><div class="d">ยืมอยู่ X/3 · กติกา · ออกจากระบบ</div></div>
+</div>
+
+<!-- ════════ C ════════ -->
+<div class="banner violet page-break"><div class="ic lg"><i data-lucide="user-check"></i></div><div><div class="t">C · TA (ผู้ช่วย)</div><div class="d">เข้าแอปแล้วเจอแดชบอร์ด · ทำได้ทุกอย่างของนักศึกษาด้วย</div></div></div>
+
+<div class="task">
+  <div class="head"><div class="ic sm violet"><i data-lucide="inbox"></i></div><div><div class="t">อนุมัติคำขอยืม / ยืมต่อ</div><div class="d">เลขแดงเต้นบนกล่องคำขอ = มีงานรอ</div></div></div>
+  <div class="chain"><span>กล่องคำขอ</span><b class="arr">›</b><span>ดูรูป + ชื่อ · รหัสนักศึกษา</span><b class="arr">›</b><span>อนุมัติ / ปฏิเสธ</span></div>
+  <div class="hint"><i data-lucide="alert-triangle"></i> TA อนุมัติคำขอของตัวเองไม่ได้</div>
+</div>
+<div class="task">
+  <div class="head"><div class="ic sm green"><i data-lucide="package-check"></i></div><div class="t">ตรวจรับคืน</div></div>
+  <div class="chain"><span>คำขอคืน</span><b class="arr">›</b><span>เทียบรูปตอนยืม-คืน</span><b class="arr">›</b><span>ปกติ = รับคืน</span><b class="arr">›</b><span>ชำรุด = ใส่ค่าเสียหาย (ส่งซ่อมเอง)</span></div>
+</div>
+<div class="task">
+  <div class="head"><div class="ic sm teal"><i data-lucide="wrench"></i></div><div class="t">จัดการแจ้งปัญหาห้อง</div></div>
+  <div class="chain"><span>แจ้งปัญหาห้อง</span><b class="arr">›</b><span>รับเรื่อง (สร้างงานซ่อม)</span><b class="arr">›</b><span>ซ่อมบำรุง: รอซ่อม → กำลังซ่อม → เสร็จ</span></div>
+  <div class="hint"><i data-lucide="info"></i> ปิดเรื่องต้องใส่เหตุผล · งานซ่อมเสร็จแล้วเครื่องกลับเป็น "ใช้ได้" เอง</div>
+</div>
+
+<div class="tiles c3">
+  <div class="tile"><div class="ic violet"><i data-lucide="scan-search"></i></div><div class="t">สแกนดูสถานะ</div><div class="d">ใครยืมอยู่ · คืนเมื่อไร</div></div>
+  <div class="tile"><div class="ic violet"><i data-lucide="refresh-cw"></i></div><div class="t">สถานะเครื่อง / LAN</div><div class="d">กดวน ใช้ได้ → ซ่อม → เสีย</div></div>
+  <div class="tile"><div class="ic violet"><i data-lucide="clipboard-check"></i></div><div class="t">ตรวจประจำเทอม</div><div class="d">เลือกเทอม + ห้อง แล้วบันทึก</div></div>
+  <div class="tile"><div class="ic violet"><i data-lucide="file-bar-chart"></i></div><div class="t">รายงาน</div><div class="d">ยืม-คืน (Excel/PDF) · สต็อก</div></div>
+  <div class="tile"><div class="ic violet"><i data-lucide="printer"></i></div><div class="t">พิมพ์ป้าย QR</div><div class="d">27 ป้ายต่อ A4</div></div>
+  <div class="tile"><div class="ic violet"><i data-lucide="shopping-bag"></i></div><div class="t">ยืมของเอง</div><div class="d">ปุ่ม "ยืมของ" → โหมดนักศึกษา</div></div>
+</div>
+
+<!-- ════════ D ════════ -->
+<div class="banner amber page-break"><div class="ic lg"><i data-lucide="user-cog"></i></div><div><div class="t">D · Admin (ผู้ดูแล)</div><div class="d">ทำได้ทุกอย่างของ TA + จัดการระบบ</div></div></div>
+
+<div class="task">
+  <div class="head"><div class="ic sm amber"><i data-lucide="plus-circle"></i></div><div class="t">เพิ่มอุปกรณ์</div></div>
+  <div class="chain"><span>เพิ่มอุปกรณ์</span><b class="arr">›</b><span>ถ่ายรูป + ชื่อ + หมวด</span><b class="arr">›</b><span>บันทึก (ได้รหัสอัตโนมัติ)</span><b class="arr">›</b><span>สร้าง QR → พิมพ์ติด</span></div>
+</div>
+<div class="task">
+  <div class="head"><div class="ic sm amber"><i data-lucide="file-spreadsheet"></i></div><div class="t">นำเข้าหลายชิ้นจาก CSV</div></div>
+  <div class="chain"><span>ดาวน์โหลดแม่แบบ</span><b class="arr">›</b><span>กรอก ชื่อ · หมวด · จำนวน</span><b class="arr">›</b><span>เลือกไฟล์</span><b class="arr">›</b><span>แก้จุดที่ระบบเตือน</span><b class="arr">›</b><span>นำเข้า</span></div>
+  <div class="hint"><i data-lucide="info"></i> พลาดกด "ยกเลิกการนำเข้า" ได้</div>
+</div>
+<div class="task">
+  <div class="head"><div class="ic sm amber"><i data-lucide="users"></i></div><div class="t">จัดการผู้ใช้</div></div>
+  <div class="chain"><span>ค้นชื่อ / อีเมล / รหัส</span><b class="arr">›</b><span>ปุ่ม TA = แต่งตั้ง</span><b class="arr">›</b><span>ปุ่ม ✎ = แก้รหัสนักศึกษา</span></div>
+</div>
+
+<div class="tiles c3">
+  <div class="tile"><div class="ic amber"><i data-lucide="boxes"></i></div><div class="t">จัดการอุปกรณ์</div><div class="d">แก้ประกัน · จำหน่ายออก</div></div>
+  <div class="tile"><div class="ic amber"><i data-lucide="tags"></i></div><div class="t">หมวดหมู่</div><div class="d">เพิ่ม · เรียง · ปิดหมวด</div></div>
+  <div class="tile"><div class="ic amber"><i data-lucide="building-2"></i></div><div class="t">ห้อง · เครื่อง · LAN</div><div class="d">เพิ่ม · แก้ · ปิดใช้งาน</div></div>
+</div>
+
+<h3>ตั้งค่าระบบ</h3>
+<div class="tiles c4">
+  <div class="tile center"><div class="big">3</div><div class="d">ยืมพร้อมกันสูงสุด (ชิ้น)</div></div>
+  <div class="tile center"><div class="big">30</div><div class="d">คำขอหมดอายุ (นาที)</div></div>
+  <div class="tile center"><div class="big">30</div><div class="d">เตือนก่อนประกันหมด (วัน)</div></div>
+  <div class="tile center"><div class="big" style="font-size:16pt">ปิด</div><div class="d">รับเฉพาะ @kkumail.com</div></div>
+</div>
+
+<!-- ════════ FAQ ════════ -->
+<div class="banner teal"><div class="ic lg"><i data-lucide="help-circle"></i></div><div><div class="t">ติดปัญหา?</div><div class="d">เจอบ่อย แก้ได้เอง</div></div></div>
+<div class="tiles c2">
+  <div class="tile row"><div class="ic sm teal"><i data-lucide="hand"></i></div><div><div class="t">ปุ่มขอยืมกดไม่ได้</div><div class="d">ยืมครบ 3 ชิ้นแล้ว คืนก่อน</div></div></div>
+  <div class="tile row"><div class="ic sm teal"><i data-lucide="monitor-smartphone"></i></div><div><div class="t">ยืมบนเว็บไม่ได้</div><div class="d">ต้องใช้แอปมือถือ (ถ่ายรูปสด)</div></div></div>
+  <div class="tile row"><div class="ic sm teal"><i data-lucide="timer-off"></i></div><div><div class="t">คำขอหายไป</div><div class="d">เกิน 30 นาที หมดอายุ ส่งใหม่ได้</div></div></div>
+  <div class="tile row"><div class="ic sm teal"><i data-lucide="scan-line"></i></div><div><div class="t">สแกน QR ไม่ติด</div><div class="d">พิมพ์รหัส 4 ตัวบนป้ายแทน</div></div></div>
+  <div class="tile row"><div class="ic sm teal"><i data-lucide="contact"></i></div><div><div class="t">รหัสนักศึกษาผิด / ซ้ำ</div><div class="d">ให้ Admin แก้ที่จัดการผู้ใช้</div></div></div>
+  <div class="tile row"><div class="ic sm teal"><i data-lucide="refresh-cw"></i></div><div><div class="t">หน้าไม่อัปเดต</div><div class="d">ดึงหน้าลงเพื่อรีเฟรช</div></div></div>
+</div>
+
+<div class="footer">LabHub · IoT Lab Management · เอกสาร 2 คู่มือการใช้งาน</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>

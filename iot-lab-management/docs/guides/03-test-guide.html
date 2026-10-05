@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>LabHub คู่มือการทดสอบ</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/lucide@0.400.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<div class="cover">
+  <div class="kicker">เอกสาร 3 จาก 3 · คู่มือการรีวิวและทดสอบ</div>
+  <h1>คู่มือการรีวิวและทดสอบ</h1>
+  <p>ทดสอบอะไร ทำยังไง ผลที่ถูกต้องคืออะไร · ติ๊กได้ทุกข้อ</p>
+  <div class="meta">ฉบับวันที่ 5 ตุลาคม 2569</div>
+</div>
+
+<h2><span class="num">1</span>เตรียมก่อนเริ่ม</h2>
+<div class="tiles c3">
+  <div class="tile"><div class="ic blue"><i data-lucide="users"></i></div><div class="t">บัญชีทดสอบ 3 แบบ</div><div class="d">นักศึกษา · TA · Admin (ขอจาก Admin)</div></div>
+  <div class="tile"><div class="ic blue"><i data-lucide="smartphone"></i></div><div class="t">อุปกรณ์ 2 เครื่อง</div><div class="d">มือถือ (ใช้กล้อง) + อีกเครื่องไว้ดูอัปเดตสด</div></div>
+  <div class="tile"><div class="ic blue"><i data-lucide="qr-code"></i></div><div class="t">ของทดสอบ 3–4 ชิ้น</div><div class="d">ติดป้าย QR แล้ว</div></div>
+</div>
+<div class="task">
+  <div class="head"><div class="ic sm slate" style="background:#e2e8f0;color:#334155"><i data-lucide="terminal"></i></div><div class="t">เปิดแอป</div></div>
+  <div class="chain"><span>โฟลเดอร์ <code>iot-lab-management</code></span><b class="arr">›</b><span><code>npx expo start --clear</code></span><b class="arr">›</b><span>มือถือ: สแกนด้วย Expo Go</span><b class="arr">›</b><span>เว็บ: <code>localhost:8081</code></span></div>
+</div>
+
+<h2><span class="num">2</span>แผนที่การทดสอบ</h2>
+<div class="tiles c4">
+  <div class="tile center"><div class="ic blue"><i data-lucide="log-in"></i></div><div class="t">T1 ล็อกอิน</div><div class="d">5 ข้อ</div></div>
+  <div class="tile center"><div class="ic blue"><i data-lucide="package"></i></div><div class="t">T2 อุปกรณ์</div><div class="d">5 ข้อ</div></div>
+  <div class="tile center" style="border-color:#2563eb;background:#f5f9ff"><div class="ic solid"><i data-lucide="repeat"></i></div><div class="t">T3 ยืม-คืน ★</div><div class="d">10 ข้อ · ทำก่อน</div></div>
+  <div class="tile center"><div class="ic amber"><i data-lucide="radio"></i></div><div class="t">T4 อัปเดตสด</div><div class="d">4 ข้อ</div></div>
+  <div class="tile center"><div class="ic teal"><i data-lucide="layout-grid"></i></div><div class="t">T5 ห้องคอม</div><div class="d">6 ข้อ</div></div>
+  <div class="tile center"><div class="ic red"><i data-lucide="shield-check"></i></div><div class="t">T6 สิทธิ์</div><div class="d">5 ข้อ</div></div>
+  <div class="tile center"><div class="ic violet"><i data-lucide="user-cog"></i></div><div class="t">T7 Admin</div><div class="d">6 ข้อ</div></div>
+  <div class="tile center"><div class="ic green"><i data-lucide="eye"></i></div><div class="t">U รีวิวหน้าตา</div><div class="d">10 ข้อ</div></div>
+</div>
+<div class="note"><b>วิธีใช้:</b> ทำตามช่อง "ทำอะไร" เทียบกับ "ผลที่ถูกต้อง" ตรงกัน = ติ๊ก ☐ · ไม่ตรง = จดรหัสข้อ แล้วกรอกฟอร์มท้ายเล่ม</div>
+
+<h2 class="page-break"><span class="num">3</span>เช็กลิสต์</h2>
+
+<div class="area"><div class="ic sm blue"><i data-lucide="log-in"></i></div><div class="t">T1 · ล็อกอินและบัญชี</div></div>
+<table class="check">
+  <thead><tr><th>✓</th><th style="width:9%">ข้อ</th><th style="width:44%">ทำอะไร</th><th>ผลที่ถูกต้อง</th></tr></thead>
+  <tbody>
+    <tr><td><span class="box"></span></td><td class="id">T1-1</td><td>ล็อกอินด้วย Google</td><td>ชื่อ + รูปตรงกับบัญชี</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T1-2</td><td>นักศึกษาใหม่เข้าครั้งแรก</td><td>ไปหน้ากรอกรหัสนักศึกษาก่อน</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T1-3</td><td>กรอกรหัสไม่ครบ / รหัสซ้ำ</td><td>บันทึกไม่ได้ มีข้อความบอก</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T1-4</td><td>ไม่ติ๊ก "จดจำ" แล้วเปิดแอปใหม่</td><td>ต้องล็อกอินใหม่</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T1-5</td><td>ออกจากระบบ</td><td>กลับหน้าล็อกอิน</td></tr>
+  </tbody>
+</table>
+
+<div class="area"><div class="ic sm blue"><i data-lucide="package"></i></div><div class="t">T2 · หน้าแรกและอุปกรณ์</div></div>
+<table class="check">
+  <thead><tr><th>✓</th><th style="width:9%">ข้อ</th><th style="width:44%">ทำอะไร</th><th>ผลที่ถูกต้อง</th></tr></thead>
+  <tbody>
+    <tr><td><span class="box"></span></td><td class="id">T2-1</td><td>เปิดหน้าแรก</td><td>มีทักทาย อากาศ สถิติ การ์ดห้อง ลิงก์ด่วน</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T2-2</td><td>เทียบ "ว่าง X จาก Y" กับของจริง</td><td>ตัวเลขตรงกัน</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T2-3</td><td>ค้นหา <code>dht22 002</code></td><td>เจอรุ่นนั้น ชิปหมวดซ่อน</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T2-4</td><td>กด "ยกเลิก" ข้างช่องค้นหา</td><td>คำค้นหาย คีย์บอร์ดปิด</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T2-5</td><td>เปิด-ปิดแผ่นรายละเอียดอุปกรณ์</td><td>ลื่น พื้นเทาหายพร้อมแผ่น</td></tr>
+  </tbody>
+</table>
+
+<div class="area"><div class="ic sm solid"><i data-lucide="repeat"></i></div><div class="t">T3 · ยืม-คืน ★ สำคัญที่สุด</div></div>
+<table class="check">
+  <thead><tr><th>✓</th><th style="width:9%">ข้อ</th><th style="width:44%">ทำอะไร</th><th>ผลที่ถูกต้อง</th></tr></thead>
+  <tbody>
+    <tr><td><span class="box"></span></td><td class="id">T3-1</td><td>สแกนชิ้นที่ว่าง ขอยืม 3 วัน + รูป</td><td>ขึ้นนับถอยหลัง 30 นาที ชิ้นนั้น "รออนุมัติ"</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T3-2</td><td>อีกคนสแกนชิ้นเดียวกัน</td><td>ขอซ้อนไม่ได้</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T3-3</td><td>ผู้ดูแลอนุมัติ</td><td>นักศึกษาได้แจ้งเตือน ชิ้นนั้น "ถูกยืม"</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T3-4</td><td>ผู้ดูแลปฏิเสธ + เหตุผล</td><td>ได้แจ้งเตือนพร้อมเหตุผล ชิ้นนั้นว่าง</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T3-5</td><td>ไม่มีคนตอบเกิน 30 นาที</td><td>หมดอายุ ชิ้นนั้นกลับเป็นว่าง</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T3-6</td><td>ยืมครบ 3 ชิ้น แล้วสแกนชิ้นที่ 4</td><td>มีแถบเตือน ปุ่มขอยืมกดไม่ได้</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T3-7</td><td>ขอยืมต่อ 2 ครั้ง</td><td>ครั้งแรกได้ ครั้งที่ 2 ไม่ได้</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T3-8</td><td>ขอคืน → รับคืน (ปกติ)</td><td>ชิ้นนั้นว่าง ประวัติ "คืนแล้ว"</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T3-9</td><td>ขอคืน → เลือก "ชำรุด"</td><td>ชิ้นนั้น "ซ่อมบำรุง" มีค่าเสียหาย</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T3-10</td><td>TA ขอยืมเอง แล้วลองอนุมัติเอง</td><td>อนุมัติไม่ได้</td></tr>
+  </tbody>
+</table>
+
+<div class="area"><div class="ic sm amber"><i data-lucide="radio"></i></div><div class="t">T4 · แจ้งเตือนและอัปเดตสด (2 เครื่อง)</div></div>
+<table class="check">
+  <thead><tr><th>✓</th><th style="width:9%">ข้อ</th><th style="width:44%">ทำอะไร</th><th>ผลที่ถูกต้อง</th></tr></thead>
+  <tbody>
+    <tr><td><span class="box"></span></td><td class="id">T4-1</td><td>A: แดชบอร์ด · B: นักศึกษาส่งคำขอ</td><td>เลขบน A ขึ้นเอง มีวงชีพจร</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T4-2</td><td>A อนุมัติ · B เปิดหน้าแรกค้าง</td><td>เลขแจ้งเตือน + "การยืมของฉัน" อัปเดตเอง</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T4-3</td><td>A เปลี่ยนเครื่องเป็น "เสีย" · B เปิดผังห้อง</td><td>เครื่องนั้นแดงเอง</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T4-4</td><td>กดแจ้งเตือน / กด ✓✓ อ่านทั้งหมด</td><td>ไปหน้าที่ถูก · เลขหาย</td></tr>
+  </tbody>
+</table>
+
+<div class="area"><div class="ic sm teal"><i data-lucide="layout-grid"></i></div><div class="t">T5 · ผังห้องและแจ้งปัญหา</div></div>
+<table class="check">
+  <thead><tr><th>✓</th><th style="width:9%">ข้อ</th><th style="width:44%">ทำอะไร</th><th>ผลที่ถูกต้อง</th></tr></thead>
+  <tbody>
+    <tr><td><span class="box"></span></td><td class="id">T5-1</td><td>สลับห้อง / กด "เฉพาะที่ว่าง"</td><td>ข้อมูลเปลี่ยนตามห้อง · เครื่องไม่ว่างจางลง</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T5-2</td><td>นักศึกษาแจ้งปัญหาเครื่อง</td><td>Admin + TA ทุกคนได้แจ้งเตือน</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T5-3</td><td>แจ้งเรื่องเดิมซ้ำ / แจ้งครั้งที่ 6 ในวัน</td><td>ไม่ให้แจ้ง</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T5-4</td><td>ผู้ดูแลกด "รับเรื่อง"</td><td>เกิดงานซ่อม เครื่องเป็น "กำลังซ่อม"</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T5-5</td><td>กด "ปิด" โดยไม่ใส่เหตุผล</td><td>ปิดไม่ได้</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T5-6</td><td>ปิดงานซ่อมจนเสร็จ</td><td>เครื่องกลับ "ใช้ได้" เอง</td></tr>
+  </tbody>
+</table>
+
+<div class="area"><div class="ic sm red"><i data-lucide="shield-check"></i></div><div class="t">T6 · สิทธิ์และความปลอดภัย</div></div>
+<table class="check">
+  <thead><tr><th>✓</th><th style="width:9%">ข้อ</th><th style="width:44%">ทำอะไร</th><th>ผลที่ถูกต้อง</th></tr></thead>
+  <tbody>
+    <tr><td><span class="box"></span></td><td class="id">T6-1</td><td>นักศึกษาเปิด <code>/admin/home</code> บนเว็บ</td><td>ถูกพากลับหน้านักศึกษา</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T6-2</td><td>TA เปิด <code>/admin/settings</code></td><td>เข้าไม่ได้</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T6-3</td><td>TA เปิดหน้าจัดการห้อง</td><td>ไม่มีปุ่มเพิ่ม/ลบ แต่เปลี่ยนสถานะได้</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T6-4</td><td>นักศึกษาดูของที่คนอื่นยืม</td><td>เห็นแค่วันคืน ไม่เห็นชื่อ</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T6-5</td><td>Admin แต่งตั้ง แล้วถอด TA</td><td>เจ้าตัวได้แจ้งเตือนทั้ง 2 ครั้ง</td></tr>
+  </tbody>
+</table>
+
+<div class="area"><div class="ic sm violet"><i data-lucide="user-cog"></i></div><div class="t">T7 · งานของ Admin</div></div>
+<table class="check">
+  <thead><tr><th>✓</th><th style="width:9%">ข้อ</th><th style="width:44%">ทำอะไร</th><th>ผลที่ถูกต้อง</th></tr></thead>
+  <tbody>
+    <tr><td><span class="box"></span></td><td class="id">T7-1</td><td>เพิ่มอุปกรณ์ใหม่</td><td>ได้รหัสต่อเลขเดิม + รหัสสแกน 4 ตัว</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T7-2</td><td>พิมพ์ป้าย QR แล้วสแกนจากกระดาษ</td><td>สแกนติด ขึ้นชิ้นที่ถูก</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T7-3</td><td>นำเข้า CSV ที่หมวดสะกดผิด</td><td>มีคำเตือน + คำแนะนำ</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T7-4</td><td>ยกเลิกการนำเข้า</td><td>ชิ้นที่เพิ่งนำเข้าถูกลบ</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T7-5</td><td>แก้รหัสนักศึกษาให้บัญชีหนึ่ง</td><td>รหัสใหม่ขึ้นในกล่องคำขอ/ประวัติ</td></tr>
+    <tr><td><span class="box"></span></td><td class="id">T7-6</td><td>ส่งออกรายงาน CSV + PDF</td><td>เปิดได้ ภาษาไทยไม่เพี้ยน</td></tr>
+  </tbody>
+</table>
+
+<div class="area"><div class="ic sm green"><i data-lucide="eye"></i></div><div class="t">U · รีวิวหน้าตา (ดูบนมือถือจริง)</div></div>
+<div class="tiles c2">
+  <div class="tile row"><span class="box"></span><div class="d">ภาษาไทยไม่ถูกตัด สระ/วรรณยุกต์ครบ</div></div>
+  <div class="tile row"><span class="box"></span><div class="d">ตัวหนังสืออ่านง่าย ไม่เล็ก/จางเกิน</div></div>
+  <div class="tile row"><span class="box"></span><div class="d">หัวหน้าทุกหน้าเหมือนกัน ชื่อกลางจอ</div></div>
+  <div class="tile row"><span class="box"></span><div class="d">ปุ่มกดง่าย กดแล้วยุบ/สั่น</div></div>
+  <div class="tile row"><span class="box"></span><div class="d">สีตรงความหมาย เขียว/เหลือง/แดง ทั้งแอป</div></div>
+  <div class="tile row"><span class="box"></span><div class="d">โหลดมีวงหมุน พังมีปุ่ม "ลองใหม่"</div></div>
+  <div class="tile row"><span class="box"></span><div class="d">รายการว่างมีข้อความบอก</div></div>
+  <div class="tile row"><span class="box"></span><div class="d">แถบเมนูล่างไม่บังเนื้อหา</div></div>
+  <div class="tile row"><span class="box"></span><div class="d">จอเล็ก (iPhone SE) ไม่ล้นไม่ซ้อน</div></div>
+  <div class="tile row"><span class="box"></span><div class="d">คนไม่เคยใช้ ยืม-คืนได้เองโดยไม่มีคนสอน</div></div>
+</div>
+
+<h2 class="page-break"><span class="num">4</span>ฟอร์มรายงานปัญหา</h2>
+<div class="tiles c2">
+  <div class="tile row"><div class="ic sm blue"><i data-lucide="hash"></i></div><div><div class="t">รหัสข้อ</div><div class="d">เช่น T3-6</div></div></div>
+  <div class="tile row"><div class="ic sm blue"><i data-lucide="user"></i></div><div><div class="t">บัญชี / บทบาท</div><div class="d">นักศึกษา (บัญชีทดสอบ 1)</div></div></div>
+  <div class="tile row"><div class="ic sm blue"><i data-lucide="smartphone"></i></div><div><div class="t">เครื่อง</div><div class="d">iPhone 13 · Expo Go</div></div></div>
+  <div class="tile row"><div class="ic sm blue"><i data-lucide="list-ordered"></i></div><div><div class="t">ทำอะไร ทีละขั้น</div><div class="d">ยืม 3 ชิ้น → สแกนชิ้นที่ 4 → กดขอยืม</div></div></div>
+  <div class="tile row"><div class="ic sm green"><i data-lucide="check"></i></div><div><div class="t">ควรได้</div><div class="d">ปุ่มกดไม่ได้ มีแถบเตือน</div></div></div>
+  <div class="tile row"><div class="ic sm red"><i data-lucide="x"></i></div><div><div class="t">ได้จริง</div><div class="d">กดได้ แล้วขึ้น error</div></div></div>
+</div>
+<div class="legend">
+  <span style="background:#fee2e2;color:#b91c1c"><i class="dot" style="background:#ef4444"></i>ร้ายแรง: ใช้ต่อไม่ได้</span>
+  <span style="background:#fef3c7;color:#b45309"><i class="dot" style="background:#f59e0b"></i>ปานกลาง: ใช้ได้แต่ผิด</span>
+  <span style="background:#e0ecff;color:#1d4ed8"><i class="dot" style="background:#2563eb"></i>เล็กน้อย: หน้าตา/คำผิด</span>
+  <span style="background:#f1f5f9;color:#334155"><i data-lucide="image"></i>แนบภาพหน้าจอเสมอ</span>
+</div>
+
+<h2><span class="num">5</span>เก็บกวาดหลังทดสอบ</h2>
+<div class="tiles c2">
+  <div class="tile row"><div class="ic sm green"><i data-lucide="rotate-ccw"></i></div><div class="d">คืนของที่ยืมทดสอบ ปฏิเสธคำขอที่ค้าง</div></div>
+  <div class="tile row"><div class="ic sm green"><i data-lucide="sliders-horizontal"></i></div><div class="d">คืนค่าตั้งระบบที่แก้ระหว่างทดสอบ</div></div>
+  <div class="tile row"><div class="ic sm green"><i data-lucide="wrench"></i></div><div class="d">ปิดงานซ่อม/คำแจ้งที่สร้างทดสอบ</div></div>
+  <div class="tile row"><div class="ic sm green"><i data-lucide="trash-2"></i></div><div class="d">ให้ Admin ลบของ/บัญชีทดสอบ</div></div>
+</div>
+<div class="warn"><b>ห้าม</b>ทดสอบบนข้อมูลจริงของนักศึกษา และห้ามลบของที่ไม่ได้สร้างเอง</div>
+
+<div class="footer">LabHub · IoT Lab Management · เอกสาร 3 คู่มือการรีวิวและทดสอบ</div>
+<script>lucide.createIcons();</script>
+</body>
+</html>
