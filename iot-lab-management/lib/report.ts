@@ -1,3 +1,5 @@
+import { RECORD_STATUS } from "./status";
+
 // รายงานการยืม-คืนตามช่วงเวลา (เฟส 5.1) — คำนวณล้วน ไม่มี UI (ทดสอบแยกได้)
 // นับตาม "วันที่ยืม" อยู่ในช่วง / คำขอนับตามวันที่ส่ง / เวลาไทย (Asia/Bangkok)
 
@@ -35,11 +37,9 @@ export function lateDays(r: ReportRecord, today = todayBkk()) {
   return Math.max(0, dayDiff(end, r.due_date));
 }
 
-export const STATUS_TH: Record<string, string> = {
-  borrowed: "กำลังยืม",
-  pending_return: "รอยืนยันคืน",
-  returned: "คืนแล้ว",
-};
+export const STATUS_TH: Record<string, string> = Object.fromEntries(
+  Object.entries(RECORD_STATUS).map(([k, v]) => [k, v.label])
+);
 
 export function summarize(records: ReportRecord[], requests: ReportRequest[], today = todayBkk()) {
   const returned = records.filter((r) => r.status === "returned");

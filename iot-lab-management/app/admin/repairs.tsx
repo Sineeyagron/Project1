@@ -1,45 +1,43 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { notify } from "../../lib/notify";
+import { goBack, useRefreshOnFocus } from "../../lib/nav";
+import { REPAIR_STATUS, roomStatus } from "../../lib/roomStatus";
+import LoadError from "../../components/LoadError";
+import { fetchRooms as loadRooms } from "../../lib/rooms";
+import { naturalNo } from "../../lib/roomStatus";
+import { W, NG } from "../../lib/theme";
+import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 
 const C = {
-  bg: "#eef2f8",
-  purple: "#7c3aed",
-  purpleDeep: "#5b21b6",
-  ink: "#111827",
-  text: "#1f2937",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  purpleDeep: "#1E40AF",
+  ink: "#172033",
+  text: "#172033",
+  muted: "#475569",
+  faint: "#64748B",
   line: "#d9dde7",
   card: "#ffffff",
   red: "#ef4444",
-  yellow: "#facc15",
-  green: "#22c55e",
+  yellow: "#F59E0B",
+  green: "#10B981",
   orange: "#f59e0b",
 };
 
-const STATUS_CFG: Record<string, { color: string; bg: string; border: string; label: string; icon: any; dot: string }> = {
-  pending: { color: C.red, bg: "#fee2e2", border: "#f87171", label: "รอซ่อม", icon: "desktop-outline", dot: C.red },
-  "in-repair": { color: C.orange, bg: "#fef3c7", border: "#facc15", label: "กำลังซ่อม", icon: "hardware-chip-outline", dot: C.yellow },
-  done: { color: C.green, bg: "#dcfce7", border: "#34d399", label: "ซ่อมเสร็จแล้ว", icon: "desktop-outline", dot: C.green },
-};
-
-const ROOMS = ["CP9524", "SC9604"];
-
 type FilterKey = "all" | "pending" | "in-repair" | "done";
+const REPAIR_ORDER = ["pending", "in-repair", "done"] as const;
 
 function formatDate(d?: string) {
   if (!d) return "-";
@@ -62,9 +60,8 @@ function stationSub(record: any) {
 }
 
 export default function RepairsPage() {
-  const router = useRouter();
-
   const [records, setRecords] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState("");
   const [stations, setStations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -72,7 +69,7 @@ export default function RepairsPage() {
   const [saving, setSaving] = useState(false);
 
   const [addModal, setAddModal] = useState(false);
-  const [formRoom, setFormRoom] = useState("CP9524");
+  const [formRoom, setFormRoom] = useState("");
   const [formStation, setFormStation] = useState<any>(null);
   const [formDesc, setFormDesc] = useState("");
   const [formNotes, setFormNotes] = useState("");
@@ -86,17 +83,27 @@ export default function RepairsPage() {
   useEffect(() => {
     fetchAll();
   }, []);
+  useRefreshOnFocus(() => fetchAll(true));
 
-  const fetchAll = async () => {
-    setLoading(true);
-    const [{ data: recs, error: recError }, { data: stationRows, error: stationError }] = await Promise.all([
+  // รายชื่อห้องจากตาราง rooms (ห้องที่เปิดอยู่)
+  const [rooms, setRooms] = useState<string[]>([]);
+
+  const fetchAll = async (quiet = false) => {
+    if (!quiet) setLoading(true);
+    const [{ data: recs, error: recError }, { data: stationRows, error: stationError }, roomResult] = await Promise.all([
       supabase.from("repair_records").select("*").order("reported_at", { ascending: false }),
       supabase.from("computer_stations").select("*").order("room_id").order("group_no").order("name"),
+      loadRooms(),
     ]);
 
-    if (recError || stationError) {
-      Alert.alert("โหลดข้อมูลไม่สำเร็จ", recError?.message || stationError?.message || "กรุณาลองใหม่อีกครั้ง");
+    if (recError || stationError || roomResult.error) {
+      setLoadError(recError?.message || stationError?.message || roomResult.error?.message || "กรุณาลองใหม่อีกครั้ง");
+      setLoading(false);
+      setRefreshing(false);
+      return;
     }
+    setLoadError("");
+    setRooms(roomResult.rooms.map((room) => room.id));
 
     const safeStations = stationRows || [];
     const userIds = [...new Set((recs || []).map((r: any) => r.reported_by).filter(Boolean))];
@@ -131,45 +138,51 @@ export default function RepairsPage() {
   };
 
   const openAdd = () => {
-    setFormRoom("CP9524");
+    const room = rooms.includes(formRoom) ? formRoom : rooms[0] || "";
+    setFormRoom(room);
     setFormStation(null);
     setFormDesc("");
     setFormNotes("");
-    setFilteredStations(stations.filter((station: any) => station.room_id === "CP9524"));
+    setFilteredStations(stationsIn(room));
     setAddModal(true);
   };
+
+  // เครื่องที่แจ้งซ่อมได้ = เครื่องที่เปิดใช้งานในห้องนั้น เรียงกลุ่ม → เลขเครื่อง
+  const stationsIn = (room: string) =>
+    stations
+      .filter((station: any) => station.room_id === room && station.active !== false)
+      .sort((a: any, b: any) => (a.group_no - b.group_no) || (naturalNo(a.name) - naturalNo(b.name)));
 
   const changeRoom = (room: string) => {
     setFormRoom(room);
     setFormStation(null);
-    setFilteredStations(stations.filter((station: any) => station.room_id === room));
+    setFilteredStations(stationsIn(room));
   };
 
   const saveRepair = async () => {
     if (!formDesc.trim()) {
-      Alert.alert("กรุณาระบุรายละเอียด");
+      notify("กรุณาระบุรายละเอียด");
       return;
     }
 
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
+    // ผู้แจ้ง/เวลาแจ้ง ฐานข้อมูลใส่เอง / มีเครื่อง → เครื่องเปลี่ยนเป็น "กำลังซ่อม" อัตโนมัติ (trigger)
     const { error } = await supabase.from("repair_records").insert([{
       station_id: formStation?.id || null,
       description: formDesc.trim(),
       notes: formNotes.trim() || null,
       status: "pending",
-      reported_by: user?.id || null,
     }]);
     setSaving(false);
 
     if (error) {
-      Alert.alert("เกิดข้อผิดพลาด", error.message);
+      notify("แจ้งซ่อมไม่สำเร็จ", error.message);
       return;
     }
 
     setAddModal(false);
-    Alert.alert("แจ้งซ่อมสำเร็จ");
-    fetchAll();
+    notify("แจ้งซ่อมสำเร็จ", formStation ? `${formStation.name} เปลี่ยนเป็น "กำลังซ่อม" แล้ว` : undefined);
+    fetchAll(true);
   };
 
   const openUpdate = (record: any) => {
@@ -183,23 +196,21 @@ export default function RepairsPage() {
     if (!updateRecord) return;
 
     setSaving(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    const updates: any = { status: updateStatus, notes: updateNotes.trim() || null };
-    if (updateStatus === "done") {
-      updates.repaired_at = new Date().toISOString();
-      updates.repaired_by = user?.id || null;
-    }
+    // ผู้ซ่อม/เวลาซ่อมเสร็จ ฐานข้อมูลใส่เอง / ห้ามย้อนสถานะ (trigger กัน)
+    // ซ่อมเสร็จและไม่มีงานค้างอื่น → เครื่องกลับเป็น "ใช้งานได้" อัตโนมัติ
+    const updates = { status: updateStatus, notes: updateNotes.trim() || null };
 
-    const { error } = await supabase.from("repair_records").update(updates).eq("id", updateRecord.id);
+    // .select() เพื่อรู้ว่าแก้ได้จริง — RLS ไม่ให้สิทธิ์จะไม่ error แต่แก้ได้ 0 แถว
+    const { data, error } = await supabase.from("repair_records").update(updates).eq("id", updateRecord.id).select("id");
     setSaving(false);
 
-    if (error) {
-      Alert.alert("เกิดข้อผิดพลาด", error.message);
+    if (error || !data?.length) {
+      notify("บันทึกไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข หรือรายการนี้ถูกลบไปแล้ว");
       return;
     }
 
     setUpdateModal(false);
-    fetchAll();
+    fetchAll(true);
   };
 
   const counts = useMemo(() => ({
@@ -223,20 +234,14 @@ export default function RepairsPage() {
   return (
     <View style={s.container}>
       <View style={s.hero}>
-        <View style={s.heroTop}>
-          <TouchableOpacity style={s.headerIconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={22} color="#ffffff" />
-          </TouchableOpacity>
-
-          <View style={s.titleBlock}>
-            <Text style={s.headerTitle}>ซ่อมบำรุง</Text>
-            <Text style={s.headerSub}>เครื่องคอมพิวเตอร์ในห้องแล็บ</Text>
-          </View>
-
-          <TouchableOpacity style={s.headerIconBtn} onPress={openAdd} activeOpacity={0.82}>
-            <Ionicons name="add" size={21} color="#06133a" />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title={"ซ่อมบำรุง"}
+          subtitle={"เครื่องคอมพิวเตอร์ในห้องแล็บ"}
+          onBack={() => goBack("/admin/room")}
+          right={<HeaderButton icon="add" label="เพิ่มงานซ่อม" onPress={openAdd} />}
+          bleed={16}
+          style={{ marginBottom: 0 }}
+        />
 
         <View style={s.statsRow}>
           <RepairStat value={counts.pending} label="รอซ่อม" dotColor={C.red} />
@@ -264,7 +269,7 @@ export default function RepairsPage() {
       </View>
 
       <View style={s.listTitleRow}>
-        <Text style={s.listTitle}>{filterStatus === "all" ? "รายการซ่อมทั้งหมด" : `รายการ${STATUS_CFG[filterStatus].label}`}</Text>
+        <Text style={s.listTitle}>{filterStatus === "all" ? "รายการซ่อมทั้งหมด" : `รายการ${roomStatus(REPAIR_STATUS, filterStatus).label}`}</Text>
       </View>
 
       {loading ? (
@@ -278,7 +283,8 @@ export default function RepairsPage() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
         >
-          {filtered.length === 0 ? (
+          {!!loadError && <LoadError message={loadError} onRetry={() => fetchAll()} />}
+          {loadError && records.length === 0 ? null : filtered.length === 0 ? (
             <View style={s.empty}>
               <Ionicons name="construct-outline" size={45} color="#cbd5e1" />
               <Text style={s.emptyTitle}>ไม่มีรายการซ่อม</Text>
@@ -286,7 +292,7 @@ export default function RepairsPage() {
             </View>
           ) : (
             filtered.map((record) => {
-              const cfg = STATUS_CFG[record.status] || STATUS_CFG.pending;
+              const cfg = roomStatus(REPAIR_STATUS, record.status);
               return (
                 <TouchableOpacity
                   key={record.id}
@@ -321,7 +327,7 @@ export default function RepairsPage() {
 
       <View style={s.bottomBar}>
         <TouchableOpacity style={s.bottomAddBtn} onPress={openAdd} activeOpacity={0.86}>
-          <Ionicons name="add" size={17} color={C.ink} />
+          <Ionicons name="add" size={18} color="#FFFFFF" />
           <Text style={s.bottomAddText}>แจ้งซ่อมใหม่</Text>
         </TouchableOpacity>
         <View style={s.downFab}>
@@ -341,7 +347,7 @@ export default function RepairsPage() {
 
             <Text style={s.fieldLabel}>ห้อง</Text>
             <View style={s.roomRow}>
-              {ROOMS.map((room) => (
+              {rooms.map((room) => (
                 <TouchableOpacity key={room} style={[s.roomBtn, formRoom === room && s.roomBtnActive]} onPress={() => changeRoom(room)}>
                   <Text style={[s.roomBtnText, formRoom === room && s.roomBtnTextActive]}>{room}</Text>
                 </TouchableOpacity>
@@ -410,14 +416,17 @@ export default function RepairsPage() {
             <Text style={s.updateTitle}>{updateRecord ? stationTitle(updateRecord) : ""}</Text>
             <Text style={s.fieldLabel}>สถานะ</Text>
             <View style={s.statusBtnRow}>
-              {(["pending", "in-repair", "done"] as const).map((status) => {
-                const cfg = STATUS_CFG[status];
+              {REPAIR_ORDER.map((status, index) => {
+                const cfg = REPAIR_STATUS[status];
                 const active = updateStatus === status;
+                // ย้อนสถานะไม่ได้ (รอซ่อม → กำลังซ่อม → เสร็จ) — ฐานข้อมูลกันซ้ำอีกชั้น
+                const locked = index < REPAIR_ORDER.indexOf(updateRecord?.status);
                 return (
                   <TouchableOpacity
                     key={status}
-                    style={[s.statusBtn, { borderColor: cfg.border }, active && { backgroundColor: cfg.bg }]}
-                    onPress={() => setUpdateStatus(status)}
+                    style={[s.statusBtn, { borderColor: cfg.border }, active && { backgroundColor: cfg.bg }, locked && { opacity: 0.35 }]}
+                    onPress={() => !locked && setUpdateStatus(status)}
+                    disabled={locked}
                   >
                     <Ionicons name={cfg.icon} size={17} color={cfg.color} />
                     <Text style={[s.statusBtnText, { color: cfg.color }]}>{cfg.label}</Text>
@@ -461,43 +470,33 @@ function RepairStat({ value, label, dotColor }: { value: number; label: string; 
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   hero: {
-    backgroundColor: C.purple,
-    paddingTop: 29,
-    paddingHorizontal: 29,
+    paddingTop: 0,
+    paddingHorizontal: 16,
     paddingBottom: 24,
   },
-  heroTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  heroTop: { ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerIconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
-  titleBlock: { alignItems: "center", flex: 1 },
-  headerTitle: { color: "#ffffff", fontSize: 16, fontWeight: "900", lineHeight: 20 },
-  headerSub: { color: "#ede9fe", fontSize: 11, fontWeight: "800", marginTop: 1 },
-  statsRow: { flexDirection: "row", gap: 10, marginTop: 22 },
+  titleBlock: { alignItems: "flex-start", flex: 1 },
+  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700", lineHeight: 28 },
+  headerSub: { color: "#475569", fontSize: 12, marginTop: 0 },
+  statsRow: { flexDirection: "row", gap: 10, marginTop: 16 },
   statCard: {
     flex: 1,
     minHeight: 78,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.13)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    ...W.card,
     alignItems: "center",
     justifyContent: "center",
   },
-  statDot: { width: 7, height: 7, borderRadius: 4, marginBottom: 4 },
-  statValue: { color: "#ffffff", fontSize: 25, fontWeight: "900", lineHeight: 29 },
-  statLabel: { color: "#ede9fe", fontSize: 10.5, fontWeight: "900", marginTop: 5 },
+  statDot: { width: 8, height: 8, borderRadius: 4, marginBottom: 4 },
+  statValue: { color: "#172033", fontSize: 26, fontWeight: "700", lineHeight: 32 },
+  statLabel: { color: "#475569", fontSize: 12, marginTop: 1 },
   filterShell: {
-    backgroundColor: C.bg,
     paddingTop: 14,
     paddingHorizontal: 26,
   },
@@ -513,6 +512,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   filterBtnActive: {
+    ...NG,
     backgroundColor: C.purple,
     borderColor: C.purple,
     shadowColor: C.purple,
@@ -529,11 +529,8 @@ const s = StyleSheet.create({
   loadingText: { color: C.faint, fontSize: 13, fontWeight: "700" },
   list: { paddingHorizontal: 27, paddingBottom: 20 },
   card: {
+    ...W.card,
     minHeight: 96,
-    backgroundColor: C.card,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: C.line,
     marginBottom: 10,
     paddingHorizontal: 14,
     paddingVertical: 13,
@@ -542,11 +539,6 @@ const s = StyleSheet.create({
     gap: 13,
     position: "relative",
     overflow: "hidden",
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.12,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
   },
   cardLine: {
     position: "absolute",
@@ -565,7 +557,7 @@ const s = StyleSheet.create({
   },
   cardBody: { flex: 1, minWidth: 0, paddingTop: 4 },
   cardTitle: { color: C.ink, fontSize: 14, fontWeight: "900", lineHeight: 18 },
-  cardSub: { color: "#374151", fontSize: 11, fontWeight: "600", marginTop: 2 },
+  cardSub: { color: "#374151", fontSize: 12, fontWeight: "600", marginTop: 2 },
   statusPill: {
     alignSelf: "flex-start",
     borderRadius: 999,
@@ -582,7 +574,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
-  cardDate: { color: "#4b5563", fontSize: 10.5, fontWeight: "700" },
+  cardDate: { color: "#4b5563", fontSize: 12, fontWeight: "700" },
   empty: { alignItems: "center", paddingTop: 54, gap: 8 },
   emptyTitle: { color: C.text, fontSize: 16, fontWeight: "900" },
   emptyText: { color: C.faint, fontSize: 13, fontWeight: "700" },
@@ -590,22 +582,19 @@ const s = StyleSheet.create({
     position: "absolute",
     left: 26,
     right: 26,
-    bottom: 13,
-    height: 35,
+    bottom: 18,
+    height: 46,
     justifyContent: "center",
   },
   bottomAddBtn: {
-    height: 34,
-    borderRadius: 7,
-    borderWidth: 1,
-    borderColor: "#bfc5d1",
-    backgroundColor: "#f8fafc",
+    height: 46,
+    ...W.primary,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 8,
   },
-  bottomAddText: { color: C.ink, fontSize: 13, fontWeight: "800" },
+  bottomAddText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
   downFab: {
     position: "absolute",
     alignSelf: "center",
@@ -645,7 +634,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  roomBtnActive: { backgroundColor: C.purple, borderColor: C.purple },
+  roomBtnActive: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
   roomBtnText: { color: C.muted, fontSize: 13, fontWeight: "800" },
   roomBtnTextActive: { color: "#ffffff" },
   chipRow: { gap: 7, paddingVertical: 2 },
@@ -657,7 +646,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  chipActive: { backgroundColor: C.purple, borderColor: C.purple },
+  chipActive: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
   chipText: { color: C.muted, fontSize: 12, fontWeight: "800" },
   chipTextActive: { color: "#ffffff" },
   textArea: {
@@ -703,5 +692,5 @@ const s = StyleSheet.create({
     justifyContent: "center",
     gap: 3,
   },
-  statusBtnText: { fontSize: 10.5, fontWeight: "900" },
+  statusBtnText: { fontSize: 12, fontWeight: "900" },
 });

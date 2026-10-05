@@ -24,3 +24,11 @@ export async function applyRememberLogin() {
     // อ่านไม่ได้ = ไม่ทำอะไร
   }
 }
+
+// ผู้ใช้ที่ล็อกอินอยู่ — อ่านจาก session ในเครื่อง (ไม่ยิงไปเซิร์ฟเวอร์เหมือน auth.getUser())
+// ใช้กับงานที่เรียกบ่อย (รีเฟรชแจ้งเตือน, โหลดหน้า) เพื่อลดภาระฐานข้อมูล Supabase แพ็กเกจฟรี
+// สิทธิ์จริงยังตรวจที่ RLS ทุกคำขอ จึงปลอดภัยเท่าเดิม
+export async function currentUser() {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user ?? null;
+}

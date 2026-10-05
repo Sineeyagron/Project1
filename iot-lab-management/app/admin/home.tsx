@@ -1,62 +1,119 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import Svg, { Polyline } from "react-native-svg";
 import supabase from "../../lib/supabase";
+import { useRealtime } from "../../lib/realtime";
+import { fetchPeople, who } from "../../lib/people";
+import { currentUser } from "../../lib/session";
+import { useRefreshOnFocus } from "../../lib/nav";
+import GreetingLine from "../../components/GreetingLine";
+import { FadeIn, PressScale, Pulse } from "../../components/Motion";
 import { confirmAction, notify } from "../../lib/notify";
 import { canAccess, isStaffRole, ROLE_LABEL, useRole } from "../../lib/roles";
+import { W, NG, gradient, iconDot, BADGE_TEXT } from "../../lib/theme";
 
 const C = {
-  bg: "#eef3f8",
-  hero: "#7c3aed",
-  ink: "#0f172a",
+  bg: "#EAF1FC",
+  hero: "#2563EB",
+  ink: "#172033",
   text: "#1e293b",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  muted: "#475569",
+  faint: "#64748B",
   card: "#ffffff",
   blue: "#1d4ed8",
   blueDark: "#1f3f9e",
-  green: "#16a34a",
+  green: "#047857",
   orange: "#fb5a0a",
   orangeDark: "#ea580c",
   red: "#dc2626",
-  purple: "#7c3aed",
+  purple: "#2563EB",
   cyan: "#0891b2",
 };
 
 // แผน 2.6: Admin ยืม/คืนแทนนักศึกษาไม่ได้ สแกน = ดูสถานะ / อนุมัติผ่านกล่องคำขอ
+// ทางลัด = งานยืม-คืนที่ทำแทบทุกวัน (ฟีเจอร์หลักของแอป) — ที่เหลือแยกตามหมวดใน TOOL_GROUPS ด้านล่าง
 const PRIMARY = [
-  { icon: "scan-outline", title: "สแกนดูสถานะ", sub: "ผู้ยืม · ประวัติ", route: "/admin/lookup", bg: "#2347ae" },
-  { icon: "add-circle-outline", title: "เพิ่มอุปกรณ์", sub: "ออกรหัสให้อัตโนมัติ", route: "/admin/scan", bg: C.orange },
+  { icon: "scan-outline", title: "สแกนดูสถานะ", sub: "ผู้ยืม · ประวัติ", route: "/admin/lookup", bg: "blue" },
+  { icon: "add-circle-outline", title: "เพิ่มอุปกรณ์", sub: "ออกรหัสให้อัตโนมัติ", route: "/admin/scan", bg: "orange" },
+  { icon: "cube-outline", title: "จัดการอุปกรณ์", sub: "ค้นหา · แก้ไข", route: "/admin/items", bg: "teal" },
+  { icon: "receipt-outline", title: "ประวัติยืม", sub: "ยืม-คืนทั้งหมด", route: "/admin/history", bg: "green" },
 ] as const;
 
-const TOOLS = [
-  { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room", color: "#8b5cf6", bg: "#ede9fe" },
-  { icon: "cube-outline", label: "จัดการอุปกรณ์", route: "/admin/items", color: "#0ea5e9", bg: "#e0f2fe" },
-  { icon: "qr-code-outline", label: "สร้าง QR", route: "/admin/qrgen", color: "#6366f1", bg: "#ede9fe" },
-  { icon: "pricetags-outline", label: "หมวดหมู่", route: "/admin/categories", color: "#db2777", bg: "#fce7f3" },
-  { icon: "bar-chart-outline", label: "รายงานสต็อก", route: "/admin/stock", color: "#0891b2", bg: "#cffafe" },
-  { icon: "document-attach-outline", label: "รายงานยืม-คืน", route: "/admin/report", color: "#0d9488", bg: "#ccfbf1" },
-  { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings", color: "#475569", bg: "#f1f5f9" },
-  { icon: "people-outline", label: "จัดการ TA", route: "/admin/users", color: "#7c3aed", bg: "#ede9fe" },
-  { icon: "add-circle-outline", label: "เพิ่มอุปกรณ์", route: "/admin/scan", color: C.cyan, bg: "#cffafe" },
-  { icon: "document-text-outline", label: "นำเข้า CSV", route: "/admin/import", color: "#059669", bg: "#d1fae5" },
-  { icon: "receipt-outline", label: "ประวัติยืม", route: "/admin/history", color: C.muted, bg: "#f1f5f9" },
-  { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations", color: C.red, bg: "#fee2e2" },
-  { icon: "git-network-outline", label: "จัดการแลน", route: "/admin/lanports", color: C.purple, bg: "#ede9fe" },
-  { icon: "clipboard-outline", label: "ตรวจอุปกรณ์", route: "/admin/inspection", color: "#0d9488", bg: "#ccfbf1" },
-  { icon: "hardware-chip-outline", label: "ตรวจสภาพ IoT", route: "/admin/iotinspection", color: "#a855f7", bg: "#f3e8ff" },
-  { icon: "construct-outline", label: "ซ่อมบำรุง", route: "/admin/repairs", color: C.orangeDark, bg: "#ffedd5" },
-] as const;
+// โทนสีของการ์ดทางลัด (bg ของ PRIMARY = ชื่อโทน): พื้นไล่สีของโทนนั้นชัด ๆ + แถบสีซ้าย + ไอคอนไล่สี
+const TONES: Record<string, { accent: string; icon: string; tint: string }> = {
+  blue: { accent: "#2563EB", icon: "linear-gradient(145deg, #7AA7FF 0%, #3B6FF0 55%, #2D56E0 100%)", tint: "linear-gradient(150deg, #E6EFFF 0%, #CFE0FF 55%, #B4CEFF 100%)" },
+  orange: { accent: "#EA6A1F", icon: "linear-gradient(145deg, #FFB648 0%, #F7862F 55%, #F06A2A 100%)", tint: "linear-gradient(150deg, #FFF0E3 0%, #FFDDC3 55%, #FFC59E 100%)" },
+  teal: { accent: "#1F7F96", icon: "linear-gradient(145deg, #4FB8C2 0%, #2A8FA8 55%, #2C6FA5 100%)", tint: "linear-gradient(150deg, #E3F4F7 0%, #CAE9EF 55%, #ACDBE5 100%)" },
+  green: { accent: "#2E8B57", icon: "linear-gradient(145deg, #5CC489 0%, #36A066 55%, #2A8253 100%)", tint: "linear-gradient(150deg, #E6F5EB 0%, #CDEBD7 55%, #B1DFC1 100%)" },
+  indigo: { accent: "#4F46E5", icon: "linear-gradient(145deg, #8B85FF 0%, #5B54F0 55%, #4338CA 100%)", tint: "linear-gradient(150deg, #ECEBFF 0%, #DAD7FF 55%, #C4BFFF 100%)" },
+};
+
+// ลายน้ำไอคอนใหญ่จาง ๆ มุมขวาล่าง บอกว่าการ์ดนี้ทำอะไร (ตาม route) — ⊕ เส้นบางกว่าตัวอื่น จึงเข้มกว่าเล็กน้อย (0.1 แทน 0.06)
+const MARKS: Record<string, string> = {
+  "/admin/lookup": "qr-code-outline",
+  "/admin/scan": "add-circle-outline",
+  "/admin/items": "cube-outline",
+  "/admin/history": "time-outline",
+  "/admin/qrgen": "print-outline",
+  "/home": "bag-handle-outline",
+};
+
+// เครื่องมือแยกหมวด (เรียงหมวดและปุ่มในหมวดจากใช้บ่อย → นาน ๆ ครั้ง)
+const TOOL_GROUPS = [
+  {
+    icon: "cube-outline",
+    title: "อุปกรณ์ IoT",
+    items: [
+      { icon: "cube-outline", label: "จัดการอุปกรณ์", route: "/admin/items", color: "#0ea5e9", bg: "#e0f2fe" },
+      { icon: "receipt-outline", label: "ประวัติยืม", route: "/admin/history", color: C.muted, bg: "#f1f5f9" },
+      { icon: "qr-code-outline", label: "สร้าง QR", route: "/admin/qrgen", color: "#6366f1", bg: "#DBEAFE" },
+      { icon: "pricetags-outline", label: "หมวดหมู่", route: "/admin/categories", color: "#db2777", bg: "#fce7f3" },
+      { icon: "document-text-outline", label: "นำเข้า CSV", route: "/admin/import", color: "#059669", bg: "#d1fae5" },
+    ],
+  },
+  {
+    icon: "desktop-outline",
+    title: "ห้องคอม",
+    items: [
+      { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room", color: "#3B82F6", bg: "#DBEAFE" },
+      { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations", color: C.red, bg: "#fee2e2" },
+      { icon: "git-network-outline", label: "จัดการแลน", route: "/admin/lanports", color: C.purple, bg: "#DBEAFE" },
+      { icon: "construct-outline", label: "ซ่อมบำรุง", route: "/admin/repairs", color: C.orangeDark, bg: "#ffedd5" },
+      { icon: "megaphone-outline", label: "แจ้งปัญหาห้อง", route: "/admin/roomreports", color: "#7c3aed", bg: "#ede9fe" },
+    ],
+  },
+  {
+    icon: "calendar-outline",
+    title: "ตรวจสภาพ & รายงาน",
+    items: [
+      { icon: "clipboard-outline", label: "ตรวจเครื่องคอม", route: "/admin/inspection", color: "#0d9488", bg: "#ccfbf1" },
+      { icon: "hardware-chip-outline", label: "ตรวจสภาพ IoT", route: "/admin/iotinspection", color: "#a855f7", bg: "#EEF5FF" },
+      { icon: "document-attach-outline", label: "รายงานยืม-คืน", route: "/admin/report", color: "#0d9488", bg: "#ccfbf1" },
+      { icon: "bar-chart-outline", label: "รายงานสต็อก", route: "/admin/stock", color: "#0891b2", bg: "#cffafe" },
+    ],
+  },
+  {
+    icon: "options-outline",
+    title: "ระบบ",
+    items: [
+      { icon: "people-outline", label: "จัดการผู้ใช้", route: "/admin/users", color: "#2563EB", bg: "#DBEAFE" },
+      { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings", color: "#475569", bg: "#f1f5f9" },
+    ],
+  },
+];
 
 type ActivityItem = {
   id: string;
@@ -68,16 +125,6 @@ type ActivityItem = {
   time: string;
 };
 
-function getGreeting(date = new Date()) {
-  const hour = date.getHours();
-  if (hour >= 5 && hour < 8) return { text: "สวัสดีตอนเช้า", icon: "sunny-outline", color: "#fde68a" };
-  if (hour >= 8 && hour < 12) return { text: "สวัสดีตอนสาย", icon: "partly-sunny-outline", color: "#fcd34d" };
-  if (hour >= 12 && hour < 16) return { text: "สวัสดีตอนบ่าย", icon: "sunny-outline", color: "#fb923c" };
-  if (hour >= 16 && hour < 19) return { text: "สวัสดีตอนเย็น", icon: "partly-sunny-outline", color: "#fdba74" };
-  if (hour >= 19 && hour < 22) return { text: "สวัสดีตอนค่ำ", icon: "moon-outline", color: "#c4b5fd" };
-  return { text: "สวัสดีตอนดึก", icon: "moon-outline", color: "#bfdbfe" };
-}
-
 type Tile = { icon: string; title?: string; sub?: string; label?: string; route: string; color?: string; bg: string };
 
 export default function AdminHome() {
@@ -86,18 +133,24 @@ export default function AdminHome() {
   // TA เห็นเฉพาะเมนูที่มีสิทธิ์ (lib/roles.ts) + ทางไปหน้านักศึกษาเพื่อยืมของเอง
   const primary: Tile[] = [
     ...PRIMARY.filter((t) => canAccess(role, t.route)),
-    ...(role === "ta" ? [{ icon: "qr-code-outline", title: "พิมพ์ป้าย QR", sub: "ป้ายติดอุปกรณ์", route: "/admin/qrgen", bg: "#4f46e5" }] : []),
+    ...(role === "ta" ? [
+      { icon: "qr-code-outline", title: "พิมพ์ป้าย QR", sub: "ป้ายติดอุปกรณ์", route: "/admin/qrgen", bg: "indigo" },
+      { icon: "person-outline", title: "ยืมของ", sub: "หน้านักศึกษา", route: "/home", bg: "orange" },
+    ] : []),
   ];
-  const tools: Tile[] = [
-    ...TOOLS.filter((t) => canAccess(role, t.route)),
-    ...(role === "ta" ? [{ icon: "person-outline", label: "ยืมของ (หน้านักศึกษา)", route: "/home", color: C.green, bg: "#dcfce7" }] : []),
-  ];
+  // เครื่องมือแต่ละหมวด: เฉพาะที่มีสิทธิ์ + ไม่ซ้ำกับทางลัดด้านบน / หมวดที่ว่างไม่แสดง
+  const groups = TOOL_GROUPS.map((g) => ({
+    ...g,
+    items: (g.items as Tile[]).filter((t) => canAccess(role, t.route) && !primary.some((p) => p.route === t.route)),
+  })).filter((g) => g.items.length > 0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [total, setTotal] = useState(0);
   const [available, setAvailable] = useState(0);
   const [borrowed, setBorrowed] = useState(0);
   const [repair, setRepair] = useState(0);
+  // ข้อมูลกราฟย้อนหลัง 7 วัน (จุดสุดท้าย = ตัวเลขปัจจุบัน)
+  const [series, setSeries] = useState<{ total: number[]; available: number[]; borrowed: number[]; repair: number[] }>({ total: [], available: [], borrowed: [], repair: [] });
   const [statusBorrowed, setStatusBorrowed] = useState(0);
   const [statusReturned, setStatusReturned] = useState(0);
   const [statusRepair, setStatusRepair] = useState(0);
@@ -108,10 +161,12 @@ export default function AdminHome() {
   useEffect(() => {
     checkRoleAndFetch();
   }, []);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchDashboard(); });
 
   // แจ้งเตือนที่ยังไม่อ่าน (ประกัน/อายุ/คำขอ ฯลฯ) — นับใหม่ทุกครั้งที่กลับมาหน้านี้
   const refreshUnread = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     if (!user) return;
     const { count } = await supabase
       .from("notifications")
@@ -127,7 +182,19 @@ export default function AdminHome() {
     }, [refreshUnread])
   );
 
-  const greeting = useMemo(() => getGreeting(), []);
+  // เลขบนการ์ดกล่องคำขอ (นับอย่างเดียว เบากว่าโหลดหน้าแรกทั้งหน้า)
+  const refreshPending = async () => {
+    const { count } = await supabase
+      .from("borrow_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    setPendingRequests(count || 0);
+  };
+
+  // Realtime: แจ้งเตือนใหม่ → เลขกระดิ่ง / คำขอใหม่หรือถูกตัดสิน → เลขกล่องคำขอ (ขึ้นทันที ไม่ต้องรีเฟรช)
+  useRealtime("user", "notification", refreshUnread);
+  useRealtime("staff", "request", () => { refreshPending(); });
+
 
   const today = useMemo(() => {
     const d = new Date();
@@ -141,7 +208,7 @@ export default function AdminHome() {
   }, []);
 
   const checkRoleAndFetch = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     if (!user) {
       router.replace("/login");
       return;
@@ -177,15 +244,21 @@ export default function AdminHome() {
       activeBorrowCount,
       returnedCount,
       activeRepairCount,
+      { data: loanHistory },
     ] = await Promise.all([
       // ของที่จำหน่ายแล้วไม่นับในสต็อก แต่ยังต้องใช้ชื่อในกิจกรรมล่าสุด
-      supabase.from("items").select("id, name, item_code, status"),
+      supabase.from("items").select("id, name, item_code, status, created_at, retired_at"),
       supabase.from("borrow_records").select("*").order("borrow_date", { ascending: false }).limit(12),
       supabase.from("repair_records").select("*").order("reported_at", { ascending: false }).limit(6),
       supabase.from("computer_stations").select("id, room_id, group_no, name"),
       supabase.from("borrow_records").select("id", { count: "exact", head: true }).in("status", ["borrowed", "pending_return"]),
       supabase.from("borrow_records").select("id", { count: "exact", head: true }).eq("status", "returned"),
       supabase.from("repair_records").select("id", { count: "exact", head: true }).in("status", ["pending", "in-repair"]),
+      // การยืมที่ยังค้างอยู่ช่วง 7 วันที่ผ่านมา (ใช้คำนวณกราฟ "ถูกยืม" ย้อนหลัง)
+      supabase
+        .from("borrow_records")
+        .select("item_id, borrow_date, return_date, status")
+        .or(`return_date.is.null,return_date.gte.${new Date(Date.now() - 7 * 86400000).toISOString()}`),
     ]);
 
     const safeItems = items || [];
@@ -197,6 +270,7 @@ export default function AdminHome() {
     setAvailable(stockItems.filter((i: any) => i.status === "available").length);
     setBorrowed(stockItems.filter((i: any) => i.status === "borrowed").length);
     setRepair(stockItems.filter((i: any) => i.status === "repair").length);
+    setSeries(buildSeries(safeItems, loanHistory || []));
     setStatusBorrowed(activeBorrowCount.count || 0);
     setStatusReturned(returnedCount.count || 0);
     setStatusRepair(activeRepairCount.count || 0);
@@ -205,13 +279,11 @@ export default function AdminHome() {
     const userIds = [...new Set(safeBorrows.map((r: any) => r.user_id).filter(Boolean))];
     let emailMap: Record<string, string> = {};
 
+    // ชื่อ · รหัส นศ. (ไม่มีชื่อ → อีเมล) เหมือนหน้าผู้ดูแลอื่น
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, email")
-        .in("id", userIds);
-      (profiles || []).forEach((p: any) => {
-        emailMap[p.id] = p.email || "";
+      const profiles = await fetchPeople(userIds as string[]);
+      profiles.forEach((p: any) => {
+        emailMap[p.id] = who(p);
       });
     }
 
@@ -225,11 +297,11 @@ export default function AdminHome() {
       return {
         id: `borrow-${record.id}`,
         icon: isReturned ? "arrow-down-outline" : "arrow-up-outline",
-        iconBg: isReturned ? "#dbeafe" : "#dcfce7",
+        iconBg: isReturned ? "#dbeafe" : "#ECFDF5",
         color: isReturned ? C.blue : C.green,
         title: `${isReturned ? "คืน" : "ยืม"} ${itemMap.get(record.item_id) || "อุปกรณ์"}`,
         sub: emailMap[record.user_id] || "-",
-        time: relativeTime(record.returned_at || record.borrow_date || record.created_at),
+        time: relativeTime(record.return_date || record.borrow_date),
       };
     });
 
@@ -271,10 +343,10 @@ export default function AdminHome() {
   };
 
   const stats = [
-    { icon: "cube-outline", iconBg: "#dbeafe", color: C.blue, num: total, label: "ทั้งหมด", trend: total > 0 ? `+${total}` : "0" },
-    { icon: "checkmark-circle-outline", iconBg: "#dcfce7", color: C.green, num: available, label: "ว่าง", trend: available > 0 ? `+${available}` : "0" },
-    { icon: "time-outline", iconBg: "#ffedd5", color: C.orangeDark, num: borrowed, label: "ถูกยืม", trend: borrowed > 0 ? `-${borrowed}` : "0" },
-    { icon: "construct-outline", iconBg: "#fee2e2", color: C.red, num: repair, label: "ซ่อม", trend: repair > 0 ? `-${repair}` : "0" },
+    { icon: "cube-outline", iconBg: "#dbeafe", color: C.blue, num: total, label: "ทั้งหมด", data: series.total },
+    { icon: "checkmark-circle-outline", iconBg: "#ECFDF5", color: C.green, num: available, label: "ว่าง", data: series.available },
+    { icon: "time-outline", iconBg: "#ffedd5", color: C.orangeDark, num: borrowed, label: "ถูกยืม", data: series.borrowed },
+    { icon: "construct-outline", iconBg: "#fee2e2", color: C.red, num: repair, label: "ซ่อม", data: series.repair },
   ];
 
   return (
@@ -287,43 +359,43 @@ export default function AdminHome() {
       <View style={s.hero}>
         <View style={s.heroTop}>
           <View>
-            <View style={s.greetRow}>
-              <Ionicons name={greeting.icon as any} size={13} color={greeting.color} />
-              <Text style={s.greet}>{greeting.text} · {role ? ROLE_LABEL[role] : ""}</Text>
-            </View>
+            <GreetingLine roleLabel={role ? ROLE_LABEL[role] : undefined} />
             <Text style={s.heroTitle}>
               {role === "ta" ? "TA" : "Admin"} <Text style={s.heroTitleAccent}>Dashboard</Text>
             </Text>
           </View>
 
           <View style={s.headerBtns}>
-            <TouchableOpacity
-              style={s.logoutBtn}
-              onPress={() => router.push("/notifications")}
-              activeOpacity={0.85}
-              accessibilityLabel={unread ? `แจ้งเตือน ยังไม่อ่าน ${unread}` : "แจ้งเตือน"}
-            >
-              <Ionicons name="notifications-outline" size={20} color="#fff" />
+            {/* ป้ายตัวเลขวางเป็นชั้นแยกทับบนปุ่ม (ถ้าอยู่ในปุ่ม พื้นไล่สีของปุ่มบน iOS จะทับป้าย) */}
+            <View style={s.bellWrap}>
+              <TouchableOpacity
+                style={s.logoutBtn}
+                onPress={() => router.push("/notifications")}
+                activeOpacity={0.85}
+                accessibilityLabel={unread ? `แจ้งเตือน ยังไม่อ่าน ${unread}` : "แจ้งเตือน"}
+              >
+                <Ionicons name="notifications-outline" size={20} color="#1D4ED8" />
+              </TouchableOpacity>
               {unread > 0 && (
-                <View style={s.bellBadge}>
+                <View style={s.bellBadge} pointerEvents="none">
                   <Text style={s.bellBadgeText}>{unread > 99 ? "99+" : unread}</Text>
                 </View>
               )}
-            </TouchableOpacity>
+            </View>
             <TouchableOpacity style={s.logoutBtn} onPress={confirmLogout} activeOpacity={0.85} accessibilityLabel="ออกจากระบบ">
-              <Ionicons name="log-out-outline" size={20} color="#fff" />
+              <Ionicons name="log-out-outline" size={20} color="#1D4ED8" />
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={s.todayCard}>
-          <TodayItem icon="arrow-up-outline" color="#86efac" num={statusBorrowed} label="ยืม" />
+          <TodayItem icon="arrow-up-outline" color="#10B981" num={statusBorrowed} label="ยืม" />
           <View style={s.todayDivider} />
-          <TodayItem icon="arrow-down-outline" color="#bfdbfe" num={statusReturned} label="คืน" />
+          <TodayItem icon="arrow-down-outline" color="#2563EB" num={statusReturned} label="คืน" />
           <View style={s.todayDivider} />
-          <TodayItem icon="construct-outline" color="#fde68a" num={statusRepair} label="ซ่อม" />
+          <TodayItem icon="construct-outline" color="#F59E0B" num={statusRepair} label="ซ่อม" />
           <View style={s.todayDivider} />
-          <TodayItem icon="calendar-outline" color="#fca5a5" num={today.compact} label={today.dayName} date />
+          <TodayItem icon="calendar-outline" color="#EF4444" num={today.compact} label={today.dayName} date />
         </View>
       </View>
 
@@ -335,76 +407,105 @@ export default function AdminHome() {
           </View>
         ) : (
           <>
+            {/* ลูกเล่น: แต่ละส่วนค่อย ๆ ลอยขึ้นทีละส่วนตอนเปิดหน้า + ปุ่มกดแล้วยุบ/สั่นเบา ๆ (components/Motion) */}
             {/* กล่องคำขอจากนักศึกษา (เฟส 3) */}
-            <TouchableOpacity
+            <FadeIn>
+            <PressScale
               style={[s.inboxCard, pendingRequests > 0 && s.inboxCardHot]}
               onPress={() => router.push("/admin/requests" as any)}
-              activeOpacity={0.86}
+              scaleTo={0.98}
             >
               <View style={s.inboxIcon}>
                 <Ionicons name="file-tray-full-outline" size={24} color={pendingRequests > 0 ? "#fff" : C.purple} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[s.inboxTitle, pendingRequests > 0 && { color: "#fff" }]}>กล่องคำขอ</Text>
-                <Text style={[s.inboxSub, pendingRequests > 0 && { color: "#ede9fe" }]}>
+                <Text style={[s.inboxSub, pendingRequests > 0 && { color: "#DBEAFE" }]}>
                   {pendingRequests > 0 ? `มี ${pendingRequests} คำขอรออนุมัติ` : "ไม่มีคำขอที่รออยู่"}
                 </Text>
               </View>
               {pendingRequests > 0 && (
-                <View style={s.inboxBadge}>
-                  <Text style={s.inboxBadgeText}>{pendingRequests}</Text>
+                <View style={s.inboxBadgeWrap}>
+                  {/* มีคำขอรอ → วงชีพจรรอบตัวเลข เรียกสายตาเบา ๆ */}
+                  <Pulse color="#ef4444" size={26} />
+                  <View style={s.inboxBadge}>
+                    <Text style={s.inboxBadgeText}>{pendingRequests}</Text>
+                  </View>
                 </View>
               )}
               <Ionicons name="chevron-forward" size={20} color={pendingRequests > 0 ? "#fff" : C.muted} />
-            </TouchableOpacity>
+            </PressScale>
+            </FadeIn>
 
-            <View style={s.primaryGrid}>
-              {primary.map((item) => (
-                <TouchableOpacity
-                  key={item.route}
-                  activeOpacity={0.86}
-                  style={[s.primaryTile, { backgroundColor: item.bg }]}
-                  onPress={() => router.push(item.route as any)}
-                >
-                  <View style={s.tileOrb} />
-                  <View style={s.primaryIcon}>
-                    <Ionicons name={item.icon as any} size={22} color="#fff" />
-                  </View>
-                  <View>
-                    <Text style={s.primaryTitle}>{item.title}</Text>
-                    <View style={s.primarySubRow}>
-                      <Text style={s.primarySub}>{item.sub}</Text>
-                      <Ionicons name="arrow-forward" size={12} color="#fff" />
+            <FadeIn delay={70} style={s.primaryGrid}>
+              {primary.map((item) => {
+                const tone = TONES[item.bg] || TONES.blue;
+                return (
+                  <PressScale
+                    key={item.route}
+                    style={[s.primaryTile, gradient(tone.tint)]}
+                    onPress={() => router.push(item.route as any)}
+                    accessibilityLabel={item.title}
+                  >
+                    {/* ลายน้ำไอคอนตามหน้าที่ของการ์ด */}
+                    <View style={[s.tileMark, item.route === "/admin/scan" && { opacity: 0.1 }]} pointerEvents="none">
+                      <Ionicons name={(MARKS[item.route] || item.icon) as any} size={108} color={tone.accent} />
                     </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
+                    <View style={[s.tileStripe, { backgroundColor: tone.accent }]} />
+                    <View style={[s.tilePill, { backgroundColor: tone.accent }]} />
+                    <View style={[s.primaryIcon, gradient(tone.icon), { backgroundColor: tone.accent, boxShadow: `0 6px 14px ${tone.accent}55` }]}>
+                      <Ionicons name={item.icon as any} size={22} color="#fff" />
+                    </View>
+                    <Text style={s.primaryTitle} numberOfLines={1}>{item.title}</Text>
+                    <Text style={s.primarySub} numberOfLines={1}>{item.sub}</Text>
+                    <View style={[s.tileArrow, { boxShadow: `0 4px 10px ${tone.accent}33` }]}>
+                      <Ionicons name="arrow-forward" size={18} color={tone.accent} />
+                    </View>
+                  </PressScale>
+                );
+              })}
+            </FadeIn>
 
+            <FadeIn delay={140}>
             <SectionLabel icon="cube-outline" title="ภาพรวมอุปกรณ์" />
-            <View style={s.statGrid}>
-              {stats.map((item) => (
-                <StatCard key={item.label} {...item} />
-              ))}
-            </View>
-
-            <SectionLabel icon="settings-outline" title="เครื่องมือทั้งหมด" />
-            <View style={s.toolGrid}>
-              {tools.map((item) => (
-                <TouchableOpacity
-                  key={item.route}
-                  activeOpacity={0.85}
-                  style={s.toolBtn}
-                  onPress={() => router.push(item.route as any)}
-                >
-                  <View style={[s.toolIcon, { backgroundColor: item.bg }]}>
-                    <Ionicons name={item.icon as any} size={23} color={item.color} />
+            {/* แถวเดียว 4 ตัวเลข (เดิมเป็นการ์ด 4 ใบ + กราฟ 7 วัน = StatCard ด้านล่าง เก็บไว้เผื่อกลับไปใช้) */}
+            <View style={s.statRow}>
+              {stats.map((item, i) => (
+                <View key={item.label} style={[s.statCell, i > 0 && s.statCellDivider]}>
+                  <View style={s.statCellTop}>
+                    <View style={iconDot(item.color, 20)}>
+                      <Ionicons name={item.icon as any} size={11} color="#FFFFFF" />
+                    </View>
+                    <Text style={[s.statCellNum, { color: item.color }]}>{item.num}</Text>
                   </View>
-                  <Text style={s.toolText} numberOfLines={2}>{item.label}</Text>
-                </TouchableOpacity>
+                  <Text style={s.statCellLabel}>{item.label}</Text>
+                </View>
               ))}
             </View>
+            </FadeIn>
 
+            {groups.map((g, gi) => (
+              <FadeIn key={g.title} delay={200 + gi * 60}>
+                <SectionLabel icon={g.icon} title={g.title} />
+                <View style={s.toolGrid}>
+                  {g.items.map((item, i) => (
+                    <PressScale
+                      key={item.route}
+                      style={[s.toolBtn, i % 3 !== 2 && s.toolBtnGap]}
+                      onPress={() => router.push(item.route as any)}
+                      accessibilityLabel={item.label}
+                    >
+                      <View style={[s.toolIcon, { backgroundColor: item.bg }]}>
+                        <Ionicons name={item.icon as any} size={22} color={item.color} />
+                      </View>
+                      <Text style={s.toolText} numberOfLines={2}>{item.label}</Text>
+                    </PressScale>
+                  ))}
+                </View>
+              </FadeIn>
+            ))}
+
+            <FadeIn delay={200 + groups.length * 60}>
             <View style={s.activityHeader}>
               <SectionLabel icon="time-outline" title="กิจกรรมล่าสุด" compact />
               <TouchableOpacity activeOpacity={0.75} onPress={() => router.push("/admin/history" as any)}>
@@ -433,6 +534,7 @@ export default function AdminHome() {
                 ))}
               </View>
             )}
+            </FadeIn>
           </>
         )}
       </View>
@@ -467,7 +569,7 @@ function timeScore(label: string) {
 function SectionLabel({ icon, title, compact }: { icon: any; title: string; compact?: boolean }) {
   return (
     <View style={[s.sectionRow, compact && s.sectionRowCompact]}>
-      <Ionicons name={icon} size={13} color="#8b5cf6" />
+      <Ionicons name={icon} size={13} color="#3B82F6" />
       <Text style={s.sectionLabel}>{title}</Text>
     </View>
   );
@@ -485,8 +587,15 @@ function TodayItem({ icon, color, num, label, date }: { icon: any; color: string
   );
 }
 
-function MiniLine({ color, value }: { color: string; value: number }) {
-  const points = "0,15 18,13 36,14 54,11 72,12 90,9 108,10 126,7";
+// กราฟเส้นเล็กจากข้อมูลจริง 7 วัน (สเกลตามค่าต่ำสุด–สูงสุดของช่วงนั้น / ค่าเท่ากันทั้งช่วง = เส้นตรงกลาง)
+function MiniLine({ color, data }: { color: string; data: number[] }) {
+  const values = data.length ? data : [0, 0];
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const step = 126 / Math.max(values.length - 1, 1);
+  const y = (v: number) => (max === min ? 11 : 19 - ((v - min) / (max - min)) * 16);
+  const points = values.map((v, i) => `${(i * step).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+  const empty = values.every((v) => v === 0);
 
   return (
     <View style={s.lineChart}>
@@ -495,15 +604,45 @@ function MiniLine({ color, value }: { color: string; value: number }) {
           points={points}
           fill="none"
           stroke={color}
-          strokeWidth={value > 0 ? "2.3" : "2"}
-          strokeDasharray={value > 0 ? undefined : "5 5"}
+          strokeWidth={empty ? "2" : "2.3"}
+          strokeDasharray={empty ? "5 5" : undefined}
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity={value > 0 ? 0.95 : 0.38}
+          opacity={empty ? 0.38 : 0.95}
         />
       </Svg>
     </View>
   );
+}
+
+// สร้างตัวเลขย้อนหลัง 7 วัน (สิ้นวันของแต่ละวัน วันนี้ = ตอนนี้)
+// ทั้งหมด = ของที่เพิ่มแล้วและยังไม่จำหน่าย / ถูกยืม = ยืมไปแล้วยังไม่คืน ณ เวลานั้น (รายการเก่าที่คืนแล้วแต่ไม่มีวันคืน ไม่นับ)
+// ซ่อม = ไม่มีประวัติย้อนหลังในระบบ ใช้ค่าปัจจุบัน / ว่าง = ทั้งหมด − ถูกยืม − ซ่อม
+// จุดสุดท้ายยึดตามสถานะจริงของตอนนี้ ให้ตรงกับตัวเลขบนการ์ดเสมอ
+function buildSeries(items: any[], loans: any[]) {
+  const now = Date.now();
+  const days = Array.from({ length: 7 }, (_, i) => {
+    if (i === 6) return now;
+    const d = new Date(now - (6 - i) * 86400000);
+    d.setHours(23, 59, 59, 999);
+    return d.getTime();
+  });
+  const stock = items.filter((i) => i.status !== "retired");
+  const current = {
+    total: stock.length,
+    borrowed: stock.filter((i) => i.status === "borrowed").length,
+    repair: stock.filter((i) => i.status === "repair").length,
+    available: stock.filter((i) => i.status === "available").length,
+  };
+  const time = (v: string | null) => (v ? new Date(v).getTime() : null);
+  const total = days.map((t) => items.filter((i) => (time(i.created_at) ?? 0) <= t && (!i.retired_at || (time(i.retired_at) as number) > t)).length);
+  const borrowed = days.map((t) => loans.filter((l) => (time(l.borrow_date) ?? Infinity) <= t && (l.return_date ? (time(l.return_date) as number) > t : l.status !== "returned")).length);
+  const repair = days.map(() => current.repair);
+  const available = days.map((_, i) => Math.max(total[i] - borrowed[i] - repair[i], 0));
+  total[6] = current.total;
+  borrowed[6] = current.borrowed;
+  available[6] = current.available;
+  return { total, available, borrowed, repair };
 }
 
 function StatCard({
@@ -512,57 +651,65 @@ function StatCard({
   color,
   num,
   label,
-  trend,
+  data,
 }: {
   icon: any;
   iconBg: string;
   color: string;
   num: number;
   label: string;
-  trend: string;
+  data: number[];
 }) {
+  // เปลี่ยนไปเท่าไรเทียบกับ 7 วันก่อน
+  const diff = data.length ? data[data.length - 1] - data[0] : 0;
+  const trend = diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : "0";
   return (
-    <View style={s.statCard}>
+    <View
+      style={[
+        s.statCard,
+        gradient(`linear-gradient(160deg, #FFFFFF 0%, ${iconBg} 100%)`),
+        { backgroundColor: iconBg },
+      ]}
+    >
       <View style={s.statTop}>
-        <View style={[s.statIcon, { backgroundColor: iconBg }]}>
-          <Ionicons name={icon} size={20} color={color} />
+        <View style={iconDot(color, 36)}>
+          <Ionicons name={icon} size={19} color="#FFFFFF" />
         </View>
-        <View style={[s.trendPill, { backgroundColor: iconBg }]}>
+        <View style={[s.trendPill, { backgroundColor: "rgba(255,255,255,0.75)" }]}>
           <Ionicons name={trend.startsWith("-") ? "trending-down" : trend === "0" ? "remove" : "trending-up"} size={10} color={color} />
           <Text style={[s.trendText, { color }]}>{trend}</Text>
         </View>
       </View>
       <Text style={[s.statNum, { color }]}>{num}</Text>
       <Text style={s.statLabel}>{label}</Text>
-      <MiniLine color={color} value={num} />
+      <MiniLine color={color} data={data} />
     </View>
   );
 }
 
 const s = StyleSheet.create({
   inboxCard: {
+    ...W.card,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: "#fff",
-    borderRadius: 18,
     padding: 14,
     marginBottom: 14,
-    borderWidth: 1,
-    borderColor: "#ede9fe",
   },
-  inboxCardHot: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
+  inboxCardHot: { ...W.primary, borderRadius: 22 },
   inboxIcon: {
     width: 46,
     height: 46,
-    borderRadius: 13,
-    backgroundColor: "rgba(124,58,237,0.12)",
+    borderRadius: 23,
+    backgroundColor: "rgba(37,99,235,0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
-  inboxTitle: { fontSize: 16, fontWeight: "900", color: "#0f172a" },
-  inboxSub: { fontSize: 12.5, fontWeight: "700", color: "#64748b", marginTop: 2 },
+  inboxTitle: { fontSize: 16, fontWeight: "600", color: "#172033" },
+  inboxSub: { fontSize: 12.5, color: "#475569", marginTop: 1 },
+  inboxBadgeWrap: { alignItems: "center", justifyContent: "center" },
   inboxBadge: {
+    ...NG,
     minWidth: 26,
     height: 26,
     borderRadius: 13,
@@ -571,48 +718,42 @@ const s = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 7,
   },
-  inboxBadgeText: { color: "#fff", fontSize: 13, fontWeight: "900" },
+  inboxBadgeText: { ...BADGE_TEXT, color: "#fff", fontSize: 13, lineHeight: 16 },
   container: {
+    ...W.page,
     flex: 1,
-    backgroundColor: C.bg,
   },
   content: {
     paddingBottom: 30,
   },
   hero: {
-    backgroundColor: C.hero,
-    paddingTop: 42,
-    paddingHorizontal: 22,
-    paddingBottom: 20,
+    paddingTop: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   heroTop: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-  greetRow: {
+    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-  },
-  greet: {
-    color: "#dbeafe",
-    fontSize: 12,
-    fontWeight: "800",
+    justifyContent: "space-between",
   },
   heroTitle: {
-    color: "#fff",
+    color: "#172033",
     fontSize: 26,
-    fontWeight: "900",
-    lineHeight: 31,
-    marginTop: 4,
+    fontWeight: "700",
+    lineHeight: 34,
+    marginTop: 2,
   },
   heroTitleAccent: {
-    color: "#bfdbfe",
+    color: "#2563EB",
   },
   headerBtns: { flexDirection: "row", gap: 8 },
+  bellWrap: { zIndex: 2 },
   bellBadge: {
+    ...NG,
     position: "absolute",
+    zIndex: 3,
+    elevation: 3,
     top: -5,
     right: -5,
     minWidth: 18,
@@ -625,67 +766,55 @@ const s = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#fff",
   },
-  bellBadgeText: { color: "#fff", fontSize: 10.5, fontWeight: "900" },
+  bellBadgeText: { ...BADGE_TEXT, color: "#fff", fontSize: 11, lineHeight: 13 },
   logoutBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
   },
   todayCard: {
     flexDirection: "row",
     alignItems: "stretch",
     marginTop: 16,
-    backgroundColor: "rgba(255,255,255,0.16)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    borderRadius: 14,
+    ...W.card,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   todayItem: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 5,
   },
   todayNum: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "900",
-    lineHeight: 18,
+    color: "#172033",
+    fontSize: 17,
+    fontWeight: "700",
+    lineHeight: 22,
   },
   todayDateNum: {
     fontSize: 13,
     lineHeight: 16,
   },
   todayLabel: {
-    color: "#dbeafe",
-    fontSize: 10,
-    fontWeight: "800",
-    marginTop: 1,
+    color: "#475569",
+    fontSize: 11,
+    marginTop: 0,
   },
   todayDivider: {
     width: 1,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "#DCE7FA",
     marginVertical: 2,
-    marginHorizontal: 10,
+    marginHorizontal: 6,
   },
   body: {
     paddingHorizontal: 16,
     paddingTop: 14,
   },
   loadingCard: {
-    backgroundColor: C.card,
-    borderRadius: 16,
+    ...W.card,
     padding: 28,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.05)",
   },
   loadingText: {
     color: C.muted,
@@ -695,52 +824,60 @@ const s = StyleSheet.create({
   },
   primaryGrid: {
     flexDirection: "row",
-    gap: 12,
-    marginBottom: 16,
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 12,
+    marginBottom: 20,
   },
   primaryTile: {
-    flex: 1,
-    height: 124,
-    borderRadius: 14,
-    padding: 14,
-    justifyContent: "space-between",
+    width: "48.2%",
+    height: 148,
+    borderRadius: 22,
+    paddingLeft: 18,
+    paddingRight: 14,
+    paddingTop: 16,
+    paddingBottom: 14,
     overflow: "hidden",
-    elevation: 10,
-  },
-  tileOrb: {
-    position: "absolute",
-    right: -16,
-    top: -16,
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    backgroundColor: "rgba(255,255,255,0.10)",
-  },
-  primaryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "#F7FAFF",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.9)",
+    boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 4px rgba(15,23,42,0.05), 0 12px 24px rgba(37,99,235,0.12)",
+  },
+  tileStripe: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
+  tilePill: { position: "absolute", top: 14, right: 14, width: 22, height: 5, borderRadius: 3, opacity: 0.4 },
+  tileMark: { position: "absolute", right: -28, bottom: -30, opacity: 0.06, transform: [{ rotate: "-12deg" }] },
+  primaryIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 12,
   },
   primaryTitle: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  primarySubRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 8,
+    color: C.ink,
+    fontSize: 17,
+    fontWeight: "700",
   },
   primarySub: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 11,
-    fontWeight: "800",
+    color: C.muted,
+    fontSize: 12,
+    marginTop: 2,
+    paddingRight: 40,
+  },
+  // ปุ่มลูกศร: วงขาวโปร่ง ลอยเด่นจากพื้นสีของการ์ด
+  tileArrow: {
+    position: "absolute",
+    right: 12,
+    bottom: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.82)",
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
   },
   sectionRow: {
     flexDirection: "row",
@@ -752,10 +889,21 @@ const s = StyleSheet.create({
     marginBottom: 0,
   },
   sectionLabel: {
-    color: C.muted,
-    fontSize: 12,
-    fontWeight: "900",
+    color: C.ink,
+    fontSize: 16,
+    fontWeight: "600",
   },
+  statRow: {
+    ...W.card,
+    flexDirection: "row",
+    paddingVertical: 12,
+    marginBottom: 20,
+  },
+  statCell: { flex: 1, alignItems: "center", gap: 2 },
+  statCellDivider: { borderLeftWidth: 1, borderLeftColor: "#E2EAF6" },
+  statCellTop: { flexDirection: "row", alignItems: "center", gap: 5 },
+  statCellNum: { fontSize: 20, fontWeight: "700", lineHeight: 28 },
+  statCellLabel: { color: C.muted, fontSize: 12 },
   statGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -764,19 +912,11 @@ const s = StyleSheet.create({
     marginBottom: 20,
   },
   statCard: {
+    ...W.card,
     width: "48.2%",
-    height: 138,
-    backgroundColor: C.card,
-    borderRadius: 16,
+    minHeight: 138,
     paddingHorizontal: 14,
     paddingVertical: 13,
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.05)",
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.16,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 4,
   },
   statTop: {
     flexDirection: "row",
@@ -786,9 +926,10 @@ const s = StyleSheet.create({
   statIcon: {
     width: 36,
     height: 36,
-    borderRadius: 11,
+    borderRadius: 18,
     alignItems: "center",
     justifyContent: "center",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
   },
   trendPill: {
     flexDirection: "row",
@@ -801,20 +942,19 @@ const s = StyleSheet.create({
     borderRadius: 999,
   },
   trendText: {
-    fontSize: 10.5,
-    fontWeight: "900",
+    fontSize: 11,
+    fontWeight: "600",
   },
   statNum: {
-    fontSize: 32,
-    fontWeight: "900",
-    lineHeight: 35,
-    marginTop: 8,
+    fontSize: 30,
+    fontWeight: "700",
+    lineHeight: 38,
+    marginTop: 6,
   },
   statLabel: {
-    color: C.faint,
+    color: C.muted,
     fontSize: 12,
-    fontWeight: "700",
-    marginTop: 2,
+    marginTop: 0,
   },
   lineChart: {
     alignSelf: "stretch",
@@ -823,42 +963,36 @@ const s = StyleSheet.create({
     marginHorizontal: 0,
     overflow: "hidden",
   },
+  // 3 คอลัมน์ ชิดซ้าย (แถวสุดท้ายที่ไม่เต็มจะไม่ถูกกระจายห่าง)
   toolGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: 12,
-    marginBottom: 24,
+    rowGap: 10,
+    marginBottom: 20,
   },
   toolBtn: {
-    width: "48.2%",
-    minHeight: 96,
-    backgroundColor: C.card,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 13,
+    width: "31.33%",
+    ...W.card,
+    minHeight: 92,
+    paddingHorizontal: 6,
+    paddingVertical: 12,
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.05)",
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
   },
+  toolBtnGap: { marginRight: "3%" },
   toolIcon: {
     width: 44,
     height: 44,
-    borderRadius: 13,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
   },
   toolText: {
-    color: C.text,
-    fontSize: 12,
-    fontWeight: "900",
+    color: C.ink,
+    fontSize: 13,
+    fontWeight: "600",
     textAlign: "center",
     lineHeight: 16,
   },
@@ -869,19 +1003,16 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   viewAll: {
-    color: C.blueDark,
-    fontSize: 14,
-    fontWeight: "900",
+    color: "#2563EB",
+    fontSize: 13,
+    fontWeight: "600",
   },
   emptyActivity: {
+    ...W.card,
     minHeight: 78,
-    backgroundColor: C.card,
-    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.05)",
   },
   emptyActivityText: {
     color: C.faint,
@@ -892,42 +1023,37 @@ const s = StyleSheet.create({
     gap: 10,
   },
   activityCard: {
+    ...W.card,
     minHeight: 58,
-    backgroundColor: C.card,
-    borderRadius: 14,
     paddingHorizontal: 12,
     paddingVertical: 9,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    borderWidth: 1,
-    borderColor: "rgba(15,23,42,0.05)",
-    elevation: 1,
   },
   activityIcon: {
     width: 42,
     height: 42,
-    borderRadius: 12,
+    borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
   },
   activityTextWrap: {
     flex: 1,
   },
   activityTitle: {
     color: C.ink,
-    fontSize: 13,
-    fontWeight: "900",
+    fontSize: 14,
+    fontWeight: "600",
   },
   activitySub: {
-    color: C.faint,
-    fontSize: 11,
-    fontWeight: "700",
+    color: C.muted,
+    fontSize: 12,
     marginTop: 2,
   },
   activityTime: {
     color: C.faint,
-    fontSize: 10,
-    fontWeight: "900",
+    fontSize: 11,
   },
 });

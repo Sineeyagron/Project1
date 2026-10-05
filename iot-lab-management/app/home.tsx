@@ -4,14 +4,27 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import SearchBar from "../components/SearchBar";
+import { Text, TextInput } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
+import { useRefreshOnFocus } from "../lib/nav";
+import LoadError from "../components/LoadError";
+import { Room, fetchRooms as fetchRoomList, roomPlace } from "../lib/rooms";
+import { useRoomLive } from "../lib/roomRealtime";
+import Svg, { Circle } from "react-native-svg";
+import TabBar from "../components/TabBar";
+import { HeaderButton } from "../components/ScreenHeader";
+import { FadeIn, PressScale } from "../components/Motion";
+import GreetingLine from "../components/GreetingLine";
+import LoanQuickCard from "../components/LoanSummary";
+import StatWidget from "../components/StatWidget";
+import { currentUser } from "../lib/session";
+import { C, W, gradient, iconDot } from "../lib/theme";
 
 type Station = {
   id: string;
@@ -21,32 +34,7 @@ type Station = {
   status: string;
 };
 
-const BLUE = {
-  bg: "#edf5ff",
-  header: "#2563eb",
-  headerDark: "#1d4ed8",
-  blue: "#3b82f6",
-  blueSoft: "#dbeafe",
-  purple: "#7c3aed",
-  ink: "#0f172a",
-  muted: "#64748b",
-  faint: "#94a3b8",
-  card: "#ffffff",
-  green: "#16a34a",
-  yellow: "#facc15",
-  orange: "#f59e0b",
-};
 
-function naturalRoom(room: string) {
-  const match = String(room || "").match(/\d+/);
-  return match ? Number(match[0]) : 99999;
-}
-
-function getRoomFloor(room: string) {
-  if (/9524/i.test(room)) return "อาคารคอมพิวเตอร์ ชั้น 5";
-  if (/9604/i.test(room)) return "อาคารวิทยาศาสตร์ ชั้น 6";
-  return "ห้องปฏิบัติการ IoT";
-}
 
 export default function Home() {
   const router = useRouter();
@@ -54,31 +42,48 @@ export default function Home() {
   const [isStaff, setIsStaff] = useState(false);
   useEffect(() => {
     supabase.rpc("is_staff").then(({ data }) => setIsStaff(!!data));
+    // นักศึกษาที่ยังไม่มีรหัส นศ. → ไปกรอกก่อน (staff ข้าม) / อ่านไม่ได้ (เช่น ยังไม่ได้รัน migration) = ปล่อยผ่าน
+    currentUser().then((user) => {
+      if (!user) return;
+      supabase.from("profiles").select("role, student_id").eq("id", user.id).maybeSingle().then(({ data, error }) => {
+        if (!error && data && data.role === "user" && !data.student_id) router.replace("/student-id" as any);
+      });
+    });
   }, []);
   const [stations, setStations] = useState<Station[]>([]);
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [loadError, setLoadError] = useState("");
+  const [rooms, setRooms] = useState<Room[]>([]);
 
   useEffect(() => {
     fetchRooms();
   }, []);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchRooms(); });
+  // อัปเดตสด: สถานะเครื่องในห้องไหนเปลี่ยน → ตัวเลขการ์ดห้องเปลี่ยนทันที (REVIEW M12)
+  useRoomLive(() => { fetchRooms(); });
 
   const fetchRooms = async () => {
-    const { data, error } = await supabase
-      .from("computer_stations")
-      .select("*")
-      .order("room_id")
-      .order("group_no")
-      .order("name");
+    // ห้องจากตาราง rooms (ห้องที่เปิดอยู่) + เครื่องที่เปิดใช้งาน
+    const [{ data, error: stationError }, { rooms: roomList, error: roomError }] = await Promise.all([
+      supabase.from("computer_stations").select("*").eq("active", true).order("room_id").order("group_no").order("name"),
+      fetchRoomList(),
+    ]);
+    const error = stationError || roomError;
 
     if (error) {
-      console.log(error);
-      setStations([]);
+      // โหลดพัง ห้ามโชว์ว่า "ใช้งานได้ทั้งหมด" — เก็บข้อมูลเดิมไว้ แล้วขึ้นแถบให้ลองใหม่
+      setLoadError(error.message);
     } else {
-      setStations((data as Station[]) || []);
+      setLoadError("");
+      setRooms(roomList);
+      // เฉพาะเครื่องในห้องที่เปิดอยู่
+      const openIds = new Set(roomList.map((room) => room.id));
+      setStations(((data as Station[]) || []).filter((station) => openIds.has(station.room_id)));
     }
     setLoading(false);
     setRefreshing(false);
@@ -89,27 +94,21 @@ export default function Home() {
     fetchRooms();
   };
 
+  // ทุกห้องที่เปิดอยู่ เรียงตามที่ Admin ตั้ง (ห้องใหม่ที่ยังไม่มีเครื่องก็ขึ้น)
   const roomSummaries = useMemo(() => {
-    const map = new Map<string, Station[]>();
-    stations.forEach((station) => {
-      const room = station.room_id || "ไม่ระบุห้อง";
-      map.set(room, [...(map.get(room) || []), station]);
+    return rooms.map((info) => {
+      const rows = stations.filter((station) => station.room_id === info.id);
+      const online = rows.filter((row) => row.status === "available").length;
+      const problem = rows.length - online;
+      return {
+        room: info.id,
+        total: rows.length,
+        online,
+        problem,
+        floor: roomPlace(info),
+      };
     });
-
-    return [...map.entries()]
-      .sort(([a], [b]) => naturalRoom(a) - naturalRoom(b) || a.localeCompare(b))
-      .map(([room, rows]) => {
-        const online = rows.filter((row) => row.status === "available").length;
-        const problem = rows.length - online;
-        return {
-          room,
-          total: rows.length,
-          online,
-          problem,
-          floor: getRoomFloor(room),
-        };
-      });
-  }, [stations]);
+  }, [rooms, stations]);
 
   const runSearch = () => {
     setActiveSearch(search.trim());
@@ -127,479 +126,336 @@ export default function Home() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
-        <View style={s.headerTop}>
-          <View>
-            <Text style={s.headerKicker}>ระบบจัดการห้องแล็บ</Text>
-            <View style={s.titleRow}>
-              <View style={s.titleIcon}>
-                <Ionicons name="business-outline" size={20} color="#ffffff" />
-              </View>
-              <Text style={s.headerTitle}>ห้องเรียน IoT</Text>
-            </View>
-          </View>
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            {isStaff && (
-              <TouchableOpacity
-                style={s.bellBtn}
-                onPress={() => router.replace("/admin/home")}
-                activeOpacity={0.84}
-                accessibilityLabel="กลับแดชบอร์ดผู้ดูแล"
-              >
-                <Ionicons name="speedometer-outline" size={21} color="#ffffff" />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={s.bellBtn} onPress={() => router.push("/notifications")} activeOpacity={0.84}>
-              <Ionicons name="notifications-outline" size={21} color="#ffffff" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={s.statsRow}>
-          <View style={s.statCard}>
-            <Ionicons name="desktop-outline" size={14} color="#dbeafe" />
-            <Text style={s.statLabel}>ทั้งหมด</Text>
-            <Text style={s.statNumber}>{totalStations}</Text>
-          </View>
-          <View style={s.statCard}>
-            <View style={[s.statDot, { backgroundColor: "#22c55e" }]} />
-            <Text style={s.statLabel}>ออนไลน์</Text>
-            <Text style={s.statNumber}>{onlineStations}</Text>
-          </View>
-          <View style={s.statCard}>
-            <View style={[s.statDot, { backgroundColor: "#facc15" }]} />
-            <Text style={s.statLabel}>มีปัญหา</Text>
-            <Text style={s.statNumber}>{problemStations}</Text>
-          </View>
-        </View>
-
-        <View style={s.searchBox}>
-          <Ionicons name="search-outline" size={18} color="#94a3b8" />
-          <TextInput
-            placeholder="ค้นหาห้องเรียน..."
-            placeholderTextColor="#94a3b8"
-            style={s.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-            onSubmitEditing={runSearch}
-          />
-          {activeSearch.length > 0 ? (
-            <TouchableOpacity
-              style={s.clearSearchBtn}
-              onPress={() => {
-                setSearch("");
-                setActiveSearch("");
-              }}
-              activeOpacity={0.82}
-            >
-              <Ionicons name="close" size={15} color="#64748b" />
-            </TouchableOpacity>
-          ) : null}
-          <TouchableOpacity
-            style={s.filterBtn}
-            onPress={runSearch}
-            activeOpacity={0.84}
-          >
-            <Ionicons name="search" size={18} color={BLUE.purple} />
-          </TouchableOpacity>
-        </View>
-      </View>
-
       <ScrollView
         contentContainerStyle={s.body}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BLUE.header} />}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
       >
+        <View style={s.headerTop}>
+          <View>
+            {/* เหมือนหัวแดชบอร์ด Admin: ทักทาย + อากาศ + บทบาท / staff ที่มายืมของ = โหมดนักศึกษา */}
+            <GreetingLine roleLabel={isStaff ? "โหมดนักศึกษา" : "นักศึกษา"} />
+            <Text style={s.headerTitle}>
+              ห้องเรียน <Text style={s.headerTitleAccent}>IoT</Text>
+            </Text>
+          </View>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {isStaff && (
+              <HeaderButton
+                icon="speedometer-outline"
+                label="กลับแดชบอร์ดผู้ดูแล"
+                // TA/admin ที่มายืมของ: กลับแดชบอร์ดเดิมใน stack (ไม่เปิดซ้อนใหม่) / ไม่มี → เปิดใหม่
+                onPress={() => router.dismissTo("/admin/home")}
+              />
+            )}
+          </View>
+        </View>
+
+        <FadeIn style={s.statsRow}>
+          <StatWidget tone="blue" icon="desktop-outline" label="ทั้งหมด" value={totalStations} />
+          <StatWidget tone="green" icon="checkmark" label="ใช้งานได้" value={onlineStations} />
+          <StatWidget tone="amber" icon="alert" label="มีปัญหา" value={problemStations} />
+        </FadeIn>
+
+        <SearchBar
+          style={{ marginBottom: 18 }}
+          value={search}
+          onChangeText={(text) => { setSearch(text); setActiveSearch(text.trim()); }}
+          placeholder="ค้นหาห้องเรียน"
+        />
+
         <View style={s.sectionHead}>
           <View>
             <Text style={s.sectionTitle}>ห้องที่มีให้เลือก</Text>
-            <Text style={s.sectionSub}>{roomSummaries.length} ห้อง พร้อมใช้งาน</Text>
+            <Text style={s.sectionSub}>{activeSearch ? `พบ ${filteredRooms.length} จาก ${roomSummaries.length} ห้อง` : `${roomSummaries.length} ห้อง`}</Text>
           </View>
           <View style={s.viewToggle}>
-            <TouchableOpacity
-              style={[s.viewToggleBtn, viewMode === "grid" && s.viewToggleBtnActive]}
-              onPress={() => setViewMode("grid")}
-              activeOpacity={0.84}
-            >
-              <Ionicons name="grid-outline" size={17} color={viewMode === "grid" ? BLUE.purple : BLUE.faint} />
-            </TouchableOpacity>
+            {/* รายการ (ค่าเริ่มต้น) อยู่ซ้าย / ตาราง อยู่ขวา */}
             <TouchableOpacity
               style={[s.viewToggleBtn, viewMode === "list" && s.viewToggleBtnActive]}
               onPress={() => setViewMode("list")}
               activeOpacity={0.84}
+              accessibilityLabel="แสดงแบบรายการ"
             >
-              <Ionicons name="list-outline" size={19} color={viewMode === "list" ? BLUE.purple : BLUE.faint} />
+              <Ionicons name="list-outline" size={18} color={viewMode === "list" ? C.primaryDark : C.faint} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.viewToggleBtn, viewMode === "grid" && s.viewToggleBtnActive]}
+              onPress={() => setViewMode("grid")}
+              activeOpacity={0.84}
+              accessibilityLabel="แสดงแบบตาราง"
+            >
+              <Ionicons name="grid-outline" size={16} color={viewMode === "grid" ? C.primaryDark : C.faint} />
             </TouchableOpacity>
           </View>
         </View>
 
+        {!!loadError && <LoadError message={loadError} onRetry={onRefresh} />}
         {loading ? (
-          <ActivityIndicator size="large" color={BLUE.header} style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 40 }} />
         ) : (
           <>
-            <View style={viewMode === "grid" ? s.roomGrid : undefined}>
-              {filteredRooms.map((room, index) => {
+            <FadeIn delay={80} style={viewMode === "grid" ? s.roomGrid : s.roomList}>
+              {filteredRooms.map((room) => {
                 const hasProblem = room.problem > 0;
+                const open = () => router.push({ pathname: "/roommap", params: { room_id: room.room } });
+                const pill = (
+                  <View style={[s.statusPill, hasProblem ? s.statusWarn : s.statusOk]}>
+                    <View style={[s.statusDot, { backgroundColor: hasProblem ? C.warning : C.success }]} />
+                    <Text style={[s.statusText, { color: hasProblem ? C.warningInk : C.successInk }]}>
+                      {hasProblem ? `มีปัญหา ${room.problem}` : "ใช้งานได้"}
+                    </Text>
+                  </View>
+                );
+                if (viewMode === "grid") {
+                  return (
+                    <PressScale key={room.room} style={[s.roomCard, s.roomCardGrid]} onPress={open} accessibilityLabel={`ห้อง ${room.room}`}>
+                      <Text style={s.roomName} numberOfLines={1}>{room.room}</Text>
+                      <Text style={s.roomSub} numberOfLines={1}>{room.floor}</Text>
+                      <View style={s.ringRow}>
+                        <Ring value={room.online} total={room.total} />
+                        <View>
+                          <Text style={s.ringNum}>{room.online} / {room.total}</Text>
+                          <Text style={s.ringLabel}>ใช้งานได้</Text>
+                        </View>
+                      </View>
+                      {pill}
+                    </PressScale>
+                  );
+                }
                 return (
-                  <TouchableOpacity
-                    key={room.room}
-                    style={[s.roomCard, viewMode === "grid" && s.roomCardGrid]}
-                    onPress={() => router.push({ pathname: "/roommap", params: { room_id: room.room } })}
-                    activeOpacity={0.88}
-                  >
-                    <View style={[s.roomIcon, index % 2 === 0 ? s.roomIconBlue : s.roomIconGold]}>
-                      <Ionicons name="business-outline" size={26} color={index % 2 === 0 ? BLUE.purple : "#d97706"} />
-                    </View>
+                  <PressScale key={room.room} style={[s.roomCard, s.roomCardRow]} onPress={open} scaleTo={0.98} accessibilityLabel={`ห้อง ${room.room}`}>
+                    <Ring value={room.online} total={room.total} />
                     <View style={s.roomInfo}>
                       <View style={s.roomTitleRow}>
                         <Text style={s.roomName}>{room.room}</Text>
-                        <View style={[s.statusPill, hasProblem ? s.statusWarn : s.statusOk]}>
-                          <View style={[s.statusDot, { backgroundColor: hasProblem ? BLUE.yellow : "#22c55e" }]} />
-                          <Text style={[s.statusText, hasProblem ? s.statusWarnText : s.statusOkText]}>
-                            {hasProblem ? `มีปัญหา ${room.problem}` : "ใช้งานได้"}
-                          </Text>
-                        </View>
+                        {pill}
                       </View>
                       <Text style={s.roomSub}>{room.floor}</Text>
                       <View style={s.roomMetaRow}>
                         <View style={s.roomMeta}>
-                          <Ionicons name="desktop-outline" size={13} color="#64748b" />
+                          <Ionicons name="desktop-outline" size={13} color={C.muted} />
                           <Text style={s.roomMetaText}>{room.total} เครื่อง</Text>
                         </View>
                         <View style={s.roomMeta}>
-                          <Ionicons name="wifi-outline" size={13} color="#16a34a" />
-                          <Text style={[s.roomMetaText, { color: "#16a34a" }]}>{room.online} ออนไลน์</Text>
+                          <Ionicons name="wifi-outline" size={13} color={C.successInk} />
+                          <Text style={[s.roomMetaText, { color: C.successInk }]}>{room.online} ใช้งานได้</Text>
                         </View>
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={21} color="#94a3b8" />
-                  </TouchableOpacity>
+                    <Ionicons name="chevron-forward" size={20} color={C.faint} />
+                  </PressScale>
                 );
               })}
-            </View>
+            </FadeIn>
 
-            {filteredRooms.length === 0 ? (
+            {filteredRooms.length === 0 && !loadError ? (
               <View style={s.empty}>
-                <Ionicons name="search-outline" size={42} color="#bfdbfe" />
+                <Ionicons name="search-outline" size={42} color={C.primarySoft} />
                 <Text style={s.emptyText}>ไม่พบห้องที่ค้นหา</Text>
               </View>
             ) : null}
 
             <Text style={s.quickTitle}>ลิงก์ด่วน</Text>
             {/* ทางเข้าหลักของการยืม-คืน (แผน 2.6: ยืม/คืนได้ทางเดียวคือสแกน QR ที่ตัวของ) */}
-            <TouchableOpacity style={s.scanCard} onPress={() => router.push("/scan")} activeOpacity={0.88}>
+            <PressScale style={s.scanCard} onPress={() => router.push("/scan")} scaleTo={0.98}>
               <View style={s.scanCardIcon}>
-                <Ionicons name="scan" size={26} color="#fff" />
+                <Ionicons name="scan" size={23} color="#fff" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={s.scanCardTitle}>สแกนยืม / คืนอุปกรณ์</Text>
                 <Text style={s.scanCardSub}>สแกน QR ที่ติดบนอุปกรณ์ในห้อง</Text>
               </View>
-              <Ionicons name="chevron-forward" size={22} color="#fff" />
-            </TouchableOpacity>
+              <Ionicons name="chevron-forward" size={20} color="#fff" />
+            </PressScale>
             <View style={s.quickGrid}>
-              <TouchableOpacity style={[s.quickCard, s.quickPurple]} onPress={() => router.push("/lanstatus")} activeOpacity={0.88}>
-                <View style={s.quickIcon}>
-                  <Ionicons name="git-network-outline" size={24} color={BLUE.purple} />
-                </View>
-                <Text style={s.quickName}>สถานะสายแลน</Text>
-                <Text style={s.quickSub}>Server / Patch Panel</Text>
-                <View style={s.quickGlow} />
-              </TouchableOpacity>
-              <TouchableOpacity style={[s.quickCard, s.quickBlue]} onPress={() => router.push("/borrow")} activeOpacity={0.88}>
-                <View style={[s.quickIcon, { backgroundColor: "#eff6ff" }]}>
-                  <Ionicons name="time-outline" size={23} color={BLUE.header} />
-                </View>
-                <Text style={s.quickName}>ประวัติการยืม</Text>
-                <Text style={s.quickSub}>รายการยืม-คืน</Text>
-                <View style={[s.quickGlow, { backgroundColor: "rgba(147,197,253,0.42)" }]} />
-              </TouchableOpacity>
-            </View>
-
-            {problemStations > 0 ? (
-              <TouchableOpacity style={s.alertCard} onPress={() => router.push("/roommap")} activeOpacity={0.88}>
-                <View style={s.alertIcon}>
-                  <Ionicons name="information-circle-outline" size={23} color="#d97706" />
+              <PressScale style={s.quickCard} onPress={() => router.push("/lanstatus")}>
+                <View style={iconDot("#6366F1", 38)}>
+                  <Ionicons name="git-network-outline" size={19} color="#FFFFFF" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.alertTitle}>มีอุปกรณ์ต้องตรวจสอบ</Text>
-                  <Text style={s.alertSub}>{roomSummaries.filter((room) => room.problem > 0).length} ห้อง มี {problemStations} เครื่องที่ต้องดูแล</Text>
+                  <Text style={s.quickName}>สถานะสายแลน</Text>
+                  <Text style={s.quickSub}>Server / Patch Panel</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={21} color="#d97706" />
-              </TouchableOpacity>
-            ) : null}
+              </PressScale>
+              {/* การยืมของฉัน (ระบบยืม) — แทนลิงก์ "ประวัติการยืม" เดิม บอกสถานะ + สีตามความเร่ง */}
+              <LoanQuickCard style={s.quickCard} />
+            </View>
           </>
         )}
 
-        <View style={{ height: 92 }} />
+        <View style={{ height: 96 }} />
       </ScrollView>
 
-      <View style={s.tabBar}>
-        <TouchableOpacity style={s.tabItem} activeOpacity={0.82}>
-          <Ionicons name="home" size={22} color={BLUE.purple} />
-          <Text style={[s.tabText, s.tabTextActive]}>ชั้นเรียน</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.tabItem} onPress={() => router.push("/equipment")} activeOpacity={0.82}>
-          <Ionicons name="cube-outline" size={22} color={BLUE.faint} />
-          <Text style={s.tabText}>อุปกรณ์</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.tabItem} onPress={() => router.push("/notifications")} activeOpacity={0.82}>
-          <Ionicons name="notifications-outline" size={22} color={BLUE.faint} />
-          <Text style={s.tabText}>แจ้งเตือน</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.tabItem} onPress={() => router.push("/profile")} activeOpacity={0.82}>
-          <Ionicons name="person-outline" size={22} color={BLUE.faint} />
-          <Text style={s.tabText}>โปรไฟล์</Text>
-        </TouchableOpacity>
+      <TabBar current="/home" />
+    </View>
+  );
+}
+
+// วงแหวนสัดส่วนเครื่องที่ใช้งานได้
+function Ring({ value, total }: { value: number; total: number }) {
+  const r = 19;
+  const len = 2 * Math.PI * r;
+  const ratio = total > 0 ? value / total : 0;
+  return (
+    <View style={s.ring}>
+      <Svg width={48} height={48} viewBox="0 0 48 48">
+        <Circle cx={24} cy={24} r={r} fill="none" stroke="#DCE7FA" strokeWidth={6} />
+        {ratio > 0 ? (
+          <Circle
+            cx={24}
+            cy={24}
+            r={r}
+            fill="none"
+            stroke={C.success}
+            strokeWidth={6}
+            strokeLinecap="round"
+            strokeDasharray={`${(len * ratio).toFixed(1)} ${len.toFixed(1)}`}
+            transform="rotate(-90 24 24)"
+          />
+        ) : null}
+      </Svg>
+      <View style={s.ringCenter}>
+        <Text style={s.ringPct}>{Math.round(ratio * 100)}%</Text>
       </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  scanCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    backgroundColor: BLUE.header,
-    borderRadius: 18,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    marginBottom: 12,
-    shadowColor: BLUE.header,
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5,
-  },
-  scanCardIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  scanCardTitle: { color: "#fff", fontSize: 16, fontWeight: "900" },
-  scanCardSub: { color: "#dbeafe", fontSize: 12, fontWeight: "700", marginTop: 2 },
-  container: { flex: 1, backgroundColor: BLUE.bg },
-  header: {
-    backgroundColor: BLUE.header,
-    paddingHorizontal: 30,
-    paddingTop: 46,
-    paddingBottom: 18,
-  },
+  container: { ...W.page },
+  body: { paddingHorizontal: 18, paddingTop: 0 },
   headerTop: {
+    ...W.headerBar, marginHorizontal: -18, paddingTop: 52, paddingHorizontal: 18, paddingBottom: 10,
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 22,
-  },
-  headerKicker: { color: "#dbeafe", fontSize: 11, fontWeight: "800", marginBottom: 7 },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 11 },
-  titleIcon: {
-    width: 35,
-    height: 35,
-    borderRadius: 9,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.24)",
     alignItems: "center",
-    justifyContent: "center",
+    marginBottom: 16,
   },
-  headerTitle: { color: "#fff", fontSize: 22, fontWeight: "900" },
-  bellBtn: {
-    width: 39,
-    height: 39,
-    borderRadius: 11,
-    backgroundColor: "rgba(255,255,255,0.17)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statsRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
-  statCard: {
-    flex: 1,
-    minHeight: 66,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-  },
-  statDot: { width: 7, height: 7, borderRadius: 99, marginBottom: 5 },
-  statLabel: { color: "#e0ecff", fontSize: 10, fontWeight: "800" },
-  statNumber: { color: "#fff", fontSize: 22, fontWeight: "900", marginTop: 3 },
+  headerKicker: { color: C.text2, fontSize: 13, marginBottom: 2 },
+  headerTitle: { color: C.ink, fontSize: 26, fontWeight: "700", lineHeight: 34, marginTop: 2 },
+  headerTitleAccent: { color: C.primary },
+  statsRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
   searchBox: {
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: "#fff",
+    ...W.input,
+    borderWidth: 0,
+    height: 48,
     flexDirection: "row",
     alignItems: "center",
-    gap: 9,
+    gap: 10,
     paddingLeft: 14,
-    paddingRight: 7,
+    paddingRight: 6,
+    marginBottom: 18,
   },
-  searchInput: { flex: 1, color: BLUE.ink, fontSize: 13, fontWeight: "700" },
+  searchInput: { flex: 1, color: C.ink, fontSize: 15 },
   clearSearchBtn: {
     width: 26,
     height: 26,
     borderRadius: 8,
-    backgroundColor: "#f1f5f9",
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
   },
   filterBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: "#f3e8ff",
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    backgroundColor: C.primary,
     alignItems: "center",
     justifyContent: "center",
+    boxShadow: "0 4px 10px rgba(37,99,235,0.3)",
   },
-  body: { paddingHorizontal: 30, paddingTop: 15 },
   sectionHead: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 12,
   },
-  sectionTitle: { color: BLUE.ink, fontSize: 14, fontWeight: "900" },
-  sectionSub: { color: BLUE.muted, fontSize: 11, fontWeight: "700", marginTop: 1 },
+  sectionTitle: { color: C.ink, fontSize: 17, fontWeight: "700" },
+  sectionSub: { color: C.muted, fontSize: 12, marginTop: 1 },
   viewToggle: {
     flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 10,
+    gap: 4,
     padding: 3,
-    borderWidth: 1,
-    borderColor: "#dbe4f0",
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 6px rgba(37,99,235,0.08)",
   },
   viewToggleBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
+    width: 32,
+    height: 28,
+    borderRadius: 9,
     alignItems: "center",
     justifyContent: "center",
   },
-  viewToggleBtnActive: { backgroundColor: "#f3e8ff" },
-  roomGrid: { gap: 10 },
-  roomCard: {
-    backgroundColor: BLUE.card,
-    borderRadius: 16,
-    padding: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 13,
-    marginBottom: 10,
-    shadowColor: "#1e3a8a",
-    shadowOpacity: 0.09,
-    shadowRadius: 11,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
-  },
-  roomCardGrid: { marginBottom: 0 },
-  roomIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  roomIconBlue: { backgroundColor: "#ede9fe" },
-  roomIconGold: { backgroundColor: "#fef3c7" },
+  viewToggleBtnActive: { backgroundColor: "#FFFFFF", boxShadow: "0 2px 6px rgba(37,99,235,0.16)" },
+  roomGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  roomList: { gap: 12 },
+  roomCard: { ...W.card, padding: 14 },
+  roomCardGrid: { flexBasis: "47%", flexGrow: 1, gap: 8 },
+  roomCardRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  ringRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  ring: { width: 48, height: 48 },
+  ringCenter: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
+  ringPct: { color: C.successInk, fontSize: 11, fontWeight: "700" },
+  ringNum: { color: C.ink, fontSize: 13, fontWeight: "600" },
+  ringLabel: { color: C.muted, fontSize: 11 },
   roomInfo: { flex: 1, minWidth: 0 },
   roomTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 },
-  roomName: { color: BLUE.ink, fontSize: 16, fontWeight: "900" },
+  roomName: { color: C.ink, fontSize: 18, fontWeight: "700" },
   statusPill: {
+    alignSelf: "flex-start",
     borderRadius: 999,
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
     paddingVertical: 4,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 5,
   },
-  statusOk: { backgroundColor: "#dcfce7" },
-  statusWarn: { backgroundColor: "#fef3c7" },
+  statusOk: { backgroundColor: C.successBg },
+  statusWarn: { backgroundColor: "#FFF4DC" },
   statusDot: { width: 6, height: 6, borderRadius: 99 },
-  statusText: { fontSize: 10, fontWeight: "900" },
-  statusOkText: { color: BLUE.green },
-  statusWarnText: { color: "#d97706" },
-  roomSub: { color: BLUE.muted, fontSize: 11, fontWeight: "700", marginBottom: 6 },
-  roomMetaRow: { flexDirection: "row", gap: 12, flexWrap: "wrap" },
+  statusText: { fontSize: 11, fontWeight: "600" },
+  roomSub: { color: C.muted, fontSize: 11 },
+  roomMetaRow: { flexDirection: "row", gap: 12, flexWrap: "wrap", marginTop: 6 },
   roomMeta: { flexDirection: "row", alignItems: "center", gap: 4 },
-  roomMetaText: { color: BLUE.muted, fontSize: 11, fontWeight: "800" },
+  roomMetaText: { color: C.muted, fontSize: 11, fontWeight: "500" },
   empty: { alignItems: "center", paddingVertical: 42, gap: 8 },
-  emptyText: { color: BLUE.faint, fontSize: 13, fontWeight: "800" },
-  quickTitle: { color: BLUE.ink, fontSize: 14, fontWeight: "900", marginTop: 8, marginBottom: 10 },
-  quickGrid: { flexDirection: "row", gap: 10, marginBottom: 14 },
-  quickCard: {
-    flex: 1,
-    minHeight: 105,
-    borderRadius: 15,
-    padding: 14,
-    overflow: "hidden",
-  },
-  quickPurple: { backgroundColor: "#e9d5ff" },
-  quickBlue: { backgroundColor: "#bfdbfe" },
-  quickIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: 12,
-    backgroundColor: "#f5f3ff",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 11,
-  },
-  quickName: { color: BLUE.ink, fontSize: 13, fontWeight: "900" },
-  quickSub: { color: BLUE.muted, fontSize: 10, fontWeight: "700", marginTop: 3 },
-  quickGlow: {
-    position: "absolute",
-    top: 0,
-    right: -2,
-    width: 57,
-    height: 57,
-    borderBottomLeftRadius: 57,
-    backgroundColor: "rgba(245,243,255,0.45)",
-  },
-  alertCard: {
-    minHeight: 58,
-    borderRadius: 13,
-    backgroundColor: "#fffbeb",
-    borderWidth: 1,
-    borderColor: "#fbbf24",
+  emptyText: { color: C.faint, fontSize: 13, fontWeight: "600" },
+  quickTitle: { color: C.ink, fontSize: 17, fontWeight: "600", marginTop: 20, marginBottom: 12 },
+  scanCard: {
+    ...W.primary,
+    borderRadius: 22,
+    ...gradient("linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #60A5FA 100%)"),
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    padding: 16,
+    marginBottom: 12,
   },
-  alertIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: "#fff",
+  scanCardIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.4)",
     alignItems: "center",
     justifyContent: "center",
   },
-  alertTitle: { color: "#b45309", fontSize: 13, fontWeight: "900" },
-  alertSub: { color: "#d97706", fontSize: 10, fontWeight: "700", marginTop: 2 },
-  tabBar: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    minHeight: 65,
-    paddingTop: 8,
-    paddingBottom: 12,
-    backgroundColor: "#fff",
-    borderTopWidth: 1,
-    borderTopColor: "#dbe4f0",
+  scanCardTitle: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  scanCardSub: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 1 },
+  quickGrid: { flexDirection: "row", gap: 12, marginBottom: 14 },
+  quickCard: {
+    ...W.card,
+    flex: 1,
     flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
-  tabItem: { flex: 1, alignItems: "center", justifyContent: "center", gap: 3 },
-  tabText: { color: BLUE.faint, fontSize: 10, fontWeight: "800" },
-  tabTextActive: { color: BLUE.purple },
+  quickName: { color: C.ink, fontSize: 13, fontWeight: "600" },
+  quickSub: { color: C.muted, fontSize: 11 },
 });

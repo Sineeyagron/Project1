@@ -6,14 +6,17 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
+import { goBack } from "../lib/nav";
+import { notify } from "../lib/notify";
+import { authErrorThai, PASSWORD_HINT, passwordProblem } from "../lib/password";
+import { W } from "../lib/theme";
 
 export default function Signup() {
   const router = useRouter();
@@ -27,67 +30,50 @@ export default function Signup() {
   const canSubmit =
     fullName.trim().length > 0 &&
     email.trim().length > 0 &&
-    password.length >= 6 &&
+    !passwordProblem(password) &&
     !isLoading;
 
+  // Alert.alert ใช้ไม่ได้บนเว็บ → notify / กติการหัสผ่านตรงกับ Supabase (lib/password.ts)
   const handleSignup = async () => {
     if (!fullName.trim() || !email.trim() || !password) {
-      Alert.alert("กรอกข้อมูลให้ครบ", "กรุณากรอกชื่อ อีเมล และรหัสผ่านก่อนสมัคร");
+      notify("กรอกข้อมูลให้ครบ", "กรุณากรอกชื่อ อีเมล และรหัสผ่านก่อนสมัคร");
       return;
     }
-
-    if (password.length < 6) {
-      Alert.alert("รหัสผ่านสั้นเกินไป", "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+    const problem = passwordProblem(password);
+    if (problem) {
+      notify("รหัสผ่านยังไม่ผ่านเกณฑ์", problem);
       return;
     }
 
     setIsLoading(true);
-
+    // โปรไฟล์ (บทบาทนักศึกษา) ฐานข้อมูลสร้างให้เอง (trigger handle_new_user) — ชื่อเก็บไว้ในข้อมูลบัญชี
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
+      options: { data: { full_name: fullName.trim() } },
     });
-
-    if (error) {
-      setIsLoading(false);
-      if (error.message.includes("already")) {
-        Alert.alert("อีเมลนี้ถูกใช้ไปแล้ว");
-      } else {
-        Alert.alert("สมัครไม่สำเร็จ", error.message);
-      }
-      return;
-    }
-
-    const userId = data?.user?.id;
-    if (!userId) {
-      setIsLoading(false);
-      Alert.alert("สมัครไม่สำเร็จ");
-      return;
-    }
-
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .upsert(
-        [{
-          id: userId,
-          role: "user",
-          email: email.trim(),
-          full_name: fullName.trim(),
-        }],
-        { onConflict: "id" }
-      );
-
     setIsLoading(false);
 
-    if (profileError) {
-      console.log("profile error:", profileError);
-      Alert.alert("สมัครสำเร็จ", "กรุณาเข้าสู่ระบบ");
-      router.replace("/login");
+    if (error) {
+      notify("สมัครไม่สำเร็จ", authErrorThai(error.message));
+      return;
+    }
+    if (!data?.user?.id) {
+      notify("สมัครไม่สำเร็จ", "ลองใหม่อีกครั้ง");
+      return;
+    }
+    // เปิด "ยืนยันอีเมล" ไว้ + อีเมลซ้ำ: Supabase ไม่ส่ง error (กันเดาอีเมล) แต่ identities ว่าง
+    if (Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      notify("สมัครไม่สำเร็จ", "อีเมลนี้ถูกใช้สมัครไปแล้ว — เข้าสู่ระบบ หรือกด \"ลืมรหัสผ่าน\"");
       return;
     }
 
-    Alert.alert("สมัครสำเร็จ", "เข้าสู่ระบบได้เลย");
-    router.replace("/login");
+    if (data.session) {
+      // ระบบยืนยันอีเมลอัตโนมัติ (ค่าปัจจุบัน) → ล็อกอินแล้ว เข้าแอปได้เลย (บัญชีใหม่ = นักศึกษา)
+      notify("สมัครสำเร็จ", "ยินดีต้อนรับสู่ LabHub", () => router.replace("/home"));
+    } else {
+      notify("สมัครสำเร็จ", "กรุณายืนยันอีเมลจากลิงก์ที่ส่งไป แล้วเข้าสู่ระบบ", () => router.replace("/login"));
+    }
   };
 
   return (
@@ -96,8 +82,8 @@ export default function Signup() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} disabled={isLoading}>
-          <Ionicons name="arrow-back" size={23} color="#fff" />
+        <TouchableOpacity style={styles.backBtn} onPress={() => goBack("/login")} disabled={isLoading}>
+          <Ionicons name="chevron-back" size={23} color="#172033" />
         </TouchableOpacity>
         <View>
           <Text style={styles.headerTitle}>สมัครสมาชิก</Text>
@@ -146,7 +132,7 @@ export default function Signup() {
           <View style={styles.inputBox}>
             <Ionicons name="lock-closed-outline" size={20} color="#64748b" />
             <TextInput
-              placeholder="อย่างน้อย 6 ตัวอักษร"
+              placeholder={PASSWORD_HINT}
               placeholderTextColor="#94a3b8"
               secureTextEntry={!showPassword}
               style={styles.input}
@@ -165,7 +151,7 @@ export default function Signup() {
           </View>
 
           <View style={styles.termsRow}>
-            <Ionicons name="shield-checkmark-outline" size={17} color="#16a34a" />
+            <Ionicons name="shield-checkmark-outline" size={17} color="#047857" />
             <Text style={styles.termsText}>
               เมื่อสมัครคุณยอมรับ <Text style={styles.termsLink}>เงื่อนไขการใช้งาน</Text> ของห้องแล็บ
             </Text>
@@ -198,12 +184,11 @@ export default function Signup() {
 
 const styles = StyleSheet.create({
   screen: {
+    ...W.page,
     flex: 1,
-    backgroundColor: "#f1f5f9",
   },
   header: {
     minHeight: 88,
-    backgroundColor: "#2563eb",
     paddingTop: 10,
     paddingHorizontal: 26,
     flexDirection: "row",
@@ -211,19 +196,18 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   backBtn: {
-    width: 28,
-    height: 40,
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    color: "#fff",
+    color: "#172033",
     fontSize: 24,
     fontWeight: "900",
     lineHeight: 28,
   },
   headerSub: {
-    color: "#dbeafe",
+    color: "#475569",
     fontSize: 12,
     fontWeight: "700",
     marginTop: 5,
@@ -235,17 +219,13 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   card: {
+    ...W.card,
     width: "100%",
     maxWidth: 430,
     alignSelf: "center",
-    backgroundColor: "#fff",
-    borderRadius: 22,
     paddingHorizontal: 24,
     paddingTop: 26,
     paddingBottom: 22,
-    borderWidth: 1,
-    borderColor: "#e2e8f0",
-    elevation: 2,
   },
   title: {
     color: "#1e293b",
@@ -254,14 +234,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   desc: {
-    color: "#64748b",
+    color: "#475569",
     fontSize: 13,
     fontWeight: "600",
     marginTop: 14,
     marginBottom: 14,
   },
   label: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontSize: 13,
     fontWeight: "800",
     marginBottom: 8,
@@ -273,14 +253,14 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: "#f1f5f9",
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#DCE6F5",
     borderRadius: 12,
     paddingHorizontal: 13,
     marginBottom: 14,
   },
   input: {
     flex: 1,
-    color: "#0f172a",
+    color: "#172033",
     fontSize: 15,
     paddingVertical: 12,
   },
@@ -292,13 +272,13 @@ const styles = StyleSheet.create({
   },
   termsText: {
     flex: 1,
-    color: "#64748b",
+    color: "#475569",
     fontSize: 11,
     fontWeight: "700",
     lineHeight: 16,
   },
   termsLink: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontWeight: "900",
   },
   primaryBtn: {
@@ -324,11 +304,11 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   footerText: {
-    color: "#64748b",
+    color: "#475569",
     fontSize: 14,
   },
   footerLink: {
-    color: "#1e3a8a",
+    color: "#1D4ED8",
     fontSize: 14,
     fontWeight: "900",
   },

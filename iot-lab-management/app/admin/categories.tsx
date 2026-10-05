@@ -6,27 +6,29 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
+import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // จัดการหมวดหมู่อุปกรณ์ (แผน 2.2.1): เพิ่ม / แก้ชื่อ / เลื่อนลำดับ / ปิด-เปิด / ลบ
 // ลบหมวดที่มีของ (รวมของที่จำหน่ายแล้ว) ต้องเลือกหมวดปลายทางก่อน → ย้ายของทั้งหมดไป แล้วค่อยลบ ไม่มีของหลุดหมวด
 // "อื่นๆ" เป็นหมวดสำรองของแอป (ของที่ไม่มีหมวดตกมาที่นี่) จึงแก้ชื่อ/ปิด/ลบไม่ได้
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
-  muted: "#64748b",
-  faint: "#94a3b8",
-  line: "#e2e8f0",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  ink: "#172033",
+  muted: "#475569",
+  faint: "#64748B",
+  line: "#DCE6F5",
   red: "#dc2626",
 };
 
@@ -174,15 +176,11 @@ export default function AdminCategories() {
 
   return (
     <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>หมวดหมู่อุปกรณ์</Text>
-          <Text style={s.headerSub}>เพิ่ม แก้ชื่อ เรียงลำดับ หรือปิดหมวด</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"หมวดหมู่อุปกรณ์"}
+        subtitle={"เพิ่ม แก้ชื่อ เรียงลำดับ หรือปิดหมวด"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
@@ -317,26 +315,23 @@ export default function AdminCategories() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  header: {
-    backgroundColor: C.purple,
-    paddingTop: 52,
-    paddingBottom: 16,
-    paddingHorizontal: 18,
+  container: { ...W.page, flex: 1 },
+  header: { ...W.headerBar,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    marginBottom: 8,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10 },
   addRow: { flexDirection: "row", gap: 8, marginBottom: 6 },
   input: {
@@ -351,19 +346,16 @@ const s = StyleSheet.create({
     color: C.ink,
   },
   addBtn: {
+    ...W.primarySolid,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: C.purple,
-    borderRadius: 12,
+    borderRadius: 15,
     paddingHorizontal: 16,
   },
   addBtnText: { color: "#fff", fontSize: 15, fontWeight: "800" },
   cardWrap: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.line,
+    ...W.card,
     overflow: "hidden",
   },
   card: {
@@ -373,7 +365,7 @@ const s = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
-  smallBtnActive: { backgroundColor: "#fee2e2" },
+  smallBtnActive: { ...NG, backgroundColor: "#fee2e2" },
   moveBox: { borderTopWidth: 1, borderTopColor: C.line, backgroundColor: "#fff7f7", padding: 12, gap: 10 },
   moveTitle: { fontSize: 13.5, fontWeight: "700", color: C.red },
   moveChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

@@ -4,27 +4,31 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { ITEM_STATUS } from "../../lib/status";
+import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { ageMonths, ageText, warrantyInfo } from "../../lib/itemInfo";
+import { W, gradient, tint } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // Stock Report (แผนเฟส 2 ข้อ 1): นับจำนวนชิ้นตามสถานะ แยกตามหมวด + อายุ + ประกันรายชิ้น
 // กลุ่ม "ต้องดูแล" ใช้เกณฑ์ปีจาก app_settings (age_warn_years / age_replace_years) ที่ Admin ตั้งเอง
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
-  muted: "#64748b",
-  faint: "#94a3b8",
-  line: "#e2e8f0",
-  green: "#16a34a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  ink: "#172033",
+  muted: "#475569",
+  faint: "#64748B",
+  line: "#DCE6F5",
+  green: "#047857",
   orange: "#c2410c",
   red: "#dc2626",
 };
@@ -32,11 +36,7 @@ const C = {
 const OTHER = "อื่นๆ";
 
 const STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  available: { label: "ว่าง", color: C.green, bg: "#dcfce7" },
-  reserved: { label: "จองอยู่", color: C.orange, bg: "#ffedd5" },
-  borrowed: { label: "ถูกยืม", color: "#b45309", bg: "#fef3c7" },
-  repair: { label: "ซ่อม", color: C.red, bg: "#fee2e2" },
-  retired: { label: "จำหน่ายแล้ว", color: C.muted, bg: "#e2e8f0" },
+  ...ITEM_STATUS,
 };
 const STATUS_KEYS = ["available", "borrowed", "reserved", "repair", "retired"];
 
@@ -77,6 +77,8 @@ export default function StockReport() {
   useEffect(() => {
     load();
   }, []);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { load(); });
 
   const load = async () => {
     const [{ data, error }, { data: cats }, { data: settings }] = await Promise.all([
@@ -138,15 +140,11 @@ export default function StockReport() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>รายงานสต็อก</Text>
-          <Text style={s.headerSub}>จำนวนชิ้นตามสถานะ อายุ และประกัน</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"รายงานสต็อก"}
+        subtitle={"จำนวนชิ้นตามสถานะ อายุ และประกัน"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
@@ -236,7 +234,7 @@ export default function StockReport() {
 
 function Stat({ label, value, color, wide }: { label: string; value: number; color: string; wide?: boolean }) {
   return (
-    <View style={[s.stat, wide && s.statWide]}>
+    <View style={[s.stat, wide && s.statWide, gradient(`linear-gradient(160deg, #FFFFFF 0%, ${tint(/^#(172033|64748b|94a3b8|475569)$/i.test(color) ? "#2563EB" : color)} 100%)`)]}>
       <Text style={[s.statNum, { color }]}>{value}</Text>
       <Text style={s.statLabel}>{label}</Text>
     </View>
@@ -263,43 +261,37 @@ function ItemRow({ item, showCategory, warnDays }: { item: Item; showCategory?: 
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  header: {
-    backgroundColor: C.purple,
-    paddingTop: 52,
-    paddingBottom: 16,
-    paddingHorizontal: 18,
+  container: { ...W.page, flex: 1 },
+  header: { ...W.headerBar,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    marginBottom: 8,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   stat: {
+    ...W.card,
     flexGrow: 1,
     flexBasis: "30%",
-    backgroundColor: "#fff",
-    borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: C.line,
   },
   statWide: { flexBasis: "100%" },
-  statNum: { fontSize: 24, fontWeight: "900" },
-  statLabel: { fontSize: 12.5, color: C.muted, fontWeight: "700", marginTop: 2 },
+  statNum: { fontSize: 26, fontWeight: "700" },
+  statLabel: { fontSize: 12, color: C.muted, marginTop: 0 },
   section: { fontSize: 15, fontWeight: "900", color: C.ink, marginTop: 8 },
-  card: { backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: C.line, overflow: "hidden" },
+  card: { ...W.card, overflow: "hidden" },
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, minHeight: 50 },
   rowDivider: { borderTopWidth: 1, borderTopColor: C.line },
   rowLabel: { flex: 1, fontSize: 14.5, fontWeight: "700", color: C.ink },
@@ -311,7 +303,7 @@ const s = StyleSheet.create({
   pillText: { fontSize: 12, fontWeight: "800" },
   catTotal: { alignItems: "flex-end" },
   catTotalNum: { fontSize: 17, fontWeight: "900", color: C.ink },
-  catTotalLabel: { fontSize: 11, color: C.faint, fontWeight: "700" },
+  catTotalLabel: { fontSize: 12, color: C.faint, fontWeight: "700" },
   itemRow: {
     flexDirection: "row",
     alignItems: "center",

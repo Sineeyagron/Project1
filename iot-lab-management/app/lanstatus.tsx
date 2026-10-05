@@ -4,13 +4,20 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import supabase from "../lib/supabase";
+import { goBack, useRefreshOnFocus } from "../lib/nav";
+import { LAN_STATUS, roomStatus } from "../lib/roomStatus";
+import LoadError from "../components/LoadError";
+import { fetchRooms } from "../lib/rooms";
+import { useRoomLive } from "../lib/roomRealtime";
+import { W, NG } from "../lib/theme";
+import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 
 type LanPort = {
   id: string;
@@ -22,84 +29,54 @@ type LanPort = {
 };
 
 const C = {
-  bg: "#edf5ff",
+  bg: "#EAF1FC",
   header: "#2563eb",
   headerDark: "#1d4ed8",
-  purple: "#7c3aed",
-  purpleDark: "#6d28d9",
-  ink: "#0f172a",
-  muted: "#64748b",
-  faint: "#94a3b8",
-  green: "#16a34a",
+  purple: "#2563EB",
+  purpleDark: "#1D4ED8",
+  ink: "#172033",
+  muted: "#475569",
+  faint: "#64748B",
+  green: "#047857",
   red: "#dc2626",
-  orange: "#d97706",
+  orange: "#B45309",
   blue: "#2563eb",
 };
 
-const STATUS_CFG: Record<
-  string,
-  { label: string; color: string; bg: string; border: string; icon: keyof typeof Ionicons.glyphMap }
-> = {
-  available: {
-    label: "ใช้งานได้",
-    color: C.green,
-    bg: "#dcfce7",
-    border: "#86efac",
-    icon: "checkmark-circle-outline",
-  },
-  repair: {
-    label: "กำลังซ่อม",
-    color: C.orange,
-    bg: "#fef3c7",
-    border: "#fbbf24",
-    icon: "construct-outline",
-  },
-  broken: {
-    label: "เสีย",
-    color: C.red,
-    bg: "#fee2e2",
-    border: "#fca5a5",
-    icon: "close-circle-outline",
-  },
-};
-
-function roomSort(room: string) {
-  const match = String(room || "").match(/\d+/);
-  return match ? Number(match[0]) : 99999;
-}
-
 export default function LanStatus() {
-  const router = useRouter();
+  // เปิดจากการ์ดห้องหน้าแรก → เลือกห้องนั้นให้เลย (เดิมเปิดห้องแรกเสมอ)
+  const { room_id: roomParam } = useLocalSearchParams<{ room_id?: string }>();
   const [allPorts, setAllPorts] = useState<LanPort[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
-  const [selectedRoom, setSelectedRoom] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState(roomParam ? String(roomParam) : "");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     fetchAll();
   }, []);
+  useRefreshOnFocus(() => fetchAll());
+  useRoomLive(() => fetchAll()); // อัปเดตสดเมื่อสถานะ LAN เปลี่ยน (REVIEW M12)
 
+  // รายชื่อห้องจากตาราง rooms + port ทั้งหมด
   const fetchAll = async () => {
-    const { data, error } = await supabase
-      .from("lan_ports")
-      .select("*")
-      .order("room_id")
-      .order("group_no")
-      .order("port_no");
+    const [{ data, error: portError }, { rooms: roomList, error: roomError }] = await Promise.all([
+      supabase.from("lan_ports").select("*").order("room_id").order("group_no").order("port_no"),
+      fetchRooms(), // ห้องที่เปิดอยู่ เรียงตามที่ Admin ตั้ง
+    ]);
+    const error = portError || roomError;
 
     if (error) {
-      console.log(error);
-      setAllPorts([]);
-      setRooms([]);
+      // โหลดพัง ห้ามโชว์ "ไม่มีข้อมูล" — เก็บข้อมูลเดิมไว้ แล้วขึ้นแถบให้ลองใหม่
+      setLoadError(error.message);
     } else {
+      setLoadError("");
       const list = (data as LanPort[]) || [];
-      const uniqueRooms = Array.from(new Set(list.map((port) => port.room_id).filter(Boolean))).sort(
-        (a, b) => roomSort(a) - roomSort(b) || a.localeCompare(b),
-      );
+      const uniqueRooms = roomList.map((room) => room.id);
       setAllPorts(list);
       setRooms(uniqueRooms);
-      setSelectedRoom((current) => current || uniqueRooms[0] || "");
+      setSelectedRoom((current) => (uniqueRooms.includes(current) ? current : uniqueRooms[0] || ""));
     }
 
     setLoading(false);
@@ -136,20 +113,14 @@ export default function LanStatus() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View style={s.headerTop}>
-          <TouchableOpacity style={s.headerBtn} onPress={() => router.replace("/home")} activeOpacity={0.84}>
-            <Ionicons name="arrow-back" size={23} color="#ffffff" />
-          </TouchableOpacity>
-          <View style={s.titleBlock}>
-            <Text style={s.title}>สถานะ LAN Port</Text>
-            <Text style={s.subtitle}>
-              ห้อง {selectedRoom || "-"} · {ports.length} port
-            </Text>
-          </View>
-          <TouchableOpacity style={s.headerBtn} onPress={onRefresh} activeOpacity={0.84}>
-            <Ionicons name="refresh" size={19} color="#ffffff" />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title={"สถานะ LAN Port"}
+          subtitle={`ห้อง ${selectedRoom || "-"} · ${ports.length} port`}
+          onBack={() => goBack("/home")}
+          right={<HeaderButton icon="refresh" label="รีเฟรช" onPress={onRefresh} />}
+          bleed={16}
+          style={{ marginBottom: 14 }}
+        />
 
         <View style={s.roomTabs}>
           {rooms.map((room) => {
@@ -176,6 +147,8 @@ export default function LanStatus() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.header} />}
         >
+          {!!loadError && <LoadError message={loadError} onRetry={onRefresh} />}
+
           <View style={s.summaryRow}>
             <View style={[s.summaryCard, s.summaryGreen]}>
               <Ionicons name="checkmark-circle-outline" size={24} color={C.green} />
@@ -214,7 +187,7 @@ export default function LanStatus() {
 
                 <View style={s.portGrid}>
                   {rows.map((port) => {
-                    const cfg = STATUS_CFG[port.status] || STATUS_CFG.available;
+                    const cfg = roomStatus(LAN_STATUS, port.status);
                     return (
                       <View
                         key={port.id}
@@ -237,7 +210,7 @@ export default function LanStatus() {
             );
           })}
 
-          {ports.length === 0 ? (
+          {ports.length === 0 && !loadError ? (
             <View style={s.empty}>
               <Ionicons name="server-outline" size={48} color="#bfdbfe" />
               <Text style={s.emptyText}>ยังไม่มีข้อมูล LAN Port</Text>
@@ -252,38 +225,33 @@ export default function LanStatus() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.header,
-    paddingHorizontal: 32,
-    paddingTop: 56,
+    paddingHorizontal: 16,
+    paddingTop: 0,
     paddingBottom: 15,
   },
   headerTop: {
+    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 14,
   },
   headerBtn: {
-    width: 39,
-    height: 39,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.23)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
   titleBlock: { flex: 1, paddingHorizontal: 15 },
-  title: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  subtitle: { color: "#dbeafe", fontSize: 11, fontWeight: "800", marginTop: 2 },
+  title: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  subtitle: { color: "#475569", fontSize: 11, fontWeight: "800", marginTop: 2 },
   roomTabs: {
     height: 39,
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.78)", boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 8px rgba(37,99,235,0.10)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
+    borderColor: "#D3E0F5",
     padding: 4,
     flexDirection: "row",
     gap: 4,
@@ -295,14 +263,15 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   roomTabActive: {
+    ...NG,
     backgroundColor: "#fff",
-    shadowColor: "#1e3a8a",
+    shadowColor: "#1D4ED8",
     shadowOpacity: 0.12,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 3 },
     elevation: 2,
   },
-  roomTabText: { color: "#dbeafe", fontSize: 13, fontWeight: "900" },
+  roomTabText: { color: "#475569", fontSize: 13, fontWeight: "900" },
   roomTabTextActive: { color: C.headerDark },
   body: {
     paddingHorizontal: 35,
@@ -322,24 +291,18 @@ const s = StyleSheet.create({
     gap: 3,
     borderWidth: 1,
   },
-  summaryGreen: { backgroundColor: "#dcfce7", borderColor: "#bbf7d0" },
+  summaryGreen: { backgroundColor: "#ECFDF5", borderColor: "#bbf7d0" },
   summaryRed: { backgroundColor: "#fee2e2", borderColor: "#fecaca" },
   summaryBlue: { backgroundColor: "#eff6ff", borderColor: "#dbeafe" },
   summaryNumber: { fontSize: 28, fontWeight: "900", lineHeight: 32 },
   summaryLabel: { color: C.ink, fontSize: 11, fontWeight: "800" },
   groupCard: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
+    ...W.card,
     paddingHorizontal: 15,
     paddingTop: 14,
     paddingBottom: 15,
     marginTop: 5,
     marginBottom: 7,
-    shadowColor: "#1e3a8a",
-    shadowOpacity: 0.08,
-    shadowRadius: 11,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
   },
   groupHeader: {
     flexDirection: "row",
@@ -369,7 +332,7 @@ const s = StyleSheet.create({
     paddingVertical: 6,
   },
   problemPillText: { color: C.orange, fontSize: 10, fontWeight: "900" },
-  okPill: { backgroundColor: "#dcfce7" },
+  okPill: { backgroundColor: "#ECFDF5" },
   okPillText: { color: C.green },
   portGrid: {
     flexDirection: "row",

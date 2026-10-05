@@ -6,14 +6,16 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { fetchPeople, who } from "../../lib/people";
+import { currentUser } from "../../lib/session";
+import { goBack } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { isValidDate } from "../../lib/itemInfo";
 import { exportCsv, exportPdf } from "../../lib/fileExport";
@@ -27,18 +29,20 @@ import {
   thDate,
   todayBkk,
 } from "../../lib/report";
+import { W, NG, gradient, tint } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // รายงานการยืม-คืน (เฟส 5.1) — admin + TA / ส่งออก CSV (Excel) และ PDF
 // ตรรกะคำนวณอยู่ใน lib/report.ts
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
-  muted: "#64748b",
-  faint: "#94a3b8",
-  line: "#e2e8f0",
-  green: "#16a34a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  ink: "#172033",
+  muted: "#475569",
+  faint: "#64748B",
+  line: "#DCE6F5",
+  green: "#047857",
   amber: "#b45309",
   red: "#dc2626",
 };
@@ -61,6 +65,17 @@ function presetRange(key: PresetKey): { from: string | null; to: string } {
   if (key === "90d") return { from: addDays(today, -89), to: today };
   if (key === "year") return { from: `${today.slice(0, 4)}-01-01`, to: today };
   return { from: null, to: today };
+}
+
+const PAGE = 1000;
+async function fetchAll(page: (from: number) => PromiseLike<{ data: any[] | null; error: any }>) {
+  const rows: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await page(from);
+    if (error) return { data: rows, error };
+    rows.push(...(data || []));
+    if (!data || data.length < PAGE) return { data: rows, error: null };
+  }
 }
 
 export default function BorrowReport() {
@@ -93,33 +108,35 @@ export default function BorrowReport() {
     const fromUtc = range.from ? new Date(`${range.from}T00:00:00+07:00`).toISOString() : null;
     const toUtc = new Date(`${addDays(range.to, 1)}T00:00:00+07:00`).toISOString();
 
-    let recQ = supabase
-      .from("borrow_records")
-      .select(
-        "id, user_id, status, borrow_date, due_date, return_date, return_condition, damage_cost, damage_note, auto_returned, renew_count, items(item_code, name, type, category_id), checker:profiles!borrow_records_return_checked_by_fkey(email)"
-      )
-      .lt("borrow_date", toUtc)
-      .order("borrow_date", { ascending: false });
-    let reqQ = supabase.from("borrow_requests").select("kind, status").lt("created_at", toUtc);
-    if (fromUtc) {
-      recQ = recQ.gte("borrow_date", fromUtc);
-      reqQ = reqQ.gte("created_at", fromUtc);
-    }
+    // Supabase ส่งกลับครั้งละไม่เกิน 1,000 แถว → ช่วง "ทั้งหมด" ที่ข้อมูลเยอะจะขาดหายเงียบ ๆ: ดึงทีละหน้าจนครบ
+    const recPage = (from: number) => {
+      let q = supabase
+        .from("borrow_records")
+        .select(
+          "id, user_id, status, borrow_date, due_date, return_date, return_condition, damage_cost, damage_note, auto_returned, renew_count, items(item_code, name, type, category_id), checker:profiles!borrow_records_return_checked_by_fkey(email)"
+        )
+        .lt("borrow_date", toUtc);
+      if (fromUtc) q = q.gte("borrow_date", fromUtc);
+      return q.order("borrow_date", { ascending: false }).order("id").range(from, from + PAGE - 1);
+    };
+    const reqPage = (from: number) => {
+      let q = supabase.from("borrow_requests").select("kind, status").lt("created_at", toUtc);
+      if (fromUtc) q = q.gte("created_at", fromUtc);
+      return q.order("created_at").order("id").range(from, from + PAGE - 1);
+    };
 
-    const [{ data: recs, error }, { data: reqs }, { data: cats }, { data: { user } }] = await Promise.all([
-      recQ,
-      reqQ,
+    const [{ data: recs, error }, { data: reqs }, { data: cats }, user] = await Promise.all([
+      fetchAll(recPage),
+      fetchAll(reqPage),
       supabase.from("categories").select("id, name"),
-      supabase.auth.getUser(),
+      currentUser(),
     ]);
     if (error) notify("โหลดรายงานไม่สำเร็จ", error.message);
 
     // อีเมลผู้ยืม (user_id ไม่มี FK → ดึงแยก)
     const ids = [...new Set((recs || []).map((r: any) => r.user_id).filter(Boolean))];
-    const { data: people } = ids.length
-      ? await supabase.from("profiles").select("id, email").in("id", ids)
-      : { data: [] as any[] };
-    const emailOf = new Map((people || []).map((p: any) => [p.id, p.email]));
+    const people = await fetchPeople(ids as string[]);
+    const emailOf = new Map((people || []).map((p: any) => [p.id, who(p)]));
     const catOf = new Map((cats || []).map((c: any) => [c.id, c.name]));
 
     setRecords(
@@ -176,7 +193,7 @@ export default function BorrowReport() {
   };
 
   const Stat = ({ label, value, color }: { label: string; value: string | number; color?: string }) => (
-    <View style={st.stat}>
+    <View style={[st.stat, gradient(`linear-gradient(160deg, #FFFFFF 0%, ${tint(color || "#2563EB")} 100%)`)]}>
       <Text style={[st.statNum, color ? { color } : null]}>{value}</Text>
       <Text style={st.statLabel}>{label}</Text>
     </View>
@@ -198,15 +215,11 @@ export default function BorrowReport() {
 
   return (
     <KeyboardAvoidingView style={st.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <View style={st.header}>
-        <TouchableOpacity style={st.iconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={st.headerTitle}>รายงานการยืม-คืน</Text>
-          <Text style={st.headerSub}>สรุปตามช่วงเวลา · ส่งออก Excel / PDF</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"รายงานการยืม-คืน"}
+        subtitle={"สรุปตามช่วงเวลา · ส่งออก Excel / PDF"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       <ScrollView
         contentContainerStyle={st.body}
@@ -313,28 +326,25 @@ export default function BorrowReport() {
 }
 
 const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  header: {
-    backgroundColor: C.purple,
-    paddingTop: 52,
-    paddingBottom: 16,
-    paddingHorizontal: 18,
+  container: { ...W.page, flex: 1 },
+  header: { ...W.headerBar,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    marginBottom: 8,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
-  card: { backgroundColor: "#fff", borderRadius: 14, borderWidth: 1, borderColor: C.line, padding: 14, gap: 8 },
+  card: { ...W.card, padding: 14, gap: 8 },
   cardTitle: { fontSize: 15, fontWeight: "900", color: C.ink },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: {
@@ -346,7 +356,7 @@ const st = StyleSheet.create({
     borderColor: C.line,
     backgroundColor: "#fff",
   },
-  chipOn: { backgroundColor: C.purple, borderColor: C.purple },
+  chipOn: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
   chipText: { fontSize: 14, fontWeight: "700", color: C.ink },
   dateRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   dateInput: {
@@ -360,22 +370,19 @@ const st = StyleSheet.create({
     color: C.ink,
     backgroundColor: "#f8fafc",
   },
-  inputError: { borderColor: C.red, backgroundColor: "#fef2f2" },
+  inputError: { ...NG, borderColor: C.red, backgroundColor: "#fef2f2" },
   dateDash: { fontSize: 14, color: C.muted, fontWeight: "700" },
   help: { fontSize: 12.5, color: C.muted, lineHeight: 18 },
   rangeText: { fontSize: 13.5, fontWeight: "800", color: C.purple },
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   stat: {
+    ...W.card,
     flexGrow: 1,
     flexBasis: "30%",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.line,
     padding: 12,
   },
-  statNum: { fontSize: 24, fontWeight: "900", color: C.ink },
-  statLabel: { fontSize: 12.5, color: C.muted, fontWeight: "700", marginTop: 2 },
+  statNum: { fontSize: 26, fontWeight: "700", color: C.ink },
+  statLabel: { fontSize: 12, color: C.muted, marginTop: 0 },
   line: { fontSize: 13.5, color: C.ink, lineHeight: 20 },
   topRow: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 32 },
   topRank: { width: 20, fontSize: 13, fontWeight: "900", color: C.faint },

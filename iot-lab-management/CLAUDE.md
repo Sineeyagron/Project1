@@ -9,6 +9,12 @@
 
 ---
 
+## 🎨 หน้าตา (UI)
+- **ใช้ `docs/DESIGN.md` เท่านั้น** (ระบบสีฟ้า #2563EB + Material 3 / React Native Paper แบบปรับเอง) — ไฟล์นี้เป็นของโปรเจกต์นี้โปรเจกต์เดียว ห้ามเอา design system อื่นมาผสม
+- ทำตัวอย่าง (mockup) ให้เจ้าของโปรเจกต์ดูและเห็นด้วยก่อน แล้วค่อยแก้โค้ดจริง
+
+---
+
 ## 🧱 Tech Stack
 - **Framework**: React Native + Expo (expo-router)
 - **Backend**: Supabase (Auth + Database + Storage)
@@ -86,6 +92,55 @@
 - `lib/session.ts`: ช่อง "จดจำการเข้าสู่ระบบ" ไม่ติ๊ก → เปิดแอปครั้งหน้าออกจากระบบ (`applyRememberLogin` ใน `app/_layout.tsx`)
 - `app/admin/report.tsx` (admin + TA): รายงานยืม-คืนตามช่วง (30 วัน / 3 เดือน / ปีนี้ / ทั้งหมด / กำหนดเอง) ส่งออก CSV + PDF — คำนวณใน `lib/report.ts`, ส่งออกผ่าน `lib/fileExport.ts`
 - ประวัติรุ่นเก่าที่คืนแล้วแต่ไม่มี `return_date` → ไม่นับว่าคืนช้า
+
+### การนำทาง (4 ต.ค. 2569) — ใช้ `lib/nav.ts` เสมอ
+- ปุ่ม ← : `goBack(fallback)` = กลับหน้าที่มาจริง / ไม่มีหน้าก่อนหน้า → fallback (ห้ามใช้ `router.replace("/admin/home")` เป็นปุ่มย้อนกลับ)
+- แถบเมนูล่างนักศึกษา: `goTab(target, current)` stack = [หน้าแรก, แท็บ] ไม่ซ้อน
+- หน้าที่ต้องสดตอนกลับมา: `useRefreshOnFocus(load)` (ข้ามครั้งแรก)
+- ด่านล็อกอินหน้านักศึกษาอยู่ใน `app/_layout.tsx` (`PUBLIC_PATHS` = login/signup/forgot/reset-password) / หน้า /admin มีด่านของตัวเอง
+- **Realtime Broadcast** (migration `realtime_broadcast`): trigger ส่ง `realtime.send` → ช่อง `user:<id>` (event notification) / `staff` (event request) + policy บน `realtime.messages` / แอปฟังผ่าน `useRealtime()` ใน `lib/realtime.ts` (ช่องใช้ร่วม นับผู้ฟัง) — ใช้ใน หน้าแรก admin, กล่องคำขอ, แจ้งเตือน, การยืมของฉัน / รีเฟรชสำรองเหลือทุก 5 นาที
+  - ⚠️ ตาราง `realtime.messages` แบ่งพาร์ทิชันรายวัน ระบบ Realtime สร้างให้เองเมื่อมีคนเชื่อมต่อ — ถ้าไม่มีพาร์ทิชัน `realtime.send` จะล้มเงียบ (แอปยังมีรีเฟรชสำรอง)
+- ชื่อ/สีสถานะอุปกรณ์และการยืมอยู่ที่ `lib/status.ts` ที่เดียว (ห้ามตั้งเองในหน้า)
+- หา user ที่ล็อกอินในงานที่เรียกบ่อย ใช้ `currentUser()` (lib/session.ts — อ่าน session ในเครื่อง) ไม่ใช่ `auth.getUser()` (ยิงเซิร์ฟเวอร์ทุกครั้ง กิน Disk IO แพ็กเกจฟรี)
+- ป๊อปอัปใช้ `notify` / `confirmAction` (lib/notify) — `Alert.alert` ไม่ทำงานบนเว็บ / กติการหัสผ่าน `lib/password.ts` (8 ตัว มีตัวอักษร+ตัวเลข ตรงกับ Supabase)
+- เปลี่ยนรหัสผ่านจากโปรไฟล์ = `/reset-password?mode=change` (ใช้ updateUser ได้ทั้งตอนล็อกอินอยู่ / ลิงก์จากอีเมลไม่มี mode) — deep link handler ใน `_layout.tsx` ต้องไม่ redirect เมื่อมี `mode=change`
+### โปรไฟล์นักศึกษา + รหัส นศ. (6 ต.ค. 2569) — migration `profile_student_id`
+- `profiles` เพิ่ม `full_name`, `avatar_url` (คัดจาก Google metadata อัตโนมัติ: `handle_new_user` + trigger `on_auth_user_meta_updated`) และ `student_id` (รูปแบบ `^[0-9]{9}-[0-9]$` ห้ามซ้ำ)
+- `profiles_protect`: นศ. แก้ชื่อ/รูปไม่ได้ / ตั้ง `student_id` ได้ครั้งเดียว (ตอนว่าง) / admin แก้ได้ที่ `admin/users` (จัดการผู้ใช้)
+- หน้าแรกนักศึกษา: role user ที่ยังไม่มีรหัส → `/student-id` (บังคับกรอก) / หน้าโปรไฟล์ = ตัวตน + สิทธิ์การยืม + ของที่ยืมอยู่ + กติกา (`app_settings`) — ไม่มี "แก้ไขข้อมูลส่วนตัว" แล้ว / "เปลี่ยนรหัสผ่าน" โชว์เฉพาะบัญชีที่สมัครด้วยอีเมล
+- หน้าผู้ดูแลแสดงผู้ยืมด้วย `who()` ใน `lib/people.ts` = "ชื่อ · รหัส นศ." (ไม่มีชื่อ → อีเมล)
+
+### ระบบห้อง R0 (5 ต.ค. 2569) — migration `room_r0_schema`
+- ระบบห้องคอม **แยกจากระบบยืม-คืนเด็ดขาด** (ตาราง/หน้า/กติกา/ไฟล์ lib) — งานระบบห้องห้ามแก้ไฟล์หรือตารางของระบบยืม-คืน และห้าม import ข้ามกัน (เจ้าของโปรเจกต์สั่งชัด 5 ต.ค. 2569) แผนเต็ม R0–R4 อยู่ใน PLAN/REVIEW_ระบบห้อง.md
+  - ไฟล์ของระบบห้อง: `lib/roomStatus.ts`, `lib/rooms.ts`, `lib/term.ts`, `components/LoadError.tsx`, หน้า stations/lanports/repairs/room/inspection/roommap/lanstatus + ส่วนการ์ดห้องใน `home.tsx`
+- ชื่อ/สี/ไอคอนสถานะระบบห้อง: `lib/roomStatus.ts` (`STATION_STATUS`, `LAN_STATUS`, `EQUIP_STATUS`, `REPAIR_STATUS`, `CONDITION_STATUS` + `roomStatus(map, key)` มีค่าสำรอง) — ห้ามใช้ `lib/status.ts` ของระบบยืม
+- หน้าระบบห้องใช้ `confirmAction`/`notify`, `goBack`, `currentUser`, `components/LoadError.tsx` (โหลดพัง = แถบลองใหม่ ห้ามโชว์ "ปกติ") แล้ว / เขียนข้อมูลใช้ `.select("id")` เช็กว่าแก้ได้จริง (RLS ไม่ให้สิทธิ์ = 0 แถว ไม่ error)
+- `lib/term.ts` `currentTerm()` ใช้ทั้ง inspection และ iotinspection
+- ฐานข้อมูล: `room_bookings` ลบแล้ว / `computer_stations.status` CHECK available|repair|broken / ชื่อเครื่องห้ามซ้ำ **ในกลุ่มเดียวกัน** (ทุกกลุ่มมี C1–C9) / LAN port ห้ามซ้ำในกลุ่ม + 1–12 / `equipment_inspections` unique (station_id, term, equipment_type) — ตารางนี้ไม่มี `created_at` ใช้ `inspected_at`
+
+### ระบบห้อง R1 — migration `room_r1_rooms`
+- ตาราง `rooms` (id = รหัสห้อง เช่น CP9524, building, floor, sort_order, active) — `computer_stations.room_id` / `lan_ports.room_id` เป็น FK (แก้รหัส = cascade, ลบห้องที่มีเครื่อง/LAN ไม่ได้ → ปิดห้อง) / อ่านได้ทุกคนที่ล็อกอิน เขียนได้เฉพาะ admin
+- ทุกหน้าระบบห้องอ่านรายชื่อห้องจาก `lib/rooms.ts` (`fetchRooms(includeInactive)`, `roomPlace(room)`) — ห้ามเขียนรหัสห้องตายตัว
+- `admin/room.tsx` = จัดการห้อง (เพิ่ม/แก้/ปิด/ลบห้องว่าง) / `admin/stations.tsx` เพิ่มเครื่องได้ (ปุ่ม +)
+- `computer_stations.active`: เครื่องที่มีประวัติตรวจ/ซ่อม ลบไม่ได้ → ปิดใช้งาน (ไม่ขึ้นในผังห้อง/สถิติ/ตรวจประจำเทอม เปิดกลับได้) / ไม่มีประวัติ = ลบได้
+- `repair_records.item_id` ตัดออกแล้ว — งานซ่อมใช้กับเครื่องคอมของระบบห้องเท่านั้น
+
+### ระบบห้อง R2 — migration `room_r2_log_ta_checklist`
+- `room_status_log`: trigger บันทึกทุกการเปลี่ยนสถานะเครื่อง/LAN (ก่อน→หลัง, changed_by, source manual|repair) / staff อ่านได้ แอปเขียนไม่ได้ / ดูได้ในผังห้อง (กดเครื่อง, เฉพาะ Admin/TA)
+- **TA ในระบบห้อง** (`TA_ROUTES` + RLS `is_staff()`): เปลี่ยนสถานะเครื่อง/LAN, แก้เช็กลิสต์, ตรวจประจำเทอม, แจ้งซ่อม/อัปเดตงานซ่อม — trigger `_room_station_ta_guard`/`_room_lan_ta_guard` กัน TA แก้อย่างอื่นนอกจาก status / เพิ่ม-แก้-ลบ ห้อง/เครื่อง/port + ลบผลตรวจ/งานซ่อม = admin
+- เช็กลิสต์ (`station_equipment`): ผลตรวจประจำเทอมอัปเดตให้อัตโนมัติ (good→present, damaged→broken, missing→missing; แก้ผลเทอมเก่าไม่ทับ) / เครื่องใหม่ได้ 3 แถวอัตโนมัติ / staff กดเปลี่ยนในผังห้องได้
+- งานซ่อม: เปิดงาน → เครื่อง `repair` / ปิดงาน (ไม่มีงานค้าง) → `available` / ห้ามย้อน pending→in-repair→done / `reported_by`, `repaired_by/at` ฐานข้อมูลใส่เอง (แอปไม่ต้องส่ง)
+
+### ระบบห้อง R3 — migration `room_r3_reports`
+- นักศึกษาแจ้งปัญหา: ผังห้อง → กดเครื่อง → "แจ้งปัญหาเครื่องนี้" / กด Server → กด port (`components/RoomReportForm.tsx`) → RPC `report_room_problem(kind, target, description)` — กันแจ้งซ้ำ (เรื่องเดิมยัง open), 5 ครั้ง/วัน/คน (วันไทย), 3–500 ตัวอักษร / เขียนตาราง `room_reports` ตรงไม่ได้
+- แจ้ง Admin+TA ทุกคน (`_room_notify_staff` ของระบบห้องเอง ไม่ใช้ `_notify_staff` ของระบบยืม) ประเภท `room_report` / ผลถึงผู้แจ้ง `room_report_accepted` | `room_report_closed`
+- คิว `app/admin/roomreports.tsx` (TA เข้าได้, ทางเข้า = แถบบนหน้าจัดการห้อง / กดแจ้งเตือน) → RPC `decide_room_report(id, accept, note)`: รับเครื่อง = สร้างงานซ่อม (เครื่องเป็น repair ผ่าน trigger R2) / รับ LAN = port เป็น repair / ปิด = ต้องมีเหตุผล / อัปเดตสดผ่านสัญญาณ notification ของตัวเอง
+- `app/notifications.tsx` (หน้าใช้ร่วม) เพิ่มแค่ 3 ประเภทนี้ + ทางไป — ห้ามแตะส่วนระบบยืม
+
+### ระบบห้อง อัปเดตสด — migration `room_realtime`
+- trigger `_room_broadcast_change` บน computer_stations / lan_ports (insert/update/delete) + station_equipment (update) → `realtime.send` ช่อง **`room`** event `room_status` payload `{room_id, table}` / policy ให้ทุกคนที่ล็อกอินฟังช่อง room
+- แอปใช้ `useRoomLive(onChange, room?)` จาก `lib/roomRealtime.ts` (ของระบบห้องเอง ไม่ใช้ `lib/realtime.ts` ของระบบยืม) — รวมสัญญาณติดกันเป็นโหลดครั้งเดียว (400 ms)
+- ใช้ใน: home, roommap (เฉพาะห้องที่เปิด + หน้าต่างรายละเอียดอัปเดตตาม), lanstatus, admin/room, admin/stations, admin/lanports
 
 ### RLS — เปิดครบทุกตารางแล้ว (2 ต.ค. 2569, migration `security_rls`)
 - ยังไม่ล็อกอิน = เข้าไม่ได้เลย / ผู้ใช้ = อ่านของสาธารณะ + ของตัวเอง / admin = ทุกอย่าง (`public.is_admin()`)

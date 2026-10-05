@@ -4,14 +4,18 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
+import { fetchPeople, who } from "../../lib/people";
+import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
+import { W } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 function SignaturePreview({ svgString }: { svgString: string }) {
   if (!svgString || !svgString.startsWith("<svg")) return null;
@@ -39,16 +43,16 @@ function SignaturePreview({ svgString }: { svgString: string }) {
 }
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
   blue: "#1e4fae",
-  ink: "#0f172a",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  ink: "#172033",
+  muted: "#475569",
+  faint: "#64748B",
   card: "#ffffff",
   orange: "#f59e0b",
   red: "#ef4444",
-  green: "#22c55e",
+  green: "#10B981",
 };
 
 const FILTERS = [
@@ -67,7 +71,8 @@ function daysLeft(due?: string) {
   if (!due) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  return Math.ceil((new Date(due).getTime() - today.getTime()) / 86400000);
+  // due_date เป็นวันที่ล้วน → อ่านเป็นเที่ยงคืนเวลาเครื่อง (new Date(due) = เที่ยงคืน UTC ทำให้วันถัดจากกำหนดยังไม่นับว่าเกิน)
+  return Math.round((new Date(`${due.slice(0, 10)}T00:00:00`).getTime() - today.getTime()) / 86400000);
 }
 
 function isActiveBorrow(record: any) {
@@ -81,7 +86,7 @@ function isOverdue(record: any) {
 
 function statusConfig(record: any) {
   if (record.status === "returned") {
-    return { label: "คืนแล้ว", color: "#16a34a", bg: "#dcfce7", icon: "server-outline", iconBg: "#dcfce7" };
+    return { label: "คืนแล้ว", color: "#047857", bg: "#ECFDF5", icon: "server-outline", iconBg: "#ECFDF5" };
   }
   if (isOverdue(record)) {
     return { label: "เกินกำหนด", color: "#dc2626", bg: "#fee2e2", icon: "hardware-chip-outline", iconBg: "#fef3c7" };
@@ -108,7 +113,9 @@ export default function AdminHistory() {
   const fetchHistory = useCallback(async () => {
     const { data, error } = await supabase
       .from("borrow_records")
-      .select("*");
+      .select("*")
+      // Supabase ส่งได้ครั้งละ 1,000 แถว — เรียงใหม่สุดก่อน ไม่งั้นพอข้อมูลเกิน รายการล่าสุดอาจหลุดไป
+      .order("borrow_date", { ascending: false });
 
     if (error) {
       console.error("history fetch error:", error.message);
@@ -129,8 +136,9 @@ export default function AdminHistory() {
     }
 
     if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from("profiles").select("id, email").in("id", userIds);
-      (profiles || []).forEach((profile: any) => { emailMap[profile.id] = profile.email; });
+      const profiles = await fetchPeople(userIds);
+      // ชื่อ · รหัส นศ. (ไม่มีชื่อ → อีเมล) — ค้นหาด้วยชื่อ/รหัสได้ด้วย
+      (profiles || []).forEach((profile: any) => { emailMap[profile.id] = who(profile); });
     }
 
     const merged = rows.map((row: any) => ({
@@ -153,6 +161,8 @@ export default function AdminHistory() {
   useEffect(() => {
     fetchHistory();
   }, [fetchHistory]);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchHistory(); });
 
   const filtered = useMemo(() => {
     if (activeFilter === "all") return records;
@@ -166,19 +176,15 @@ export default function AdminHistory() {
     fetchHistory();
   };
 
-  const goBack = () => router.replace("/admin/home");
+  const goBack = () => navBack("/admin/home");
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={goBack} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View>
-          <Text style={s.headerTitle}>ประวัติยืม-คืน</Text>
-          <Text style={s.headerSub}>{records.length} รายการทั้งหมด</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"ประวัติยืม-คืน"}
+        subtitle={`${records.length} รายการทั้งหมด`}
+        onBack={() => goBack()}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 60 }} />
@@ -252,7 +258,7 @@ export default function AdminHistory() {
                       {record.status === "returned" && (
                         <>
                           <Ionicons name="checkmark" size={13} color={C.green} />
-                          <Text style={s.dateText}>คืน {formatDate(record.returned_at)}</Text>
+                          <Text style={s.dateText}>คืน {formatDate(record.return_date)}</Text>
                         </>
                       )}
                     </View>
@@ -301,37 +307,32 @@ export default function AdminHistory() {
 
 const s = StyleSheet.create({
   container: {
+    ...W.page,
     flex: 1,
-    backgroundColor: C.bg,
   },
-  header: {
+  header: { ...W.headerBar,
     minHeight: 122,
-    backgroundColor: C.purple,
-    paddingTop: 58,
-    paddingHorizontal: 35,
-    paddingBottom: 17,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    marginBottom: 8,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    color: "#fff",
+    color: "#172033",
     fontSize: 25,
     fontWeight: "900",
     lineHeight: 29,
   },
   headerSub: {
-    color: "#ddd6fe",
+    color: "#475569",
     fontSize: 12,
     fontWeight: "900",
     marginTop: 4,
@@ -361,15 +362,9 @@ const s = StyleSheet.create({
     fontWeight: "900",
   },
   card: {
-    backgroundColor: C.card,
-    borderRadius: 14,
+    ...W.card,
     padding: 14,
     marginBottom: 12,
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.16,
-    shadowRadius: 11,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
   },
   cardMain: {
     flexDirection: "row",
@@ -440,7 +435,7 @@ const s = StyleSheet.create({
   },
   expandedLine: {
     height: 1,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: "#DCE6F5",
     marginBottom: 10,
   },
   detailRow: {
@@ -468,7 +463,7 @@ const s = StyleSheet.create({
     minHeight: 84,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#e2e8f0",
+    borderColor: "#DCE6F5",
     padding: 8,
     justifyContent: "center",
   },

@@ -5,11 +5,11 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import SearchBar from "../../components/SearchBar";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as MediaLibrary from "expo-media-library/legacy";
@@ -18,23 +18,27 @@ import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
+import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
+import { useRole } from "../../lib/roles";
 import { notify } from "../../lib/notify";
 import { LABELS_PER_SHEET, buildLabelSheetHtml, formatItemNo, qrMatrix } from "../../lib/labels";
+import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 const FS = FileSystem as any;
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  purpleDeep: "#6d28d9",
-  purpleDark: "#3f2a8f",
-  ink: "#0f172a",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  purpleDeep: "#1D4ED8",
+  purpleDark: "#1D4ED8",
+  ink: "#172033",
+  muted: "#475569",
+  faint: "#64748B",
   line: "#dbe3ec",
   card: "#ffffff",
-  greenBg: "#dcfce7",
-  green: "#16a34a",
+  greenBg: "#ECFDF5",
+  green: "#047857",
 };
 
 function normalize(value?: string) {
@@ -49,36 +53,6 @@ function qrValue(item?: any) {
 function isValidDeviceCode(value?: string) {
   const code = (value || "").trim().toUpperCase();
   return /^[A-Z0-9]{4}$/.test(code) && /[A-Z]/.test(code) && /\d/.test(code);
-}
-
-function makeDeviceCode(seed: string, used: Set<string>) {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const digits = "23456789";
-  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZ";
-  let hash = 0;
-
-  for (let i = 0; i < seed.length; i += 1) {
-    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
-  }
-
-  for (let salt = 0; salt < 5000; salt += 1) {
-    let value = (hash + salt * 97) >>> 0;
-    let code = "";
-    for (let i = 0; i < 4; i += 1) {
-      code += alphabet[value % alphabet.length];
-      value = Math.floor(value / alphabet.length);
-    }
-
-    if (!/[A-Z]/.test(code)) code = `${letters[(hash + salt) % letters.length]}${code.slice(1)}`;
-    if (!/\d/.test(code)) code = `${code.slice(0, 3)}${digits[(hash + salt) % digits.length]}`;
-
-    if (!used.has(code)) {
-      used.add(code);
-      return code;
-    }
-  }
-
-  throw new Error("ไม่สามารถสร้างรหัสอุปกรณ์ที่ไม่ซ้ำได้");
 }
 
 function itemCode(item?: any) {
@@ -104,6 +78,7 @@ function compareItems(a: any, b: any) {
 }
 
 export default function QRGen() {
+  const { role } = useRole();
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -118,6 +93,8 @@ export default function QRGen() {
   useEffect(() => {
     fetchItems();
   }, []);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchItems(); });
 
   const fetchItems = async () => {
     const { data, error } = await supabase
@@ -141,38 +118,11 @@ export default function QRGen() {
     setRefreshing(false);
   };
 
-  const ensureDeviceCodes = async (list: any[]) => {
-    const used = new Set<string>();
-    const next = [...list];
-    const updates: Array<{ id: string; barcode: string }> = [];
-
-    next.forEach((item) => {
-      const code = String(item.barcode || "").trim().toUpperCase();
-      if (isValidDeviceCode(code) && !used.has(code)) {
-        used.add(code);
-      }
-    });
-
-    next.forEach((item) => {
-      const code = String(item.barcode || "").trim().toUpperCase();
-      if (isValidDeviceCode(code) && used.has(code) && next.filter((row) => String(row.barcode || "").trim().toUpperCase() === code).indexOf(item) === 0) {
-        item.barcode = code;
-        return;
-      }
-
-      if (!isValidDeviceCode(code) || next.filter((row) => String(row.barcode || "").trim().toUpperCase() === code).length > 1) {
-        const newCode = makeDeviceCode(`${item.id}-${item.name || ""}`, used);
-        item.barcode = newCode;
-        updates.push({ id: item.id, barcode: newCode });
-      }
-    });
-
-    await Promise.all(updates.map((item) =>
-      supabase.from("items").update({ barcode: item.barcode }).eq("id", item.id)
-    ));
-
-    return next;
-  };
+  // รหัสสแกน 4 ตัว (barcode) ฐานข้อมูลออกให้ตอนเพิ่มของ ไม่ซ้ำ และล็อกไว้ — หน้านี้แค่อ่านไปพิมพ์
+  // (เดิมหน้านี้สุ่มรหัสใหม่แล้วเขียนทับ ถ้าเห็นว่ารหัสเดิมผิดรูปแบบ → ป้ายที่ติดไปแล้วสแกนไม่เจอ
+  //  และบัญชี TA เขียนไม่ได้ ป้ายจะพิมพ์รหัสที่ไม่มีในระบบ)
+  const ensureDeviceCodes = async (list: any[]) =>
+    list.map((item) => ({ ...item, barcode: String(item.barcode || "").trim().toUpperCase() }));
 
   const selectedItem = useMemo(
     () => items.find((item) => item.id === selectedId) || items[0],
@@ -199,7 +149,7 @@ export default function QRGen() {
 
   const sheetCount = Math.ceil((startAt - 1 + printTargets.length) / LABELS_PER_SHEET);
 
-  const goBack = () => router.replace("/admin/home");
+  const goBack = () => navBack("/admin/home");
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -298,27 +248,13 @@ export default function QRGen() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View style={s.headerTop}>
-          <TouchableOpacity style={s.iconBtn} onPress={goBack} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <View style={s.titleWrap}>
-            <View style={s.titleRow}>
-              <Text style={s.headerTitle}>สร้าง QR Code</Text>
-              <View style={s.adminPill}>
-                <Ionicons name="shield-checkmark" size={11} color="#fff" />
-                <Text style={s.adminPillText}>Admin</Text>
-              </View>
-            </View>
-            <View style={s.subtitleRow}>
-              <Ionicons name="information-circle-outline" size={12} color="#ddd6fe" />
-              <Text style={s.headerSub}>พิมพ์ติดอุปกรณ์เพื่อสแกนยืม-คืน</Text>
-            </View>
-          </View>
-          <TouchableOpacity style={s.iconBtn} onPress={() => router.push("/admin/history" as any)} activeOpacity={0.82}>
-            <Ionicons name="time-outline" size={21} color="#fff" />
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title={"สร้าง QR Code"}
+          subtitle={"พิมพ์ติดอุปกรณ์เพื่อสแกนยืม-คืน"}
+          onBack={() => goBack()}
+          bleed={16}
+          style={{ marginBottom: 0 }}
+        />
 
         <View style={s.modeTabs}>
           <TouchableOpacity
@@ -326,7 +262,7 @@ export default function QRGen() {
             onPress={() => setMode("single")}
             activeOpacity={0.84}
           >
-            <Ionicons name="grid-outline" size={14} color="#fff" />
+            <Ionicons name="grid-outline" size={14} color="#1D4ED8" />
             <Text style={s.modeTabText}>ทีละตัว</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -334,7 +270,7 @@ export default function QRGen() {
             onPress={() => setMode("batch")}
             activeOpacity={0.84}
           >
-            <Ionicons name="albums-outline" size={14} color="#ddd6fe" />
+            <Ionicons name="albums-outline" size={14} color="#1D4ED8" />
             <Text style={s.modeTabText}>หลายตัว (Batch)</Text>
             <View style={s.newPill}><Text style={s.newPillText}>ใหม่</Text></View>
           </TouchableOpacity>
@@ -348,6 +284,8 @@ export default function QRGen() {
           contentContainerStyle={s.body}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
           showsVerticalScrollIndicator
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
         >
           <View style={s.sectionWithAction}>
             <Section index={1} title="เลือกอุปกรณ์" right={`เลือก ${printTargets.length} รายการ`} />
@@ -358,19 +296,7 @@ export default function QRGen() {
             )}
           </View>
 
-          <View style={s.searchBox}>
-            <Ionicons name="search-outline" size={18} color={C.faint} />
-            <TextInput
-              style={s.searchInput}
-              placeholder="ค้นหาอุปกรณ์..."
-              placeholderTextColor={C.faint}
-              value={search}
-              onChangeText={setSearch}
-            />
-            <TouchableOpacity style={s.filterBtn} onPress={() => setSearch("")} activeOpacity={0.82}>
-              <Ionicons name="options-outline" size={18} color={C.purple} />
-            </TouchableOpacity>
-          </View>
+          <SearchBar value={search} onChangeText={setSearch} placeholder="ค้นหาอุปกรณ์" />
 
           <View style={s.itemList}>
             {filtered.length === 0 ? (
@@ -535,50 +461,45 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: C.line, alignItems: "center", justifyContent: "center",
   },
   stepperValue: { minWidth: 24, textAlign: "center", fontSize: 15, fontWeight: "900", color: C.ink },
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
-    paddingTop: 52,
-    paddingHorizontal: 31,
+    paddingTop: 0,
+    paddingHorizontal: 16,
     paddingBottom: 9,
   },
   headerTop: {
+    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
   titleWrap: { flex: 1 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  headerTitle: { color: "#fff", fontSize: 24, fontWeight: "900", lineHeight: 28 },
+  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700", lineHeight: 28 },
   adminPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 3,
-    backgroundColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(255,255,255,0.78)", boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 8px rgba(37,99,235,0.10)",
     borderRadius: 999,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
-  adminPillText: { color: "#fff", fontSize: 10, fontWeight: "900" },
+  adminPillText: { color: "#475569", fontSize: 10, fontWeight: "900" },
   subtitleRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
-  headerSub: { color: "#ddd6fe", fontSize: 11, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12 },
   modeTabs: {
     minHeight: 39,
     flexDirection: "row",
     gap: 4,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: "rgba(255,255,255,0.78)", boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 8px rgba(37,99,235,0.10)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "#D3E0F5",
     borderRadius: 11,
     padding: 4,
     marginTop: 18,
@@ -591,49 +512,46 @@ const s = StyleSheet.create({
     justifyContent: "center",
     gap: 6,
   },
-  modeTabActive: { backgroundColor: C.purpleDark },
-  modeTabText: { color: "#fff", fontSize: 12, fontWeight: "900" },
+  modeTabActive: { ...NG, backgroundColor: "#FFFFFF", boxShadow: "0 2px 6px rgba(37,99,235,0.18)" },
+  modeTabText: { color: "#172033", fontSize: 13, fontWeight: "600" },
   newPill: { backgroundColor: "#fde047", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
   newPillText: { color: "#854d0e", fontSize: 9, fontWeight: "900" },
   loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   body: { paddingHorizontal: 31, paddingTop: 15, paddingBottom: 28 },
   sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   sectionLeft: { flexDirection: "row", alignItems: "center", gap: 9 },
-  stepBadge: { width: 22, height: 22, borderRadius: 11, backgroundColor: C.purple, alignItems: "center", justifyContent: "center" },
+  stepBadge: { ...NG, width: 22, height: 22, borderRadius: 11, backgroundColor: C.purple, alignItems: "center", justifyContent: "center" },
   stepText: { color: "#fff", fontSize: 12, fontWeight: "900" },
   sectionTitle: { color: C.ink, fontSize: 14, fontWeight: "900" },
-  sectionRight: { color: C.muted, fontSize: 11, fontWeight: "900" },
+  sectionRight: { color: C.muted, fontSize: 12, fontWeight: "900" },
   searchBox: {
     minHeight: 42,
     flexDirection: "row",
     alignItems: "center",
     gap: 9,
-    backgroundColor: "#fff",
-    borderRadius: 12,
+    ...W.input,
+    borderWidth: 0,
     paddingLeft: 14,
     paddingRight: 6,
     marginBottom: 14,
   },
   searchInput: { flex: 1, color: C.ink, fontSize: 13, fontWeight: "700", paddingVertical: 10 },
-  filterBtn: { width: 34, height: 34, borderRadius: 9, backgroundColor: "#f3e8ff", alignItems: "center", justifyContent: "center" },
+  filterBtn: { width: 34, height: 34, borderRadius: 9, backgroundColor: "#EEF5FF", alignItems: "center", justifyContent: "center" },
   itemList: { gap: 9, marginBottom: 18 },
   itemCard: {
+    ...W.card,
     minHeight: 60,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#dbe3ec",
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
-  itemCardActive: { borderColor: C.purple, backgroundColor: "#f5f3ff" },
+  itemCardActive: { ...NG, borderColor: C.purple, backgroundColor: "#EEF5FF" },
   itemIcon: { width: 45, height: 45, borderRadius: 11, backgroundColor: C.greenBg, alignItems: "center", justifyContent: "center" },
   itemTextWrap: { flex: 1, minWidth: 0 },
   itemName: { color: C.ink, fontSize: 14, fontWeight: "900" },
-  itemMeta: { color: C.muted, fontSize: 10.5, fontWeight: "800", marginTop: 3 },
+  itemMeta: { color: C.muted, fontSize: 12, fontWeight: "800", marginTop: 3 },
   checkBox: {
     width: 23,
     height: 23,
@@ -645,20 +563,20 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   checkBoxActive: {
+    ...NG,
     backgroundColor: C.purple,
     borderColor: C.purple,
   },
-  emptyCard: { minHeight: 60, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+  emptyCard: { ...W.card, minHeight: 60, alignItems: "center", justifyContent: "center" },
   emptyText: { color: C.faint, fontSize: 13, fontWeight: "800" },
   settingsCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
+    ...W.card,
     padding: 13,
     marginBottom: 18,
   },
   settingHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   settingTitle: { color: C.ink, fontSize: 12.5, fontWeight: "900" },
-  settingHint: { color: C.purple, fontSize: 11, fontWeight: "900" },
+  settingHint: { color: C.purple, fontSize: 12, fontWeight: "900" },
   optionRow: { flexDirection: "row", gap: 8 },
   optionBox: {
     flex: 1,
@@ -669,10 +587,10 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  optionBoxActive: { borderColor: C.purple, backgroundColor: "#faf5ff" },
+  optionBoxActive: { ...NG, borderColor: C.purple, backgroundColor: "#F5F9FF" },
   optionLabel: { color: C.ink, fontSize: 12, fontWeight: "900" },
   optionLabelActive: { color: C.purple },
-  optionDetail: { color: C.muted, fontSize: 10.5, fontWeight: "700", marginTop: 2 },
+  optionDetail: { color: C.muted, fontSize: 12, fontWeight: "700", marginTop: 2 },
   divider: { height: 1, backgroundColor: C.line, marginVertical: 14 },
   toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 37 },
   toggleLabelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -693,28 +611,25 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   previewCard: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    borderWidth: 1,
+    ...W.card,
     borderStyle: "dashed",
-    borderColor: "#c4b5fd",
     padding: 19,
   },
   previewTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  brandText: { color: C.faint, fontSize: 11, fontWeight: "900", letterSpacing: 0.8 },
+  brandText: { color: C.faint, fontSize: 12, fontWeight: "900", letterSpacing: 0.8 },
   previewName: { color: C.ink, fontSize: 16, fontWeight: "900", marginTop: 2 },
   previewCode: { color: C.muted, fontSize: 12, fontWeight: "900", marginTop: 2 },
-  typeBadge: { backgroundColor: "#ede9fe", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  typeBadge: { ...NG, backgroundColor: "#DBEAFE", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   typeBadgeText: { color: C.purple, fontSize: 10, fontWeight: "900" },
   qrImage: { width: 178, height: 178, alignSelf: "center", marginTop: 11 },
   locationRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginTop: 4 },
-  locationText: { color: C.muted, fontSize: 11, fontWeight: "800" },
+  locationText: { color: C.muted, fontSize: 12, fontWeight: "800" },
   previewFooter: { borderTopWidth: 1, borderStyle: "dashed", borderTopColor: C.line, marginTop: 12, paddingTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  previewFooterText: { color: C.faint, fontSize: 11, fontWeight: "900" },
+  previewFooterText: { color: C.faint, fontSize: 12, fontWeight: "900" },
   actionRow: { flexDirection: "row", gap: 10, marginBottom: 11 },
   downloadBtn: { width: 47, height: 47, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: C.line, alignItems: "center", justifyContent: "center" },
   printBtn: { flex: 1, minHeight: 47, borderRadius: 12, backgroundColor: C.purpleDeep, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   disabledBtn: { opacity: 0.55 },
   printText: { color: "#fff", fontSize: 14, fontWeight: "900" },
-  noteText: { color: C.faint, fontSize: 10.5, fontWeight: "800", textAlign: "center" },
+  noteText: { color: C.faint, fontSize: 12, fontWeight: "800", textAlign: "center" },
 });

@@ -6,23 +6,27 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { currentUser } from "../../lib/session";
+import { notify } from "../../lib/notify";
+import { goBack } from "../../lib/nav";
+import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 const C = {
   bg: "#f4f4f7",
-  purple: "#7c3aed",
-  purpleDark: "#6d28d9",
-  ink: "#111827",
-  text: "#1f2937",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  purple: "#2563EB",
+  purpleDark: "#1D4ED8",
+  ink: "#172033",
+  text: "#172033",
+  muted: "#475569",
+  faint: "#64748B",
   line: "#dddde5",
   card: "#ffffff",
   green: "#10b981",
@@ -31,7 +35,7 @@ const C = {
 };
 
 const CONDITION_CFG: Record<string, { color: string; bg: string; label: string; short: string; icon: any }> = {
-  good: { color: C.green, bg: "#dcfce7", label: "ใช้งานได้", short: "ปกติ", icon: "hardware-chip-outline" },
+  good: { color: C.green, bg: "#ECFDF5", label: "ใช้งานได้", short: "ปกติ", icon: "hardware-chip-outline" },
   damaged: { color: C.orange, bg: "#fef3c7", label: "กำลังซ่อมแซม", short: "ซ่อมแซม", icon: "construct-outline" },
   missing: { color: C.red, bg: "#fee2e2", label: "เสีย", short: "เสีย", icon: "desktop-outline" },
 };
@@ -74,6 +78,17 @@ function itemLocation(item: any) {
   return type || "ไม่ระบุตำแหน่ง";
 }
 
+// ภาคเรียนปัจจุบัน (ปฏิทิน มข. โดยประมาณ): มิ.ย.–ต.ค. = 1 / พ.ย.–มี.ค. = 2 / เม.ย.–พ.ค. = ฤดูร้อน (3)
+// เดิมเขียนตายตัว "1/2568" → ผลตรวจปีนี้ไปบันทึกเป็นเทอมปีที่แล้ว
+function currentTerm(now = new Date()) {
+  const m = now.getMonth() + 1;
+  const be = now.getFullYear() + 543;
+  if (m >= 6 && m <= 10) return `1/${be}`;
+  if (m >= 11) return `2/${be}`;
+  if (m <= 3) return `2/${be - 1}`;
+  return `3/${be - 1}`;
+}
+
 function formatTermLabel(term: string) {
   return term.trim() || "-";
 }
@@ -102,8 +117,8 @@ function relativeInspection(value?: string) {
 export default function IotInspectionPage() {
   const router = useRouter();
 
-  const [term, setTerm] = useState("1/2568");
-  const [activeTerm, setActiveTerm] = useState("1/2568");
+  const [term, setTerm] = useState(currentTerm());
+  const [activeTerm, setActiveTerm] = useState(currentTerm());
   const [items, setItems] = useState<any[]>([]);
   const [inspections, setInspections] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,7 +136,7 @@ export default function IotInspectionPage() {
   }, []);
 
   const fetchData = async (termValue = activeTerm) => {
-    const cleanTerm = termValue.trim() || "1/2568";
+    const cleanTerm = termValue.trim() || currentTerm();
     setLoading(true);
 
     const [{ data: allItems, error: itemsError }, { data: inspectionRows, error: inspectionError }] = await Promise.all([
@@ -134,7 +149,7 @@ export default function IotInspectionPage() {
     ]);
 
     if (itemsError || inspectionError) {
-      Alert.alert("โหลดข้อมูลไม่สำเร็จ", itemsError?.message || inspectionError?.message || "กรุณาลองใหม่อีกครั้ง");
+      notify("โหลดข้อมูลไม่สำเร็จ", itemsError?.message || inspectionError?.message || "กรุณาลองใหม่อีกครั้ง");
     }
 
     setItems(allItems || []);
@@ -185,10 +200,10 @@ export default function IotInspectionPage() {
 
   const saveInspection = async () => {
     if (!formItem) return;
-    const cleanTerm = activeTerm.trim() || "1/2568";
+    const cleanTerm = activeTerm.trim() || currentTerm();
     setSaving(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     const { error } = await supabase
       .from("item_inspections")
       .upsert(
@@ -206,7 +221,7 @@ export default function IotInspectionPage() {
     setSaving(false);
 
     if (error) {
-      Alert.alert("บันทึกไม่สำเร็จ", error.message);
+      notify("บันทึกไม่สำเร็จ", error.message);
       return;
     }
 
@@ -217,26 +232,25 @@ export default function IotInspectionPage() {
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View style={s.headerRow}>
-          <TouchableOpacity style={s.backBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={21} color="#ffffff" />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>ตรวจสภาพ IoT ประจำเทอม</Text>
-          <View style={s.headerSpacer} />
-        </View>
+        <ScreenHeader
+          title={"ตรวจสภาพ IoT ประจำเทอม"}
+          onBack={() => goBack("/admin/home")}
+          bleed={16}
+          style={{ marginBottom: 14 }}
+        />
 
         <View style={s.searchRow}>
           <TextInput
             style={s.termInput}
             value={term}
             onChangeText={setTerm}
-            placeholder="1/2568"
+            placeholder={currentTerm()}
             placeholderTextColor="#8b8b95"
             returnKeyType="search"
             onSubmitEditing={submitSearch}
           />
           <TouchableOpacity style={s.searchBtn} onPress={submitSearch} activeOpacity={0.82}>
-            <Ionicons name="search-outline" size={22} color="#1f2937" />
+            <Ionicons name="search-outline" size={22} color="#172033" />
           </TouchableOpacity>
         </View>
       </View>
@@ -392,36 +406,28 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
-    paddingTop: 22,
-    paddingHorizontal: 24,
-    paddingBottom: 18,
+    paddingTop: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
   },
-  headerRow: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
+  headerRow: { ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
     flex: 1,
-    color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "900",
-    textAlign: "center",
+    color: "#172033",
+    fontSize: 20,
+    fontWeight: "700",
   },
-  headerSpacer: { width: 36 },
+  headerSpacer: { width: 0 },
   searchRow: {
-    height: 30,
-    borderRadius: 4,
-    backgroundColor: "#ffffff",
+    ...W.input,
+    height: 44,
     flexDirection: "row",
     alignItems: "center",
     overflow: "hidden",
@@ -454,17 +460,14 @@ const s = StyleSheet.create({
   loadingText: { color: C.faint, fontSize: 13, fontWeight: "700" },
   statGrid: { flexDirection: "row", gap: 9, marginBottom: 12 },
   summaryCard: {
+    ...W.card,
     flex: 1,
     minHeight: 60,
-    borderRadius: 10,
-    backgroundColor: C.card,
-    borderWidth: 1,
-    borderColor: C.line,
     alignItems: "center",
     justifyContent: "center",
   },
   summaryValue: { fontSize: 21, fontWeight: "900", lineHeight: 24 },
-  summaryLabel: { color: C.ink, fontSize: 10, marginTop: 5, fontWeight: "500" },
+  summaryLabel: { color: C.ink, fontSize: 12, marginTop: 5, fontWeight: "500" },
   filterRow: { flexDirection: "row", gap: 8, marginBottom: 13, flexWrap: "wrap" },
   filterChip: {
     minHeight: 27,
@@ -477,6 +480,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   filterChipActive: {
+    ...NG,
     backgroundColor: C.purple,
     borderColor: C.purple,
     shadowColor: C.purple,
@@ -485,26 +489,18 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
   },
-  filterText: { color: C.ink, fontSize: 11, fontWeight: "700" },
+  filterText: { color: C.ink, fontSize: 12, fontWeight: "700" },
   filterTextActive: { color: "#ffffff" },
   sectionTitle: { color: C.text, fontSize: 12, fontWeight: "600", marginBottom: 10 },
   list: { gap: 11 },
   itemCard: {
+    ...W.card,
     minHeight: 76,
-    backgroundColor: C.card,
-    borderRadius: 13,
-    borderWidth: 1,
-    borderColor: C.line,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 11,
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
   },
   itemIcon: {
     width: 48,
@@ -515,10 +511,10 @@ const s = StyleSheet.create({
   },
   itemMiddle: { flex: 1, minWidth: 0 },
   itemName: { color: C.ink, fontSize: 14, fontWeight: "900", lineHeight: 18 },
-  itemLocation: { color: "#374151", fontSize: 11, fontWeight: "600", marginTop: 1 },
+  itemLocation: { color: "#374151", fontSize: 12, fontWeight: "600", marginTop: 1 },
   inlineStatus: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
-  inlineStatusText: { fontSize: 11, fontWeight: "800" },
+  inlineStatusText: { fontSize: 12, fontWeight: "800" },
   itemRight: { alignItems: "flex-end", maxWidth: 98 },
   statusPill: {
     minWidth: 77,
@@ -529,12 +525,9 @@ const s = StyleSheet.create({
     justifyContent: "center",
   },
   statusPillText: { fontSize: 10, fontWeight: "900" },
-  updatedText: { color: "#374151", fontSize: 10, fontWeight: "600", marginTop: 9, textAlign: "right" },
+  updatedText: { color: "#374151", fontSize: 12, fontWeight: "600", marginTop: 9, textAlign: "right" },
   emptyBox: {
-    backgroundColor: C.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.line,
+    ...W.card,
     alignItems: "center",
     paddingVertical: 42,
     gap: 8,
@@ -563,7 +556,7 @@ const s = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
   },
-  conditionText: { fontSize: 11, fontWeight: "900" },
+  conditionText: { fontSize: 12, fontWeight: "900" },
   notesInput: {
     minHeight: 82,
     borderRadius: 12,

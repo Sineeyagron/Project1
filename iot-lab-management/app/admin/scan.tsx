@@ -1,16 +1,25 @@
 import React, { useEffect, useState } from "react";
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator,
-  Image, KeyboardAvoidingView, Platform, TextInput,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { goBack as navBack } from "../../lib/nav";
 import { addYears, isValidDate } from "../../lib/itemInfo";
 import { notify } from "../../lib/notify";
+import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 const FS = FileSystem as any;
 const SUPABASE_URL = "https://enupmlxmajjwskvzgcdq.supabase.co";
@@ -99,7 +108,12 @@ export default function Scan() {
       notify("วันหมดประกันไม่ถูกต้อง", "ใช้รูปแบบ ปปปป-ดด-วว เช่น 2027-10-02");
       return;
     }
-    const qty = parseInt(quantity) || 1;
+    // พิมพ์ติดลบ/ตัวอักษร/เยอะเกิน → เดิมบันทึก 0 แถวแต่ขึ้นว่าสำเร็จ หรือเพิ่มของทีละหลายร้อยชิ้นโดยไม่ตั้งใจ
+    const qty = parseInt(quantity, 10);
+    if (!Number.isInteger(qty) || qty < 1 || qty > 200) {
+      notify("จำนวนไม่ถูกต้อง", "ใส่จำนวน 1–200 ชิ้น");
+      return;
+    }
     setSaving(true);
 
     try {
@@ -184,7 +198,7 @@ export default function Scan() {
       notify(
         "บันทึกสำเร็จ! 🎉",
         `เพิ่ม "${name}" จำนวน ${qty} ชิ้นเข้าระบบแล้ว\n\n${codes}`,
-        () => router.replace("/admin/home")
+        () => navBack("/admin/home")
       );
     } catch (e: any) {
       notify("เกิดข้อผิดพลาด", e.message);
@@ -210,7 +224,7 @@ export default function Scan() {
   };
 
   const goBack = () => {
-    router.replace("/admin/home");
+    navBack("/admin/home");
   };
 
   // ── STEP INDICATOR ──
@@ -246,20 +260,17 @@ export default function Scan() {
         style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.scanBackBtn} onPress={goBack} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerText}>เพิ่มอุปกรณ์</Text>
-          <View style={{ width: 22 }} />
-        </View>
+        <ScreenHeader
+          title={"เพิ่มอุปกรณ์"}
+          onBack={() => goBack()}
+        />
 
         <StepBar />
 
         <ScrollView contentContainerStyle={styles.form}>
 
           <View style={styles.autoFillBadge}>
-            <Ionicons name="information-circle" size={16} color="#16a34a" />
+            <Ionicons name="information-circle" size={16} color="#047857" />
             <Text style={styles.autoFillText}>
               ระบบออกรหัสเรียกและรหัสสแกนให้เองตอนบันทึก — พิมพ์ป้าย QR ได้ที่เมนู "สร้าง QR"
             </Text>
@@ -340,16 +351,16 @@ export default function Scan() {
           <Text style={styles.fieldLabel}>จำนวนที่เพิ่ม</Text>
           <View style={styles.qtyRow}>
             <TouchableOpacity style={styles.qtyBtn}
-              onPress={() => setQuantity(q => String(Math.max(1, parseInt(q) - 1)))}>
-              <Ionicons name="remove" size={20} color="#1e3a8a" />
+              onPress={() => setQuantity(q => String(Math.max(1, (parseInt(q, 10) || 1) - 1)))}>
+              <Ionicons name="remove" size={20} color="#1D4ED8" />
             </TouchableOpacity>
             <TextInput
               style={styles.qtyInput} value={quantity}
               onChangeText={setQuantity} keyboardType="numeric" textAlign="center"
             />
             <TouchableOpacity style={styles.qtyBtn}
-              onPress={() => setQuantity(q => String(parseInt(q) + 1))}>
-              <Ionicons name="add" size={20} color="#1e3a8a" />
+              onPress={() => setQuantity(q => String(Math.min(200, (parseInt(q, 10) || 0) + 1)))}>
+              <Ionicons name="add" size={20} color="#1D4ED8" />
             </TouchableOpacity>
           </View>
 
@@ -367,11 +378,11 @@ export default function Scan() {
           ) : (
             <View style={styles.photoActions}>
               <TouchableOpacity style={styles.photoBtn} onPress={handleTakePhoto}>
-                <Ionicons name="camera-outline" size={24} color="#1e3a8a" />
+                <Ionicons name="camera-outline" size={24} color="#1D4ED8" />
                 <Text style={styles.photoBtnText}>ถ่ายรูป</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.photoBtn} onPress={handlePickPhoto}>
-                <Ionicons name="image-outline" size={24} color="#1e3a8a" />
+                <Ionicons name="image-outline" size={24} color="#1D4ED8" />
                 <Text style={styles.photoBtnText}>เลือกจาก Gallery</Text>
               </TouchableOpacity>
             </View>
@@ -394,13 +405,10 @@ export default function Scan() {
   // ── RENDER: Step 2 — Preview & Save ──
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.scanBackBtn} onPress={() => setStep("details")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={styles.headerText}>ยืนยัน & บันทึก</Text>
-        <View style={{ width: 22 }} />
-      </View>
+      <ScreenHeader
+        title="ยืนยัน & บันทึก"
+        onBack={() => setStep("details")}
+      />
 
       <StepBar />
 
@@ -432,7 +440,7 @@ export default function Scan() {
               <Text style={styles.summaryLabel}>{r.label}</Text>
               <Text style={[
                 styles.summaryVal,
-                r.label === "สถานะ" && { color: "#16a34a" }
+                r.label === "สถานะ" && { color: "#047857" }
               ]}>{r.val}</Text>
             </View>
           ))}
@@ -465,33 +473,39 @@ export default function Scan() {
 const si = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 10 },
   step: { alignItems: "center", gap: 3 },
-  circle: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#e2e8f0", alignItems: "center", justifyContent: "center" },
-  active: { backgroundColor: "#1e3a8a" },
-  done: { backgroundColor: "#16a34a" },
-  num: { fontSize: 11, fontWeight: "700", color: "#94a3b8" },
-  label: { fontSize: 9, color: "#94a3b8" },
-  labelActive: { color: "#1e3a8a", fontWeight: "700" },
-  line: { flex: 1, height: 2, backgroundColor: "#e2e8f0", marginBottom: 12 },
-  lineDone: { backgroundColor: "#16a34a" },
+  circle: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#DCE6F5", alignItems: "center", justifyContent: "center" },
+  active: { backgroundColor: "#1D4ED8" },
+  done: { backgroundColor: "#047857" },
+  num: { fontSize: 11, fontWeight: "700", color: "#475569" },
+  label: { fontSize: 11, color: "#475569" },
+  labelActive: { color: "#1D4ED8", fontWeight: "700" },
+  line: { flex: 1, height: 2, backgroundColor: "#DCE6F5", marginBottom: 12 },
+  lineDone: { ...NG, backgroundColor: "#047857" },
 });
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#eef3f8" },
+  container: { ...W.page, flex: 1 },
   center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, padding: 20 },
-  header: {
-    backgroundColor: "#7c3aed", paddingTop: 50, paddingBottom: 16, paddingHorizontal: 20,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  header: { ...W.headerBar,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    marginBottom: 8,
   },
-  headerText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  headerText: { flex: 1, color: "#172033", fontSize: 20, fontWeight: "700" },
+  backBtn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
 
-  permText: { fontSize: 14, color: "#64748b", textAlign: "center" },
-  permBtn: { backgroundColor: "#7c3aed", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10 },
+  permText: { fontSize: 14, color: "#475569", textAlign: "center" },
+  permBtn: { ...W.primarySolid, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 15 },
   permBtnText: { color: "#fff", fontWeight: "600" },
 
   // Scan
   scanHeader: {
     minHeight: 114,
-    backgroundColor: "#7c3aed",
+    backgroundColor: "#2563EB",
     paddingTop: 54,
     paddingHorizontal: 30,
     paddingBottom: 17,
@@ -519,7 +533,7 @@ const styles = StyleSheet.create({
     lineHeight: 29,
   },
   scanHeaderSub: {
-    color: "#ddd6fe",
+    color: "#BFDBFE",
     fontSize: 12,
     fontWeight: "900",
     marginTop: 4,
@@ -579,13 +593,13 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   scanTitle: {
-    color: "#0f172a",
+    color: "#172033",
     fontSize: 15,
     fontWeight: "900",
     marginTop: 12,
   },
   scanDesc: {
-    color: "#64748b",
+    color: "#475569",
     fontSize: 11,
     fontWeight: "700",
     lineHeight: 17,
@@ -622,21 +636,16 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   manualBtn: {
+    ...W.primarySolid,
     width: "100%",
     maxWidth: 420,
     minHeight: 42,
-    borderRadius: 10,
-    backgroundColor: "#7c3aed",
+    borderRadius: 15,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     marginTop: 19,
-    shadowColor: "#7c3aed",
-    shadowOpacity: 0.35,
-    shadowRadius: 13,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 7,
   },
   manualBtnText: {
     color: "#fff",
@@ -659,42 +668,43 @@ const styles = StyleSheet.create({
   scanBottom: { padding: 20, alignItems: "center", gap: 12, backgroundColor: "#f1f5f9" },
   qrGenBtn: {
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "#ede9fe", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10,
+    backgroundColor: "#DBEAFE", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10,
   },
-  qrGenText: { color: "#7c3aed", fontSize: 12, fontWeight: "600" },
+  qrGenText: { color: "#2563EB", fontSize: 12, fontWeight: "600" },
 
   // Form
   form: { padding: 16 },
   autoFillBadge: {
+    ...NG,
     flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "#dcfce7", padding: 10, borderRadius: 10, marginBottom: 12,
+    backgroundColor: "#ECFDF5", padding: 10, borderRadius: 10, marginBottom: 12,
   },
-  autoFillText: { fontSize: 11, color: "#166534", flex: 1 },
-  fieldLabel: { fontSize: 11, fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 5, marginTop: 12 },
-  input: { backgroundColor: "#fff", borderRadius: 12, padding: 13, fontSize: 14, borderWidth: 1, borderColor: "#e2e8f0" },
+  autoFillText: { fontSize: 12, color: "#166534", flex: 1 },
+  fieldLabel: { fontSize: 12, fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 5, marginTop: 12 },
+  input: { backgroundColor: "#fff", borderRadius: 12, padding: 13, fontSize: 14, borderWidth: 1, borderColor: "#DCE6F5" },
   inputMulti: { height: 72, textAlignVertical: "top" },
   inputError: { borderColor: "#ef4444" },
-  fieldHint: { fontSize: 11, color: "#7c3aed", marginTop: 5 },
-  fieldError: { fontSize: 11, color: "#dc2626", marginTop: 5 },
+  fieldHint: { fontSize: 12, color: "#2563EB", marginTop: 5 },
+  fieldError: { fontSize: 12, color: "#dc2626", marginTop: 5 },
   chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
   chip: {
     paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0",
+    backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5",
   },
-  chipActive: { backgroundColor: "#7c3aed", borderColor: "#7c3aed" },
-  chipText: { fontSize: 12, fontWeight: "700", color: "#64748b" },
+  chipActive: { ...NG, backgroundColor: "#2563EB", borderColor: "#2563EB" },
+  chipText: { fontSize: 12, fontWeight: "700", color: "#475569" },
   chipTextActive: { color: "#fff" },
   qtyRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  qtyBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#e2e8f0", justifyContent: "center", alignItems: "center" },
-  qtyInput: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 10, fontSize: 18, fontWeight: "700", borderWidth: 1, borderColor: "#e2e8f0" },
+  qtyBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5", justifyContent: "center", alignItems: "center" },
+  qtyInput: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 10, fontSize: 18, fontWeight: "700", borderWidth: 1, borderColor: "#DCE6F5" },
 
   // Photo
   photoActions: { flexDirection: "row", gap: 10, marginTop: 4 },
   photoBtn: {
-    flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 16,
-    alignItems: "center", gap: 6, borderWidth: 1, borderColor: "#e2e8f0",
+    flex: 1, ...W.small, padding: 16,
+    alignItems: "center", gap: 6,
   },
-  photoBtnText: { fontSize: 11, color: "#1e3a8a", fontWeight: "600" },
+  photoBtnText: { fontSize: 12, color: "#1D4ED8", fontWeight: "600" },
   photoPreview: { borderRadius: 12, overflow: "hidden", position: "relative", marginTop: 4 },
   photoImage: { width: "100%", height: 180, borderRadius: 12 },
   retakeBtn: {
@@ -702,28 +712,33 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)", flexDirection: "row", alignItems: "center",
     gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
   },
-  retakeBtnText: { color: "#fff", fontSize: 11 },
+  retakeBtnText: { color: "#fff", fontSize: 12 },
 
   nextBtn: {
-    flexDirection: "row", justifyContent: "center", alignItems: "center",
-    backgroundColor: "#1e3a8a", padding: 16, borderRadius: 14, marginTop: 16,
+    ...W.primarySolid,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+    borderRadius: 15,
+    marginTop: 16,
   },
   nextBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  btnDisabled: { backgroundColor: "#94a3b8" },
+  btnDisabled: { ...NG, backgroundColor: "#94a3b8" },
 
   // Preview
   previewImg: { width: "100%", height: 200, borderRadius: 14, marginBottom: 12, resizeMode: "cover" },
-  noPhoto: { height: 120, backgroundColor: "#fff", borderRadius: 14, justifyContent: "center", alignItems: "center", gap: 6, marginBottom: 12 },
-  noPhotoText: { color: "#94a3b8", fontSize: 12 },
-  summaryBox: { backgroundColor: "#fff", borderRadius: 14, padding: 14, marginBottom: 14 },
+  noPhoto: { ...W.card, height: 120, justifyContent: "center", alignItems: "center", gap: 6, marginBottom: 12 },
+  noPhotoText: { color: "#475569", fontSize: 12 },
+  summaryBox: { ...W.card, padding: 14, marginBottom: 14 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: "#f8fafc" },
-  summaryLabel: { fontSize: 12, color: "#64748b" },
+  summaryLabel: { fontSize: 12, color: "#475569" },
   summaryVal: { fontSize: 12, fontWeight: "700", color: "#1e293b", flex: 1, textAlign: "right" },
   saveBtn: {
     flexDirection: "row", justifyContent: "center", alignItems: "center",
-    backgroundColor: "#16a34a", padding: 16, borderRadius: 14, marginBottom: 10,
+    backgroundColor: "#047857", padding: 16, borderRadius: 14, marginBottom: 10,
   },
   saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   cancelBtn: { alignItems: "center", padding: 10 },
-  cancelBtnText: { color: "#64748b", fontSize: 13 },
+  cancelBtnText: { color: "#475569", fontSize: 13 },
 });

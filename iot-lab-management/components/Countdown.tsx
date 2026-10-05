@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { StyleProp, Text, TextStyle } from "react-native";
+import { StyleProp, TextStyle } from "react-native";
+import { Text } from "./AppText";
 
 // นับถอยหลังถึงเวลาหมดอายุคำขอ (แสดง นาที:วินาที) แล้วเรียก onDone ตอนครบ
 export default function Countdown({

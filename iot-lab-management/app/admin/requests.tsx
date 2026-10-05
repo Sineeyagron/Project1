@@ -7,30 +7,34 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
+import { isMissingColumn, who } from "../../lib/people";
+import { useRealtime } from "../../lib/realtime";
+import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import Countdown from "../../components/Countdown";
 import { useRole } from "../../lib/roles";
+import { W, NG } from "../../lib/theme";
+import ScreenHeader from "../../components/ScreenHeader";
 
 // กล่องคำขอของผู้ดูแล: อนุมัติ / ปฏิเสธ คำขอยืม-คืน-ยืมต่อ (แผน 2.4, 2.6)
 // การตัดสินทั้งหมดผ่าน RPC decide_request (ตรวจสิทธิ์ + ล็อกแถวในฐานข้อมูล)
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  ink: "#0f172a",
-  muted: "#64748b",
-  faint: "#94a3b8",
-  line: "#e2e8f0",
-  green: "#16a34a",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  ink: "#172033",
+  muted: "#475569",
+  faint: "#64748B",
+  line: "#DCE6F5",
+  green: "#047857",
   orange: "#c2410c",
   red: "#ef4444",
   blue: "#2563eb",
@@ -38,12 +42,12 @@ const C = {
 
 const KIND: Record<string, { label: string; icon: any; color: string; bg: string }> = {
   borrow: { label: "ขอยืม", icon: "hand-left-outline", color: C.blue, bg: "#dbeafe" },
-  return: { label: "ขอคืน", icon: "return-down-back-outline", color: C.green, bg: "#dcfce7" },
+  return: { label: "ขอคืน", icon: "return-down-back-outline", color: C.green, bg: "#ECFDF5" },
   renew: { label: "ขอยืมต่อ", icon: "refresh-outline", color: C.orange, bg: "#ffedd5" },
 };
 
 const RESULT: Record<string, { label: string; color: string; bg: string }> = {
-  approved: { label: "อนุมัติ", color: C.green, bg: "#dcfce7" },
+  approved: { label: "อนุมัติ", color: C.green, bg: "#ECFDF5" },
   declined: { label: "ปฏิเสธ", color: "#dc2626", bg: "#fee2e2" },
   expired: { label: "หมดอายุ", color: C.muted, bg: "#f1f5f9" },
   cancelled: { label: "ผู้ขอยกเลิก", color: C.muted, bg: "#f1f5f9" },
@@ -55,10 +59,12 @@ const SELECT = `
   decided_at, decision_note,
   items(item_code, name, image_url),
   borrow_locations(name),
-  requester:profiles!borrow_requests_user_id_fkey(email),
+  requester:profiles!borrow_requests_user_id_fkey(email, full_name, student_id),
   decider:profiles!borrow_requests_decided_by_fkey(email),
   record:borrow_records!borrow_requests_borrow_record_id_fkey(due_date, renew_count, borrow_photo_path)
 `;
+// ยังไม่ได้รัน migration profile_student_id → ไม่มี full_name/student_id: ใช้ชุดเดิม (อีเมล) ให้กล่องคำขอยังใช้ได้
+const SELECT_LEGACY = SELECT.replace("(email, full_name, student_id)", "(email)");
 
 const thaiDate = (value?: string | null) =>
   value ? new Date(`${value}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-";
@@ -89,14 +95,17 @@ export default function AdminRequests() {
   const [saving, setSaving] = useState(false);
 
   const signedRef = useRef<Record<string, string>>({});
+  const signedAtRef = useRef(0);
 
   const load = useCallback(async () => {
     // ปล่อยคำขอที่หมดเวลาก่อน จะได้ไม่เห็นรายการที่ตัดสินไม่ได้แล้ว
     await supabase.rpc("expire_requests");
-    const [{ data: p, error }, { data: h }] = await Promise.all([
-      supabase.from("borrow_requests").select(SELECT).eq("status", "pending").order("created_at", { ascending: true }),
-      supabase.from("borrow_requests").select(SELECT).neq("status", "pending").order("decided_at", { ascending: false }).limit(40),
+    const query = (sel: string) => Promise.all([
+      supabase.from("borrow_requests").select(sel).eq("status", "pending").order("created_at", { ascending: true }),
+      supabase.from("borrow_requests").select(sel).neq("status", "pending").order("decided_at", { ascending: false }).limit(40),
     ]);
+    let [{ data: p, error }, { data: h }] = await query(SELECT);
+    if (error && isMissingColumn(error)) [{ data: p, error }, { data: h }] = await query(SELECT_LEGACY);
     if (error) notify("โหลดคำขอไม่สำเร็จ", error.message);
 
     const all = [...(p || []), ...(h || [])];
@@ -106,6 +115,11 @@ export default function AdminRequests() {
       ),
     ];
     // ขอลิงก์รูปเฉพาะรูปใหม่ (ลิงก์อายุ 1 ชม. ใช้ซ้ำได้) — ลดงานฐานข้อมูลตอนรีเฟรชอัตโนมัติ
+    // เปิดหน้าค้างไว้เกิน 50 นาที → ลิงก์เดิมใกล้หมดอายุ (รูปจะไม่ขึ้น) ล้างแล้วขอใหม่ทั้งหมด
+    if (Date.now() - signedAtRef.current > 50 * 60 * 1000) {
+      signedRef.current = {};
+      signedAtRef.current = Date.now();
+    }
     const fresh = paths.filter((path) => !signedRef.current[path]);
     if (fresh.length > 0) {
       const { data: signed } = await supabase.storage.from("borrow-photos").createSignedUrls(fresh, 60 * 60);
@@ -122,10 +136,14 @@ export default function AdminRequests() {
   }, [focusId]);
 
   useEffect(() => { load(); }, [load]);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { load(); });
+  // Realtime: คำขอใหม่ / ถูกตัดสินโดยผู้ดูแลคนอื่น → โหลดทันที
+  useRealtime("staff", "request", () => { load(); });
 
-  // คำขอใหม่เข้ามาได้ตลอด → รีเฟรชทุก 30 วินาที (ข้ามตอนแอป/แท็บอยู่เบื้องหลัง) และตอนกลับเข้าแอป
+  // สำรองกรณีสัญญาณ Realtime หลุด: รีเฟรชทุก 5 นาที (ข้ามตอนแอป/แท็บอยู่เบื้องหลัง) และตอนกลับเข้าแอป
   useEffect(() => {
-    const t = setInterval(() => { if (AppState.currentState === "active") load(); }, 30000);
+    const t = setInterval(() => { if (AppState.currentState === "active") load(); }, 300000);
     const sub = AppState.addEventListener("change", (st) => { if (st === "active") load(); });
     return () => { clearInterval(t); sub.remove(); };
   }, [load]);
@@ -211,7 +229,7 @@ export default function AdminRequests() {
           <View style={{ flex: 1, gap: 2 }}>
             <Text style={s.code}>{code}</Text>
             <Text style={s.meta} numberOfLines={1}>{r.items?.name} · ห้อง {r.borrow_locations?.name || "-"}</Text>
-            <Text style={s.meta} numberOfLines={1}>{r.requester?.email || "-"}</Text>
+            <Text style={s.meta} numberOfLines={1}>{who(r.requester)}</Text>
             <Text style={s.metaFaint}>ส่งเมื่อ {thaiDateTime(r.created_at)}</Text>
             {r.kind === "borrow" && <Text style={s.detail}>ยืม {r.days} วัน</Text>}
             {r.kind === "renew" && (
@@ -264,15 +282,11 @@ export default function AdminRequests() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.iconBtn} onPress={() => router.replace("/admin/home")} activeOpacity={0.82}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={s.headerTitle}>กล่องคำขอ</Text>
-          <Text style={s.headerSub}>ยืม · คืน · ยืมต่อ ที่นักศึกษาส่งมา</Text>
-        </View>
-      </View>
+      <ScreenHeader
+        title={"กล่องคำขอ"}
+        subtitle={"ยืม · คืน · ยืมต่อ ที่นักศึกษาส่งมา"}
+        onBack={() => goBack("/admin/home")}
+      />
 
       <View style={s.tabs}>
         <TouchableOpacity style={[s.tab, tab === "pending" && s.tabActive]} onPress={() => setTab("pending")} activeOpacity={0.85}>
@@ -389,30 +403,27 @@ export default function AdminRequests() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
-  header: {
-    backgroundColor: C.purple,
-    paddingTop: 52,
-    paddingBottom: 16,
-    paddingHorizontal: 18,
+  container: { ...W.page, flex: 1 },
+  header: { ...W.headerBar,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    paddingTop: 52,
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+    marginBottom: 8,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
 
   tabs: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 14 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", borderWidth: 1, borderColor: C.line },
-  tabActive: { backgroundColor: C.purple, borderColor: C.purple },
+  tabActive: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
   tabText: { color: C.muted, fontWeight: "800", fontSize: 13 },
   tabTextActive: { color: "#fff" },
 
@@ -420,7 +431,7 @@ const s = StyleSheet.create({
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
   emptyText: { color: C.faint, fontSize: 14, fontWeight: "800" },
 
-  card: { backgroundColor: "#fff", borderRadius: 16, padding: 14, gap: 10, borderWidth: 1, borderColor: "rgba(15,23,42,0.05)" },
+  card: { ...W.card, padding: 14, gap: 10 },
   cardFocus: { borderColor: C.purple, borderWidth: 2 },
   cardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   kindPill: { flexDirection: "row", alignItems: "center", gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
@@ -429,7 +440,7 @@ const s = StyleSheet.create({
   cardBody: { flexDirection: "row", gap: 12 },
   code: { fontSize: 18, fontWeight: "900", color: C.ink },
   meta: { fontSize: 12.5, fontWeight: "700", color: C.muted },
-  metaFaint: { fontSize: 11.5, color: C.faint, fontWeight: "600" },
+  metaFaint: { fontSize: 12, color: C.faint, fontWeight: "600" },
   detail: { fontSize: 12.5, fontWeight: "800", color: C.ink, marginTop: 2 },
 
   photo: { width: 96, height: 96, borderRadius: 12, backgroundColor: "#f1f5f9" },

@@ -1,9 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, StyleSheet, TouchableOpacity } from "react-native";
+import { Text } from "../components/AppText";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
+import { goBack } from "../lib/nav";
 import { confirmAction } from "../lib/notify";
+import { W } from "../lib/theme";
+import ScreenHeader from "../components/ScreenHeader";
 
 export default function Settings() {
   const router = useRouter();
@@ -33,13 +37,10 @@ export default function Settings() {
     <View style={s.container}>
 
       {/* HEADER */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>ตั้งค่า</Text>
-        <View style={{ width: 22 }} />
-      </View>
+      <ScreenHeader
+        title={"ตั้งค่า"}
+        onBack={() => goBack("/profile")}
+      />
 
       <View style={s.body}>
 
@@ -57,9 +58,10 @@ export default function Settings() {
         {/* MENU */}
         <Text style={s.sectionLabel}>บัญชี</Text>
 
-        <TouchableOpacity style={s.menuItem} onPress={() => router.push("/profile")}>
+        {/* เปิดมาจากหน้าโปรไฟล์ → ถอยกลับไป ไม่เปิดซ้อน (เดิม โปรไฟล์ ↔ ตั้งค่า วนซ้อนได้ไม่จบ) */}
+        <TouchableOpacity style={s.menuItem} onPress={() => router.dismissTo("/profile")}>
           <View style={[s.menuIcon, { backgroundColor: "#eff6ff" }]}>
-            <Ionicons name="person-outline" size={20} color="#1e3a8a" />
+            <Ionicons name="person-outline" size={20} color="#1D4ED8" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.menuTitle}>โปรไฟล์</Text>
@@ -98,58 +100,64 @@ export default function Settings() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+  container: { ...W.page, flex: 1 },
 
-  header: {
-    backgroundColor: "#1e3a8a",
-    paddingTop: 58, paddingBottom: 20, paddingHorizontal: 20,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  header: { ...W.headerBar,
+    paddingTop: 52,
+    paddingBottom: 10,
+    marginBottom: 8,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  backBtn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
+  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700" },
 
   body: { padding: 16 },
 
   userCard: {
-    backgroundColor: "#fff", borderRadius: 16, padding: 16,
-    flexDirection: "row", alignItems: "center", gap: 14,
+    ...W.card,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
     marginBottom: 24,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
   },
   avatarCircle: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: "#1e3a8a", justifyContent: "center", alignItems: "center",
+    backgroundColor: "#1D4ED8", justifyContent: "center", alignItems: "center",
   },
   avatarInitial: { color: "#fff", fontSize: 22, fontWeight: "800" },
   userName: { fontSize: 16, fontWeight: "700", color: "#1e293b" },
-  userEmail: { fontSize: 12, color: "#64748b", marginTop: 2 },
+  userEmail: { fontSize: 12, color: "#475569", marginTop: 2 },
 
   sectionLabel: {
-    fontSize: 11, fontWeight: "700", color: "#64748b",
+    fontSize: 11, fontWeight: "700", color: "#475569",
     textTransform: "uppercase", letterSpacing: 0.5,
     marginBottom: 10, marginTop: 4,
   },
 
   menuItem: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 14,
-    flexDirection: "row", alignItems: "center", gap: 14,
+    ...W.card,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
     marginBottom: 8,
-    shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
   },
   menuIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: "center", alignItems: "center" },
   menuTitle: { fontSize: 14, fontWeight: "600", color: "#1e293b" },
-  menuSub: { fontSize: 11, color: "#94a3b8", marginTop: 2 },
+  menuSub: { fontSize: 11, color: "#475569", marginTop: 2 },
 
   logoutBtn: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 14,
+    ...W.card, padding: 14,
     flexDirection: "row", alignItems: "center", gap: 14,
-    borderWidth: 1, borderColor: "#fee2e2",
   },
   logoutTxt: { fontSize: 14, fontWeight: "600", color: "#dc2626" },
 
   version: {
-    textAlign: "center", fontSize: 11, color: "#cbd5e1",
+    textAlign: "center", fontSize: 11, color: "#475569",
     marginTop: 32,
   },
 });

@@ -1,29 +1,42 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Image, RefreshControl,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
+  Image,
+  RefreshControl,
 } from "react-native";
+import { Text } from "../components/AppText";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
+import { useRealtime } from "../lib/realtime";
+import { currentUser } from "../lib/session";
+import { RECORD_STATUS } from "../lib/status";
+import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { confirmAction, notify } from "../lib/notify";
 import Countdown from "../components/Countdown";
+import { W } from "../lib/theme";
+import StatWidget from "../components/StatWidget";
+import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 
 const KIND_TH: Record<string, string> = { borrow: "ขอยืม", return: "ขอคืน", renew: "ขอยืมต่อ" };
 
 // ผลคำขอที่จบแล้ว (แสดงย้อนหลังไม่กี่รายการ)
 const REQUEST_RESULT: Record<string, { label: string; color: string; bg: string }> = {
-  approved:      { label: "อนุมัติแล้ว",     color: "#16a34a", bg: "#dcfce7" },
+  approved:      { label: "อนุมัติแล้ว",     color: "#047857", bg: "#ECFDF5" },
   declined:      { label: "ถูกปฏิเสธ",      color: "#dc2626", bg: "#fee2e2" },
-  expired:       { label: "หมดอายุ",        color: "#64748b", bg: "#f1f5f9" },
-  cancelled:     { label: "ยกเลิกแล้ว",     color: "#64748b", bg: "#f1f5f9" },
+  expired:       { label: "หมดอายุ",        color: "#475569", bg: "#f1f5f9" },
+  cancelled:     { label: "ยกเลิกแล้ว",     color: "#475569", bg: "#f1f5f9" },
   auto_returned: { label: "คืนอัตโนมัติ",   color: "#b45309", bg: "#fef3c7" },
 };
 
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
-  borrowed:       { label: "กำลังยืม",  color: "#b45309", bg: "#fef3c7", border: "#f59e0b", icon: "cube-outline" },
-  pending_return: { label: "รอยืนยันคืน", color: "#c2410c", bg: "#ffedd5", border: "#fb923c", icon: "hourglass-outline" },
-  returned:       { label: "คืนแล้ว",   color: "#16a34a", bg: "#dcfce7", border: "#22c55e", icon: "checkmark-circle-outline" },
+  borrowed:       { ...RECORD_STATUS.borrowed, icon: "cube-outline" },
+  pending_return: { ...RECORD_STATUS.pending_return, icon: "hourglass-outline" },
+  returned:       { ...RECORD_STATUS.returned, icon: "checkmark-circle-outline" },
 };
 
 const formatDate = (d: string) => {
@@ -31,9 +44,11 @@ const formatDate = (d: string) => {
   return new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
 };
 
+// due_date เป็นวันที่ล้วน ("2026-10-07") — new Date() ตรง ๆ อ่านเป็นเที่ยงคืน UTC (= 07:00 เวลาไทย)
+// แล้ว ceil ทำให้นับเกิน 1 วัน และวันถัดจากกำหนดยังไม่ขึ้น "เกินกำหนด" → อ่านเป็นเที่ยงคืนเวลาเครื่อง
 const getDaysLeft = (due: string) => {
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  return Math.ceil((new Date(due).getTime() - today.getTime()) / 86400000);
+  return Math.round((new Date(`${due.slice(0, 10)}T00:00:00`).getTime() - today.getTime()) / 86400000);
 };
 
 export default function Borrow() {
@@ -44,7 +59,7 @@ export default function Borrow() {
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchBorrows = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await currentUser();
     if (!user) { setLoading(false); return; }
     const [{ data }, { data: reqs }] = await Promise.all([
       supabase
@@ -55,7 +70,7 @@ export default function Borrow() {
         .order("borrow_date", { ascending: false }),
       supabase
         .from("borrow_requests")
-        .select("id, kind, status, days, created_at, expires_at, decision_note, items(name, item_code)")
+        .select("id, item_id, kind, status, days, created_at, expires_at, decision_note, items(name, item_code)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(15),
@@ -80,13 +95,25 @@ export default function Borrow() {
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
   // ผลล่าสุดใน 7 วัน (ไม่รวม "อนุมัติยืม" เพราะเห็นในรายการยืมอยู่แล้ว)
+  // นับเฉพาะคำขอล่าสุดของแต่ละชิ้น+ประเภท — กันกรณีขอครั้งแรกหมดเวลา ขอใหม่ได้แล้ว แต่ยังโชว์ "หมดอายุ" ค้าง
   const weekAgo = Date.now() - 7 * 86400000;
-  const recentResults = requests
+  const seen = new Set<string>();
+  const latestPerItem = requests.filter((r) => {
+    const key = `${r.item_id}:${r.kind}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const recentResults = latestPerItem
     .filter((r) => r.status !== "pending" && new Date(r.created_at).getTime() > weekAgo)
     .filter((r) => !(r.kind === "borrow" && r.status === "approved"))
     .slice(0, 5);
 
   useEffect(() => { fetchBorrows(); }, [fetchBorrows]);
+  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
+  useRefreshOnFocus(() => { fetchBorrows(); });
+  // Realtime: ผลคำขอ (อนุมัติ/ปฏิเสธ/หมดเวลา) มาเป็นแจ้งเตือน → โหลดรายการใหม่ทันที
+  useRealtime("user", "notification", () => { fetchBorrows(); });
 
   const onRefresh = () => { setRefreshing(true); fetchBorrows(); };
 
@@ -96,40 +123,25 @@ export default function Borrow() {
   return (
     <View style={s.container}>
       {/* HEADER */}
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.replace("/home")} activeOpacity={0.84}>
-          <Ionicons name="arrow-back" size={22} color="#fff" />
-        </TouchableOpacity>
-        <View>
-          <Text style={s.headerTitle}>ประวัติการยืม</Text>
-          <Text style={s.headerSub}>อุปกรณ์ของฉัน</Text>
-        </View>
-        <TouchableOpacity style={s.backBtn} onPress={() => router.push("/scan")} activeOpacity={0.84}>
-          <Ionicons name="scan" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title={"ประวัติการยืม"}
+        subtitle={"อุปกรณ์ของฉัน"}
+        onBack={() => goBack("/home")}
+        right={<HeaderButton icon="scan" label="สแกน" onPress={() => router.push("/scan")} />}
+      />
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 60 }} />
+        <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 60 }} />
       ) : (
         <ScrollView
           contentContainerStyle={s.body}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1e3a8a" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D4ED8" />}
         >
           {/* STATS */}
           <View style={s.statsRow}>
-            <View style={[s.statCard, { borderLeftColor: "#3b82f6" }]}>
-              <Text style={s.statNum}>{borrows.length}</Text>
-              <Text style={s.statLabel}>ทั้งหมด</Text>
-            </View>
-            <View style={[s.statCard, { borderLeftColor: "#f59e0b" }]}>
-              <Text style={[s.statNum, { color: "#b45309" }]}>{activeBorrows}</Text>
-              <Text style={s.statLabel}>กำลังยืม</Text>
-            </View>
-            <View style={[s.statCard, { borderLeftColor: "#22c55e" }]}>
-              <Text style={[s.statNum, { color: "#16a34a" }]}>{returned}</Text>
-              <Text style={s.statLabel}>คืนแล้ว</Text>
-            </View>
+            <StatWidget tone="blue" icon="layers-outline" label="ทั้งหมด" value={borrows.length} />
+            <StatWidget tone="amber" icon="time-outline" label="กำลังยืม" value={activeBorrows} />
+            <StatWidget tone="green" icon="checkmark" label="คืนแล้ว" value={returned} />
           </View>
 
           {/* คำขอที่รอผู้ดูแล */}
@@ -162,7 +174,7 @@ export default function Borrow() {
               {recentResults.map((r) => {
                 const res = REQUEST_RESULT[r.status] ?? REQUEST_RESULT.expired;
                 return (
-                  <View key={r.id} style={[s.card, { borderLeftColor: res.color }]}>
+                  <View key={r.id} style={s.card}>
                     <View style={s.cardBody}>
                       <Text style={s.cardName} numberOfLines={1}>
                         {KIND_TH[r.kind]} {r.items?.item_code || r.items?.name || "อุปกรณ์"}
@@ -200,7 +212,7 @@ export default function Borrow() {
                 return (
                   <View
                     key={b.id}
-                    style={[s.card, { borderLeftColor: cfg.border }, overdue && s.cardOverdue]}
+                    style={[s.card, overdue && s.cardOverdue]}
                   >
                     {/* รูปหรือ icon */}
                     {img ? (
@@ -252,73 +264,67 @@ export default function Borrow() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f1f5f9" },
+  container: { ...W.page, flex: 1 },
 
-  header: {
-    backgroundColor: "#2563eb",
-    paddingTop: 54, paddingBottom: 20, paddingHorizontal: 20,
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+  header: { ...W.headerBar,
+    paddingTop: 52,
+    paddingBottom: 10,
+    marginBottom: 8,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   backBtn: {
-    width: 39,
-    height: 39,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.23)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
-  headerTitle: { color: "#fff", fontSize: 18, fontWeight: "bold", textAlign: "center" },
-  headerSub:   { color: "#93c5fd", fontSize: 12, textAlign: "center", marginTop: 2 },
+  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700" },
+  headerSub:   { color: "#475569", fontSize: 12, marginTop: 1 },
 
-  body: { padding: 16 },
+  body: { padding: 16, paddingTop: 4, paddingBottom: 40 },
 
-  statsRow: { flexDirection: "row", gap: 8, marginBottom: 20 },
-  statCard: {
-    flex: 1, backgroundColor: "#fff", borderRadius: 14,
-    padding: 14, borderLeftWidth: 4,
-  },
-  statNum:   { fontSize: 24, fontWeight: "800", color: "#1e293b" },
-  statLabel: { fontSize: 11, color: "#94a3b8", marginTop: 2 },
+  statsRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
 
   sectionLabel: {
-    fontSize: 11, fontWeight: "700", color: "#64748b",
-    textTransform: "uppercase", letterSpacing: 0.5,
+    fontSize: 16, fontWeight: "600", color: "#172033",
     marginBottom: 10,
   },
 
   card: {
-    backgroundColor: "#fff", borderRadius: 14, padding: 14,
-    marginBottom: 10, flexDirection: "row", alignItems: "center", gap: 12,
-    borderLeftWidth: 4,
-    shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    ...W.card,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
-  cardOverdue: { borderColor: "#fca5a5", borderWidth: 1.5, borderLeftWidth: 4 },
-  iconBox: { width: 48, height: 48, borderRadius: 12, justifyContent: "center", alignItems: "center" },
-  itemImg: { width: 48, height: 48, borderRadius: 12 },
+  cardOverdue: { borderColor: "#fca5a5", borderWidth: 1.5 },
+  iconBox: { width: 46, height: 46, borderRadius: 15, justifyContent: "center", alignItems: "center", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
+  itemImg: { width: 46, height: 46, borderRadius: 15 },
 
   cardBody: { flex: 1 },
-  cardName: { fontSize: 14, fontWeight: "700", color: "#1e293b" },
-  cardDate: { fontSize: 11, color: "#94a3b8", marginTop: 3 },
-  cardDue:  { fontSize: 11, color: "#64748b", marginTop: 2 },
+  cardName: { fontSize: 15, fontWeight: "600", color: "#172033" },
+  cardDate: { fontSize: 12, color: "#475569", marginTop: 2 },
+  cardDue:  { fontSize: 12, color: "#475569", marginTop: 1 },
   cardDueOverdue: { color: "#dc2626", fontWeight: "700" },
   tapHint: { fontSize: 10, color: "#f97316", marginTop: 4, fontWeight: "600" },
-  reqCard: { borderLeftColor: "#fb923c" },
-  countdown: { fontSize: 12, color: "#c2410c", fontWeight: "800", marginTop: 3 },
+  reqCard: {},
+  countdown: { fontSize: 12, color: "#c2410c", fontWeight: "600", marginTop: 2 },
   cancelBtn: {
-    borderWidth: 1.5, borderColor: "#ef4444", borderRadius: 10,
+    borderWidth: 1, borderColor: "#FCA5A5", backgroundColor: "#FFF5F5", borderRadius: 12,
     paddingHorizontal: 12, paddingVertical: 7,
   },
-  cancelBtnText: { color: "#ef4444", fontSize: 12, fontWeight: "800" },
+  cancelBtnText: { color: "#B91C1C", fontSize: 13, fontWeight: "600" },
 
   badge: {
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, alignSelf: "flex-start",
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, alignSelf: "center",
   },
-  badgeText: { fontSize: 10, fontWeight: "700" },
+  badgeText: { fontSize: 12, fontWeight: "600" },
 
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
   emptyTitle: { fontSize: 17, fontWeight: "700", color: "#475569", marginTop: 8 },
-  emptyText: { fontSize: 13, color: "#94a3b8", textAlign: "center", lineHeight: 20 },
+  emptyText: { fontSize: 13, color: "#475569", textAlign: "center", lineHeight: 20 },
 });

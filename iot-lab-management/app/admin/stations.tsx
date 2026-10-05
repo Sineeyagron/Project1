@@ -1,38 +1,45 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
+import { useRole } from "../../lib/roles";
 import supabase from "../../lib/supabase";
+import { confirmAction, notify } from "../../lib/notify";
+import { goBack, useRefreshOnFocus } from "../../lib/nav";
+import { STATION_STATUS, naturalNo, roomStatus } from "../../lib/roomStatus";
+import LoadError from "../../components/LoadError";
+import { fetchRooms as loadRooms } from "../../lib/rooms";
+import { useRoomLive } from "../../lib/roomRealtime";
+import { W, NG } from "../../lib/theme";
+import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 
 const C = {
-  bg: "#eef3f8",
-  purple: "#7c3aed",
-  purpleDark: "#6d28d9",
-  ink: "#0f172a",
-  muted: "#64748b",
-  faint: "#94a3b8",
+  bg: "#EAF1FC",
+  purple: "#2563EB",
+  purpleDark: "#1D4ED8",
+  ink: "#172033",
+  muted: "#475569",
+  faint: "#64748B",
   card: "#ffffff",
-  green: "#16a34a",
+  green: "#047857",
   orange: "#c2410c",
   red: "#ef4444",
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; next: string }> = {
-  available: { label: "พร้อมใช้", color: C.green, bg: "#dcfce7", border: "#86efac", next: "repair" },
-  repair: { label: "ซ่อม", color: C.orange, bg: "#fef3c7", border: "#fbbf24", next: "broken" },
-  broken: { label: "พัง", color: "#dc2626", bg: "#fee2e2", border: "#fca5a5", next: "available" },
-};
+// การ์ดเครื่องที่ปิดใช้งาน (สีเทา)
+const INACTIVE_CFG = { label: "ปิดใช้งาน", color: "#475569", bg: "#f1f5f9", border: "#cbd5e1", icon: "remove-circle-outline" };
+
+// กดเครื่อง = เปลี่ยนสถานะวนตามลำดับนี้
+const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
 
 type Station = {
   id: string;
@@ -40,22 +47,22 @@ type Station = {
   group_no: number;
   name: string;
   status: string;
+  active: boolean; // false = ปิดใช้งาน (มีประวัติ ลบไม่ได้) ไม่ขึ้นในผังห้อง/สถิติ
 };
 
-function naturalName(name: string) {
-  const match = String(name || "").match(/\d+/);
-  return match ? Number(match[0]) : 999;
-}
-
 export default function AdminStations() {
-  const router = useRouter();
-
+  // TA เปลี่ยนสถานะได้อย่างเดียว — เพิ่ม/แก้/ลบ/ปิดใช้งานเครื่อง = admin (ฐานข้อมูลกันจริง)
+  const isAdmin = useRole().role === "admin";
+  const { room_id: roomParam } = useLocalSearchParams<{ room_id?: string }>(); // เปิดจากการ์ดห้อง → เลือกห้องนั้น
   const [stations, setStations] = useState<Station[]>([]);
   const [rooms, setRooms] = useState<string[]>([]);
   const [selectedRoom, setSelectedRoom] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
+  // ห้องล่าสุดที่เลือก — กันผลโหลดของห้องเก่า (ตอบช้า) มาทับห้องใหม่ตอนสลับเร็วๆ
+  const roomRef = useRef("");
 
   const [editModal, setEditModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Station | null>(null);
@@ -64,37 +71,69 @@ export default function AdminStations() {
   const [editGroup, setEditGroup] = useState<number>(1);
   const [editSaving, setEditSaving] = useState(false);
 
+  // เพิ่มเครื่อง (REVIEW H3 — เดิมไม่มีที่ไหนเพิ่มเครื่องได้เลย)
+  const [addModal, setAddModal] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addGroup, setAddGroup] = useState<number>(1);
+
   useEffect(() => {
     fetchRooms();
   }, []);
 
   useEffect(() => {
+    roomRef.current = selectedRoom;
     if (selectedRoom) fetchStations(selectedRoom);
   }, [selectedRoom]);
 
+  useRefreshOnFocus(() => {
+    if (selectedRoom) fetchStations(selectedRoom);
+  });
+  // อัปเดตสด: Admin/TA คนอื่นเปลี่ยนสถานะเครื่องในห้องนี้ → เห็นทันที
+  useRoomLive(() => {
+    if (selectedRoom) fetchStations(selectedRoom);
+  }, selectedRoom);
+
+  // รายชื่อห้องจากตาราง rooms (ห้องที่เปิดอยู่)
   const fetchRooms = async () => {
-    const { data } = await supabase.from("computer_stations").select("room_id");
-    const unique = data && data.length > 0
-      ? ([...new Set(data.map((row: any) => row.room_id).filter(Boolean))] as string[])
-      : ["CP9524", "SC9604"];
-    setRooms(unique);
-    setSelectedRoom((current) => current || unique[0] || "CP9524");
+    const { rooms: list, error } = await loadRooms();
+    if (error) {
+      setLoadError(error.message);
+      setLoading(false);
+      return;
+    }
+    const ids = list.map((room) => room.id);
+    setRooms(ids);
+    setSelectedRoom((current) => current || (ids.includes(String(roomParam)) ? String(roomParam) : ids[0]) || "");
     setLoading(false);
   };
 
   const fetchStations = async (room = selectedRoom) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("computer_stations")
       .select("*")
       .eq("room_id", room)
       .order("group_no")
       .order("name");
-
+    if (room !== roomRef.current) return; // ผู้ใช้สลับไปห้องอื่นแล้ว
+    setRefreshing(false);
+    if (error) {
+      setLoadError(error.message);
+      return;
+    }
+    setLoadError("");
     const list = ((data as Station[]) || []).sort((a, b) =>
-      (a.group_no - b.group_no) || (naturalName(a.name) - naturalName(b.name)) || a.name.localeCompare(b.name)
+      (a.group_no - b.group_no) || (naturalNo(a.name) - naturalNo(b.name)) || a.name.localeCompare(b.name)
     );
     setStations(list);
-    setRefreshing(false);
+  };
+
+  const retry = () => {
+    setLoadError("");
+    if (selectedRoom) fetchStations(selectedRoom);
+    else {
+      setLoading(true);
+      fetchRooms();
+    }
   };
 
   const grouped = useMemo(() => {
@@ -108,38 +147,44 @@ export default function AdminStations() {
       .map(([group, rows]) => ({ group, rows }));
   }, [stations]);
 
-  const roomReady = stations.filter((station) => station.status === "available").length;
-  const roomProblems = stations.length - roomReady;
+  // สถิตินับเฉพาะเครื่องที่เปิดใช้งาน
+  const activeStations = stations.filter((station) => station.active !== false);
+  const roomReady = activeStations.filter((station) => station.status === "available").length;
+  const roomProblems = activeStations.length - roomReady;
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchStations();
   };
 
-  const goBack = () => router.replace("/admin/home");
-
   const toggleStatus = (station: Station) => {
-    const next = STATUS_CONFIG[station.status]?.next || "available";
-    const nextCfg = STATUS_CONFIG[next];
-    Alert.alert("เปลี่ยนสถานะเครื่อง", `${station.name} → ${nextCfg.label}?`, [
-      { text: "ยกเลิก", style: "cancel" },
-      {
-        text: "ยืนยัน",
-        onPress: async () => {
-          setSaving(station.id);
-          const { error } = await supabase
-            .from("computer_stations")
-            .update({ status: next })
-            .eq("id", station.id);
-          if (error) {
-            Alert.alert("เปลี่ยนสถานะไม่สำเร็จ", error.message);
-          } else {
-            setStations((current) => current.map((row) => row.id === station.id ? { ...row, status: next } : row));
-          }
-          setSaving(null);
-        },
-      },
-    ]);
+    if (station.active === false) {
+      if (!isAdmin) {
+        notify("เครื่องนี้ปิดใช้งานอยู่", "เฉพาะ Admin เปิดใช้งานเครื่องได้");
+        return;
+      }
+      confirmAction("เปิดใช้งานเครื่อง", `เปิดใช้ "${station.name}" อีกครั้ง?\nเครื่องจะกลับมาขึ้นในผังห้อง`, "เปิดใช้งาน", () =>
+        setActive(station, true)
+      );
+      return;
+    }
+    const next = NEXT_STATUS[station.status] || "available";
+    const nextCfg = roomStatus(STATION_STATUS, next);
+    confirmAction("เปลี่ยนสถานะเครื่อง", `${station.name} → ${nextCfg.label}?`, "ยืนยัน", async () => {
+      setSaving(station.id);
+      // .select() เพื่อรู้ว่าแก้ได้จริง — RLS ไม่ให้สิทธิ์จะไม่ error แต่แก้ได้ 0 แถว
+      const { data, error } = await supabase
+        .from("computer_stations")
+        .update({ status: next })
+        .eq("id", station.id)
+        .select("id");
+      setSaving(null);
+      if (error || !data?.length) {
+        notify("เปลี่ยนสถานะไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข หรือเครื่องนี้ถูกลบไปแล้ว");
+        return;
+      }
+      setStations((current) => current.map((row) => row.id === station.id ? { ...row, status: next } : row));
+    });
   };
 
   const openEdit = (station: Station) => {
@@ -152,54 +197,145 @@ export default function AdminStations() {
 
   const saveEdit = async () => {
     if (!editTarget || !editName.trim()) {
-      Alert.alert("กรอกชื่อเครื่องก่อน");
+      notify("กรอกชื่อเครื่องก่อน");
+      return;
+    }
+    const name = editName.trim();
+    // ชื่อซ้ำได้ข้ามกลุ่ม (ทุกกลุ่มมี C1–C9) แต่ห้ามซ้ำในกลุ่มเดียวกัน
+    const dup = stations.some(
+      (row) => row.id !== editTarget.id && row.group_no === editGroup && row.name.toLowerCase() === name.toLowerCase()
+    );
+    if (dup) {
+      notify("ชื่อซ้ำ", `กลุ่ม ${editGroup} ห้อง ${selectedRoom} มีเครื่องชื่อ "${name}" อยู่แล้ว`);
       return;
     }
     setEditSaving(true);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("computer_stations")
-      .update({ name: editName.trim(), status: editStatus, group_no: editGroup })
-      .eq("id", editTarget.id);
+      .update({ name, status: editStatus, group_no: editGroup })
+      .eq("id", editTarget.id)
+      .select("id");
     setEditSaving(false);
-    if (error) {
-      Alert.alert("แก้ไขไม่สำเร็จ", error.message);
+    if (error || !data?.length) {
+      notify("แก้ไขไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข หรือเครื่องนี้ถูกลบไปแล้ว");
       return;
     }
     setEditModal(false);
     fetchStations();
   };
 
-  const deleteStation = (station: Station) => {
-    Alert.alert("ลบเครื่อง", `ลบ "${station.name}" ?`, [
-      { text: "ยกเลิก", style: "cancel" },
-      {
-        text: "ลบ",
-        style: "destructive",
-        onPress: async () => {
-          const { error } = await supabase.from("computer_stations").delete().eq("id", station.id);
-          if (error) {
-            Alert.alert("ลบไม่สำเร็จ", error.message);
-            return;
-          }
-          setEditModal(false);
-          setStations((current) => current.filter((row) => row.id !== station.id));
-        },
-      },
-    ]);
+  // ปิด/เปิดใช้งานเครื่อง (active) — เครื่องที่ปิดไม่ขึ้นในผังห้อง/สถิติ แต่ประวัติยังผูกอยู่
+  const setActive = async (station: Station, active: boolean) => {
+    const { data, error } = await supabase
+      .from("computer_stations").update({ active }).eq("id", station.id).select("id");
+    if (error || !data?.length) {
+      notify(active ? "เปิดใช้งานไม่สำเร็จ" : "ปิดใช้งานไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข");
+      return;
+    }
+    setEditModal(false);
+    setStations((current) => current.map((row) => row.id === station.id ? { ...row, active } : row));
   };
+
+  // ลบเครื่อง: มีประวัติตรวจ/ซ่อม → ห้ามลบ ให้ "ปิดใช้งาน" แทน (ลบแล้วประวัติจะไม่รู้ว่าเป็นเครื่องไหน)
+  // ไม่มีประวัติ (เช่น เพิ่มผิด) → ลบได้
+  const deleteStation = async (station: Station) => {
+    const [{ count: inspections, error: e1 }, { count: repairs, error: e2 }] = await Promise.all([
+      supabase.from("equipment_inspections").select("id", { count: "exact", head: true }).eq("station_id", station.id),
+      supabase.from("repair_records").select("id", { count: "exact", head: true }).eq("station_id", station.id),
+    ]);
+    if (e1 || e2) {
+      notify("ตรวจประวัติเครื่องไม่สำเร็จ", e1?.message || e2?.message);
+      return;
+    }
+    const history = (inspections || 0) + (repairs || 0);
+    if (history > 0) {
+      if (station.active === false) {
+        notify("ลบไม่ได้", `"${station.name}" มีประวัติตรวจ/ซ่อม ${history} รายการ จึงเก็บไว้แบบปิดใช้งาน`);
+        return;
+      }
+      confirmAction(
+        "ปิดใช้งานเครื่อง",
+        `"${station.name}" มีประวัติตรวจ/ซ่อม ${history} รายการ จึงลบไม่ได้\n\nปิดใช้งานแทน? เครื่องจะไม่ขึ้นในผังห้อง แต่ประวัติยังอยู่ และเปิดกลับได้`,
+        "ปิดใช้งาน",
+        () => setActive(station, false),
+        true
+      );
+      return;
+    }
+    confirmAction(
+      "ลบเครื่อง",
+      `ลบ "${station.name}" ?\n\nเครื่องนี้ยังไม่มีประวัติตรวจ/ซ่อม ลบแล้วกู้คืนไม่ได้`,
+      "ลบ",
+      async () => {
+        const { data, error } = await supabase.from("computer_stations").delete().eq("id", station.id).select("id");
+        if (error || !data?.length) {
+          notify("ลบไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์ลบ หรือเครื่องนี้ถูกลบไปแล้ว");
+          return;
+        }
+        setEditModal(false);
+        setStations((current) => current.filter((row) => row.id !== station.id));
+      },
+      true
+    );
+  };
+
+  // ชื่อแนะนำของเครื่องใหม่ในกลุ่ม = C ตามด้วยเลขถัดจากเลขมากสุดในกลุ่ม
+  const suggestName = (group: number) => {
+    const nums = stations.filter((row) => row.group_no === group).map((row) => naturalNo(row.name)).filter((n) => n < 999);
+    return `C${(nums.length ? Math.max(...nums) : 0) + 1}`;
+  };
+
+  const openAdd = () => {
+    if (!selectedRoom) {
+      notify("ยังไม่มีห้อง", "เพิ่มห้องที่หน้า \"จัดการห้อง\" ก่อน");
+      return;
+    }
+    const group = grouped[grouped.length - 1]?.group || 1;
+    setAddGroup(group);
+    setAddName(suggestName(group));
+    setAddModal(true);
+  };
+
+  const saveAdd = async () => {
+    const name = addName.trim();
+    if (!name) {
+      notify("กรอกชื่อเครื่องก่อน");
+      return;
+    }
+    if (stations.some((row) => row.group_no === addGroup && row.name.toLowerCase() === name.toLowerCase())) {
+      notify("ชื่อซ้ำ", `กลุ่ม ${addGroup} ห้อง ${selectedRoom} มีเครื่องชื่อ "${name}" อยู่แล้ว`);
+      return;
+    }
+    setEditSaving(true);
+    const { error } = await supabase
+      .from("computer_stations")
+      .insert([{ room_id: selectedRoom, group_no: addGroup, name, status: "available" }]);
+    setEditSaving(false);
+    if (error) {
+      notify("เพิ่มเครื่องไม่สำเร็จ", error.code === "23505" ? "มีเครื่องชื่อนี้ในกลุ่มนี้อยู่แล้ว" : error.message);
+      return;
+    }
+    setAddModal(false);
+    fetchStations();
+  };
+
+  // กลุ่มที่เลือกได้ในหน้าต่างแก้ไข = กลุ่มที่มีในห้องนี้ + 1–6 (เดิมฟิก 1–6)
+  const groupChoices = useMemo(
+    () => [...new Set([1, 2, 3, 4, 5, 6, ...stations.map((row) => row.group_no)])].sort((a, b) => a - b),
+    [stations]
+  );
 
   return (
     <View style={s.container}>
       <View style={s.header}>
-        <View style={s.headerTop}>
-          <TouchableOpacity style={s.backBtn} onPress={goBack} activeOpacity={0.82}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
-          </TouchableOpacity>
-          <View style={s.headerTextWrap}>
-            <Text style={s.headerTitle}>จัดการเครื่องคอม</Text>
-            <Text style={s.headerSub}>ห้อง {selectedRoom || "-"} · {stations.length} เครื่อง</Text>
-          </View>
-        </View>
+        <ScreenHeader
+          title={"จัดการเครื่องคอม"}
+          subtitle={`ห้อง ${selectedRoom || "-"} · ${activeStations.length} เครื่อง`}
+          onBack={() => goBack("/admin/room")}
+          right={isAdmin ? <HeaderButton icon="add" label="เพิ่มเครื่อง" onPress={openAdd} /> : null}
+          bleed={16}
+          style={{ marginBottom: 0 }}
+        />
 
         <View style={s.roomTabs}>
           {rooms.map((room) => {
@@ -226,21 +362,22 @@ export default function AdminStations() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
           showsVerticalScrollIndicator
         >
+          {!!loadError && <LoadError message={loadError} onRetry={retry} />}
+
           <View style={s.legendRow}>
-            <Legend color={C.green} label="พร้อมใช้" />
-            <Legend color="#f59e0b" label="ซ่อม" />
-            <Legend color={C.red} label="พัง" />
+            {Object.values(STATION_STATUS).map((cfg) => <Legend key={cfg.label} color={cfg.color} label={cfg.label} />)}
           </View>
 
-          {grouped.length === 0 ? (
+          {loadError && stations.length === 0 ? null : grouped.length === 0 ? (
             <View style={s.empty}>
               <Ionicons name="desktop-outline" size={46} color="#cbd5e1" />
               <Text style={s.emptyText}>ยังไม่มีเครื่องในห้องนี้</Text>
             </View>
           ) : (
             grouped.map(({ group, rows }) => {
-              const ready = rows.filter((station) => station.status === "available").length;
-              const problems = rows.length - ready;
+              const activeRows = rows.filter((station) => station.active !== false);
+              const ready = activeRows.filter((station) => station.status === "available").length;
+              const problems = activeRows.length - ready;
               return (
                 <View key={group} style={s.groupCard}>
                   <View style={s.groupHeader}>
@@ -258,14 +395,15 @@ export default function AdminStations() {
 
                   <View style={s.stationGrid}>
                     {rows.map((station) => {
-                      const cfg = STATUS_CONFIG[station.status] || STATUS_CONFIG.available;
+                      const inactive = station.active === false;
+                      const cfg = inactive ? INACTIVE_CFG : roomStatus(STATION_STATUS, station.status);
                       const isSaving = saving === station.id;
                       return (
                         <TouchableOpacity
                           key={station.id}
                           style={[s.stationCard, { backgroundColor: cfg.bg, borderColor: cfg.border }]}
                           onPress={() => !isSaving && toggleStatus(station)}
-                          onLongPress={() => openEdit(station)}
+                          onLongPress={isAdmin ? () => openEdit(station) : undefined}
                           disabled={isSaving}
                           activeOpacity={0.86}
                         >
@@ -286,7 +424,13 @@ export default function AdminStations() {
           )}
 
           <View style={s.roomSummary}>
-            <Text style={s.summaryText}>รวม {stations.length} เครื่อง · {roomReady} พร้อมใช้ · {roomProblems} ปัญหา</Text>
+            <Text style={s.summaryText}>
+              รวม {activeStations.length} เครื่อง · {roomReady} ใช้งานได้ · {roomProblems} ปัญหา
+              {stations.length > activeStations.length ? ` · ปิดใช้งาน ${stations.length - activeStations.length}` : ""}
+            </Text>
+            <Text style={s.summaryText}>
+              {isAdmin ? "กดเครื่อง = เปลี่ยนสถานะ · กดค้าง = แก้ไข/ลบ" : "กดเครื่อง = เปลี่ยนสถานะ (ระบบบันทึกประวัติว่าใครเปลี่ยน)"}
+            </Text>
           </View>
         </ScrollView>
       )}
@@ -311,7 +455,7 @@ export default function AdminStations() {
 
             <Text style={s.fieldLabel}>กลุ่ม</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.modalChips}>
-              {[1, 2, 3, 4, 5, 6].map((group) => (
+              {groupChoices.map((group) => (
                 <TouchableOpacity
                   key={group}
                   style={[s.modalChip, editGroup === group && s.modalChipActive]}
@@ -324,7 +468,7 @@ export default function AdminStations() {
 
             <Text style={s.fieldLabel}>สถานะ</Text>
             <View style={s.statusRow}>
-              {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+              {Object.entries(STATION_STATUS).map(([key, cfg]) => (
                 <TouchableOpacity
                   key={key}
                   style={[s.statusBtn, { borderColor: cfg.color }, editStatus === key && { backgroundColor: cfg.color }]}
@@ -340,7 +484,45 @@ export default function AdminStations() {
                 {editSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>บันทึก</Text>}
               </TouchableOpacity>
               <TouchableOpacity style={s.deleteBtn} onPress={() => editTarget && deleteStation(editTarget)}>
-                <Text style={s.deleteBtnText}>ลบเครื่อง</Text>
+                <Text style={s.deleteBtnText}>ลบ / ปิดใช้งาน</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={addModal} transparent animationType="slide">
+        <View style={s.overlay}>
+          <View style={s.modalBox}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>เพิ่มเครื่องคอม · ห้อง {selectedRoom}</Text>
+              <TouchableOpacity onPress={() => setAddModal(false)}>
+                <Ionicons name="close" size={24} color={C.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={s.fieldLabel}>กลุ่ม</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.modalChips}>
+              {groupChoices.map((group) => (
+                <TouchableOpacity
+                  key={group}
+                  style={[s.modalChip, addGroup === group && s.modalChipActive]}
+                  onPress={() => {
+                    setAddGroup(group);
+                    setAddName(suggestName(group));
+                  }}
+                >
+                  <Text style={[s.modalChipText, addGroup === group && s.modalChipTextActive]}>กลุ่ม {group}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Text style={s.fieldLabel}>ชื่อเครื่อง</Text>
+            <TextInput style={s.input} value={addName} onChangeText={setAddName} placeholder="เช่น C9" autoCapitalize="characters" />
+
+            <View style={[s.modalActions, { marginTop: 16 }]}>
+              <TouchableOpacity style={[s.saveBtn, editSaving && { opacity: 0.6 }]} onPress={saveAdd} disabled={editSaving}>
+                {editSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>เพิ่มเครื่อง</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -360,39 +542,34 @@ function Legend({ color, label }: { color: string; label: string }) {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: C.bg },
+  container: { ...W.page, flex: 1 },
   header: {
-    backgroundColor: C.purple,
-    paddingTop: 74,
-    paddingHorizontal: 33,
+    paddingTop: 0,
+    paddingHorizontal: 16,
     paddingBottom: 16,
   },
   headerTop: {
+    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 13,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
+    ...W.iconBtn,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTextWrap: { flex: 1 },
-  headerTitle: { color: "#fff", fontSize: 24, fontWeight: "900", lineHeight: 28 },
-  headerSub: { color: "#ddd6fe", fontSize: 12, fontWeight: "900", marginTop: 4 },
+  headerTitle: { color: "#172033", fontSize: 24, fontWeight: "900", lineHeight: 28 },
+  headerSub: { color: "#475569", fontSize: 12, fontWeight: "900", marginTop: 4 },
   roomTabs: {
     minHeight: 38,
     flexDirection: "row",
     gap: 4,
-    backgroundColor: "rgba(255,255,255,0.13)",
+    backgroundColor: "rgba(255,255,255,0.78)", boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 8px rgba(37,99,235,0.10)",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.13)",
+    borderColor: "#D3E0F5",
     padding: 4,
     marginTop: 17,
   },
@@ -402,8 +579,8 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  roomTabActive: { backgroundColor: "#fff" },
-  roomText: { color: "#ddd6fe", fontSize: 12, fontWeight: "900" },
+  roomTabActive: { ...NG, backgroundColor: "#fff" },
+  roomText: { color: "#475569", fontSize: 12, fontWeight: "900" },
   roomTextActive: { color: C.purple },
   body: {
     width: "100%",
@@ -418,28 +595,22 @@ const s = StyleSheet.create({
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendText: { color: C.muted, fontSize: 11, fontWeight: "900" },
   groupCard: {
-    backgroundColor: C.card,
-    borderRadius: 15,
+    ...W.card,
     padding: 14,
     marginBottom: 15,
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.18,
-    shadowRadius: 13,
-    shadowOffset: { width: 0, height: 7 },
-    elevation: 4,
   },
   groupHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 13 },
   groupTitleRow: { flexDirection: "row", alignItems: "center", gap: 9 },
   groupIcon: { width: 31, height: 31, borderRadius: 9, backgroundColor: "#dbeafe", alignItems: "center", justifyContent: "center" },
   groupTitle: { color: C.ink, fontSize: 15, fontWeight: "900" },
   groupPills: { flexDirection: "row", alignItems: "center", gap: 7 },
-  readyPill: { backgroundColor: "#dcfce7", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },
+  readyPill: { backgroundColor: "#ECFDF5", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 5 },
   readyPillText: { color: C.green, fontSize: 11, fontWeight: "900" },
   problemPill: { backgroundColor: "#fee2e2", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   problemPillText: { color: "#ef4444", fontSize: 11, fontWeight: "900" },
   stationGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   stationCard: {
-    width: "31.5%",
+    width: "31%",
     height: 84,
     borderRadius: 11,
     borderWidth: 1,
@@ -450,7 +621,7 @@ const s = StyleSheet.create({
   stationName: { fontSize: 14, fontWeight: "900" },
   stationStatus: { fontSize: 11, fontWeight: "900" },
   roomSummary: { alignItems: "center", marginTop: 2 },
-  summaryText: { color: C.faint, fontSize: 11, fontWeight: "800" },
+  summaryText: { color: C.faint, fontSize: 12, fontWeight: "800" },
   empty: { alignItems: "center", paddingVertical: 64, gap: 8 },
   emptyText: { color: C.faint, fontSize: 14, fontWeight: "800" },
   overlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.38)", justifyContent: "flex-end" },
@@ -458,17 +629,17 @@ const s = StyleSheet.create({
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   modalTitle: { color: C.ink, fontSize: 18, fontWeight: "900" },
   fieldLabel: { color: C.muted, fontSize: 12, fontWeight: "900", marginTop: 10, marginBottom: 7 },
-  input: { minHeight: 45, borderRadius: 12, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#e2e8f0", paddingHorizontal: 13, color: C.ink, fontSize: 14, fontWeight: "800" },
+  input: { minHeight: 45, borderRadius: 12, backgroundColor: "#f8fafc", borderWidth: 1, borderColor: "#DCE6F5", paddingHorizontal: 13, color: C.ink, fontSize: 14, fontWeight: "800" },
   modalChips: { gap: 8, paddingVertical: 4 },
-  modalChip: { borderRadius: 999, borderWidth: 1, borderColor: "#e2e8f0", paddingHorizontal: 13, paddingVertical: 7 },
-  modalChipActive: { backgroundColor: C.purple, borderColor: C.purple },
+  modalChip: { borderRadius: 999, borderWidth: 1, borderColor: "#DCE6F5", paddingHorizontal: 13, paddingVertical: 7 },
+  modalChipActive: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
   modalChipText: { color: C.muted, fontSize: 12, fontWeight: "900" },
   modalChipTextActive: { color: "#fff" },
   statusRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
   statusBtn: { flex: 1, borderWidth: 1.5, borderRadius: 999, paddingVertical: 9, alignItems: "center" },
   statusBtnText: { fontSize: 12, fontWeight: "900" },
   modalActions: { flexDirection: "row", gap: 10 },
-  saveBtn: { flex: 1, minHeight: 48, borderRadius: 12, backgroundColor: C.purple, alignItems: "center", justifyContent: "center" },
+  saveBtn: { ...W.primarySolid, flex: 1, minHeight: 48, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   saveBtnText: { color: "#fff", fontSize: 15, fontWeight: "900" },
   deleteBtn: { flex: 1, minHeight: 48, borderRadius: 12, backgroundColor: "#fee2e2", alignItems: "center", justifyContent: "center" },
   deleteBtnText: { color: "#dc2626", fontSize: 15, fontWeight: "900" },
