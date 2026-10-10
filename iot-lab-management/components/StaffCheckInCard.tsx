@@ -1,17 +1,32 @@
 import React, { useState } from "react";
-import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View, ViewStyle, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./AppText";
+import { Pulse } from "./Motion";
 import { PRESENCE_ROLE, PresentStaff, checkinTime, staffCheckIn, staffCheckOut } from "../lib/presence";
 import { notify } from "../lib/notify";
-import { C, W } from "../lib/theme";
+import { C, W, gradient } from "../lib/theme";
 
-// F4 การ์ดบนแดชบอร์ด Admin/TA: เช็กอิน/เช็กเอาท์ปุ่มเดียว + รายชื่อคนที่อยู่ห้องตอนนี้
-// รายชื่อมาจาก usePresence() ของหน้าแดชบอร์ด (ใช้ชุดเดียวกับจุดสีบนบรรทัดทักทาย ไม่โหลดซ้ำ)
+// F4 การ์ดบนแดชบอร์ด Admin/TA แบบแถบเดียว (ย่อจาก ~190px ให้กล่องคำขอ/ทางลัดขึ้นมาใกล้ขึ้น — เจ้าของโปรเจกต์เลือก 11 ต.ค. 2569)
+//   ยังไม่เช็กอิน: การ์ดส้มอำพันเต็มใบ + ไอคอนหมุดมีวงชีพจร + ปุ่มขาว "เช็กอิน" — ชวนกดตอนเข้ามา
+//     (ส้ม ไม่ใช่น้ำเงิน จะได้ไม่ซ้ำกับกล่องคำขอตอนมีงานรอ — เจ้าของโปรเจกต์เลือก 11 ต.ค. 2569)
+//   เช็กอินแล้ว: กลับเป็นแถบขาวเรียบ จุดเขียว + ปุ่มเช็กเอาท์ (กรอบแดง) ไม่แย่งสายตากล่องคำขอทั้งวัน
+// รายชื่อมาจาก usePresence() ของหน้าแดชบอร์ด (ชุดเดียวกับจุดสีบนบรรทัดทักทาย ไม่โหลดซ้ำ)
+
+// คนอื่นที่อยู่ห้อง: "TA สมศักดิ์" / "TA สมศักดิ์ +2"
+function othersText(others: PresentStaff[]) {
+  if (others.length === 0) return "";
+  const first = `${PRESENCE_ROLE[others[0].role] || "ผู้ดูแล"} ${others[0].name}`;
+  return others.length > 1 ? `${first} +${others.length - 1}` : first;
+}
+
 export default function StaffCheckInCard({ list, me, reload }: { list: PresentStaff[]; me: string | null; reload: () => void }) {
   const [busy, setBusy] = useState(false);
+  // จอแคบมาก (~320px) หัวข้อเต็มถูกตัด → ใช้แบบสั้น (ปุ่มข้าง ๆ บอก "เช็กอิน" อยู่แล้ว)
+  const narrow = useWindowDimensions().width < 350;
 
   const mine = list.find((p) => p.user_id === me);
+  const others = othersText(list.filter((p) => p.user_id !== me));
 
   const toggle = async () => {
     setBusy(true);
@@ -24,71 +39,97 @@ export default function StaffCheckInCard({ list, me, reload }: { list: PresentSt
     reload();
   };
 
+  if (!mine) {
+    return (
+      <View style={s.hotCard}>
+        <View style={s.pin}>
+          <Pulse color="rgba(255,255,255,0.75)" size={34} grow={1.4} />
+          <Ionicons name="location" size={18} color="#fff" />
+        </View>
+        <View style={s.body}>
+          <Text style={s.hotTitle} numberOfLines={1}>{narrow ? "มาถึงแล้ว?" : "มาถึงแล้ว? เช็กอินเลย"}</Text>
+          <Text style={s.hotSub} numberOfLines={1}>{others ? `ตอนนี้อยู่ห้อง: ${others}` : "นศ. จะเห็นว่ามีผู้ดูแลอยู่"}</Text>
+        </View>
+        <TouchableOpacity
+          style={[s.whiteBtn, busy && { opacity: 0.6 }]}
+          onPress={toggle}
+          disabled={busy || !me}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="เช็กอิน อยู่ที่ IoT Lab"
+        >
+          {busy ? <ActivityIndicator size="small" color={C.warningInk} /> : <Text style={s.whiteText}>เช็กอิน</Text>}
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // จอแคบตัดท้ายบรรทัด → เรียงสำคัญก่อน: เวลาเช็กอิน → คนอื่นในห้อง → ออกอัตโนมัติ 17:00 (ถูกตัดก่อน)
+  const sub = [`ตั้งแต่ ${checkinTime(mine.checked_in_at)}`, others ? `กับ ${others}` : "", "ออกอัตโนมัติ 17:00"].filter(Boolean).join(" · ");
+
   return (
     <View style={s.card}>
-      <View style={s.head}>
-        <View style={[s.dot, { backgroundColor: mine ? C.success : "#94A3B8" }]} />
-        <View style={{ flex: 1 }}>
-          <Text style={s.title}>{mine ? "คุณอยู่ที่ IoT Lab" : "คุณยังไม่ได้เช็กอิน"}</Text>
-          <Text style={s.sub}>{mine ? `เช็กอิน ${checkinTime(mine.checked_in_at)} · นศ. เห็นว่ามีผู้ดูแลอยู่` : "เช็กอินเมื่อมาถึงห้อง นศ. จะเห็นว่ามีคนเปิดตู้ให้"}</Text>
-        </View>
+      <View style={[s.dot, { backgroundColor: C.success }]} />
+      <View style={s.body}>
+        <Text style={s.title} numberOfLines={1}>อยู่ที่ IoT Lab</Text>
+        <Text style={s.sub} numberOfLines={1}>{sub}</Text>
       </View>
-
       <TouchableOpacity
-        style={[mine ? s.outBtn : s.inBtn, busy && { opacity: 0.6 }]}
+        style={[s.outBtn, busy && { opacity: 0.6 }]}
         onPress={toggle}
         disabled={busy || !me}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="เช็กเอาท์ ออกจากห้อง"
       >
-        {busy ? (
-          <ActivityIndicator color={mine ? C.errorInk : "#fff"} />
-        ) : (
-          <>
-            <Ionicons name={mine ? "log-out-outline" : "location-outline"} size={18} color={mine ? C.errorInk : "#fff"} />
-            <Text style={mine ? s.outText : s.inText}>{mine ? "เช็กเอาท์ (ออกจากห้อง)" : "เช็กอิน อยู่ที่ IoT Lab"}</Text>
-          </>
-        )}
+        {busy ? <ActivityIndicator size="small" color={C.errorInk} /> : <Text style={s.outText}>เช็กเอาท์</Text>}
       </TouchableOpacity>
-
-      <Text style={s.label}>ตอนนี้อยู่ที่ห้อง</Text>
-      {list.length === 0 ? (
-        <Text style={s.empty}>ยังไม่มีใคร</Text>
-      ) : (
-        list.map((p) => (
-          <Text key={p.user_id} style={s.person} numberOfLines={1}>
-            <Text style={s.role}>{PRESENCE_ROLE[p.role] || "ผู้ดูแล"}</Text> {p.name} · {checkinTime(p.checked_in_at)}
-          </Text>
-        ))
-      )}
-      <Text style={s.note}>ลืมเช็กเอาท์ ระบบจะเช็กเอาท์ให้อัตโนมัติ 17:00</Text>
     </View>
   );
 }
 
+const ROW: ViewStyle = { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 14 };
+
 const s = StyleSheet.create({
-  card: { ...W.card, padding: 14, gap: 6, marginBottom: 14 },
-  head: { flexDirection: "row", alignItems: "center", gap: 10 },
-  dot: { width: 12, height: 12, borderRadius: 6 },
-  title: { fontSize: 16, fontWeight: "600", color: C.ink },
-  sub: { fontSize: 12.5, color: C.text2, marginTop: 1 },
-  inBtn: { ...W.primary, flexDirection: "row", gap: 8, minHeight: 48, alignItems: "center", justifyContent: "center", marginTop: 4 },
-  inText: { color: "#fff", fontSize: 15, fontWeight: "600" },
-  outBtn: {
-    flexDirection: "row",
-    gap: 8,
-    minHeight: 48,
+  card: { ...W.card, ...ROW },
+  // ส้มอำพันจากชุดสี warning ของแอป (ไล่สีแบบเดียวกับ W.primary)
+  hotCard: {
+    ...ROW,
+    borderRadius: 22,
+    backgroundColor: C.warning,
+    // ขอบบางเท่า W.card — สองสถานะสูงเท่ากัน สลับแล้วหน้าไม่กระตุก
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+    ...gradient("linear-gradient(135deg, #D97706 0%, #F59E0B 60%, #FBBF24 100%)"),
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.35), 0 2px 4px rgba(180,83,9,0.2), 0 10px 22px rgba(245,158,11,0.32)",
+  } as ViewStyle,
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  pin: { width: 34, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.24)", alignItems: "center", justifyContent: "center" },
+  body: { flex: 1, minWidth: 0 },
+  title: { fontSize: 14.5, fontWeight: "600", color: C.ink },
+  sub: { fontSize: 12, color: C.text2, marginTop: 1 },
+  hotTitle: { fontSize: 14.5, fontWeight: "700", color: "#fff" },
+  hotSub: { fontSize: 12, fontWeight: "500", color: "#fff", marginTop: 1 },
+  // ปุ่มกว้างคงที่ — ตอนกำลังโหลด (วงหมุน) การ์ดไม่ขยับ
+  whiteBtn: {
+    width: 92,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 4,
-    borderRadius: 14,
+    boxShadow: "0 4px 10px rgba(120,53,15,0.22)",
+  } as ViewStyle,
+  whiteText: { color: C.warningInk, fontSize: 14, fontWeight: "700" },
+  outBtn: {
+    width: 92,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#FCA5A5",
     backgroundColor: "#FFF5F5",
   },
-  outText: { color: C.errorInk, fontSize: 15, fontWeight: "600" },
-  label: { fontSize: 13, fontWeight: "700", color: C.ink, marginTop: 6 },
-  empty: { fontSize: 13, color: C.faint },
-  person: { fontSize: 13, color: C.ink },
-  role: { fontWeight: "700", color: C.primary },
-  note: { fontSize: 11.5, color: C.faint, marginTop: 4 },
+  outText: { color: C.errorInk, fontSize: 14, fontWeight: "600" },
 });

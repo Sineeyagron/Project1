@@ -838,8 +838,7 @@ const s = StyleSheet.create({
     paddingBottom: 14,
     overflow: "hidden",
     backgroundColor: "#F7FAFF",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.9)",
+    // ไม่มีเส้นขอบขาวรอบการ์ด (พื้นการ์ดเป็นสี เส้นขาวตัดชัดเกิน ดูเป็นกรอบสติกเกอร์) — เหลือไฮไลต์ขอบบนใน boxShadow
     boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 4px rgba(15,23,42,0.05), 0 12px 24px rgba(37,99,235,0.12)",
   },
   tileStripe: { position: "absolute", left: 0, top: 0, bottom: 0, width: 4 },
