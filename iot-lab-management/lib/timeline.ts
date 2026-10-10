@@ -4,7 +4,7 @@
 // โชว์ "ถูกปฏิเสธ / หมดอายุ" ในประวัติไหม (ยังรออาจารย์ตัดสิน — ปิด = false ที่เดียว; ชิป "อื่น ๆ" จะเหลือแค่ยืมต่อ)
 export const SHOW_OTHER_EVENTS = true;
 
-export type EventKind = "borrow" | "return" | "renew" | "declined" | "expired";
+export type EventKind = "borrow" | "return" | "renew" | "declined" | "expired" | "pickup" | "no_show";
 export type DetailTone = "normal" | "warn" | "bad";
 
 export type TimelineEvent = {
@@ -24,6 +24,8 @@ export const EVENT_STYLE: Record<EventKind, { label: string; icon: string; color
   renew:    { label: "ยืมต่อ",      icon: "refresh-outline",        color: "#6D28D9", bg: "#EDE9FE" },
   declined: { label: "ถูกปฏิเสธ",   icon: "close-outline",          color: "#B91C1C", bg: "#FEF2F2" },
   expired:  { label: "หมดอายุ",     icon: "timer-outline",          color: "#475569", bg: "#F1F5F9" },
+  pickup:   { label: "นัดรับ",      icon: "calendar-outline",       color: "#047857", bg: "#ECFDF5" },
+  no_show:  { label: "ไม่มาตามนัด", icon: "alert-circle-outline",   color: "#B91C1C", bg: "#FEF2F2" },
 };
 
 const DAY_MS = 86400000;
@@ -58,7 +60,11 @@ type BuildOpts = {
   approver?: (requestId: string | null) => string | null;
 };
 
-export function buildEvents(records: any[], requests: any[], opts: BuildOpts): TimelineEvent[] {
+// "11/10/2569 09:30 น." (เวลาไทย)
+const dayTime = (iso: string) => `${thaiDay(bkkDayKey(iso))} ${bkkTime(iso)} น.`;
+
+// pickups = แถว pickup_requests (F2) — นัดรับ (นัดแล้ว/รับแล้ว) + ไม่มาตามนัด
+export function buildEvents(records: any[], requests: any[], opts: BuildOpts, pickups: any[] = []): TimelineEvent[] {
   const today = todayKey();
   const out: TimelineEvent[] = [];
   const recById: Record<string, any> = {};
@@ -123,6 +129,22 @@ export function buildEvents(records: any[], requests: any[], opts: BuildOpts): T
     }
   }
 
+  for (const p of pickups) {
+    if (!p.decided_at || !p.pickup_at) continue;
+    if (p.status === "scheduled" || p.status === "picked_up") {
+      out.push({
+        key: `p:${p.id}`, kind: "pickup", at: p.decided_at, itemName: p.item_prefix, userId: p.user_id,
+        detail: `นัดรับ ${dayTime(p.pickup_at)} · ยืม ${p.days} วัน${p.status === "picked_up" ? " · รับของแล้ว" : ""}`,
+        detailTone: "normal", overdue: false,
+      });
+    } else if (p.status === "no_show") {
+      out.push({
+        key: `p:${p.id}`, kind: "no_show", at: p.decided_at, itemName: p.item_prefix, userId: p.user_id,
+        detail: `นัดไว้ ${dayTime(p.pickup_at)}`, detailTone: "bad", overdue: false,
+      });
+    }
+  }
+
   return out.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 }
 
@@ -154,7 +176,7 @@ export function filterEvents(events: TimelineEvent[], f: TimelineFilter) {
   if (f === "borrow") return events.filter((e) => e.kind === "borrow");
   if (f === "return") return events.filter((e) => e.kind === "return");
   if (f === "overdue") return events.filter((e) => e.overdue);
-  return events.filter((e) => e.kind === "renew" || e.kind === "declined" || e.kind === "expired");
+  return events.filter((e) => e.kind !== "borrow" && e.kind !== "return");
 }
 
 // ช่วงเวลาที่ดึง (วันล่าสุด) + ปุ่มโหลดเพิ่ม — ไม่ดึงทั้งตาราง

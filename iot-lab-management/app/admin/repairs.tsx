@@ -11,6 +11,7 @@ import {
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
+import { fetchRoomPeople } from "../../lib/roomPeople";
 import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { REPAIR_STATUS, roomStatus } from "../../lib/roomStatus";
@@ -53,10 +54,10 @@ function stationTitle(record: any) {
 
 function stationSub(record: any) {
   if (record.stationRoom) {
-    const reporter = record.reporterEmail ? `แจ้งโดย ${record.reporterEmail.split("@")[0]}` : "แจ้งโดย admin";
+    const reporter = record.reporterName ? `แจ้งโดย ${record.reporterName}` : "แจ้งโดย admin";
     return `${record.stationRoom} · ${reporter}`;
   }
-  return record.reporterEmail ? `แจ้งโดย ${record.reporterEmail}` : "ไม่ระบุเครื่อง";
+  return record.reporterName ? `แจ้งโดย ${record.reporterName}` : "ไม่ระบุเครื่อง";
 }
 
 export default function RepairsPage() {
@@ -107,20 +108,14 @@ export default function RepairsPage() {
 
     const safeStations = stationRows || [];
     const userIds = [...new Set((recs || []).map((r: any) => r.reported_by).filter(Boolean))];
-    const emailMap: Record<string, string> = {};
-
-    if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from("profiles").select("id, email").in("id", userIds);
-      (profiles || []).forEach((profile: any) => {
-        emailMap[profile.id] = profile.email || "";
-      });
-    }
+    // ชื่อ · รหัส นศ. ของผู้แจ้ง (lib/roomPeople ของระบบห้อง)
+    const nameMap = await fetchRoomPeople(userIds as string[]);
 
     const enriched = (recs || []).map((record: any) => {
       const station = safeStations.find((row: any) => row.id === record.station_id);
       return {
         ...record,
-        reporterEmail: emailMap[record.reported_by] || "",
+        reporterName: nameMap[record.reported_by] || "",
         stationShort: station?.name || "",
         stationRoom: station ? `ห้อง ${station.room_id} · กลุ่ม ${station.group_no}` : "",
       };

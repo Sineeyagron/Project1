@@ -121,7 +121,8 @@ export default function Profile() {
   const logout = () => {
     confirmAction("ออกจากระบบ", "ต้องการออกจากระบบหรือไม่?", "ออกจากระบบ", async () => {
       cache = null;
-      await supabase.auth.signOut();
+      // ออกเฉพาะเครื่องนี้ (ค่าเริ่มต้น Supabase = ออกทุกเครื่องของบัญชี)
+      await supabase.auth.signOut({ scope: "local" });
       router.replace("/login");
     }, true);
   };

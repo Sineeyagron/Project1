@@ -1,19 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./AppText";
-import { PRESENCE_ROLE, checkinTime, staffCheckIn, staffCheckOut, usePresence } from "../lib/presence";
-import { currentUser } from "../lib/session";
+import { PRESENCE_ROLE, PresentStaff, checkinTime, staffCheckIn, staffCheckOut } from "../lib/presence";
 import { notify } from "../lib/notify";
 import { C, W } from "../lib/theme";
 
 // F4 การ์ดบนแดชบอร์ด Admin/TA: เช็กอิน/เช็กเอาท์ปุ่มเดียว + รายชื่อคนที่อยู่ห้องตอนนี้
-export default function StaffCheckInCard() {
-  const { list, reload } = usePresence();
-  const [me, setMe] = useState<string | null>(null);
+// รายชื่อมาจาก usePresence() ของหน้าแดชบอร์ด (ใช้ชุดเดียวกับจุดสีบนบรรทัดทักทาย ไม่โหลดซ้ำ)
+export default function StaffCheckInCard({ list, me, reload }: { list: PresentStaff[]; me: string | null; reload: () => void }) {
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => { currentUser().then((u) => setMe(u?.id ?? null)); }, []);
 
   const mine = list.find((p) => p.user_id === me);
 

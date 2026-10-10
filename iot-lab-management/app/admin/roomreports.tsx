@@ -11,6 +11,7 @@ import {
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
+import { fetchRoomPeople } from "../../lib/roomPeople";
 import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRealtime } from "../../lib/realtime";
@@ -82,13 +83,10 @@ export default function RoomReports() {
     setLoadError("");
     const list = (data as Report[]) || [];
     setReports(list);
-    // ชื่อผู้แจ้ง/ผู้จัดการ (ส่วนหน้า @ ของอีเมล)
+    // ชื่อผู้แจ้ง/ผู้จัดการ ("ชื่อ · รหัส นศ." — lib/roomPeople ของระบบห้อง)
     const ids = [...new Set(list.flatMap((r) => [r.reported_by, r.handled_by]).filter(Boolean))] as string[];
     if (ids.length) {
-      const { data: people } = await supabase.from("profiles").select("id, email").in("id", ids);
-      const map: Record<string, string> = {};
-      (people || []).forEach((p: any) => { map[p.id] = (p.email || "").split("@")[0]; });
-      setNames(map);
+      setNames(await fetchRoomPeople(ids));
     }
   };
 

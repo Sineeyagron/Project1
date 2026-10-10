@@ -107,17 +107,17 @@ export default function Notifications() {
   const fetchNotifications = useCallback(async (silent = false) => {
     const user = await currentUser();
     if (!user) { setLoading(false); return; }
-    if (isFirstLoad.current) {
-      const { data: staff } = await supabase.rpc("is_staff");
-      setIsStaff(!!staff);
-    }
-
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
+    // ครั้งแรกเช็กบทบาทพร้อมกับโหลดรายการ (ยิงคู่กัน ไม่ต้องรอกัน)
+    const [{ data }, staffRes] = await Promise.all([
+      supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      isFirstLoad.current ? supabase.rpc("is_staff") : Promise.resolve(null),
+    ]);
+    if (staffRes) setIsStaff(!!staffRes.data);
 
     const list = data || [];
 

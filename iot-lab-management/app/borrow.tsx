@@ -33,21 +33,28 @@ const FILTERS: { key: TimelineFilter; label: string }[] = [
   { key: "other", label: "อื่น ๆ" },
 ];
 
+// ข้อมูลชุดล่าสุด (หน่วยความจำ) — เปิดหน้าซ้ำเห็นประวัติทันที แล้วค่อยโหลดใหม่เบื้องหลัง / ล้างเมื่อออกจากระบบ
+type BorrowCache = { borrows: any[]; requests: any[]; maxActive: number; pickups: any[]; pickupLog: any[] };
+let cache: BorrowCache | null = null;
+supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") cache = null; });
+
 export default function Borrow() {
   const router = useRouter();
-  const [borrows, setBorrows] = useState<any[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [borrows, setBorrows] = useState<any[]>(cache?.borrows ?? []);
+  const [requests, setRequests] = useState<any[]>(cache?.requests ?? []);
+  const [loading, setLoading] = useState(!cache);
   const [refreshing, setRefreshing] = useState(false);
-  const [maxActive, setMaxActive] = useState(3);
+  const [maxActive, setMaxActive] = useState(cache?.maxActive ?? 3);
   // F2 นัดรับของที่ยังไม่จบ (รอนัด / นัดแล้ว)
-  const [pickups, setPickups] = useState<any[]>([]);
+  const [pickups, setPickups] = useState<any[]>(cache?.pickups ?? []);
+  // นัดรับที่จบแล้ว/นัดแล้ว สำหรับประวัติ (F3)
+  const [pickupLog, setPickupLog] = useState<any[]>(cache?.pickupLog ?? []);
   const [filter, setFilter] = useState<TimelineFilter>("all");
 
   const fetchBorrows = useCallback(async () => {
     const user = await currentUser();
     if (!user) { setLoading(false); return; }
-    const [{ data }, { data: reqs }, { data: setting }, { data: pks }] = await Promise.all([
+    const [{ data }, { data: reqs }, { data: setting }, { data: pks }, { data: pkLog }] = await Promise.all([
       supabase
         .from("borrow_records")
         // borrow_records ไม่มีคอลัมน์ created_at (ใช้ borrow_date)
@@ -62,10 +69,20 @@ export default function Borrow() {
         .limit(300),
       supabase.from("app_settings").select("value").eq("key", "max_active_borrows").maybeSingle(),
       supabase.rpc("my_pickups"),
+      supabase
+        .from("pickup_requests")
+        .select("id, user_id, item_prefix, days, status, pickup_at, decided_at")
+        .eq("user_id", user.id)
+        .in("status", ["scheduled", "picked_up", "no_show"])
+        .order("decided_at", { ascending: false })
+        .limit(100),
     ]);
     setPickups(pks || []);
+    setPickupLog(pkLog || []);
     const max = Number(setting?.value);
-    if (Number.isFinite(max) && max > 0) setMaxActive(max);
+    const nextMax = Number.isFinite(max) && max > 0 ? max : 3;
+    setMaxActive(nextMax);
+    cache = { borrows: data || [], requests: reqs || [], maxActive: nextMax, pickups: pks || [], pickupLog: pkLog || [] };
     setBorrows(data || []);
     setRequests(reqs || []);
     setLoading(false);
@@ -93,8 +110,8 @@ export default function Borrow() {
       const it = Array.isArray(r.items) ? r.items[0] : r.items;
       if (r.item_id && it) names[r.item_id] = it.item_code || it.name;
     });
-    return buildEvents(borrows, requests, { itemName: (id) => (id && names[id]) || "อุปกรณ์" });
-  }, [borrows, requests]);
+    return buildEvents(borrows, requests, { itemName: (id) => (id && names[id]) || "อุปกรณ์" }, pickupLog);
+  }, [borrows, requests, pickupLog]);
   const groups = useMemo(() => groupByDay(filterEvents(events, filter)), [events, filter]);
 
   useEffect(() => { fetchBorrows(); }, [fetchBorrows]);

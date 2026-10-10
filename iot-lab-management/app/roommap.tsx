@@ -11,6 +11,7 @@ import { Text } from "../components/AppText";
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
+import { fetchRoomPeople } from "../lib/roomPeople";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { EQUIP_STATUS, LAN_STATUS, STATION_STATUS, naturalNo, roomStatus } from "../lib/roomStatus";
 import LoadError from "../components/LoadError";
@@ -159,13 +160,9 @@ export default function RoomMap() {
         .from("room_status_log").select("*").eq("station_id", station.id)
         .order("changed_at", { ascending: false }).limit(5);
       const rows = data || [];
-      // ชื่อผู้เปลี่ยน (อีเมลส่วนหน้า @)
-      const ids = [...new Set(rows.map((row: any) => row.changed_by).filter(Boolean))];
-      const names: Record<string, string> = {};
-      if (ids.length) {
-        const { data: people } = await supabase.from("profiles").select("id, email").in("id", ids);
-        (people || []).forEach((p: any) => { names[p.id] = (p.email || "").split("@")[0]; });
-      }
+      // ชื่อผู้เปลี่ยน ("ชื่อ · รหัส นศ." — lib/roomPeople ของระบบห้อง)
+      const ids = [...new Set(rows.map((row: any) => row.changed_by).filter(Boolean))] as string[];
+      const names = await fetchRoomPeople(ids);
       setStationLog(rows.map((row: any) => ({ ...row, who: names[row.changed_by] || "ระบบ" })));
     }
   };

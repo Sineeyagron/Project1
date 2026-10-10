@@ -101,16 +101,17 @@ export default function AdminRequests() {
   const signedAtRef = useRef(0);
 
   const load = useCallback(async () => {
-    // ปล่อยคำขอที่หมดเวลาก่อน จะได้ไม่เห็นรายการที่ตัดสินไม่ได้แล้ว
-    await supabase.rpc("expire_requests");
+    // ปล่อยคำขอที่หมดเวลาไปพร้อมกับโหลดรายการ (ไม่ต้องรอกันเป็นทอด) — รายการที่หมดเวลาแล้วกรองทิ้งฝั่งแอปด้านล่าง
+    const expiring = supabase.rpc("expire_requests");
     const query = (sel: string) => Promise.all([
       supabase.from("borrow_requests").select(sel).eq("status", "pending").order("created_at", { ascending: true }),
       supabase.from("borrow_requests").select(sel).neq("status", "pending").order("decided_at", { ascending: false }).limit(40),
     ]);
     supabase.from("pickup_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
       .then(({ count }) => setPickupCount(count || 0));
-    let [{ data: p, error }, { data: h }] = await query(SELECT);
+    let [[{ data: p, error }, { data: h }]] = await Promise.all([query(SELECT), expiring]);
     if (error && isMissingColumn(error)) [{ data: p, error }, { data: h }] = await query(SELECT_LEGACY);
+    p = (p || []).filter((r: any) => !r.expires_at || Date.parse(r.expires_at) > Date.now());
     if (error) notify("โหลดคำขอไม่สำเร็จ", error.message);
 
     const all = [...(p || []), ...(h || [])];

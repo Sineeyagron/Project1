@@ -21,9 +21,10 @@ import { currentUser } from "../../lib/session";
 import { useRefreshOnFocus } from "../../lib/nav";
 import GreetingLine from "../../components/GreetingLine";
 import StaffCheckInCard from "../../components/StaffCheckInCard";
+import { usePresence } from "../../lib/presence";
 import { FadeIn, PressScale, Pulse } from "../../components/Motion";
 import { confirmAction, notify } from "../../lib/notify";
-import { canAccess, isStaffRole, ROLE_LABEL, useRole } from "../../lib/roles";
+import { canAccess, ROLE_LABEL, useRole } from "../../lib/roles";
 import { W, NG, gradient, iconDot, BADGE_TEXT } from "../../lib/theme";
 
 const C = {
@@ -128,6 +129,12 @@ type ActivityItem = {
 
 type Tile = { icon: string; title?: string; sub?: string; label?: string; route: string; color?: string; bg: string };
 
+// เที่ยงคืนวันนี้ (เวลาไทย) เป็น ISO — ใช้นับยืม/คืนของวันนี้
+function startOfTodayBkk() {
+  const d = new Date(Date.now() + 7 * 3600000);
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - 7 * 3600000).toISOString();
+}
+
 // คำขอยืม-คืน-ยืมต่อที่รออนุมัติ + คำขอนัดรับที่รอนัดเวลา (F2)
 async function countPending() {
   const [req, pickup] = await Promise.all([
@@ -139,7 +146,10 @@ async function countPending() {
 
 export default function AdminHome() {
   const router = useRouter();
-  const { role } = useRole();
+  const { role, userId } = useRole();
+  // F4 ผู้ดูแลที่อยู่ห้องตอนนี้ — การ์ดเช็กอิน + จุดสีบนบรรทัดทักทาย (เช็กอินแล้ว = เขียว / ยังไม่เช็กอิน = แดง)
+  const presence = usePresence();
+  const checkedIn = presence.list.some((p) => p.user_id === userId);
   // TA เห็นเฉพาะเมนูที่มีสิทธิ์ (lib/roles.ts) + ทางไปหน้านักศึกษาเพื่อยืมของเอง
   const primary: Tile[] = [
     ...PRIMARY.filter((t) => canAccess(role, t.route)),
@@ -168,8 +178,9 @@ export default function AdminHome() {
   const [pendingRequests, setPendingRequests] = useState(0);
   const [unread, setUnread] = useState(0);
 
+  // ด่านสิทธิ์อยู่ที่ app/admin/_layout.tsx แล้ว (ไม่ต้องอ่าน role ซ้ำ) → โหลดแดชบอร์ดเลย
   useEffect(() => {
-    checkRoleAndFetch();
+    fetchDashboard();
   }, []);
   // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
   useRefreshOnFocus(() => { fetchDashboard(); });
@@ -213,30 +224,9 @@ export default function AdminHome() {
     };
   }, []);
 
-  const checkRoleAndFetch = async () => {
-    const user = await currentUser();
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-
-    if (!isStaffRole(profile?.role)) {
-      router.replace("/home");
-      return;
-    }
-
-    await fetchDashboard();
-  };
-
   const fetchDashboard = async () => {
-    await supabase.rpc("expire_requests");
-    setPendingRequests(await countPending());
+    // เลขกล่องคำขอ: ปล่อยคำขอหมดเวลาก่อนแล้วค่อยนับ — วิ่งคู่กับคำสั่งอื่น ไม่ต้องรอกันเป็นทอด ๆ
+    const pendingTask = supabase.rpc("expire_requests").then(() => countPending());
 
     const [
       { data: items },
@@ -253,8 +243,9 @@ export default function AdminHome() {
       supabase.from("borrow_records").select("*").order("borrow_date", { ascending: false }).limit(12),
       supabase.from("repair_records").select("*").order("reported_at", { ascending: false }).limit(6),
       supabase.from("computer_stations").select("id, room_id, group_no, name"),
-      supabase.from("borrow_records").select("id", { count: "exact", head: true }).in("status", ["borrowed", "pending_return"]),
-      supabase.from("borrow_records").select("id", { count: "exact", head: true }).eq("status", "returned"),
+      // การ์ด "วันนี้": ยืม/คืน ที่เกิดขึ้นวันนี้จริง (เดิมเป็นยอดสะสมทั้งหมด อยู่ข้างวันที่แล้วชวนเข้าใจผิด)
+      supabase.from("borrow_records").select("id", { count: "exact", head: true }).gte("borrow_date", startOfTodayBkk()),
+      supabase.from("borrow_records").select("id", { count: "exact", head: true }).gte("return_date", startOfTodayBkk()),
       supabase.from("repair_records").select("id", { count: "exact", head: true }).in("status", ["pending", "in-repair"]),
       // การยืมที่ยังค้างอยู่ช่วง 7 วันที่ผ่านมา (ใช้คำนวณกราฟ "ถูกยืม" ย้อนหลัง)
       supabase
@@ -276,6 +267,7 @@ export default function AdminHome() {
     setStatusBorrowed(activeBorrowCount.count || 0);
     setStatusReturned(returnedCount.count || 0);
     setStatusRepair(activeRepairCount.count || 0);
+    setPendingRequests(await pendingTask);
 
     const itemMap = new Map(safeItems.map((item: any) => [item.id, item.item_code || item.name || "อุปกรณ์"]));
     const userIds = [...new Set(safeBorrows.map((r: any) => r.user_id).filter(Boolean))];
@@ -332,7 +324,8 @@ export default function AdminHome() {
   };
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
+    // ออกเฉพาะเครื่องนี้ (ค่าเริ่มต้น Supabase = ออกทุกเครื่องของบัญชี)
+    const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) {
       notify("ออกจากระบบไม่สำเร็จ", error.message);
       return;
@@ -361,7 +354,7 @@ export default function AdminHome() {
       <View style={s.hero}>
         <View style={s.heroTop}>
           <View>
-            <GreetingLine roleLabel={role ? ROLE_LABEL[role] : undefined} />
+            <GreetingLine roleLabel={role ? ROLE_LABEL[role] : undefined} dot={checkedIn ? "green" : "red"} />
             <Text style={s.heroTitle}>
               {role === "ta" ? "TA" : "Admin"} <Text style={s.heroTitleAccent}>Dashboard</Text>
             </Text>
@@ -391,11 +384,11 @@ export default function AdminHome() {
         </View>
 
         <View style={s.todayCard}>
-          <TodayItem icon="arrow-up-outline" color="#10B981" num={statusBorrowed} label="ยืม" />
+          <TodayItem icon="arrow-up-outline" color="#10B981" num={statusBorrowed} label="ยืมวันนี้" />
           <View style={s.todayDivider} />
-          <TodayItem icon="arrow-down-outline" color="#2563EB" num={statusReturned} label="คืน" />
+          <TodayItem icon="arrow-down-outline" color="#2563EB" num={statusReturned} label="คืนวันนี้" />
           <View style={s.todayDivider} />
-          <TodayItem icon="construct-outline" color="#F59E0B" num={statusRepair} label="ซ่อม" />
+          <TodayItem icon="construct-outline" color="#F59E0B" num={statusRepair} label="ซ่อมค้าง" />
           <View style={s.todayDivider} />
           <TodayItem icon="calendar-outline" color="#EF4444" num={today.compact} label={today.dayName} date />
         </View>
@@ -412,7 +405,7 @@ export default function AdminHome() {
             {/* ลูกเล่น: แต่ละส่วนค่อย ๆ ลอยขึ้นทีละส่วนตอนเปิดหน้า + ปุ่มกดแล้วยุบ/สั่นเบา ๆ (components/Motion) */}
             {/* F4 เช็กอิน/เช็กเอาท์ อยู่ที่ IoT Lab */}
             <FadeIn>
-              <StaffCheckInCard />
+              <StaffCheckInCard list={presence.list} me={userId} reload={presence.reload} />
             </FadeIn>
             {/* กล่องคำขอจากนักศึกษา (เฟส 3) */}
             <FadeIn>

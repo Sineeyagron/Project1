@@ -112,11 +112,15 @@ type Group = {
   nextDue: string | null; // ชิ้นที่ถูกยืมและจะคืนเร็วสุด
 };
 
+// ข้อมูลชุดล่าสุด (หน่วยความจำ) — เปิดหน้าซ้ำเห็นรายการทันที แล้วค่อยโหลดใหม่เบื้องหลัง / ล้างเมื่อออกจากระบบ
+let cache: { items: any[]; categories: string[] } | null = null;
+supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") cache = null; });
+
 export default function Equipment() {
   const router = useRouter();
-  const [items, setItems] = useState<any[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<any[]>(cache?.items ?? []);
+  const [categories, setCategories] = useState<string[]>(cache?.categories ?? []);
+  const [loading, setLoading] = useState(!cache);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -126,6 +130,7 @@ export default function Equipment() {
   const [sortAnchor, setSortAnchor] = useState<Anchor | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [pickupModel, setPickupModel] = useState<{ key: string; name: string } | null>(null);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => { fetchItems(); }, []);
   useRefreshOnFocus(() => { fetchItems(); });
@@ -139,6 +144,7 @@ export default function Equipment() {
       supabase.from("categories").select("id, name, sort_order").eq("active", true).order("sort_order"),
       supabase.from("borrow_locations").select("id, name"),
     ]);
+    setLoadError(error ? error.message : "");
     if (!error) {
       const catList = cats || [];
       const byId: Record<string, string> = {};
@@ -152,13 +158,16 @@ export default function Equipment() {
       (locs || []).forEach((l: any) => { locName[l.id] = l.name; });
       const dueMap: Record<string, string> = {};
       (loans || []).forEach((r: any) => { if (r.item_id && r.due_date) dueMap[r.item_id] = r.due_date; });
-      setCategories(catList.map((c: any) => c.name));
-      setItems((data || []).map((item: any) => ({
+      const nextItems = (data || []).map((item: any) => ({
         ...item,
         due_date: dueMap[item.id],
         category: categoryOf(item),
         location: locName[item.location_id],
-      })));
+      }));
+      const nextCats = catList.map((c: any) => c.name);
+      cache = { items: nextItems, categories: nextCats };
+      setCategories(nextCats);
+      setItems(nextItems);
     }
     setLoading(false);
     setRefreshing(false);
@@ -267,7 +276,18 @@ export default function Equipment() {
           contentContainerStyle={[s.list, (searchFocused || !!query) && { paddingTop: 10 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchItems(); }} tintColor={C.primary} />}
         >
-          {shown.length === 0 ? (
+          {loadError ? (
+            <View style={s.errorBox}>
+              <Ionicons name="cloud-offline-outline" size={20} color="#b91c1c" />
+              <View style={{ flex: 1 }}>
+                <Text style={s.errorTitle}>โหลดรายการอุปกรณ์ไม่สำเร็จ</Text>
+                <Text style={s.errorMsg} numberOfLines={2}>{loadError}</Text>
+              </View>
+              <TouchableOpacity style={s.retryBtn} onPress={() => { setRefreshing(true); fetchItems(); }} activeOpacity={0.85}>
+                <Text style={s.retryText}>ลองใหม่</Text>
+              </TouchableOpacity>
+            </View>
+          ) : shown.length === 0 ? (
             <View style={s.empty}>
               <Ionicons name="search-outline" size={44} color={C.primarySoft} />
               <Text style={s.emptyText}>ไม่พบอุปกรณ์ที่ค้นหา</Text>
@@ -515,6 +535,11 @@ const s = StyleSheet.create({
   howToText: { flex: 1, color: C.primaryDark, fontSize: 13, lineHeight: 20 },
   scanBtn: { ...W.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 50 },
   scanBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  errorBox: { flexDirection: "row", alignItems: "center", gap: 10, padding: 14, borderRadius: 16, backgroundColor: C.errorBg, borderWidth: 1, borderColor: "#FECACA" },
+  errorTitle: { color: C.errorInk, fontSize: 14, fontWeight: "700" },
+  errorMsg: { color: C.errorInk, fontSize: 12, marginTop: 1 },
+  retryBtn: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "#fff", borderWidth: 1, borderColor: "#FCA5A5" },
+  retryText: { color: C.errorInk, fontSize: 13, fontWeight: "700" },
   pickupBtn: { ...W.small, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 46, marginTop: 8 },
   pickupBtnText: { color: C.primaryDark, fontSize: 14, fontWeight: "600" },
 });

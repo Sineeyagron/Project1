@@ -42,11 +42,12 @@ export default function Home() {
   // TA/admin ที่มาหน้านักศึกษา (เช่น มายืมของเอง) → มีปุ่มกลับแดชบอร์ด
   const [isStaff, setIsStaff] = useState(false);
   useEffect(() => {
-    supabase.rpc("is_staff").then(({ data }) => setIsStaff(!!data));
     // นักศึกษาที่ยังไม่มีรหัส นศ. → ไปกรอกก่อน (staff ข้าม) / อ่านไม่ได้ (เช่น ยังไม่ได้รัน migration) = ปล่อยผ่าน
+    // บทบาทอ่านจากแถวเดียวกัน (เดิมยิง RPC is_staff แยกอีกรอบ)
     currentUser().then((user) => {
       if (!user) return;
       supabase.from("profiles").select("role, student_id").eq("id", user.id).maybeSingle().then(({ data, error }) => {
+        setIsStaff(data?.role === "ta" || data?.role === "admin");
         if (!error && data && data.role === "user" && !data.student_id) router.replace("/student-id" as any);
       });
     });

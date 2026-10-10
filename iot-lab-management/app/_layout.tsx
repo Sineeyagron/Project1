@@ -125,7 +125,6 @@ export default function Layout() {
       <Stack.Screen name="roommap" />
       <Stack.Screen name="lanstatus" />
       <Stack.Screen name="profile" />
-      <Stack.Screen name="sittings" />
       <Stack.Screen name="student-id" options={{ gestureEnabled: false }} />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="borrow" />

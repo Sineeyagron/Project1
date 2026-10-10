@@ -45,6 +45,7 @@ const FILTERS: { key: TimelineFilter; label: string; color: string }[] = [
 export default function AdminHistory() {
   const [records, setRecords] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
+  const [pickups, setPickups] = useState<any[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [people, setPeople] = useState<Record<string, string>>({});
   const [days, setDays] = useState(PAGE_DAYS);
@@ -57,7 +58,7 @@ export default function AdminHistory() {
 
   const fetchHistory = useCallback(async (range: number) => {
     const since = sinceIso(range);
-    const [recRes, reqRes] = await Promise.all([
+    const [recRes, reqRes, pkRes] = await Promise.all([
       supabase
         .from("borrow_records")
         .select("id, user_id, item_id, status, borrow_date, return_date, due_date, renew_count, auto_returned, return_condition, damage_cost, borrow_request_id")
@@ -70,6 +71,12 @@ export default function AdminHistory() {
         .in("status", ["approved", "declined", "expired"])
         .gte("created_at", since)
         .order("created_at", { ascending: false }),
+      // F2 นัดรับ (นัดแล้ว / รับแล้ว / ไม่มาตามนัด)
+      supabase
+        .from("pickup_requests")
+        .select("id, user_id, item_prefix, days, status, pickup_at, decided_at")
+        .in("status", ["scheduled", "picked_up", "no_show"])
+        .gte("decided_at", since),
     ]);
 
     if (recRes.error || reqRes.error) {
@@ -81,12 +88,14 @@ export default function AdminHistory() {
     }
     const recs = recRes.data || [];
     const reqs = reqRes.data || [];
+    const pks = pkRes.data || [];
 
     const itemIds = [...new Set([...recs, ...reqs].map((r: any) => r.item_id).filter(Boolean))];
     const userIds = [...new Set([
       ...recs.map((r: any) => r.user_id),
       ...reqs.map((r: any) => r.user_id),
       ...reqs.map((r: any) => r.decided_by),
+      ...pks.map((r: any) => r.user_id),
     ].filter(Boolean))];
     const [itemsRes, profiles] = await Promise.all([
       itemIds.length ? supabase.from("items").select("id, name, item_code").in("id", itemIds) : Promise.resolve({ data: [] as any[] }),
@@ -100,6 +109,7 @@ export default function AdminHistory() {
     setError("");
     setRecords(recs);
     setRequests(reqs);
+    setPickups(pks);
     setNames(itemMap);
     setPeople(peopleMap);
     setLoading(false);
@@ -117,8 +127,8 @@ export default function AdminHistory() {
     return buildEvents(records, requests, {
       itemName: (id) => (id && names[id]) || "อุปกรณ์",
       approver: (reqId) => (reqId ? approverOf[reqId] || null : null),
-    });
-  }, [records, requests, names, people]);
+    }, pickups);
+  }, [records, requests, pickups, names, people]);
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
