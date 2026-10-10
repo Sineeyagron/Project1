@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, TouchableOpacity, View, ViewStyle, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./AppText";
@@ -20,7 +20,7 @@ function othersText(others: PresentStaff[]) {
   return others.length > 1 ? `${first} +${others.length - 1}` : first;
 }
 
-export default function StaffCheckInCard({ list, me, reload }: { list: PresentStaff[]; me: string | null; reload: () => void }) {
+export default function StaffCheckInCard({ list, me, reload }: { list: PresentStaff[]; me: string | null; reload: () => Promise<void> | void }) {
   const [busy, setBusy] = useState(false);
   // จอแคบมาก (~320px) หัวข้อเต็มถูกตัด → ใช้แบบสั้น (ปุ่มข้าง ๆ บอก "เช็กอิน" อยู่แล้ว)
   const narrow = useWindowDimensions().width < 350;
@@ -28,15 +28,24 @@ export default function StaffCheckInCard({ list, me, reload }: { list: PresentSt
   const mine = list.find((p) => p.user_id === me);
   const others = othersText(list.filter((p) => p.user_id !== me));
 
+  // กันกดรัวก่อนปุ่มทันเปลี่ยนเป็นวงหมุน (state ยังไม่ render → ส่ง RPC ซ้ำ) + วงหมุนค้างจนรายชื่อใหม่โหลดเสร็จ
+  //   ไม่งั้นปุ่มกดได้อีกครั้งทั้งที่ยังขึ้นสถานะเก่าอยู่ชั่วครู่
+  const lock = useRef(false);
   const toggle = async () => {
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
-    const { error } = mine ? await staffCheckOut() : await staffCheckIn();
-    setBusy(false);
-    if (error) {
-      notify(mine ? "เช็กเอาท์ไม่สำเร็จ" : "เช็กอินไม่สำเร็จ", error.message);
-      return;
+    try {
+      const { error } = mine ? await staffCheckOut() : await staffCheckIn();
+      if (error) {
+        notify(mine ? "เช็กเอาท์ไม่สำเร็จ" : "เช็กอินไม่สำเร็จ", error.message);
+        return;
+      }
+      await reload();
+    } finally {
+      lock.current = false;
+      setBusy(false);
     }
-    reload();
   };
 
   if (!mine) {
