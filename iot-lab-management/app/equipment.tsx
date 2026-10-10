@@ -374,7 +374,9 @@ function DetailSheet({ group, onClose, onScan, onPickup }: { group: Group | null
       progress.setValue(0);
       Animated.timing(progress, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     } else if (visible) {
-      Animated.timing(progress, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
+      // ถอดเฉพาะตอนปิดเล่นจบจริง — เปิดรุ่นใหม่ระหว่างกำลังปิด (finished = false) ต้องไม่ล้าง ไม่งั้นแผ่นว่างค้าง
+      Animated.timing(progress, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(({ finished }) => {
+        if (!finished) return;
         setVisible(false);
         setG(null);
       });

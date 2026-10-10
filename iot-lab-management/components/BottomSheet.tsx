@@ -26,7 +26,10 @@ export default function BottomSheet({
       progress.setValue(0);
       Animated.timing(progress, { toValue: 1, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
     } else if (mounted) {
-      Animated.timing(progress, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => setMounted(false));
+      // ถอด Modal เฉพาะตอนปิดเล่นจบจริง — ถ้าเปิดใหม่ระหว่างกำลังปิด (finished = false) ต้องไม่ถอด ไม่งั้นแผ่นหายค้าง
+      Animated.timing(progress, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(({ finished }) => {
+        if (finished) setMounted(false);
+      });
     }
   }, [visible]);
 

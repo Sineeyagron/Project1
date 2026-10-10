@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Text, TextInput } from "../../components/AppText";
+import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
@@ -31,6 +31,8 @@ import {
 } from "../../lib/report";
 import { W, NG, gradient, tint } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import RangeCalendarSheet from "../../components/RangeCalendarSheet";
+import { thaiShort } from "../../lib/calendar";
 
 // รายงานการยืม-คืน (เฟส 5.1) — admin + TA / ส่งออก CSV (Excel) และ PDF
 // ตรรกะคำนวณอยู่ใน lib/report.ts
@@ -89,13 +91,16 @@ export default function BorrowReport() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null);
+  // ช่วงกำหนดเอง: เลือกจากปฏิทิน (ไม่ต้องพิมพ์)
+  // null = ปิด / "start" | "end" = เปิดปฏิทินโดยแก้ช่องนั้นก่อน
+  const [calendarEdit, setCalendarEdit] = useState<"start" | "end" | null>(null);
 
   // ช่วงที่ใช้จริง + ตรวจช่องกำหนดเอง
   const customError =
     preset !== "custom"
       ? ""
       : !isValidDate(customFrom.trim()) || !isValidDate(customTo.trim())
-        ? "ใส่วันที่แบบ ปปปป-ดด-วว (ค.ศ.) เช่น 2026-06-01"
+        ? "วันที่ไม่ถูกต้อง แตะเพื่อเลือกใหม่"
         : customFrom.trim() > customTo.trim()
           ? "วันเริ่มต้องไม่หลังวันสิ้นสุด"
           : "";
@@ -182,7 +187,7 @@ export default function BorrowReport() {
 
   const doPdf = async () => {
     setExporting("pdf");
-    const opts = { title: "รายงานการยืม-คืนอุปกรณ์ IoT Lab", rangeLabel, generatedBy: me || "-", summary: s, rows };
+    const opts = { title: "รายงานการยืม-คืนอุปกรณ์", rangeLabel, generatedBy: me || "-", summary: s, records };
     try {
       await exportPdf(reportHtml(opts), reportHtml({ ...opts, autoPrint: true }), fileBase, true);
     } catch (e: any) {
@@ -244,28 +249,28 @@ export default function BorrowReport() {
           {preset === "custom" && (
             <>
               <View style={st.dateRow}>
-                <TextInput
-                  style={[st.dateInput, !!customError && st.inputError]}
-                  value={customFrom}
-                  onChangeText={setCustomFrom}
-                  placeholder="เริ่ม 2026-06-01"
-                  placeholderTextColor={C.faint}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={10}
-                />
+                <TouchableOpacity
+                  style={[st.dateField, !!customError && st.inputError]}
+                  onPress={() => setCalendarEdit("start")}
+                  activeOpacity={0.85}
+                  accessibilityLabel={`วันเริ่ม ${thaiShort(customFrom)} แตะเพื่อเลือกจากปฏิทิน`}
+                >
+                  <Ionicons name="calendar-outline" size={16} color={C.purple} />
+                  <Text style={st.dateFieldText} numberOfLines={1}>{thaiShort(customFrom)}</Text>
+                </TouchableOpacity>
                 <Text style={st.dateDash}>ถึง</Text>
-                <TextInput
-                  style={[st.dateInput, !!customError && st.inputError]}
-                  value={customTo}
-                  onChangeText={setCustomTo}
-                  placeholder="สิ้นสุด 2026-10-31"
-                  placeholderTextColor={C.faint}
-                  keyboardType="numbers-and-punctuation"
-                  maxLength={10}
-                />
+                <TouchableOpacity
+                  style={[st.dateField, !!customError && st.inputError]}
+                  onPress={() => setCalendarEdit("end")}
+                  activeOpacity={0.85}
+                  accessibilityLabel={`วันสิ้นสุด ${thaiShort(customTo)} แตะเพื่อเลือกจากปฏิทิน`}
+                >
+                  <Ionicons name="calendar-outline" size={16} color={C.purple} />
+                  <Text style={st.dateFieldText} numberOfLines={1}>{thaiShort(customTo)}</Text>
+                </TouchableOpacity>
               </View>
               <Text style={[st.help, !!customError && { color: C.red, fontWeight: "700" }]}>
-                {customError || "เช่น ภาคเรียน: ใส่วันเปิด–ปิดภาคของ มข. (ปี ค.ศ.)"}
+                {customError || "แตะช่องวันที่เพื่อเลือกจากปฏิทิน"}
               </Text>
             </>
           )}
@@ -321,6 +326,21 @@ export default function BorrowReport() {
           </>
         )}
       </ScrollView>
+
+      <RangeCalendarSheet
+        visible={calendarEdit !== null}
+        from={customFrom}
+        to={customTo}
+        initialEdit={calendarEdit || "start"}
+        maxDate={todayBkk()}
+        today={todayBkk()}
+        onClose={() => setCalendarEdit(null)}
+        onApply={(f, t) => {
+          setCustomFrom(f);
+          setCustomTo(t);
+          setCalendarEdit(null);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -359,17 +379,20 @@ const st = StyleSheet.create({
   chipOn: { ...NG, backgroundColor: C.purple, borderColor: C.purple },
   chipText: { fontSize: 14, fontWeight: "700", color: C.ink },
   dateRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  dateInput: {
+  dateField: {
     flex: 1,
-    height: 44,
+    height: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     borderWidth: 1,
     borderColor: C.line,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    fontSize: 15,
-    color: C.ink,
+    borderRadius: 12,
+    paddingHorizontal: 10,
     backgroundColor: "#f8fafc",
   },
+  // จอแคบ (เช่น iPhone รุ่นเล็ก) วันที่ต้องอยู่บรรทัดเดียว
+  dateFieldText: { flexShrink: 1, fontSize: 14, fontWeight: "700", color: C.ink },
   inputError: { ...NG, borderColor: C.red, backgroundColor: "#fef2f2" },
   dateDash: { fontSize: 14, color: C.muted, fontWeight: "700" },
   help: { fontSize: 12.5, color: C.muted, lineHeight: 18 },
