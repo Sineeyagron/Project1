@@ -18,6 +18,7 @@ import { confirmAction, notify } from "../../lib/notify";
 import { ALLOWED_DOMAIN } from "../../lib/googleAuth";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import { DEFAULT_RULES, rulesFromRows } from "../../lib/borrowRules";
 
 // ตั้งค่าระบบ (ตาราง app_settings) — แก้ได้เฉพาะ admin (RLS)
 // ค่าเหล่านี้ RPC ฝั่งฐานข้อมูลอ่านเองทุกครั้ง เปลี่ยนแล้วมีผลทันที
@@ -62,6 +63,12 @@ export default function AdminSettings() {
   // สวิตช์ "รับเฉพาะ @kkumail.com" (app_settings.allowed_email_domain) — ช่วงพัฒนาปิดไว้ เปิดตอน Final Project
   const [restrictDomain, setRestrictDomain] = useState(false);
   const [domainBusy, setDomainBusy] = useState(false);
+  // F1 กฎการยืม-คืน (app_settings.borrow_rules) — แสดงในป๊อปอัปยืนยันของ นศ. + หน้าโปรไฟล์
+  const [savedRules, setSavedRules] = useState<string[]>([]);
+  const [rules, setRules] = useState<string[]>([]);
+  const [rulesSaving, setRulesSaving] = useState(false);
+  // ความสูงช่องกฎแต่ละข้อ (ยืดตามข้อความ — เว็บไม่ยืดเอง)
+  const [ruleHeights, setRuleHeights] = useState<Record<number, number>>({});
 
   useEffect(() => {
     load();
@@ -71,7 +78,10 @@ export default function AdminSettings() {
     const { data, error } = await supabase
       .from("app_settings")
       .select("key, value")
-      .in("key", [...FIELDS.map((f) => f.key), "allowed_email_domain"]);
+      .in("key", [...FIELDS.map((f) => f.key), "allowed_email_domain", "borrow_rules"]);
+    const loadedRules = rulesFromRows(data || []);
+    setSavedRules(loadedRules);
+    setRules(loadedRules);
     const domainValue = (data || []).find((r: any) => r.key === "allowed_email_domain")?.value;
     setRestrictDomain(typeof domainValue === "string" && domainValue.trim() !== "");
     if (error) notify("โหลดค่าตั้งไม่สำเร็จ", error.message);
@@ -100,6 +110,37 @@ export default function AdminSettings() {
 
   const changed = FIELDS.filter((f) => Number(draft[f.key]) !== saved[f.key]);
   const canSave = changed.length > 0 && Object.keys(errors).length === 0 && !saving;
+
+  const cleanRules = rules.map((t) => t.trim());
+  const rulesChanged = JSON.stringify(cleanRules) !== JSON.stringify(savedRules);
+  const rulesError = cleanRules.length === 0 ? "ต้องมีอย่างน้อย 1 ข้อ"
+    : cleanRules.some((t) => !t) ? "มีข้อที่ว่างอยู่ — พิมพ์ข้อความหรือลบข้อนั้น"
+    : cleanRules.some((t) => t.length > 300) ? "ข้อความยาวเกิน 300 ตัวอักษร" : "";
+  const canSaveRules = rulesChanged && !rulesError && !rulesSaving;
+
+  const moveRule = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= rules.length) return;
+    setRules((r) => { const next = [...r]; [next[i], next[j]] = [next[j], next[i]]; return next; });
+  };
+  const removeRule = (i: number) => setRules((r) => r.filter((_, k) => k !== i));
+
+  const saveRules = async () => {
+    if (!canSaveRules) return;
+    setRulesSaving(true);
+    const { data, error } = await supabase
+      .from("app_settings")
+      .upsert({ key: "borrow_rules", value: cleanRules, updated_at: new Date().toISOString() })
+      .select("key");
+    setRulesSaving(false);
+    if (error || !data?.length) {
+      notify("บันทึกกฎไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข");
+      return;
+    }
+    setSavedRules(cleanRules);
+    setRules(cleanRules);
+    notify("บันทึกกฎแล้ว", "นักศึกษาเห็นกฎใหม่ทันทีในป๊อปอัปยืนยันและหน้าโปรไฟล์");
+  };
 
   const toggleDomain = (on: boolean) => {
     confirmAction(
@@ -179,6 +220,60 @@ export default function AdminSettings() {
           ))}
 
           <View style={{ gap: 8 }}>
+            <Text style={s.section}>กฎการยืม-คืน</Text>
+            <View style={s.card}>
+              <View style={s.field}>
+                <Text style={[s.hint, { flex: 1, marginTop: 0 }]}>
+                  แสดงในป๊อปอัปยืนยันตอน นศ. ขอยืม/คืน/ยืมต่อ และหน้าโปรไฟล์ · ใส่ตัวแปรได้{"\n"}
+                  <Text style={s.varText}>{"{max}"}</Text> ยืมได้สูงสุด  <Text style={s.varText}>{"{days}"}</Text> ระยะยืม  <Text style={s.varText}>{"{expiry}"}</Text> นาทีหมดอายุ
+                </Text>
+              </View>
+              {rules.map((t, i) => (
+                <View key={i} style={[s.ruleRow, s.divider]}>
+                  <Text style={s.ruleNo}>{i + 1}</Text>
+                  <TextInput
+                    style={[s.ruleInput, { height: Math.max(44, ruleHeights[i] ?? 44) }, !t.trim() && s.inputError]}
+                    onContentSizeChange={(e) => {
+                      const h = Math.ceil(e.nativeEvent.contentSize.height) + 2;
+                      setRuleHeights((m) => (m[i] === h ? m : { ...m, [i]: h }));
+                    }}
+                    value={t}
+                    onChangeText={(v) => setRules((r) => r.map((x, k) => (k === i ? v : x)))}
+                    placeholder="พิมพ์กฎข้อนี้"
+                    placeholderTextColor={C.faint}
+                    multiline
+                    maxLength={300}
+                  />
+                  <View style={s.ruleTools}>
+                    <TouchableOpacity onPress={() => moveRule(i, -1)} disabled={i === 0} hitSlop={6} accessibilityLabel="เลื่อนขึ้น">
+                      <Ionicons name="chevron-up" size={18} color={i === 0 ? "#CBD5E1" : C.muted} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => moveRule(i, 1)} disabled={i === rules.length - 1} hitSlop={6} accessibilityLabel="เลื่อนลง">
+                      <Ionicons name="chevron-down" size={18} color={i === rules.length - 1 ? "#CBD5E1" : C.muted} />
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity onPress={() => removeRule(i)} hitSlop={6} accessibilityLabel="ลบข้อนี้">
+                    <Ionicons name="trash-outline" size={18} color={C.red} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              <View style={[s.ruleActions, s.divider]}>
+                <TouchableOpacity onPress={() => setRules((r) => [...r, ""])} activeOpacity={0.8} style={s.addRule}>
+                  <Ionicons name="add" size={18} color={C.purple} />
+                  <Text style={s.addRuleText}>เพิ่มข้อ</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setRules(DEFAULT_RULES)} activeOpacity={0.8}>
+                  <Text style={s.resetText}>ใช้กฎตั้งต้น</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {!!rulesError && <Text style={[s.hint, { color: C.red }]}>{rulesError}</Text>}
+            <TouchableOpacity style={[s.saveBtn, !canSaveRules && { opacity: 0.4 }]} disabled={!canSaveRules} onPress={saveRules} activeOpacity={0.85}>
+              <Text style={s.saveText}>{rulesSaving ? "กำลังบันทึก..." : rulesChanged ? "บันทึกกฎ" : "กฎยังไม่มีการเปลี่ยนแปลง"}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ gap: 8 }}>
             <Text style={s.section}>การเข้าสู่ระบบ</Text>
             <View style={s.card}>
               <View style={s.field}>
@@ -251,4 +346,26 @@ const s = StyleSheet.create({
   saveBtn: { ...W.primarySolid, borderRadius: 15, paddingVertical: 15, alignItems: "center", marginTop: 4 },
   saveText: { color: "#fff", fontSize: 16, fontWeight: "900" },
   note: { fontSize: 12, color: C.faint, textAlign: "center" },
+  varText: { color: C.purple, fontWeight: "800" },
+  ruleRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
+  ruleNo: { width: 18, fontSize: 14, fontWeight: "800", color: C.faint, textAlign: "center" },
+  ruleInput: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: C.line,
+    backgroundColor: "#f8fafc",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 14,
+    lineHeight: 20,
+    color: C.ink,
+    textAlignVertical: "top",
+  },
+  ruleTools: { gap: 2, alignItems: "center" },
+  ruleActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 12 },
+  addRule: { flexDirection: "row", alignItems: "center", gap: 4 },
+  addRuleText: { color: C.purple, fontSize: 14, fontWeight: "800" },
+  resetText: { color: C.muted, fontSize: 13, fontWeight: "700" },
 });

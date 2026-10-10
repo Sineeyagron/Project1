@@ -1,11 +1,10 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import {
   View,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Image,
   RefreshControl,
 } from "react-native";
 import { Text } from "../components/AppText";
@@ -14,42 +13,25 @@ import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
 import { useRealtime } from "../lib/realtime";
 import { currentUser } from "../lib/session";
-import { RECORD_STATUS } from "../lib/status";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { confirmAction, notify } from "../lib/notify";
 import Countdown from "../components/Countdown";
 import { W } from "../lib/theme";
 import StatWidget from "../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
+import TimelineDays from "../components/TimelineDays";
+import { TimelineFilter, bkkDayKey, bkkTime, buildEvents, filterEvents, groupByDay, thaiDay } from "../lib/timeline";
+import { PICKUP_STATUS } from "../lib/status";
 
 const KIND_TH: Record<string, string> = { borrow: "ขอยืม", return: "ขอคืน", renew: "ขอยืมต่อ" };
 
-// ผลคำขอที่จบแล้ว (แสดงย้อนหลังไม่กี่รายการ)
-const REQUEST_RESULT: Record<string, { label: string; color: string; bg: string }> = {
-  approved:      { label: "อนุมัติแล้ว",     color: "#047857", bg: "#ECFDF5" },
-  declined:      { label: "ถูกปฏิเสธ",      color: "#dc2626", bg: "#fee2e2" },
-  expired:       { label: "หมดอายุ",        color: "#475569", bg: "#f1f5f9" },
-  cancelled:     { label: "ยกเลิกแล้ว",     color: "#475569", bg: "#f1f5f9" },
-  auto_returned: { label: "คืนอัตโนมัติ",   color: "#b45309", bg: "#fef3c7" },
-};
-
-const STATUS_CFG: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
-  borrowed:       { ...RECORD_STATUS.borrowed, icon: "cube-outline" },
-  pending_return: { ...RECORD_STATUS.pending_return, icon: "hourglass-outline" },
-  returned:       { ...RECORD_STATUS.returned, icon: "checkmark-circle-outline" },
-};
-
-const formatDate = (d: string) => {
-  if (!d) return "-";
-  return new Date(d).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
-};
-
-// due_date เป็นวันที่ล้วน ("2026-10-07") — new Date() ตรง ๆ อ่านเป็นเที่ยงคืน UTC (= 07:00 เวลาไทย)
-// แล้ว ceil ทำให้นับเกิน 1 วัน และวันถัดจากกำหนดยังไม่ขึ้น "เกินกำหนด" → อ่านเป็นเที่ยงคืนเวลาเครื่อง
-const getDaysLeft = (due: string) => {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  return Math.round((new Date(`${due.slice(0, 10)}T00:00:00`).getTime() - today.getTime()) / 86400000);
-};
+// F3 ตัวกรองประวัติ (หน้า นศ.)
+const FILTERS: { key: TimelineFilter; label: string }[] = [
+  { key: "all", label: "ทั้งหมด" },
+  { key: "borrow", label: "ยืมออก" },
+  { key: "return", label: "คืนเข้า" },
+  { key: "other", label: "อื่น ๆ" },
+];
 
 export default function Borrow() {
   const router = useRouter();
@@ -57,24 +39,33 @@ export default function Borrow() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [maxActive, setMaxActive] = useState(3);
+  // F2 นัดรับของที่ยังไม่จบ (รอนัด / นัดแล้ว)
+  const [pickups, setPickups] = useState<any[]>([]);
+  const [filter, setFilter] = useState<TimelineFilter>("all");
 
   const fetchBorrows = useCallback(async () => {
     const user = await currentUser();
     if (!user) { setLoading(false); return; }
-    const [{ data }, { data: reqs }] = await Promise.all([
+    const [{ data }, { data: reqs }, { data: setting }, { data: pks }] = await Promise.all([
       supabase
         .from("borrow_records")
         // borrow_records ไม่มีคอลัมน์ created_at (ใช้ borrow_date)
-        .select("id, status, borrow_date, due_date, renew_count, auto_returned, return_condition, damage_cost, item_id, items(name, item_code, image_url)")
+        .select("id, user_id, status, borrow_date, return_date, due_date, renew_count, auto_returned, return_condition, damage_cost, item_id, items(name, item_code, image_url)")
         .eq("user_id", user.id)
         .order("borrow_date", { ascending: false }),
       supabase
         .from("borrow_requests")
-        .select("id, item_id, kind, status, days, created_at, expires_at, decision_note, items(name, item_code)")
+        .select("id, user_id, item_id, borrow_record_id, kind, status, days, created_at, expires_at, decided_at, decision_note, items(name, item_code)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(15),
+        .limit(300),
+      supabase.from("app_settings").select("value").eq("key", "max_active_borrows").maybeSingle(),
+      supabase.rpc("my_pickups"),
     ]);
+    setPickups(pks || []);
+    const max = Number(setting?.value);
+    if (Number.isFinite(max) && max > 0) setMaxActive(max);
     setBorrows(data || []);
     setRequests(reqs || []);
     setLoading(false);
@@ -94,20 +85,17 @@ export default function Borrow() {
   };
 
   const pendingRequests = requests.filter((r) => r.status === "pending");
-  // ผลล่าสุดใน 7 วัน (ไม่รวม "อนุมัติยืม" เพราะเห็นในรายการยืมอยู่แล้ว)
-  // นับเฉพาะคำขอล่าสุดของแต่ละชิ้น+ประเภท — กันกรณีขอครั้งแรกหมดเวลา ขอใหม่ได้แล้ว แต่ยังโชว์ "หมดอายุ" ค้าง
-  const weekAgo = Date.now() - 7 * 86400000;
-  const seen = new Set<string>();
-  const latestPerItem = requests.filter((r) => {
-    const key = `${r.item_id}:${r.kind}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  const recentResults = latestPerItem
-    .filter((r) => r.status !== "pending" && new Date(r.created_at).getTime() > weekAgo)
-    .filter((r) => !(r.kind === "borrow" && r.status === "approved"))
-    .slice(0, 5);
+
+  // F3 เหตุการณ์จัดกลุ่มตามวัน (ใหม่สุดบน)
+  const events = useMemo(() => {
+    const names: Record<string, string> = {};
+    [...borrows, ...requests].forEach((r) => {
+      const it = Array.isArray(r.items) ? r.items[0] : r.items;
+      if (r.item_id && it) names[r.item_id] = it.item_code || it.name;
+    });
+    return buildEvents(borrows, requests, { itemName: (id) => (id && names[id]) || "อุปกรณ์" });
+  }, [borrows, requests]);
+  const groups = useMemo(() => groupByDay(filterEvents(events, filter)), [events, filter]);
 
   useEffect(() => { fetchBorrows(); }, [fetchBorrows]);
   // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
@@ -119,13 +107,32 @@ export default function Borrow() {
 
   const activeBorrows = borrows.filter(b => b.status === "borrowed" || b.status === "pending_return").length;
   const returned      = borrows.filter(b => b.status === "returned").length;
+  const pendingBorrows = pendingRequests.filter((r) => r.kind === "borrow").length;
+  const canBorrow = Math.max(maxActive - activeBorrows - pendingBorrows - pickups.length, 0);
+
+  const cancelPickup = (p: any) => {
+    confirmAction(
+      p.status === "scheduled" ? "ยกเลิกนัด" : "ยกเลิกคำขอ",
+      `ยกเลิกนัดรับ ${p.item_prefix} ?`,
+      "ยกเลิก",
+      async () => {
+        const { error } = await supabase.rpc("cancel_pickup", { p_id: p.id });
+        if (error) {
+          notify("ยกเลิกไม่สำเร็จ", error.message);
+          return;
+        }
+        fetchBorrows();
+      },
+      true
+    );
+  };
 
   return (
     <View style={s.container}>
       {/* HEADER */}
       <ScreenHeader
         title={"ประวัติการยืม"}
-        subtitle={"อุปกรณ์ของฉัน"}
+        subtitle={loading ? "อุปกรณ์ของฉัน" : `ยืมอยู่ ${activeBorrows} ชิ้น · ยืมได้อีก ${canBorrow} ชิ้น`}
         onBack={() => goBack("/home")}
         right={<HeaderButton icon="scan" label="สแกน" onPress={() => router.push("/scan")} />}
       />
@@ -143,6 +150,63 @@ export default function Borrow() {
             <StatWidget tone="amber" icon="time-outline" label="กำลังยืม" value={activeBorrows} />
             <StatWidget tone="green" icon="checkmark" label="คืนแล้ว" value={returned} />
           </View>
+
+          {/* F2 นัดรับของ */}
+          {pickups.length > 0 && (
+            <>
+              <Text style={s.sectionLabel}>นัดรับของ ({pickups.length})</Text>
+              {pickups.map((p) => {
+                const st = PICKUP_STATUS[p.status] ?? PICKUP_STATUS.pending;
+                const scheduled = p.status === "scheduled";
+                const steps = ["ส่งคำขอ", "ผู้ดูแลนัดเวลา", "มารับของ แล้วสแกน QR ชิ้นที่ได้รับ", "กำลังยืม"];
+                const done = scheduled ? 2 : 1;
+                return (
+                  <View key={p.id} style={[s.card, s.pickupCard]}>
+                    <View style={s.pickupHead}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.cardName} numberOfLines={1}>{p.item_prefix}</Text>
+                        <Text style={s.cardDate}>ยืม {p.days} วัน{p.note ? ` · ${p.note}` : ""}</Text>
+                      </View>
+                      <View style={[s.badge, { backgroundColor: st.bg }]}>
+                        <Text style={[s.badgeText, { color: st.color }]}>{st.label}</Text>
+                      </View>
+                    </View>
+
+                    {scheduled && p.pickup_at ? (
+                      <View style={s.pickupTime}>
+                        <Ionicons name="calendar" size={18} color="#047857" />
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.pickupTimeText}>
+                            {bkkDayKey(p.pickup_at) === bkkDayKey(new Date().toISOString()) ? "วันนี้" : thaiDay(bkkDayKey(p.pickup_at))} · {bkkTime(p.pickup_at)} น.
+                          </Text>
+                          {!!p.scheduled_by_name && <Text style={s.pickupBy}>นัดโดย {p.scheduled_by_name}</Text>}
+                        </View>
+                      </View>
+                    ) : (
+                      <Countdown until={p.expires_at} onDone={fetchBorrows} style={s.countdown} />
+                    )}
+
+                    <View style={s.steps}>
+                      {steps.map((t, i) => (
+                        <View key={t} style={s.step}>
+                          <Ionicons
+                            name={i < done ? "checkmark-circle" : "ellipse-outline"}
+                            size={16}
+                            color={i < done ? "#047857" : i === done ? "#2563EB" : "#94A3B8"}
+                          />
+                          <Text style={[s.stepText, i === done && s.stepNow]}>{t}</Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    <TouchableOpacity style={[s.cancelBtn, { alignSelf: "flex-start" }]} onPress={() => cancelPickup(p)} activeOpacity={0.85}>
+                      <Text style={s.cancelBtnText}>{scheduled ? "ยกเลิกนัด" : "ยกเลิกคำขอ"}</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </>
+          )}
 
           {/* คำขอที่รอผู้ดูแล */}
           {pendingRequests.length > 0 && (
@@ -168,29 +232,6 @@ export default function Borrow() {
             </>
           )}
 
-          {recentResults.length > 0 && (
-            <>
-              <Text style={s.sectionLabel}>ผลคำขอล่าสุด</Text>
-              {recentResults.map((r) => {
-                const res = REQUEST_RESULT[r.status] ?? REQUEST_RESULT.expired;
-                return (
-                  <View key={r.id} style={s.card}>
-                    <View style={s.cardBody}>
-                      <Text style={s.cardName} numberOfLines={1}>
-                        {KIND_TH[r.kind]} {r.items?.item_code || r.items?.name || "อุปกรณ์"}
-                      </Text>
-                      <Text style={s.cardDate}>{formatDate(r.created_at)}</Text>
-                      {!!r.decision_note && <Text style={s.cardDue}>เหตุผล: {r.decision_note}</Text>}
-                    </View>
-                    <View style={[s.badge, { backgroundColor: res.bg }]}>
-                      <Text style={[s.badgeText, { color: res.color }]}>{res.label}</Text>
-                    </View>
-                  </View>
-                );
-              })}
-            </>
-          )}
-
           {/* LIST */}
           {borrows.length === 0 ? (
             <View style={s.empty}>
@@ -200,59 +241,21 @@ export default function Borrow() {
             </View>
           ) : (
             <>
-              <Text style={s.sectionLabel}>รายการทั้งหมด ({borrows.length})</Text>
-              {borrows.map((b) => {
-                const cfg   = STATUS_CFG[b.status] ?? STATUS_CFG.returned;
-                const name  = b.items?.item_code || b.items?.name || b.items?.[0]?.item_code || b.items?.[0]?.name || "อุปกรณ์";
-                const img   = b.items?.image_url || b.items?.[0]?.image_url || null;
-                const bDate = b.borrow_date || b.created_at;
-                const days  = b.due_date ? getDaysLeft(b.due_date) : null;
-                const overdue = days !== null && days < 0 && b.status === "borrowed";
-
-                return (
-                  <View
-                    key={b.id}
-                    style={[s.card, overdue && s.cardOverdue]}
-                  >
-                    {/* รูปหรือ icon */}
-                    {img ? (
-                      <Image source={{ uri: img }} style={s.itemImg} />
-                    ) : (
-                      <View style={[s.iconBox, { backgroundColor: cfg.bg }]}>
-                        <Ionicons name={cfg.icon} size={22} color={cfg.color} />
-                      </View>
-                    )}
-
-                    {/* ข้อมูล */}
-                    <View style={s.cardBody}>
-                      <Text style={s.cardName} numberOfLines={1}>{name}</Text>
-                      <Text style={s.cardDate}>ยืม {formatDate(bDate)}</Text>
-                      {b.due_date && (
-                        <Text style={[s.cardDue, overdue && s.cardDueOverdue]}>
-                          {overdue
-                            ? `⚠️ เกินกำหนด ${Math.abs(days!)} วัน`
-                            : b.status === "borrowed"
-                              ? `ครบกำหนด ${formatDate(b.due_date)} · อีก ${days} วัน`
-                              : `ครบกำหนด ${formatDate(b.due_date)}`}
-                          {b.renew_count > 0 ? " · ยืมต่อแล้ว" : ""}
-                        </Text>
-                      )}
-                      {b.status === "returned" && (b.auto_returned || b.return_condition === "damaged") && (
-                        <Text style={[s.cardDue, { color: "#b45309" }]}>
-                          {b.auto_returned
-                            ? "คืนอัตโนมัติ (ยังไม่ได้ตรวจสภาพ)"
-                            : `ตรวจพบชำรุด${b.damage_cost != null ? ` · ค่าเสียหาย ${b.damage_cost} บาท` : ""}`}
-                        </Text>
-                      )}
-                    </View>
-
-                    {/* badge */}
-                    <View style={[s.badge, { backgroundColor: cfg.bg }]}>
-                      <Text style={[s.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
-                    </View>
-                  </View>
-                );
-              })}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow}>
+                {FILTERS.map((f) => {
+                  const active = filter === f.key;
+                  return (
+                    <TouchableOpacity key={f.key} style={[s.chip, active && s.chipActive]} onPress={() => setFilter(f.key)} activeOpacity={0.85}>
+                      <Text style={[s.chipText, active && s.chipTextActive]}>{f.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              {groups.length === 0 ? (
+                <Text style={s.emptyText}>ไม่มีรายการในหมวดนี้</Text>
+              ) : (
+                <TimelineDays groups={groups} />
+              )}
             </>
           )}
 
@@ -325,6 +328,28 @@ const s = StyleSheet.create({
   badgeText: { fontSize: 12, fontWeight: "600" },
 
   empty: { alignItems: "center", paddingTop: 60, gap: 10 },
+  pickupCard: { flexDirection: "column", alignItems: "stretch", gap: 10 },
+  pickupHead: { flexDirection: "row", alignItems: "center", gap: 10 },
+  pickupTime: { flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderRadius: 14, backgroundColor: "#ECFDF5" },
+  pickupTimeText: { fontSize: 15, fontWeight: "700", color: "#047857" },
+  pickupBy: { fontSize: 12, color: "#475569", marginTop: 1 },
+  steps: { gap: 4 },
+  step: { flexDirection: "row", alignItems: "center", gap: 8 },
+  stepText: { fontSize: 12.5, color: "#64748B" },
+  stepNow: { color: "#1D4ED8", fontWeight: "600" },
+  chipRow: { gap: 8, paddingBottom: 12 },
+  chip: {
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.85)",
+    borderWidth: 1,
+    borderColor: "#DCE6F5",
+  },
+  chipActive: { backgroundColor: "#2563EB", borderColor: "#2563EB", boxShadow: "0 4px 10px rgba(37,99,235,0.28)" },
+  chipText: { color: "#475569", fontSize: 13, fontWeight: "600" },
+  chipTextActive: { color: "#FFFFFF" },
   emptyTitle: { fontSize: 17, fontWeight: "700", color: "#475569", marginTop: 8 },
   emptyText: { fontSize: 13, color: "#475569", textAlign: "center", lineHeight: 20 },
 });

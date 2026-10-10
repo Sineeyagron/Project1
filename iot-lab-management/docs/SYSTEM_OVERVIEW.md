@@ -1,174 +1,208 @@
-# LabHub (IoT Lab Management) — ภาพรวมระบบ
+# LabHub — ภาพรวมระบบทั้งหมด (สำหรับวางแผนต่อ)
 
-> อัปเดต 4 ต.ค. 2569 · branch `Addfeature` (PR #3 → `main` รอทีมตรวจ)
-> เอกสารนี้ไว้ให้ AI/ทีมใช้วางแผนงานต่อ โดยเฉพาะ **ส่วนห้องเรียน (ระบบห้องคอม)** ซึ่งยังไม่ได้ปรับปรุง
-> เขียนใหม่จากฐานข้อมูลและโค้ดจริง ณ วันที่ข้างบน — **ถ้าขัดกับ `CLAUDE.md` ให้ยึดเอกสารนี้** (`CLAUDE.md` ช่วงท้ายมีข้อมูลรุ่นเก่า)
+> สรุป ณ 10 ต.ค. 2569 · branch `main` (merge จาก `Addfeature` แล้ว) · ใช้เป็นบริบทให้ AI/ทีมวางแผนงานต่อ
 
 ---
 
-## 1. ภาพรวม
+## 1. ระบบนี้คืออะไร
 
-แอปจัดการห้องแล็บ IoT มหาวิทยาลัยขอนแก่น มี 2 ระบบใหญ่ในแอปเดียว
+แอปจัดการห้องปฏิบัติการ IoT (มหาวิทยาลัยขอนแก่น) มี 2 ระบบย่อยที่ **แยกกันเด็ดขาด** (ตาราง/หน้า/ไฟล์ lib/กติกา ไม่ import ข้ามกัน):
 
-| ระบบ | สถานะ | ขอบเขต |
-|---|---|---|
-| **ยืม-คืนอุปกรณ์** | ✅ ปรับปรุงเสร็จแล้ว (เฟส 1–5) | อุปกรณ์ IoT, รหัส/QR, คำขอยืม-คืน, TA, รายงาน |
-| **ห้องเรียน / ห้องคอม** | ⏳ ยังเป็นโค้ดรุ่นเดิม (ยังไม่ได้แตะ) | เครื่องคอมแต่ละห้อง, LAN port, ตรวจอุปกรณ์ประจำเทอม, แจ้งซ่อม |
+1. **ระบบยืม-คืนอุปกรณ์ IoT** — นักศึกษาสแกน QR ที่ตัวของ → ส่งคำขอยืม/คืน/ยืมต่อ (ถ่ายรูปหลักฐาน) → ผู้ดูแลอนุมัติในกล่องคำขอ
+2. **ระบบห้องคอม** — ผังห้อง (เครื่องคอม + LAN port) ดูสถานะว่าง/ซ่อม/พัง, นักศึกษาแจ้งปัญหา, ผู้ดูแลจัดการงานซ่อม + ตรวจประจำเทอม
 
-**Tech stack**
-- Expo SDK 57 + expo-router 57 (file-based routing) + React Native 0.86 + TypeScript, React Compiler เปิดอยู่
-- Supabase (Postgres 17, Auth, Storage, Realtime, pg_cron, pg_net) — โปรเจกต์ `borrow-app` (`enupmlxmajjwskvzgcdq`), **แพ็กเกจฟรี**
-- ทดสอบบน iPhone ผ่าน **Expo Go** + เว็บ (`npx expo start --web`)
-- ภาษาในแอป: ไทยทั้งหมด
-
-**ข้อจำกัดสำคัญ**
-- แพ็กเกจฟรี: RAM น้อย (Swap ตลอด) → Supabase เตือน Disk IO บ่อย → ออกแบบให้ **ไม่ polling ถี่** ใช้ Realtime แทน
-- Expo Go: ไม่มี push notification / ไม่มี native module นอกชุด Expo
-- iOS แจกแอปจริง (TestFlight) ต้องมี Apple Developer $99/ปี — ยังไม่ได้ตัดสินใจ
+ผู้ใช้ 3 บทบาท: **นักศึกษา (user)**, **TA (ta)**, **ผู้ดูแลระบบ (admin)**
 
 ---
 
-## 2. บทบาทและการล็อกอิน
+## 2. Tech stack
 
-| บทบาท (`profiles.role`) | ทำอะไรได้ |
+| ส่วน | ใช้ |
 |---|---|
-| `user` (นักศึกษา) | ดูอุปกรณ์/ห้อง, สแกน QR ขอยืม-คืน, ดูการยืมของตัวเอง |
-| `ta` (ผู้ช่วย) | อนุมัติ/ปฏิเสธคำขอ, ตรวจสภาพ, ดูรายงาน, พิมพ์ QR — **แก้ข้อมูลอุปกรณ์/ตั้งค่า/ระบบห้องไม่ได้** |
-| `admin` | ทุกอย่าง |
+| แอป | React Native 0.86 + Expo SDK 57 + expo-router (TypeScript) — รันได้ทั้งมือถือ (Expo Go) และเว็บ |
+| Backend | Supabase: Postgres + RLS, Auth (อีเมล/รหัสผ่าน + Google OAuth), Storage, Realtime Broadcast, pg_cron |
+| ฟอนต์/ธีม | Noto Sans Thai ทั้งแอป, ธีมสีฟ้า #2563EB ตาม `docs/DESIGN.md`, token ใน `lib/theme.ts` |
+| อื่น ๆ | expo-camera (สแกน QR), expo-image-picker (ถ่ายรูปหลักฐาน), expo-print/sharing (PDF/CSV), qrcode (สร้างป้าย), Open-Meteo (อากาศ) |
 
-- ล็อกอิน: อีเมล+รหัสผ่าน หรือ **Google** (มีสวิตช์ "รับเฉพาะ @kkumail.com" ปิดไว้ช่วงพัฒนา เปิดตอน Final)
-- รหัสผ่าน: ≥ 8 ตัว มีตัวอักษร+ตัวเลข (ตั้งใน Supabase + `lib/password.ts`)
-- แต่งตั้ง TA: หน้า `admin/users` → RPC `set_user_role` (admin เท่านั้น, user↔ta)
-- สิทธิ์จริงอยู่ที่ **RLS + RPC ในฐานข้อมูล** แอปแค่ซ่อน/กันหน้า (`lib/roles.ts`)
-  - `is_admin()` / `is_staff()` (admin+ta) ใช้ใน policy
-  - TA เข้าหน้า `/admin/*` ได้เฉพาะ `TA_ROUTES` ใน `lib/roles.ts` — **หน้าระบบห้องทั้งหมดตอนนี้เป็น admin เท่านั้น**
+แพ็กเกจ Supabase = ฟรี (ระวัง Disk IO → ลดการ polling, cron ทุก 5 นาที)
 
 ---
 
-## 3. โครงหน้า (expo-router)
+## 3. บทบาทและสิทธิ์
 
-```
-app/
-├── _layout.tsx        ด่านล็อกอินหน้านักศึกษา + deep link + DialogHost
-├── index.tsx          → /admin/home (ด่าน admin พาไปหน้าตามบทบาท)
-├── login / signup / forgot / reset-password   (หน้าสาธารณะ)
-│
-├── home.tsx           🏠 หน้าแรกนักศึกษา = "ห้องเรียน IoT" (การ์ดห้อง + ทางลัด)   ← ระบบห้อง
-├── roommap.tsx        ผังห้อง กดเครื่องดูสถานะ / Server ดู LAN                   ← ระบบห้อง
-├── lanstatus.tsx      สถานะ LAN port แยกห้อง/กลุ่ม                                ← ระบบห้อง
-├── equipment.tsx      รายการอุปกรณ์ IoT (นักศึกษา)                                ← ยืม-คืน
-├── scan.tsx           สแกน QR ขอยืม/คืน/ยืมต่อ                                     ← ยืม-คืน
-├── borrow.tsx         การยืมของฉัน + คำขอที่รอ                                     ← ยืม-คืน
-├── notifications.tsx  แจ้งเตือน (ทุกบทบาท)                                          ← ใช้ร่วม
-├── profile.tsx, sittings.tsx                                                        ← ใช้ร่วม
-│
-└── admin/
-    ├── _layout.tsx    ด่าน admin/TA + RoleContext
-    ├── home.tsx       แดชบอร์ด (สถิติอุปกรณ์ + กิจกรรมล่าสุดรวม repair_records)   ← ใช้ร่วม
-    ├── room.tsx       ภาพรวมห้อง + ทางลัด                                          ← ระบบห้อง
-    ├── stations.tsx   จัดการเครื่องคอม (เพิ่ม/ลบ/แก้/สถานะ)                        ← ระบบห้อง
-    ├── lanports.tsx   จัดการ LAN port                                              ← ระบบห้อง
-    ├── inspection.tsx ตรวจอุปกรณ์ประจำเทอม (mouse/keyboard/monitor ต่อเครื่อง)    ← ระบบห้อง
-    ├── repairs.tsx    แจ้งซ่อม/ติดตาม pending → in-repair → done                   ← ระบบห้อง
-    ├── status/editStatus.tsx  สลับสถานะเครื่อง (ไม่มีหน้าไหนลิงก์ไป)              ← ระบบห้อง
-    ├── group/group1.tsx, room/cp9524.tsx   ไฟล์ร้าง (ไม่มีลิงก์)                  ← ระบบห้อง
-    └── items, scan, import, categories, qrgen, requests, lookup, stock, report,
-        history, iotinspection, settings, users                                    ← ยืม-คืน
-app/groups/group1–6.tsx, app/room/cp9524.tsx, sc9604.tsx    ไฟล์ร้างระบบห้อง (ไม่มีลิงก์)
-```
+| | นักศึกษา | TA | Admin |
+|---|---|---|---|
+| ดูห้อง/อุปกรณ์/LAN | ✅ | ✅ | ✅ |
+| สแกนขอยืม/คืน/ยืมต่อ | ✅ | ✅ (ยืมเองได้) | ✅ |
+| แจ้งปัญหาเครื่อง/LAN | ✅ | ✅ | ✅ |
+| อนุมัติ/ปฏิเสธคำขอ + ตรวจสภาพตอนคืน | – | ✅ (ยกเว้นคำขอของตัวเอง) | ✅ |
+| สแกนดูสถานะ, ประวัติ, รายงาน, สต็อก, พิมพ์ QR | – | ✅ | ✅ |
+| ตรวจสภาพประจำเทอม (IoT + ห้องคอม) | – | ✅ | ✅ |
+| เปลี่ยนสถานะเครื่อง/LAN, เช็กลิสต์, งานซ่อม | – | ✅ | ✅ |
+| เพิ่ม/แก้/จำหน่ายอุปกรณ์, หมวด, นำเข้า CSV | – | – | ✅ |
+| เพิ่ม/แก้/ลบ ห้อง เครื่อง port | – | – | ✅ |
+| ตั้งค่าระบบ, จัดการผู้ใช้ (แต่งตั้ง TA, แก้รหัส นศ.) | – | – | ✅ |
+
+- สิทธิ์จริงอยู่ที่ **RLS + RPC security definer + trigger** ในฐานข้อมูล ฝั่งแอปแค่ซ่อนปุ่ม/กันหน้า (`lib/roles.ts` → `TA_ROUTES`, `app/admin/_layout.tsx`)
+- `is_admin()`, `is_staff()` (= admin + ta)
+- บัญชีใหม่ = นักศึกษาเสมอ / ตั้ง TA ผ่าน RPC `set_user_role` (admin เท่านั้น, ตั้งได้แค่ user↔ta)
 
 ---
 
-## 4. ระบบห้องเรียน — สภาพปัจจุบัน (สิ่งที่ต้องวางแผน)
+## 4. หน้าจอทั้งหมด
 
-### 4.1 โครงห้อง (ตามการออกแบบเดิม)
-- มี 2 ห้อง: **CP9524** (อาคารคอมพิวเตอร์ ชั้น 5), **SC9604** (อาคารวิทยาศาสตร์ ชั้น 6)
-- 1 ห้อง = 6 กลุ่ม, 1 กลุ่ม = คอม 9 เครื่อง (C1–C9) + Server 1 เครื่อง
-- Server มี LAN 12 port ต่อกลุ่ม
-- ทุกเครื่องมี checklist: mouse / keyboard / monitor
-- เทียบกับข้อมูลจริง (4 ต.ค. 2569): LAN 144 = 2×6×12 ✅, checklist 321 = 107×3 ✅ แต่ **เครื่องคอมมี 107 เครื่อง ตามแบบควรเป็น 108** (2×6×9) — ขาด 1 เครื่อง ต้องเช็ก
-
-### 4.2 ตารางในฐานข้อมูล
-| ตาราง | คอลัมน์หลัก | ข้อมูลตอนนี้ |
+### นักศึกษา (แถบเมนูล่าง: หน้าแรก / อุปกรณ์ / แจ้งเตือน / โปรไฟล์)
+| หน้า | ไฟล์ | ทำอะไร |
 |---|---|---|
-| `computer_stations` | id, **room_id (text)**, name, group_no, status, created_at | 107 แถว (CP9524, SC9604) |
-| `station_equipment` | id, station_id, equipment_type, status (present/missing/broken), updated_at, updated_by | 321 แถว (present ทั้งหมด) |
-| `lan_ports` | id, **room_id (text)**, group_no, port_no, label, status (available/repair/broken) | 144 แถว |
-| `equipment_inspections` | id, term, station_id, inspector_id, equipment_type, condition, notes, last_borrower_id, inspected_at | 24 แถว (เทอม 1/2568, 1/2569) |
-| `repair_records` | id, station_id, item_id, description, status (pending/in-repair/done), reported_by, repaired_by, reported_at, repaired_at, notes | 1 แถว |
-| `room_bookings` | id, user_id, station_id, booking_date, time_slot, status | 0 แถว — **ระบบจองห้องถูกเอาออกแล้ว** ตารางยังอยู่ |
+| ล็อกอิน / สมัคร / ลืมรหัส / ตั้งรหัสใหม่ | `login`, `signup`, `forgot`, `reset-password` | อีเมล+รหัสผ่าน หรือ Google (@kkumail.com), "จดจำการเข้าสู่ระบบ" |
+| กรอกรหัสนักศึกษา | `student-id` | บังคับครั้งแรก รูปแบบ `633021098-9` ตั้งได้ครั้งเดียว |
+| หน้าแรก | `home` | ทักทาย+อากาศ, สถิติเครื่องคอม, ค้นหาห้อง, การ์ดห้อง (รายการ/ตาราง), ลิงก์ด่วน: สแกน / LAN / "การยืมของฉัน" (สีตามความเร่งด่วนครบกำหนด) |
+| อุปกรณ์ | `equipment` | รวมเป็นรุ่น, จำนวนว่าง, วันคืนเร็วสุด, หมวด, ค้นหา, แผ่นรายละเอียด |
+| สแกนยืม/คืน | `scan` | สแกน QR / พิมพ์รหัส 4 ตัว → ขอยืม (เลือกวัน 3/5/7) / ขอคืน / ขอยืมต่อ, ถ่ายรูปสด + ระบุสภาพ, เตือนเมื่อยืมครบโควตา |
+| ประวัติการยืม | `borrow` | คำขอที่รอ (นับถอยหลัง, ยกเลิกได้), ผลคำขอล่าสุด, รายการยืมทั้งหมด |
+| ผังห้อง | `roommap` | เลือกห้อง, สรุปว่าง, ผัง 6 กลุ่ม × 9 เครื่อง + Server, กดเครื่องดูสถานะ/เช็กลิสต์/แจ้งปัญหา, กด Server ดู LAN 12 port |
+| สถานะ LAN | `lanstatus` | port แยกห้อง/กลุ่ม |
+| แจ้งเตือน | `notifications` | ทุกประเภท, อ่านแล้ว, กดแล้วพาไปหน้าที่เกี่ยวข้อง (ใช้ร่วมทุกบทบาท) |
+| โปรไฟล์ | `profile` | ชื่อ/รูปจาก Google, รหัส นศ., โควตายืม, ของที่ยืมอยู่, กติกา |
 
-**RLS (เปิดครบแล้ว):** ทุกคนที่ล็อกอินอ่าน `computer_stations`, `station_equipment`, `lan_ports` ได้ / เขียนได้เฉพาะ admin / `equipment_inspections`, `repair_records`, `room_bookings` = admin เท่านั้น
-
-### 4.3 ปัญหา/หนี้เทคนิคที่เห็นแล้ว
-1. **ไม่มีตาราง "ห้อง"** — ห้องเป็นแค่ข้อความ `room_id` ใน `computer_stations`/`lan_ports`
-   - ชื่ออาคาร/ชั้น เขียนตายตัวใน `app/home.tsx` (`/9524/` → "อาคารคอมพิวเตอร์ ชั้น 5")
-   - รหัสห้อง `"CP9524"`, `"SC9604"` เขียนตายตัวหลายไฟล์ (stations ×2, repairs ×4, room, inspection, roommap, editStatus)
-   - เพิ่มห้องใหม่ = ต้องแก้โค้ด
-2. **ยังไม่ใช้รูปแบบกลางของแอป** (ที่ระบบยืม-คืนใช้แล้ว):
-   - ปุ่ม ← ใช้ `router.replace("/admin/home")` ตายตัว (ควรใช้ `goBack()` ใน `lib/nav.ts`)
-   - ป๊อปอัปใช้ `Alert.alert` ซึ่ง **ไม่ทำงานบนเว็บ** (stations 6, lanports 5, repairs 5, inspection 4 จุด) ควรใช้ `notify`/`confirmAction` ใน `lib/notify`
-   - ใช้ `auth.getUser()` (ยิงเซิร์ฟเวอร์ทุกครั้ง) ควรใช้ `currentUser()` ใน `lib/session.ts`
-3. **TA เข้าระบบห้องไม่ได้เลย** — ต้องตัดสินใจว่า TA ควรทำอะไรได้ (เช่น แจ้งซ่อม, ตรวจประจำเทอม)
-4. **ตรวจอุปกรณ์ 2 ระบบทับซ้อน:** `equipment_inspections` (ต่อเครื่องคอม, ระบบห้อง) กับ `item_inspections` (ต่ออุปกรณ์ IoT, ระบบยืม-คืน) — แยกหน้าที่ให้ชัด
-5. **`repair_records` มีทั้ง `station_id` และ `item_id`** — ตอนนี้ใช้กับเครื่องคอมเป็นหลัก ส่วนระบบยืม-คืนใช้สถานะ `items.status = 'repair'` แทน → ควรตัดสินใจว่าจะรวมหรือแยก
-6. ไฟล์ร้าง: `app/groups/*`, `app/room/*`, `app/admin/group/*`, `app/admin/room/*`, `admin/status/editStatus.tsx` (ไม่มีลิงก์) + ตาราง `room_bookings` (ไม่ใช้)
-7. หน้าแรกนักศึกษา (`home.tsx`) = หน้าห้องเรียน แต่แถบเมนูล่างเรียก "ชั้นเรียน" (ชื่อไม่ตรงกัน)
-8. **แยกขาดจากห้องยืมของ:** ระบบยืม-คืนมีตาราง `borrow_locations` ("IoT Lab" ห้องเดียว) **ห้ามใช้ร่วม** กับห้องคอม (ตัดสินใจไว้แล้ว)
-
----
-
-## 5. ระบบยืม-คืน (เสร็จแล้ว — สรุปสั้น ไว้เป็นตัวอย่างรูปแบบ)
-
-- `items`: 1 แถว = 1 ชิ้น, รหัสเรียก `item_code` (เช่น `NodeMCU 001`, ไม่นำเลขกลับมาใช้) + `barcode` 4 ตัว (ค่าใน QR), สถานะ available/reserved/borrowed/repair/retired, หมวด `categories`, ประกัน, จำหน่ายออก
-- Flow: นักศึกษาสแกน QR → ถ่ายรูปสด + ตรวจสภาพ → `request_borrow` / `request_return` / `request_renew` (RPC) → ของถูกกัน → admin/TA ตัดสินใน `admin/requests` (`decide_request`) → แจ้งเตือน
-- กติกาทั้งหมดอยู่ใน **RPC security definer + ล็อกแถว** (`supabase/migrations/2026100310*_phase3_rpc.sql`) แอปเรียกอย่างเดียว
-- pg_cron: เคลียร์คำขอหมดเวลา (ทุก 5 นาที), เตือนครบกำหนด + เตือนประกัน/อายุ (08:00), ลบ log cron เก่า
-- รายงาน: `admin/stock` (สต็อก), `admin/report` (ยืม-คืนตามช่วง ส่งออก CSV/PDF)
-- นำเข้า CSV: `admin/import` (ตรวจ+พรีวิว+กันพลาด ใน `lib/importItems.ts`)
-
----
-
-## 6. รูปแบบกลางที่ต้องใช้ (สำหรับงานใหม่ทุกชิ้น)
-
-| เรื่อง | ใช้อะไร |
-|---|---|
-| ปุ่ม ← | `goBack(fallback)` — `lib/nav.ts` |
-| แถบเมนูล่างนักศึกษา | `goTab(target, current)` |
-| โหลดใหม่ตอนกลับมาหน้า | `useRefreshOnFocus(load)` |
-| ป๊อปอัป/ยืนยัน | `notify()`, `confirmAction()` — `lib/notify.tsx` (ห้าม `Alert.alert`) |
-| user ปัจจุบัน | `currentUser()` — `lib/session.ts` (ห้าม `auth.getUser()` ในงานที่เรียกบ่อย) |
-| สิทธิ์หน้า | `canAccess()`, `useRole()` — `lib/roles.ts` |
-| ชื่อ/สีสถานะ | `lib/status.ts` (ห้ามตั้งเองในหน้า) |
-| อัปเดตสด | Realtime Broadcast — `useRealtime(scope, event, cb)` ใน `lib/realtime.ts` + trigger `realtime.send` ในฐานข้อมูล (ห้าม polling ถี่) |
-| ส่งออกไฟล์ | `exportCsv()`, `exportPdf()` — `lib/fileExport.ts` |
-| วันที่/อายุ/ประกัน | `lib/itemInfo.ts` |
-
-**ฐานข้อมูล**
-- ทุกการเปลี่ยนแปลง = ไฟล์ใน `supabase/migrations/` + **ให้เจ้าของโปรเจกต์อนุมัติ SQL ก่อนรัน** + ทดลองแบบ `begin … rollback` ก่อน
-- โปรเจกต์มี event trigger `ensure_rls` เปิด RLS ให้ตารางใหม่อัตโนมัติ → **ต้องเขียน policy ในไฟล์เดียวกัน** ไม่งั้นแอปอ่าน/เขียนไม่ได้
-- กติกาธุรกิจสำคัญ → RPC (security definer) ไม่ใช่ให้แอปเขียนตารางตรง
-
-**UI**
-- ตอนนี้โฟกัสการใช้งานก่อน ความสวยไว้รอบ UI (ใช้ skill `ui-ux-pro-max`) — มีรายการรอแก้หน้าตาอยู่แล้ว
+### ผู้ดูแล (Admin/TA) — `app/admin/*`
+| หน้า | ไฟล์ | ทำอะไร |
+|---|---|---|
+| แดชบอร์ด | `home` | กล่องคำขอ (เลขค้าง), ไทล์ด่วน, สถิติอุปกรณ์, เครื่องมือแบ่งหมวด, กิจกรรมล่าสุด |
+| กล่องคำขอ | `requests` | อนุมัติ/ปฏิเสธ (ต้องมีเหตุผล), ตรวจสภาพตอนคืน (ปกติ/ชำรุด + ค่าเสียหาย), เทียบรูปตอนยืม-คืน, ประวัติ |
+| สแกนดูสถานะ | `lookup` | สแกนของ → ใครยืม, กำหนดคืน, รูป, ประวัติ 10 ครั้ง |
+| ประวัติยืม | `history` | ทั้งหมด/กำลังยืม/เกินกำหนด/คืนแล้ว + ค้นหา |
+| รายงาน | `report` | ช่วง 30 วัน/3 เดือน/ปีนี้/ทั้งหมด/กำหนดเอง → ส่งออก CSV + PDF |
+| สต็อก | `stock` | นับตามหมวด, ประกันใกล้หมด/หมด, อายุควรตรวจ/ควรเปลี่ยน |
+| อุปกรณ์ | `items` | รายการ, เปลี่ยนสถานะ/หมวด, แก้ประกัน/Serial, จำหน่ายออก, ลบ (ถ้าไม่เคยถูกยืม) |
+| เพิ่มอุปกรณ์ | `scan` | ชื่อ หมวด จำนวน รูป ประกัน → ฐานข้อมูลออกรหัส `NodeMCU 001` + รหัสสแกน 4 ตัวให้เอง |
+| นำเข้า CSV | `import` | ตรวจไฟล์ละเอียด (หมวดสะกดผิด, ปี พ.ศ., ซ้ำ ฯลฯ) + ยกเลิกการนำเข้าได้ |
+| หมวดหมู่ | `categories` | เพิ่ม/แก้/เรียง/ปิด/ลบ (ย้ายของก่อน) |
+| พิมพ์ป้าย QR | `qrgen` | ป้าย 6×2.8 ซม. A4 27 ชิ้น |
+| ตรวจสภาพ IoT ประจำเทอม | `iotinspection` | บันทึกสภาพรายชิ้น |
+| จัดการห้อง | `room` | สถิติห้อง, เพิ่ม/แก้/ปิดห้อง, ทางเข้าคิวแจ้งปัญหา |
+| เครื่องคอม | `stations` | เพิ่ม/แก้/ปิดใช้งาน/ลบ, เปลี่ยนสถานะ |
+| LAN port | `lanports` | เพิ่ม/ลบ/เปลี่ยนสถานะ |
+| ตรวจห้องคอมประจำเทอม | `inspection` | เมาส์/คีย์บอร์ด/จอ ต่อเครื่อง |
+| งานซ่อม | `repairs` | pending → in-repair → done (ย้อนไม่ได้) |
+| คิวแจ้งปัญหา | `roomreports` | รับเรื่อง (สร้างงานซ่อม) / ปิดเรื่อง (ต้องมีเหตุผล) |
+| ตั้งค่าระบบ | `settings` | โควตายืม, เวลาหมดอายุคำขอ, เกณฑ์ประกัน/อายุ, สวิตช์รับเฉพาะ @kkumail.com |
+| จัดการผู้ใช้ | `users` | แต่งตั้ง/ถอด TA, ค้นหา, แก้รหัส นศ. |
 
 ---
 
-## 7. คำถามที่ต้องตอบก่อนวางแผนระบบห้อง
+## 5. Flow หลัก: ยืม-คืน (เฟส 3)
 
-1. ทำตาราง `rooms` (ชื่อ, อาคาร, ชั้น, จำนวนกลุ่ม/เครื่อง) เพื่อเลิกเขียนรหัสห้องตายตัวไหม? ห้องจะเพิ่มในอนาคตไหม?
-2. นักศึกษาใช้ระบบห้องทำอะไร — แค่ดูสถานะเครื่อง/LAN หรือแจ้งปัญหาเครื่องได้ด้วย?
-3. TA ทำอะไรในระบบห้องได้บ้าง (แจ้งซ่อม? ตรวจประจำเทอม? เปลี่ยนสถานะเครื่อง?)
-4. แจ้งซ่อม: ใครแจ้งได้, ต้องมีรูปไหม, แจ้งเตือนใคร (ใช้ระบบแจ้งเตือน + Realtime เดิมได้)
-5. ตรวจประจำเทอม: รวมกับ `item_inspections` ของระบบยืม-คืน หรือแยกต่อ?
-6. ระบบจองห้อง (`room_bookings`) — ลบทิ้ง หรือจะกลับมาทำ?
-7. ไฟล์ร้างระบบห้อง — ลบได้เลยไหม (ต้องให้เจ้าของระบบห้องยืนยัน)
-8. LAN port: ต้องมีประวัติการเปลี่ยนสถานะ/ผู้แก้ไขไหม?
+1. นักศึกษาสแกน QR บนตัวของ → RPC `scan_lookup` บอกสถานะ (`available / my_pending / mine / taken / unavailable`)
+2. **ขอยืม**: เลือกวัน + ถ่ายรูปสด (เก็บ `borrow-photos/<user_id>/`) + สภาพ → `request_borrow`
+   - กติกาใน RPC: ยืมพร้อมกันได้สูงสุด `max_active_borrows` (3, รวมคำขอที่รอ), รูปต้องอยู่ในโฟลเดอร์ตัวเองจริงและห้ามใช้ซ้ำ, ของต้องว่าง
+   - ของเปลี่ยนเป็น `reserved`
+3. ผู้ดูแลอนุมัติใน **กล่องคำขอ** → `decide_request` → สร้าง `borrow_records` (กำหนดคืน = วันนี้ไทย + จำนวนวัน), ของ = `borrowed`
+4. **ขอคืน**: ถ่ายรูป + สภาพ → `request_return` → record = `pending_return` → ผู้ดูแลตรวจสภาพ: ปกติ = ของว่าง / ชำรุด = ของ `repair` + ค่าเสียหาย
+5. **ยืมต่อ**: ได้ครั้งเดียว (`request_renew`) → อนุมัติแล้วเลื่อนกำหนดคืน
+6. ไม่มีใครตอบภายใน `request_expiry_minutes` (30 นาที) → cron `expire_requests` ทุก 5 นาที: ขอยืม = หมดอายุ / ขอคืน = **คืนอัตโนมัติ** (แจ้งผู้ดูแลให้ตรวจย้อนหลัง)
+7. cron 08:00 ไทย: แจ้ง "พรุ่งนี้ครบกำหนด" + "เกินกำหนด" (ผู้ยืม + ผู้ดูแล)
+8. นักศึกษายกเลิกคำขอที่รอได้ (`cancel_request`), TA อนุมัติคำขอของตัวเองไม่ได้ (trigger)
+
+> Admin ยืม/คืนแทนนักศึกษาไม่ได้ (ระบบเก่าแบบลายเซ็นถูกเอาออกแล้ว)
+
+## 6. Flow หลัก: ระบบห้องคอม (R0–R3)
+
+- โครงสร้าง: 1 ห้อง → 6 กลุ่ม → กลุ่มละ 9 เครื่อง (C1–C9) + Server 1 เครื่อง (LAN 12 port) / ห้องตอนนี้: CP9524, SC9604 (ตาราง `rooms`)
+- สถานะเครื่อง/port: `available / repair / broken` · เช็กลิสต์ต่อเครื่อง: mouse/keyboard/monitor = `present / missing / broken`
+- ทุกการเปลี่ยนสถานะถูกบันทึกใน `room_status_log` (ใคร, ก่อน→หลัง, manual/repair)
+- งานซ่อม: เปิดงาน → เครื่องเป็น `repair` อัตโนมัติ / ปิดงานหมด → กลับ `available` / ห้ามย้อนสถานะ
+- นักศึกษาแจ้งปัญหา (`report_room_problem`): กันแจ้งซ้ำเรื่องเดิม, 5 ครั้ง/วัน, 3–500 ตัวอักษร → แจ้ง admin+TA → คิว `decide_room_report`: รับ = สร้างงานซ่อม / ปิด = ต้องมีเหตุผล → ผลแจ้งกลับผู้แจ้ง
+- ตรวจประจำเทอม → อัปเดตเช็กลิสต์อัตโนมัติ (`lib/term.ts` คำนวณเทอม)
+- TA เปลี่ยนได้แค่ status (trigger กันแก้ชื่อ/กลุ่ม)
+- อัปเดตสด: trigger → Realtime ช่อง `room` → หน้า home/roommap/lanstatus/admin รีโหลดเอง
 
 ---
 
-## 8. ไฟล์อ้างอิงในโปรเจกต์
-- `iot-lab-management/CLAUDE.md` — บันทึกละเอียดทุกเฟส (บางส่วนตอนท้ายเป็นข้อมูลรุ่นเก่า พ.ค. 2569)
-- `iot-lab-management/TODO_for_claudecode.md` — รายการจาก code review เดิม
-- `iot-lab-management/supabase/migrations/` — SQL ทุกการเปลี่ยนแปลง (เรียงตามเวลา)
-- แผนระบบยืมของ: `PLAN_ระบบยืมของ.md` (อยู่นอก repo)
+## 7. ฐานข้อมูล (Supabase, schema public — RLS เปิดทุกตาราง)
+
+| ตาราง | หน้าที่ | คอลัมน์สำคัญ |
+|---|---|---|
+| `profiles` | ผู้ใช้ | role (user/ta/admin), email, full_name, avatar_url (จาก Google), student_id (unique, `^\d{9}-\d$`) |
+| `items` | อุปกรณ์ IoT 1 แถว/ชิ้น | item_code (`NodeMCU 001`), barcode (4 ตัว สุ่ม ไม่ซ้ำ), status (available/reserved/borrowed/repair/retired), category_id, location_id, warranty_expires_at, retired_at/reason |
+| `categories` | หมวด | name, sort_order, active ("อื่นๆ" = หมวดสำรอง) |
+| `borrow_locations` | ห้องยืมของ | ตอนนี้มี "IoT Lab" ห้องเดียว |
+| `borrow_requests` | คำขอ | kind (borrow/return/renew), status (pending/approved/declined/expired/cancelled/auto_returned), days, condition, photo_path, expires_at, decided_by |
+| `borrow_records` | การยืม | status (borrowed/pending_return/returned), borrow_date, due_date, return_date, รูป+สภาพตอนยืม/คืน, damage_cost, auto_returned, renew_count (ไม่มี created_at) |
+| `notifications` | แจ้งเตือนในแอป | type, title, body, read, request_id, item_id |
+| `app_settings` | ค่าตั้ง key/value | max_active_borrows=3, request_expiry_minutes=30, borrow_day_options=[3,5,7], warranty_warn_days=30, age_warn_years=3, age_replace_years=4, allowed_email_domain="" |
+| `item_inspections` | ตรวจ IoT ประจำเทอม | term, item_id, condition |
+| `item_alerts`, `item_code_counters` | ภายใน (แอปเข้าไม่ได้) | กันเตือนซ้ำ / ตัวนับเลขรหัส |
+| `rooms` | ห้องคอม | id = รหัสห้อง, building, floor, active |
+| `computer_stations` | เครื่องคอม | room_id, group_no, name (ห้ามซ้ำในกลุ่ม), status, active |
+| `lan_ports` | LAN | room_id, group_no, port_no 1–12, status |
+| `station_equipment` | เช็กลิสต์ | station_id, equipment_type, status |
+| `equipment_inspections` | ตรวจห้องคอมประจำเทอม | unique (station, term, type) |
+| `repair_records` | งานซ่อม | station_id, status pending/in-repair/done |
+| `room_reports` | นักศึกษาแจ้งปัญหา | kind station/lan, status, repair_id |
+| `room_status_log` | ประวัติสถานะ | from/to, source, changed_by |
+
+**RPC ที่แอปเรียก:** `scan_lookup`, `request_borrow`, `request_return`, `request_renew`, `cancel_request`, `decide_request`, `expire_requests`, `item_active_loans`, `is_staff`, `set_user_role`, `report_room_problem`, `decide_room_report`
+
+**Trigger สำคัญ:** `items_before_insert` (ออกรหัส+barcode), `items_before_update` (ล็อกรหัส), `profiles_protect` (กันแก้ role/email/ชื่อ, รหัส นศ. ตั้งครั้งเดียว), `handle_new_user` + `_profile_sync_from_auth` (คัดชื่อ/รูปจาก Google), `borrow_requests_no_self_decide`, ระบบห้อง `_room_*` (log, sync เช็กลิสต์, sync สถานะซ่อม, TA guard, broadcast)
+
+**Storage:** `item-images` (public, admin เขียน), `borrow-photos` (private, เจ้าของ/ผู้ดูแลขอ signed URL)
+
+**pg_cron:** `expire-borrow-requests` ทุก 5 นาที · `borrow-due-reminders` 08:00 · `item-health-alerts` 08:00 (ประกัน/อายุ → admin) · `cleanup-cron-history` ทุกวัน
+
+**Realtime Broadcast (private channels):** `user:<id>` (แจ้งเตือนใหม่) · `staff` (คำขอเปลี่ยน) · `room` (สถานะห้อง) — ใช้แทน polling, สำรองรีเฟรชทุก 5 นาที
+
+SQL ทั้งหมดอยู่ใน `supabase/migrations/` (18 ไฟล์ รันครบแล้ว)
+
+---
+
+## 8. การยืนยันตัวตน
+
+- อีเมล+รหัสผ่าน (8 ตัว มีตัวอักษร+ตัวเลข) และ Google OAuth (`hd=kkumail.com`)
+- สวิตช์ "รับเฉพาะ @kkumail.com" **ปิดไว้ช่วงพัฒนา** → ตอน Final Project: เปิดในหน้าตั้งค่าระบบ + เปิด Auth Hook "Before User Created" (`hook_restrict_signup_domain`) ใน Supabase Dashboard
+- มือถือจำ session ใน AsyncStorage / เว็บใช้ localStorage
+- ปุ่มออกจากระบบตอนนี้ = ออกทุกเครื่องของบัญชีนั้น (ค่าเริ่มต้น Supabase)
+
+---
+
+## 9. โค้ด: ไฟล์ที่ใช้ร่วม
+
+- `lib/nav.ts` — `goBack(fallback)`, `goTab()`, `useRefreshOnFocus()` (ใช้เสมอ ห้าม router.replace เป็นปุ่มย้อน)
+- `lib/notify.tsx` — `notify()` / `confirmAction()` แทน Alert (Alert ไม่ทำงานบนเว็บ)
+- `lib/session.ts` — `currentUser()` (อ่าน session ในเครื่อง ลดภาระ DB)
+- `lib/realtime.ts` (ระบบยืม) / `lib/roomRealtime.ts` (ระบบห้อง)
+- `lib/status.ts` (สถานะระบบยืม) / `lib/roomStatus.ts` (สถานะระบบห้อง)
+- `lib/people.ts` — `who()` แสดง "ชื่อ · รหัส นศ."
+- `lib/report.ts`, `lib/importItems.ts`, `lib/itemInfo.ts`, `lib/labels.ts` — ตรรกะล้วน แยกจาก UI
+- components: `ScreenHeader`, `SearchBar`, `TabBar`, `BottomSheet`, `Motion` (PressScale/FadeIn/Pulse/haptic), `GreetingLine`, `LoanSummary`, `StatWidget`, `RoomReportForm`, `LoadError`
+
+---
+
+## 10. สถานะปัจจุบัน
+
+**เสร็จแล้ว:** เฟส 1–5 ระบบยืม-คืน, TA, Google login, รายงาน, ระบบห้อง R0–R3 + อัปเดตสด, UI ใหม่ทั้งแอป (ธีมฟ้า), รหัส นศ. + โปรไฟล์ใหม่, คู่มือ PDF 3 เล่ม (`docs/guides/`), ตรวจความถูกต้องทั้งระบบ 2 รอบ (ทดสอบ DB end-to-end ผ่านทุกกติกา)
+
+**ข้อจำกัด/เรื่องค้าง:**
+- ถ่ายรูปหลักฐานยืม-คืนได้เฉพาะแอปมือถือ (เว็บถ่ายสดไม่ได้)
+- รันผ่าน Expo Go (ยังไม่ได้ build เป็นแอปจริง / ไม่มี push notification — iOS ต้องใช้ Apple Developer $99/ปี, Android APK ฟรี, หรือทำ PWA + Web Push)
+- Performance pass ยังไม่ได้ทำ (ตั้งใจทำท้ายสุด: ลด round trip, spinner เต็มหน้า)
+- หน้า `sittings.tsx` ไม่มีลิงก์ไปแล้ว (ลบได้)
+- ข้อมูลทดสอบในระบบ: อุปกรณ์ Test1 / ทดสอบ1 / ทดสอบ2 (ควรจำหน่ายออกก่อนใช้จริง), เครื่อง SC9604 กลุ่ม 1 C9 ค้างสถานะซ่อมโดยไม่มีงานซ่อม
+- หน้าห้องคอม (งานซ่อม/คิวแจ้งปัญหา/ผังห้อง) ยังแสดงผู้แจ้งเป็นอีเมล ไม่ใช่ชื่อ · รหัส
+
+**Backlog UI ที่เคยจดไว้:**
+- การ์ด "ยืม/คืน/ซ่อม" ข้างวันที่บนแดชบอร์ด เป็นยอดสะสม ไม่ใช่ของวันนี้ (ชวนเข้าใจผิด)
+- หน้า PDF รายงานยังไม่สวย/ไม่เป็นระเบียบ
+- หน้าอุปกรณ์ของ นศ. โหลดไม่สำเร็จจะเห็นรายการว่าง (ไม่บอก error)
+- ปุ่มออกจากระบบอาจควรเป็น "เฉพาะเครื่องนี้"
+
+---
+
+## 11. กติกาการทำงานในโปรเจกต์ (ต้องรักษาไว้)
+
+- ระบบห้องห้ามแตะ/import ไฟล์หรือตารางของระบบยืม-คืน และกลับกัน
+- เพิ่มตารางใหม่ต้องเขียน RLS policy ในไฟล์ migration เดียวกัน (มี event trigger เปิด RLS อัตโนมัติ)
+- กติกาธุรกิจอยู่ใน RPC/trigger ฝั่งฐานข้อมูล แอปเรียกอย่างเดียว
+- เขียนข้อมูลแล้วใช้ `.select("id")` เช็กว่าแก้ได้จริง (RLS ไม่ให้สิทธิ์ = 0 แถว ไม่ error)
+- UI ใช้ `docs/DESIGN.md` เท่านั้น, ทำ mockup ให้เจ้าของดูก่อนแก้โค้ดจริง
+- ระวังโควตาแพ็กเกจฟรีของ Supabase (Disk IO)

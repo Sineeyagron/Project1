@@ -25,6 +25,7 @@ import { BADGE_TEXT, C, W, gradient } from "../lib/theme";
 import TabBar from "../components/TabBar";
 import ScreenHeader from "../components/ScreenHeader";
 import { FadeIn, PressScale } from "../components/Motion";
+import PickupRequestSheet from "../components/PickupRequestSheet";
 
 // หน้าอุปกรณ์ของนักศึกษา (ดูอย่างเดียว — ยืม/คืนทางเดียวคือสแกน QR ที่ตัวของ แผน 2.6)
 // รวมเป็น "การ์ดละรุ่น" (item_prefix / ชื่อ) บอกว่าว่างกี่ชิ้น — นักศึกษาอยากรู้ว่า "DHT22 มีว่างไหม" ไม่ใช่ทีละชิ้น
@@ -124,6 +125,7 @@ export default function Equipment() {
   const sortBtnRef = useRef<any>(null);
   const [sortAnchor, setSortAnchor] = useState<Anchor | null>(null);
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [pickupModel, setPickupModel] = useState<{ key: string; name: string } | null>(null);
 
   useEffect(() => { fetchItems(); }, []);
   useRefreshOnFocus(() => { fetchItems(); });
@@ -279,7 +281,14 @@ export default function Equipment() {
 
       <TabBar current="/equipment" />
 
-      <DetailSheet group={open} onClose={() => setOpenKey(null)} onScan={() => { setOpenKey(null); router.push("/scan"); }} />
+      <DetailSheet
+        group={open}
+        onClose={() => setOpenKey(null)}
+        onScan={() => { setOpenKey(null); router.push("/scan"); }}
+        onPickup={(g) => { setOpenKey(null); setPickupModel({ key: g.key, name: g.name }); }}
+      />
+      {/* F2 ขอยืมแบบนัดรับ */}
+      <PickupRequestSheet model={pickupModel} onClose={() => setPickupModel(null)} onSent={() => setPickupModel(null)} />
 
       {/* เมนูเรียง (ลูกตัวสุดท้าย = อยู่บนสุด) */}
       <AnchoredMenu
@@ -333,7 +342,7 @@ function GroupCard({ group: g, index, onPress }: { group: Group; index: number; 
 // แผ่นล่าง: ฉากหลังเทา "จาง" เข้า-ออก / แผ่น "เลื่อน" ขึ้น-ลง — คุมเองทั้งคู่ให้ไปพร้อมกัน
 // (เดิมใช้ animationType="slide" ของ Modal → ฉากเทาเลื่อนตามแผ่น และตอนปิดลงช้ากว่า)
 // ปิด = เล่นแอนิเมชันออกจนจบก่อน แล้วค่อยถอด Modal (เก็บ group ล่าสุดไว้แสดงระหว่างกำลังปิด)
-function DetailSheet({ group, onClose, onScan }: { group: Group | null; onClose: () => void; onScan: () => void }) {
+function DetailSheet({ group, onClose, onScan, onPickup }: { group: Group | null; onClose: () => void; onScan: () => void; onPickup: (g: Group) => void }) {
   const [g, setG] = useState<Group | null>(group);
   const [visible, setVisible] = useState(!!group);
   const progress = useRef(new Animated.Value(0)).current;
@@ -415,6 +424,10 @@ function DetailSheet({ group, onClose, onScan }: { group: Group | null; onClose:
                 <Ionicons name="scan" size={18} color="#FFFFFF" />
                 <Text style={s.scanBtnText}>เปิดกล้องสแกน QR</Text>
               </PressScale>
+              <TouchableOpacity style={s.pickupBtn} onPress={() => onPickup(g)} activeOpacity={0.85}>
+                <Ionicons name="calendar-outline" size={17} color={C.primaryDark} />
+                <Text style={s.pickupBtnText}>ขอยืมแบบนัดรับ</Text>
+              </TouchableOpacity>
             </View>
           ) : null}
         </Animated.View>
@@ -502,4 +515,6 @@ const s = StyleSheet.create({
   howToText: { flex: 1, color: C.primaryDark, fontSize: 13, lineHeight: 20 },
   scanBtn: { ...W.primary, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 50 },
   scanBtnText: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
+  pickupBtn: { ...W.small, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 46, marginTop: 8 },
+  pickupBtnText: { color: C.primaryDark, fontSize: 14, fontWeight: "600" },
 });

@@ -9,38 +9,17 @@ import {
 } from "react-native";
 import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import Svg, { Path } from "react-native-svg";
 import supabase from "../../lib/supabase";
 import { fetchPeople, who } from "../../lib/people";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { W } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import SearchBar from "../../components/SearchBar";
+import TimelineDays from "../../components/TimelineDays";
+import { PAGE_DAYS, TimelineFilter, buildEvents, filterEvents, groupByDay, sinceIso } from "../../lib/timeline";
 
-function SignaturePreview({ svgString }: { svgString: string }) {
-  if (!svgString || !svgString.startsWith("<svg")) return null;
-  const paths: { d: string; stroke: string; sw: number }[] = [];
-  const re = /d="([^"]+)"[^/]*stroke="([^"]+)"[^/]*stroke-width="([^"]+)"/g;
-  let match;
-  while ((match = re.exec(svgString)) !== null) {
-    paths.push({ d: match[1], stroke: match[2], sw: parseFloat(match[3]) });
-  }
-  return (
-    <Svg width="100%" height={72} viewBox="0 0 320 180" style={s.signatureCanvas}>
-      {paths.map((path, index) => (
-        <Path
-          key={index}
-          d={path.d}
-          stroke={path.stroke}
-          strokeWidth={path.sw}
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      ))}
-    </Svg>
-  );
-}
+// ประวัติยืม-คืน (Admin/TA) — F3 แบบแอปธนาคาร: จัดกลุ่มตามวัน แต่ละแถว = เวลา · ชนิด · ของ · ใคร · รายละเอียด
+// ดึงทีละช่วง (60 วันล่าสุด + โหลดเพิ่ม) ไม่ดึงทั้งตาราง
 
 const C = {
   bg: "#EAF1FC",
@@ -49,141 +28,123 @@ const C = {
   ink: "#172033",
   muted: "#475569",
   faint: "#64748B",
-  card: "#ffffff",
   orange: "#f59e0b",
   red: "#ef4444",
   green: "#10B981",
+  violet: "#7C3AED",
 };
 
-const FILTERS = [
+const FILTERS: { key: TimelineFilter; label: string; color: string }[] = [
   { key: "all", label: "ทั้งหมด", color: C.blue },
-  { key: "borrowed", label: "กำลังยืม", color: C.orange },
+  { key: "borrow", label: "ยืมออก", color: C.purple },
+  { key: "return", label: "คืนเข้า", color: C.green },
   { key: "overdue", label: "เกินกำหนด", color: C.red },
-  { key: "returned", label: "คืนแล้ว", color: C.green },
-] as const;
-
-function formatDate(value?: string) {
-  if (!value) return "-";
-  return new Date(value).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function daysLeft(due?: string) {
-  if (!due) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  // due_date เป็นวันที่ล้วน → อ่านเป็นเที่ยงคืนเวลาเครื่อง (new Date(due) = เที่ยงคืน UTC ทำให้วันถัดจากกำหนดยังไม่นับว่าเกิน)
-  return Math.round((new Date(`${due.slice(0, 10)}T00:00:00`).getTime() - today.getTime()) / 86400000);
-}
-
-function isActiveBorrow(record: any) {
-  return record.status === "borrowed" || record.status === "pending_return";
-}
-
-function isOverdue(record: any) {
-  const left = daysLeft(record.due_date);
-  return isActiveBorrow(record) && left !== null && left < 0;
-}
-
-function statusConfig(record: any) {
-  if (record.status === "returned") {
-    return { label: "คืนแล้ว", color: "#047857", bg: "#ECFDF5", icon: "server-outline", iconBg: "#ECFDF5" };
-  }
-  if (isOverdue(record)) {
-    return { label: "เกินกำหนด", color: "#dc2626", bg: "#fee2e2", icon: "hardware-chip-outline", iconBg: "#fef3c7" };
-  }
-  return { label: "กำลังยืม", color: "#b45309", bg: "#fef3c7", icon: "hardware-chip-outline", iconBg: "#fef3c7" };
-}
-
-function itemIcon(name: string, status: string) {
-  const key = (name || "").toLowerCase();
-  if (status === "returned" && key.includes("rasp")) return "server-outline";
-  if (key.includes("sensor")) return "pulse-outline";
-  if (key.includes("servo")) return "flash-outline";
-  return "hardware-chip-outline";
-}
+  { key: "other", label: "อื่น ๆ", color: C.violet },
+];
 
 export default function AdminHistory() {
-  const router = useRouter();
   const [records, setRecords] = useState<any[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [names, setNames] = useState<Record<string, string>>({});
+  const [people, setPeople] = useState<Record<string, string>>({});
+  const [days, setDays] = useState(PAGE_DAYS);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeFilter, setActiveFilter] = useState("all");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [activeFilter, setActiveFilter] = useState<TimelineFilter>("all");
+  const [query, setQuery] = useState("");
 
-  const fetchHistory = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("borrow_records")
-      .select("*")
-      // Supabase ส่งได้ครั้งละ 1,000 แถว — เรียงใหม่สุดก่อน ไม่งั้นพอข้อมูลเกิน รายการล่าสุดอาจหลุดไป
-      .order("borrow_date", { ascending: false });
+  const fetchHistory = useCallback(async (range: number) => {
+    const since = sinceIso(range);
+    const [recRes, reqRes] = await Promise.all([
+      supabase
+        .from("borrow_records")
+        .select("id, user_id, item_id, status, borrow_date, return_date, due_date, renew_count, auto_returned, return_condition, damage_cost, borrow_request_id")
+        // ในช่วงนี้ (ยืมหรือคืน) + ที่ยังยืมอยู่ทุกชิ้น (กันของเกินกำหนดเก่าหลุดจากชิป "เกินกำหนด")
+        .or(`borrow_date.gte.${since},return_date.gte.${since},status.in.(borrowed,pending_return)`)
+        .order("borrow_date", { ascending: false }),
+      supabase
+        .from("borrow_requests")
+        .select("id, user_id, item_id, borrow_record_id, kind, status, days, created_at, expires_at, decided_at, decided_by, decision_note")
+        .in("status", ["approved", "declined", "expired"])
+        .gte("created_at", since)
+        .order("created_at", { ascending: false }),
+    ]);
 
-    if (error) {
-      console.error("history fetch error:", error.message);
+    if (recRes.error || reqRes.error) {
+      setError((recRes.error || reqRes.error)!.message);
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
       return;
     }
+    const recs = recRes.data || [];
+    const reqs = reqRes.data || [];
 
-    const rows = data || [];
-    const itemIds = [...new Set(rows.map((row: any) => row.item_id).filter(Boolean))];
-    const userIds = [...new Set(rows.map((row: any) => row.user_id).filter(Boolean))];
+    const itemIds = [...new Set([...recs, ...reqs].map((r: any) => r.item_id).filter(Boolean))];
+    const userIds = [...new Set([
+      ...recs.map((r: any) => r.user_id),
+      ...reqs.map((r: any) => r.user_id),
+      ...reqs.map((r: any) => r.decided_by),
+    ].filter(Boolean))];
+    const [itemsRes, profiles] = await Promise.all([
+      itemIds.length ? supabase.from("items").select("id, name, item_code").in("id", itemIds) : Promise.resolve({ data: [] as any[] }),
+      fetchPeople(userIds),
+    ]);
     const itemMap: Record<string, string> = {};
-    const emailMap: Record<string, string> = {};
+    (itemsRes.data || []).forEach((it: any) => { itemMap[it.id] = it.item_code || it.name; });
+    const peopleMap: Record<string, string> = {};
+    (profiles || []).forEach((p: any) => { peopleMap[p.id] = who(p); });
 
-    if (itemIds.length > 0) {
-      const { data: items } = await supabase.from("items").select("id, name, item_code").in("id", itemIds);
-      (items || []).forEach((item: any) => { itemMap[item.id] = item.item_code || item.name; });
-    }
-
-    if (userIds.length > 0) {
-      const profiles = await fetchPeople(userIds);
-      // ชื่อ · รหัส นศ. (ไม่มีชื่อ → อีเมล) — ค้นหาด้วยชื่อ/รหัสได้ด้วย
-      (profiles || []).forEach((profile: any) => { emailMap[profile.id] = who(profile); });
-    }
-
-    const merged = rows.map((row: any) => ({
-      ...row,
-      itemName: itemMap[row.item_id] || "อุปกรณ์",
-      email: emailMap[row.user_id] || "-",
-    }));
-
-    merged.sort((a: any, b: any) => {
-      const aDate = a.borrow_date || a.created_at || a.due_date || "";
-      const bDate = b.borrow_date || b.created_at || b.due_date || "";
-      return new Date(bDate).getTime() - new Date(aDate).getTime();
-    });
-
-    setRecords(merged);
+    setError("");
+    setRecords(recs);
+    setRequests(reqs);
+    setNames(itemMap);
+    setPeople(peopleMap);
     setLoading(false);
     setRefreshing(false);
+    setLoadingMore(false);
   }, []);
 
-  useEffect(() => {
-    fetchHistory();
-  }, [fetchHistory]);
+  useEffect(() => { fetchHistory(days); }, [fetchHistory]);
   // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
-  useRefreshOnFocus(() => { fetchHistory(); });
+  useRefreshOnFocus(() => { fetchHistory(days); });
 
-  const filtered = useMemo(() => {
-    if (activeFilter === "all") return records;
-    if (activeFilter === "borrowed") return records.filter((record) => isActiveBorrow(record) && !isOverdue(record));
-    if (activeFilter === "overdue") return records.filter(isOverdue);
-    return records.filter((record) => record.status === "returned");
-  }, [activeFilter, records]);
+  const events = useMemo(() => {
+    const approverOf: Record<string, string> = {};
+    requests.forEach((q) => { if (q.decided_by && people[q.decided_by]) approverOf[q.id] = people[q.decided_by].split(" · ")[0]; });
+    return buildEvents(records, requests, {
+      itemName: (id) => (id && names[id]) || "อุปกรณ์",
+      approver: (reqId) => (reqId ? approverOf[reqId] || null : null),
+    });
+  }, [records, requests, names, people]);
+
+  const groups = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const searched = q
+      ? events.filter((e) => e.itemName.toLowerCase().includes(q) || (people[e.userId] || "").toLowerCase().includes(q))
+      : events;
+    return groupByDay(filterEvents(searched, activeFilter));
+  }, [events, activeFilter, query, people]);
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchHistory();
+    fetchHistory(days);
   };
-
-  const goBack = () => navBack("/admin/home");
+  const loadMore = () => {
+    const next = days + PAGE_DAYS;
+    setDays(next);
+    setLoadingMore(true);
+    fetchHistory(next);
+  };
 
   return (
     <View style={s.container}>
       <ScreenHeader
         title={"ประวัติยืม-คืน"}
-        subtitle={`${records.length} รายการทั้งหมด`}
-        onBack={() => goBack()}
+        subtitle={`${events.length} รายการ · ${days} วันล่าสุด`}
+        onBack={() => navBack("/admin/home")}
       />
 
       {loading ? (
@@ -193,7 +154,10 @@ export default function AdminHistory() {
           contentContainerStyle={s.body}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
+          <SearchBar value={query} onChangeText={setQuery} placeholder="ค้นหาชื่อ รหัส นศ. หรืออุปกรณ์" style={{ marginBottom: 12 }} />
+
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>
             {FILTERS.map((filter) => {
               const active = activeFilter === filter.key;
@@ -214,91 +178,32 @@ export default function AdminHistory() {
             })}
           </ScrollView>
 
-          {filtered.length === 0 ? (
+          {!!error && (
+            <View style={s.errorBox}>
+              <Ionicons name="cloud-offline-outline" size={18} color="#b91c1c" />
+              <Text style={s.errorText} numberOfLines={2}>โหลดไม่สำเร็จ: {error}</Text>
+              <TouchableOpacity onPress={onRefresh} activeOpacity={0.85}>
+                <Text style={s.retryText}>ลองใหม่</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {groups.length === 0 ? (
             <View style={s.empty}>
               <Ionicons name="document-outline" size={42} color="#cbd5e1" />
               <Text style={s.emptyText}>ไม่พบรายการ</Text>
             </View>
           ) : (
-            filtered.map((record) => {
-              const cfg = statusConfig(record);
-              const left = daysLeft(record.due_date);
-              const expanded = expandedId === record.id;
-              const icon = itemIcon(record.itemName, record.status);
-
-              return (
-                <TouchableOpacity
-                  key={record.id}
-                  style={s.card}
-                  activeOpacity={0.88}
-                  onPress={() => setExpandedId((current) => current === record.id ? null : record.id)}
-                >
-                  <View style={s.cardMain}>
-                    <View style={[s.iconBox, { backgroundColor: cfg.iconBg }]}>
-                      <Ionicons name={icon as any} size={24} color={cfg.color} />
-                    </View>
-                    <View style={s.cardBody}>
-                      <Text style={s.cardName} numberOfLines={1}>{record.itemName}</Text>
-                      <Text style={s.cardEmail} numberOfLines={1}>{record.email}</Text>
-                    </View>
-                    <View style={[s.statusPill, { backgroundColor: cfg.bg }]}>
-                      <Text style={[s.statusText, { color: cfg.color }]}>{cfg.label}</Text>
-                    </View>
-                  </View>
-
-                  {isOverdue(record) ? (
-                    <View style={s.overdueBox}>
-                      <Ionicons name="alert-circle-outline" size={14} color="#b45309" />
-                      <Text style={s.overdueText}>เกินกำหนดคืน — ยืม {Math.abs(left || 0)} วัน</Text>
-                    </View>
-                  ) : (
-                    <View style={s.dateRow}>
-                      <Ionicons name="calendar-outline" size={13} color={C.faint} />
-                      <Text style={s.dateText}>ยืม {formatDate(record.borrow_date || record.created_at)}</Text>
-                      {record.status === "returned" && (
-                        <>
-                          <Ionicons name="checkmark" size={13} color={C.green} />
-                          <Text style={s.dateText}>คืน {formatDate(record.return_date)}</Text>
-                        </>
-                      )}
-                    </View>
-                  )}
-
-                  {expanded && (
-                    <View style={s.expanded}>
-                      <View style={s.expandedLine} />
-                      <View style={s.detailRow}>
-                        <Text style={s.detailLabel}>กำหนดคืน</Text>
-                        <Text style={s.detailValue}>{formatDate(record.due_date)}</Text>
-                      </View>
-                      <View style={s.detailRow}>
-                        <Text style={s.detailLabel}>สถานะ</Text>
-                        <Text style={[s.detailValue, { color: cfg.color }]}>{cfg.label}</Text>
-                      </View>
-                      <View style={s.signatureRow}>
-                        <View style={s.signatureBox}>
-                          <Text style={s.signatureLabel}>ลายเซ็นยืม</Text>
-                          {record.borrow_signature_url?.startsWith("<svg") ? (
-                            <SignaturePreview svgString={record.borrow_signature_url} />
-                          ) : (
-                            <Text style={s.signatureEmpty}>ไม่มีลายเซ็น</Text>
-                          )}
-                        </View>
-                        <View style={s.signatureBox}>
-                          <Text style={s.signatureLabel}>ลายเซ็นคืน</Text>
-                          {record.return_signature_url?.startsWith("<svg") ? (
-                            <SignaturePreview svgString={record.return_signature_url} />
-                          ) : (
-                            <Text style={s.signatureEmpty}>{record.status === "returned" ? "ไม่มีลายเซ็น" : "ยังไม่ได้คืน"}</Text>
-                          )}
-                        </View>
-                      </View>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })
+            <TimelineDays groups={groups} showCount person={(id) => people[id] || "-"} />
           )}
+
+          <TouchableOpacity style={s.moreBtn} onPress={loadMore} disabled={loadingMore} activeOpacity={0.85}>
+            {loadingMore ? (
+              <ActivityIndicator color={C.purple} />
+            ) : (
+              <Text style={s.moreText}>โหลดเพิ่ม (ย้อนหลังอีก {PAGE_DAYS} วัน)</Text>
+            )}
+          </TouchableOpacity>
         </ScrollView>
       )}
     </View>
@@ -310,36 +215,9 @@ const s = StyleSheet.create({
     ...W.page,
     flex: 1,
   },
-  header: { ...W.headerBar,
-    minHeight: 122,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingTop: 52,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  backBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    color: "#172033",
-    fontSize: 25,
-    fontWeight: "900",
-    lineHeight: 29,
-  },
-  headerSub: {
-    color: "#475569",
-    fontSize: 12,
-    fontWeight: "900",
-    marginTop: 4,
-  },
   body: {
-    paddingHorizontal: 35,
-    paddingTop: 18,
+    paddingHorizontal: 16,
+    paddingTop: 4,
     paddingBottom: 34,
   },
   filterRow: {
@@ -361,128 +239,25 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900",
   },
-  card: {
-    ...W.card,
-    padding: 14,
+  errorBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    borderRadius: 14,
+    backgroundColor: "#fee2e2",
+    padding: 12,
     marginBottom: 12,
   },
-  cardMain: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  iconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
+  errorText: { flex: 1, color: "#991b1b", fontSize: 13, fontWeight: "700" },
+  retryText: { color: "#b91c1c", fontSize: 13, fontWeight: "900" },
+  moreBtn: {
+    ...W.small,
+    minHeight: 46,
     alignItems: "center",
     justifyContent: "center",
+    marginTop: 4,
   },
-  cardBody: {
-    flex: 1,
-    minWidth: 0,
-  },
-  cardName: {
-    color: C.ink,
-    fontSize: 14.5,
-    fontWeight: "900",
-  },
-  cardEmail: {
-    color: C.muted,
-    fontSize: 11.5,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  statusPill: {
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  statusText: {
-    fontSize: 10.5,
-    fontWeight: "900",
-  },
-  overdueBox: {
-    minHeight: 31,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderRadius: 8,
-    backgroundColor: "#fef3c7",
-    borderWidth: 1,
-    borderColor: "#fbbf24",
-    paddingHorizontal: 12,
-    marginTop: 10,
-  },
-  overdueText: {
-    color: "#b45309",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  dateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 11,
-  },
-  dateText: {
-    color: C.muted,
-    fontSize: 11.5,
-    fontWeight: "800",
-  },
-  expanded: {
-    marginTop: 12,
-  },
-  expandedLine: {
-    height: 1,
-    backgroundColor: "#DCE6F5",
-    marginBottom: 10,
-  },
-  detailRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 4,
-  },
-  detailLabel: {
-    color: C.faint,
-    fontSize: 11.5,
-    fontWeight: "800",
-  },
-  detailValue: {
-    color: C.ink,
-    fontSize: 11.5,
-    fontWeight: "900",
-  },
-  signatureRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 8,
-  },
-  signatureBox: {
-    flex: 1,
-    minHeight: 84,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#DCE6F5",
-    padding: 8,
-    justifyContent: "center",
-  },
-  signatureLabel: {
-    color: C.muted,
-    fontSize: 10.5,
-    fontWeight: "900",
-    marginBottom: 5,
-  },
-  signatureEmpty: {
-    color: C.faint,
-    fontSize: 10.5,
-    fontWeight: "800",
-    textAlign: "center",
-  },
-  signatureCanvas: {
-    backgroundColor: "#f8fafc",
-    borderRadius: 8,
-  },
+  moreText: { color: "#1D4ED8", fontSize: 14, fontWeight: "700" },
   empty: {
     alignItems: "center",
     paddingTop: 70,

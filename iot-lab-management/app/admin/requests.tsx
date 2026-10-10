@@ -23,6 +23,7 @@ import Countdown from "../../components/Countdown";
 import { useRole } from "../../lib/roles";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import PickupInbox from "../../components/PickupInbox";
 
 // กล่องคำขอของผู้ดูแล: อนุมัติ / ปฏิเสธ คำขอยืม-คืน-ยืมต่อ (แผน 2.4, 2.6)
 // การตัดสินทั้งหมดผ่าน RPC decide_request (ตรวจสิทธิ์ + ล็อกแถวในฐานข้อมูล)
@@ -84,7 +85,9 @@ export default function AdminRequests() {
   const { role, userId } = useRole();
   const { id: focusId } = useLocalSearchParams<{ id?: string }>();
 
-  const [tab, setTab] = useState<"pending" | "history">("pending");
+  const [tab, setTab] = useState<"pending" | "pickup" | "history">("pending");
+  // F2 คำขอนัดรับที่รอนัดเวลา (เลขบนแท็บ)
+  const [pickupCount, setPickupCount] = useState(0);
   const [pending, setPending] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
@@ -104,6 +107,8 @@ export default function AdminRequests() {
       supabase.from("borrow_requests").select(sel).eq("status", "pending").order("created_at", { ascending: true }),
       supabase.from("borrow_requests").select(sel).neq("status", "pending").order("decided_at", { ascending: false }).limit(40),
     ]);
+    supabase.from("pickup_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+      .then(({ count }) => setPickupCount(count || 0));
     let [{ data: p, error }, { data: h }] = await query(SELECT);
     if (error && isMissingColumn(error)) [{ data: p, error }, { data: h }] = await query(SELECT_LEGACY);
     if (error) notify("โหลดคำขอไม่สำเร็จ", error.message);
@@ -284,13 +289,16 @@ export default function AdminRequests() {
     <View style={s.container}>
       <ScreenHeader
         title={"กล่องคำขอ"}
-        subtitle={"ยืม · คืน · ยืมต่อ ที่นักศึกษาส่งมา"}
+        subtitle={"ยืม · คืน · ยืมต่อ · นัดรับ ที่นักศึกษาส่งมา"}
         onBack={() => goBack("/admin/home")}
       />
 
       <View style={s.tabs}>
         <TouchableOpacity style={[s.tab, tab === "pending" && s.tabActive]} onPress={() => setTab("pending")} activeOpacity={0.85}>
           <Text style={[s.tabText, tab === "pending" && s.tabTextActive]}>รอดำเนินการ ({pending.length})</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.tab, tab === "pickup" && s.tabActive]} onPress={() => setTab("pickup")} activeOpacity={0.85}>
+          <Text style={[s.tabText, tab === "pickup" && s.tabTextActive]}>นัดรับ ({pickupCount})</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.tab, tab === "history" && s.tabActive]} onPress={() => setTab("history")} activeOpacity={0.85}>
           <Text style={[s.tabText, tab === "history" && s.tabTextActive]}>ประวัติ</Text>
@@ -304,7 +312,9 @@ export default function AdminRequests() {
           contentContainerStyle={s.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}
         >
-          {list.length === 0 ? (
+          {tab === "pickup" ? (
+            <PickupInbox role={role} userId={userId} onCount={setPickupCount} />
+          ) : list.length === 0 ? (
             <View style={s.empty}>
               <Ionicons name={tab === "pending" ? "checkmark-done-circle-outline" : "file-tray-outline"} size={50} color="#cbd5e1" />
               <Text style={s.emptyText}>{tab === "pending" ? "ไม่มีคำขอที่รออยู่" : "ยังไม่มีประวัติ"}</Text>

@@ -22,6 +22,7 @@ import { HeaderButton } from "../components/ScreenHeader";
 import { FadeIn, PressScale } from "../components/Motion";
 import GreetingLine from "../components/GreetingLine";
 import LoanQuickCard from "../components/LoanSummary";
+import StaffPresenceBanner from "../components/StaffPresenceBanner";
 import StatWidget from "../components/StatWidget";
 import { currentUser } from "../lib/session";
 import { C, W, gradient, iconDot } from "../lib/theme";
@@ -152,6 +153,9 @@ export default function Home() {
             )}
           </View>
         </View>
+
+        {/* F4 มีผู้ดูแลอยู่ที่ IoT Lab ไหม (ส่วนของระบบยืม-คืน) */}
+        <StaffPresenceBanner onPickup={() => router.push("/equipment")} />
 
         <FadeIn style={s.statsRow}>
           <StatWidget tone="blue" icon="desktop-outline" label="ทั้งหมด" value={totalStations} />

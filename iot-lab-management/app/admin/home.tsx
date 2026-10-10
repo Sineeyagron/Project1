@@ -20,6 +20,7 @@ import { fetchPeople, who } from "../../lib/people";
 import { currentUser } from "../../lib/session";
 import { useRefreshOnFocus } from "../../lib/nav";
 import GreetingLine from "../../components/GreetingLine";
+import StaffCheckInCard from "../../components/StaffCheckInCard";
 import { FadeIn, PressScale, Pulse } from "../../components/Motion";
 import { confirmAction, notify } from "../../lib/notify";
 import { canAccess, isStaffRole, ROLE_LABEL, useRole } from "../../lib/roles";
@@ -127,6 +128,15 @@ type ActivityItem = {
 
 type Tile = { icon: string; title?: string; sub?: string; label?: string; route: string; color?: string; bg: string };
 
+// คำขอยืม-คืน-ยืมต่อที่รออนุมัติ + คำขอนัดรับที่รอนัดเวลา (F2)
+async function countPending() {
+  const [req, pickup] = await Promise.all([
+    supabase.from("borrow_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+    supabase.from("pickup_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+  ]);
+  return (req.count || 0) + (pickup.count || 0);
+}
+
 export default function AdminHome() {
   const router = useRouter();
   const { role } = useRole();
@@ -184,11 +194,7 @@ export default function AdminHome() {
 
   // เลขบนการ์ดกล่องคำขอ (นับอย่างเดียว เบากว่าโหลดหน้าแรกทั้งหน้า)
   const refreshPending = async () => {
-    const { count } = await supabase
-      .from("borrow_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending");
-    setPendingRequests(count || 0);
+    setPendingRequests(await countPending());
   };
 
   // Realtime: แจ้งเตือนใหม่ → เลขกระดิ่ง / คำขอใหม่หรือถูกตัดสิน → เลขกล่องคำขอ (ขึ้นทันที ไม่ต้องรีเฟรช)
@@ -230,11 +236,7 @@ export default function AdminHome() {
 
   const fetchDashboard = async () => {
     await supabase.rpc("expire_requests");
-    const { count: reqCount } = await supabase
-      .from("borrow_requests")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending");
-    setPendingRequests(reqCount || 0);
+    setPendingRequests(await countPending());
 
     const [
       { data: items },
@@ -408,6 +410,10 @@ export default function AdminHome() {
         ) : (
           <>
             {/* ลูกเล่น: แต่ละส่วนค่อย ๆ ลอยขึ้นทีละส่วนตอนเปิดหน้า + ปุ่มกดแล้วยุบ/สั่นเบา ๆ (components/Motion) */}
+            {/* F4 เช็กอิน/เช็กเอาท์ อยู่ที่ IoT Lab */}
+            <FadeIn>
+              <StaffCheckInCard />
+            </FadeIn>
             {/* กล่องคำขอจากนักศึกษา (เฟส 3) */}
             <FadeIn>
             <PressScale

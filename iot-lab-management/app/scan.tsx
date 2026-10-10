@@ -19,6 +19,7 @@ import { currentUser } from "../lib/session";
 import { notify, confirmAction } from "../lib/notify";
 import { canTakeLivePhoto, takeLivePhoto, uploadBorrowPhoto } from "../lib/borrowPhotos";
 import Countdown from "../components/Countdown";
+import ConfirmRulesSheet, { SummaryRow } from "../components/ConfirmRulesSheet";
 import { W, NG } from "../lib/theme";
 import ScreenHeader from "../components/ScreenHeader";
 
@@ -44,17 +45,33 @@ type Lookup = {
   item?: { id: string; item_code: string; name: string; status: string; status_th: string; image_url?: string; location?: string };
   due_date?: string | null;
   can_renew?: boolean;
+  overdue?: boolean;
+  my_pickup?: { id: string; pickup_at: string; days: number } | null; // F2 มีนัดรับรุ่นนี้
+  held?: boolean; // F2 ชิ้นที่เหลือของรุ่นนี้ถูกกันไว้ให้คนที่นัดรับ
   pending?: { id: string; kind: "borrow" | "return" | "renew"; expires_at: string } | null;
   day_options?: number[];
   max_active_borrows?: number;
 };
 
-type FormMode = "borrow" | "return" | "renew";
+type FormMode = "borrow" | "return" | "renew" | "claim";
 
-const KIND_TH: Record<string, string> = { borrow: "ขอยืม", return: "ขอคืน", renew: "ขอยืมต่อ" };
+const KIND_TH: Record<string, string> = { borrow: "ขอยืม", return: "ขอคืน", renew: "ขอยืมต่อ", claim: "รับของตามนัด" };
+
+// เวลานัด (เวลาไทย) "10 ต.ค. 2569 13:05"
+const pickupTime = (iso: string) => {
+  const d = new Date(new Date(iso).getTime() + 7 * 3600000);
+  return `${thaiDate(d.toISOString().slice(0, 10))} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} น.`;
+};
 
 const thaiDate = (value?: string | null) =>
   value ? new Date(`${value}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-";
+
+// วันที่ (YYYY-MM-DD ตามเวลาเครื่อง) + n วัน — ใช้สรุปในป๊อปอัปยืนยัน
+const addDays = (base: string | null, n: number) => {
+  const d = base ? new Date(`${base}T00:00:00`) : new Date();
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 export default function StudentScan() {
   const router = useRouter();
@@ -75,6 +92,8 @@ export default function StudentScan() {
   const [note, setNote] = useState("");
   const [photoUri, setPhotoUri] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // F1 ป๊อปอัปยืนยัน + กฎ ก่อนส่งคำขอทุกแบบ
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const resetForm = () => {
     setMode(null);
@@ -104,14 +123,17 @@ export default function StudentScan() {
   const loadActiveCount = async () => {
     const user = await currentUser();
     if (!user) return;
-    const [loans, reqs] = await Promise.all([
+    const [loans, reqs, pickups] = await Promise.all([
       supabase.from("borrow_records").select("id", { count: "exact", head: true })
         .eq("user_id", user.id).in("status", ["borrowed", "pending_return"]),
       supabase.from("borrow_requests").select("id", { count: "exact", head: true })
         .eq("user_id", user.id).eq("kind", "borrow").eq("status", "pending"),
+      // F2 นัดรับที่ยังไม่จบนับโควตาด้วย
+      supabase.from("pickup_requests").select("id", { count: "exact", head: true })
+        .eq("user_id", user.id).in("status", ["pending", "scheduled"]),
     ]);
     if (loans.error || reqs.error) return;
-    setActiveCount((loans.count || 0) + (reqs.count || 0));
+    setActiveCount((loans.count || 0) + (reqs.count || 0) + (pickups.count || 0));
   };
 
   const refresh = () => {
@@ -136,7 +158,8 @@ export default function StudentScan() {
   const openForm = (next: FormMode) => {
     resetForm();
     setMode(next);
-    if (next !== "return") setDays(lookup?.day_options?.[0] ?? 3);
+    if (next === "claim") setDays(lookup?.my_pickup?.days ?? 3);
+    else if (next !== "return") setDays(lookup?.day_options?.[0] ?? 3);
   };
 
   const capture = async () => {
@@ -148,7 +171,7 @@ export default function StudentScan() {
     }
   };
 
-  const needsEvidence = mode === "borrow" || mode === "return";
+  const needsEvidence = mode === "borrow" || mode === "return" || mode === "claim";
   const formReady =
     !!mode &&
     (mode === "return" || !!days) &&
@@ -163,6 +186,11 @@ export default function StudentScan() {
 
       if (mode === "renew") {
         ({ error } = await supabase.rpc("request_renew", { p_item_id: item.id, p_days: days }));
+      } else if (mode === "claim") {
+        const photoPath = await uploadBorrowPhoto(photoUri);
+        ({ error } = await supabase.rpc("claim_pickup", {
+          p_item_id: item.id, p_condition: condition, p_note: note, p_photo_path: photoPath,
+        }));
       } else {
         const photoPath = await uploadBorrowPhoto(photoUri);
         ({ error } = mode === "borrow"
@@ -175,9 +203,13 @@ export default function StudentScan() {
       }
 
       if (error) throw error;
-      setJustSent(`ส่ง${KIND_TH[mode]} ${item.item_code} แล้ว รอผู้ดูแลอนุมัติ`);
+      setConfirmOpen(false);
+      setJustSent(mode === "claim"
+        ? `รับ ${item.item_code} ตามนัดแล้ว บันทึกการยืมเรียบร้อย`
+        : `ส่ง${KIND_TH[mode]} ${item.item_code} แล้ว รอผู้ดูแลอนุมัติ`);
       await runLookup(item.id);
     } catch (e: any) {
+      setConfirmOpen(false);
       notify("ส่งคำขอไม่สำเร็จ", e.message || "กรุณาลองใหม่อีกครั้ง");
     } finally {
       setSubmitting(false);
@@ -305,7 +337,29 @@ export default function StudentScan() {
         )}
 
         {/* สถานะ */}
-        {state === "available" && !mode && (() => {
+        {state === "available" && !mode && lookup.my_pickup && (
+          <>
+            <View style={[s.banner, s.bannerOk]}>
+              <Ionicons name="calendar-outline" size={18} color={C.green} />
+              <Text style={[s.bannerText, { color: "#166534" }]}>
+                คุณมีนัดรับรุ่นนี้ · {pickupTime(lookup.my_pickup.pickup_at)}
+              </Text>
+            </View>
+            <TouchableOpacity style={s.primaryBtn} onPress={() => openForm("claim")} activeOpacity={0.85}>
+              <Ionicons name="checkmark-done-outline" size={18} color="#fff" />
+              <Text style={s.primaryBtnText}>ยืนยันรับของตามนัด</Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {state === "available" && !mode && !lookup.my_pickup && lookup.held && (
+          <View style={[s.banner, s.bannerWarn]}>
+            <Ionicons name="lock-closed-outline" size={18} color={C.orange} />
+            <Text style={[s.bannerText, { color: "#92400e" }]}>ชิ้นที่เหลือของรุ่นนี้ถูกกันไว้ให้คนที่นัดรับแล้ว</Text>
+          </View>
+        )}
+
+        {state === "available" && !mode && !lookup.my_pickup && !lookup.held && (() => {
           const max = lookup.max_active_borrows ?? 3;
           const atLimit = activeCount !== null && activeCount >= max;
           return (
@@ -350,7 +404,12 @@ export default function StudentScan() {
               <Ionicons name="return-down-back-outline" size={18} color="#fff" />
               <Text style={s.primaryBtnText}>ขอคืนอุปกรณ์</Text>
             </TouchableOpacity>
-            {lookup.can_renew ? (
+            {lookup.overdue ? (
+              <View style={[s.banner, s.bannerBad]}>
+                <Ionicons name="alert-circle-outline" size={18} color={C.red} />
+                <Text style={[s.bannerText, { color: "#991b1b" }]}>เกินกำหนดแล้ว ยืมต่อไม่ได้ กรุณานำมาคืน</Text>
+              </View>
+            ) : lookup.can_renew ? (
               <TouchableOpacity style={s.secondaryBtn} onPress={() => openForm("renew")} activeOpacity={0.85}>
                 <Text style={s.secondaryBtnText}>ขอยืมต่อ (ได้ 1 ครั้ง)</Text>
               </TouchableOpacity>
@@ -399,7 +458,7 @@ export default function StudentScan() {
           <View style={s.form}>
             <Text style={s.formTitle}>{KIND_TH[mode]}</Text>
 
-            {mode !== "return" && (
+            {(mode === "borrow" || mode === "renew") && (
               <>
                 <Text style={s.label}>{mode === "renew" ? "ขอยืมต่ออีก" : "ระยะเวลายืม"}</Text>
                 <View style={s.chipRow}>
@@ -419,7 +478,7 @@ export default function StudentScan() {
 
             {needsEvidence && (
               <>
-                <Text style={s.label}>สภาพอุปกรณ์{mode === "borrow" ? "ก่อนยืม" : "ตอนคืน"}</Text>
+                <Text style={s.label}>สภาพอุปกรณ์{mode === "return" ? "ตอนคืน" : "ก่อนยืม"}</Text>
                 <View style={s.chipRow}>
                   <TouchableOpacity
                     style={[s.chip, condition === "good" && s.chipGood]}
@@ -475,10 +534,10 @@ export default function StudentScan() {
             <TouchableOpacity
               style={[s.primaryBtn, (!formReady || submitting) && s.disabled]}
               disabled={!formReady || submitting}
-              onPress={submit}
+              onPress={() => setConfirmOpen(true)}
               activeOpacity={0.85}
             >
-              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>ส่ง{KIND_TH[mode]}</Text>}
+              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{mode === "claim" ? "ยืนยันรับของ" : `ส่ง${KIND_TH[mode]}`}</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={s.textBtn} onPress={resetForm} activeOpacity={0.8}>
               <Text style={s.textBtnText}>ยกเลิก</Text>
@@ -497,8 +556,36 @@ export default function StudentScan() {
           </View>
         )}
       </ScrollView>
+
+      <ConfirmRulesSheet
+        visible={confirmOpen && !!mode}
+        title={mode ? `ยืนยันการ${KIND_TH[mode]}` : ""}
+        confirmLabel={mode === "claim" ? "ยืนยันรับของ" : mode ? `ยืนยันส่งคำ${KIND_TH[mode]}` : ""}
+        item={{ code: item.item_code, name: item.name, image_url: item.image_url }}
+        rows={summaryRows()}
+        submitting={submitting}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={submit}
+      />
     </KeyboardAvoidingView>
   );
+
+  // แถวสรุปในป๊อปอัปยืนยัน
+  function summaryRows(): SummaryRow[] {
+    const evidence: SummaryRow = condition === "damaged"
+      ? { label: "สภาพ + รูปถ่าย", value: "ชำรุด / มีตำหนิ · ถ่ายรูปแล้ว", tone: "bad" }
+      : { label: "สภาพ + รูปถ่าย", value: "ปกติ · ถ่ายรูปแล้ว", tone: "ok" };
+    if (mode === "borrow" || mode === "claim") {
+      return [{ label: "ระยะยืม", value: `${days} วัน · ครบกำหนด ${thaiDate(addDays(null, days || 0))}` }, evidence];
+    }
+    if (mode === "renew") {
+      return [
+        { label: "ยืมต่ออีก", value: `${days} วัน` },
+        { label: "ครบกำหนด", old: thaiDate(lookup?.due_date), value: thaiDate(addDays(lookup?.due_date ?? null, days || 0)) },
+      ];
+    }
+    return [{ label: "กำหนดคืนเดิม", value: thaiDate(lookup?.due_date) }, evidence];
+  }
 }
 
 const s = StyleSheet.create({

@@ -53,6 +53,12 @@ const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; d
   room_report:          { icon: "megaphone-outline",        iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
   room_report_accepted: { icon: "construct-outline",        iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
   room_report_closed:   { icon: "chatbox-ellipses-outline", iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
+  // F2 ขอยืมแบบนัดรับ (ถึงผู้ขอ) → เปิดหน้าการยืมของฉัน
+  pickup_scheduled: { icon: "calendar-outline",       iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
+  pickup_declined:  { icon: "close-circle-outline",   iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+  pickup_expired:   { icon: "time-outline",           iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
+  pickup_cancelled: { icon: "ban-outline",            iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
+  pickup_no_show:   { icon: "alert-circle-outline",   iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
 };
 
 // แจ้งเตือนประกัน/อายุ → เปิดรายงานสต็อก ตรงกลุ่ม "ต้องดูแล" นั้น

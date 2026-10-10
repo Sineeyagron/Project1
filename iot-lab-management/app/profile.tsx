@@ -12,6 +12,7 @@ import { confirmAction } from "../lib/notify";
 import { C, W, iconDot } from "../lib/theme";
 import TabBar from "../components/TabBar";
 import { FadeIn, PressScale } from "../components/Motion";
+import { RULE_KEYS, fillRule, rulesFromRows, varsFromRows } from "../lib/borrowRules";
 
 // โปรไฟล์นักศึกษา (ล็อกอินด้วย Google @kkumail.com):
 //   ตัวตน = ชื่อ/รูป/อีเมลจาก Google + รหัส นศ. (แก้เองไม่ได้)
@@ -27,23 +28,15 @@ type Data = {
   loans: Loan[];
   pendingBorrows: number;
   maxActive: number;
-  dayOptions: number[];
-  expiryMinutes: number;
+  rules: string[];
 };
 
 // ข้อมูลชุดล่าสุด (หน่วยความจำ) — เปิดซ้ำไม่ต้องรอหมุน / ล้างเมื่อออกจากระบบ (กันคนถัดไปบนเครื่องเดียวกันเห็น)
 let cache: Data | null = null;
 supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") cache = null; });
 
-const settingNum = (rows: any[], key: string, fallback: number) => {
-  const n = Number(rows.find((r) => r.key === key)?.value);
-  return Number.isFinite(n) && n > 0 ? n : fallback;
-};
-const settingList = (rows: any[], key: string, fallback: number[]) => {
-  let v = rows.find((r) => r.key === key)?.value;
-  if (typeof v === "string") { try { v = JSON.parse(v); } catch { v = null; } }
-  return Array.isArray(v) && v.length ? v.map(Number).filter((n) => n > 0) : fallback;
-};
+// ไอคอนหน้ากฎแต่ละข้อ (เรียงตามกฎตั้งต้น / ข้อที่ Admin เพิ่มเกินมาใช้ไอคอนทั่วไป)
+const RULE_ICONS: (keyof typeof Ionicons.glyphMap)[] = ["layers-outline", "calendar-outline", "camera-outline", "timer-outline", "construct-outline", "refresh-outline"];
 
 // วันครบกำหนด → ข้อความ + โทนสี
 function dueInfo(date: string | null) {
@@ -97,12 +90,13 @@ export default function Profile() {
         .eq("user_id", user.id)
         .eq("kind", "borrow")
         .eq("status", "pending"),
-      supabase.from("app_settings").select("key, value").in("key", ["max_active_borrows", "borrow_day_options", "request_expiry_minutes"]),
+      supabase.from("app_settings").select("key, value").in("key", RULE_KEYS),
     ]);
 
     const p: any = profileRes.data || {};
     const meta: any = user.user_metadata || {};
     const rows = settingsRes.data || [];
+    const vars = varsFromRows(rows);
     const next: Data = {
       email: p.email || user.email || "",
       role: p.role || "user",
@@ -116,9 +110,8 @@ export default function Profile() {
         itemName: r.items?.item_code || r.items?.name || "อุปกรณ์",
       })),
       pendingBorrows: pendingRes.count || 0,
-      maxActive: settingNum(rows, "max_active_borrows", 3),
-      dayOptions: settingList(rows, "borrow_day_options", [3, 5, 7]),
-      expiryMinutes: settingNum(rows, "request_expiry_minutes", 30),
+      maxActive: vars.max,
+      rules: rulesFromRows(rows).map((t) => fillRule(t, vars)),
     };
     cache = next;
     setData(next);
@@ -257,10 +250,9 @@ export default function Profile() {
         {/* กติกา */}
         <FadeIn delay={210} style={s.card}>
           <Text style={s.cardTitle}>กติกาการยืม</Text>
-          <Rule icon="layers-outline" text={`ยืมพร้อมกันได้สูงสุด ${data.maxActive} ชิ้น (นับรวมที่รออนุมัติ)`} />
-          <Rule icon="calendar-outline" text={`เลือกระยะยืมได้ ${data.dayOptions.join(" / ")} วัน · ยืมต่อได้ 1 ครั้ง`} />
-          <Rule icon="timer-outline" text={`คำขอรอผู้ดูแลอนุมัติภายใน ${data.expiryMinutes} นาที ไม่มีคนตอบ = หมดอายุ`} />
-          <Rule icon="scan-outline" text="ยืม/คืน ทำได้ทางเดียวคือสแกน QR ที่ตัวอุปกรณ์ในห้อง" />
+          {(data.rules || []).map((t, i) => (
+            <Rule key={i} icon={RULE_ICONS[i] || "checkmark-circle-outline"} text={t} />
+          ))}
         </FadeIn>
 
         {/* บัญชี */}

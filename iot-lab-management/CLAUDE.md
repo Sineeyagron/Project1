@@ -110,6 +110,17 @@
 - หน้าแรกนักศึกษา: role user ที่ยังไม่มีรหัส → `/student-id` (บังคับกรอก) / หน้าโปรไฟล์ = ตัวตน + สิทธิ์การยืม + ของที่ยืมอยู่ + กติกา (`app_settings`) — ไม่มี "แก้ไขข้อมูลส่วนตัว" แล้ว / "เปลี่ยนรหัสผ่าน" โชว์เฉพาะบัญชีที่สมัครด้วยอีเมล
 - หน้าผู้ดูแลแสดงผู้ยืมด้วย `who()` ใน `lib/people.ts` = "ชื่อ · รหัส นศ." (ไม่มีชื่อ → อีเมล)
 
+### ฟีเจอร์จากอาจารย์ F1–F4 (11 ต.ค. 2569) — สเปก `docs/SPEC_NEW_FEATURES.md` (ระบบยืม-คืนทั้งหมด)
+- **F1** migration `f1_borrow_rules`: `app_settings.borrow_rules` (jsonb array, ตัวแปร `{max}` `{days}` `{expiry}` แทนใน `lib/borrowRules.ts`) / `request_renew` ห้ามยืมต่อเมื่อเกินกำหนด / `scan_lookup` ส่ง `overdue` + `can_renew`
+  - `components/ConfirmRulesSheet.tsx` เด้งก่อนส่ง ขอยืม/ขอคืน/ขอยืมต่อ/รับตามนัด (ติ๊กยอมรับก่อน) · Admin แก้กฎที่ `admin/settings` · โปรไฟล์อ่านกฎชุดเดียวกัน
+- **F3** ไม่แก้ DB: `lib/timeline.ts` (เหตุการณ์ + จัดกลุ่มวัน เวลาไทย, `SHOW_OTHER_EVENTS` เปิด/ปิด ถูกปฏิเสธ/หมดอายุ) + `components/TimelineDays.tsx` ใช้ใน `borrow.tsx` และ `admin/history.tsx` (60 วัน + โหลดเพิ่ม)
+- **F4** migration `f4_staff_presence`: ตาราง `staff_presence` (มีแถว = อยู่ห้อง) เขียนผ่าน RPC `staff_check_in/out` / อ่านรายชื่อผ่าน `lab_presence()` / cron `staff-auto-checkout` 17:00 ไทย / Realtime ช่อง **`lab`** event `presence` (`useRealtime("lab","presence")`)
+  - `lib/presence.ts`, `components/StaffPresenceBanner.tsx` (หน้าแรก นศ.), `components/StaffCheckInCard.tsx` (แดชบอร์ด)
+- **F2** migration `f2_pickup_requests` (+ `f2_my_pickups`): ตาราง `pickup_requests` (pending→scheduled→picked_up | declined | expired | cancelled | no_show), รุ่น = `_item_model(item_prefix, name)` (lower)
+  - RPC `request_pickup` / `schedule_pickup` / `decline_pickup` / `cancel_pickup(p_no_show)` / `claim_pickup` (สแกน+รูป = ยืมทันที) / `my_pickups()` · `expire_pickups()` อยู่ใน cron `expire-borrow-requests` เดิม (12 ชม. / เลยนัด 10 นาที)
+  - กันของซ้อน: `_pickup_free(model)` = available − scheduled → `request_borrow` ปฏิเสธถ้า 0 / โควตา `_active_borrow_count` นับนัดรับด้วย / `scan_lookup` ส่ง `my_pickup`, `held`
+  - แอป: `components/PickupRequestSheet.tsx` (หน้าอุปกรณ์), ส่วน "นัดรับของ" ใน `borrow.tsx`, แท็บ "นัดรับ" ใน `admin/requests.tsx` (`components/PickupInbox.tsx`), ปุ่ม "ยืนยันรับของตามนัด" ใน `scan.tsx`, `PICKUP_STATUS` ใน `lib/status.ts`
+
 ### ระบบห้อง R0 (5 ต.ค. 2569) — migration `room_r0_schema`
 - ระบบห้องคอม **แยกจากระบบยืม-คืนเด็ดขาด** (ตาราง/หน้า/กติกา/ไฟล์ lib) — งานระบบห้องห้ามแก้ไฟล์หรือตารางของระบบยืม-คืน และห้าม import ข้ามกัน (เจ้าของโปรเจกต์สั่งชัด 5 ต.ค. 2569) แผนเต็ม R0–R4 อยู่ใน PLAN/REVIEW_ระบบห้อง.md
   - ไฟล์ของระบบห้อง: `lib/roomStatus.ts`, `lib/rooms.ts`, `lib/term.ts`, `components/LoadError.tsx`, หน้า stations/lanports/repairs/room/inspection/roommap/lanstatus + ส่วนการ์ดห้องใน `home.tsx`
