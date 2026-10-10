@@ -73,8 +73,11 @@ export default function StaffCheckInCard({ list, me, reload }: { list: PresentSt
     );
   }
 
-  // จอแคบตัดท้ายบรรทัด → เรียงสำคัญก่อน: เวลาเช็กอิน → คนอื่นในห้อง → ออกอัตโนมัติ 17:00 (ถูกตัดก่อน)
-  const sub = [`ตั้งแต่ ${checkinTime(mine.checked_in_at)}`, others ? `กับ ${others}` : "", "ออกอัตโนมัติ 17:00"].filter(Boolean).join(" · ");
+  // บรรทัดเดียว แสดงเฉพาะที่สำคัญ (เจ้าของโปรเจกต์เลือก 11 ต.ค. 2569 — ไม่ใช้ตัวหนังสือเลื่อน):
+  //   อยู่คนเดียว → "ตั้งแต่ 02:22 · ออกอัตโนมัติ 17:00" / มีคนอื่น → "ตั้งแต่ 02:22 · กับ TA ชื่อ +2" (ตัด 17:00 ออก)
+  //   ชื่อยาวจนล้น → ตัดท้ายเป็น "…" เวลาเช็กอินอยู่หน้าสุดจึงเห็นครบเสมอ
+  const since = `ตั้งแต่ ${checkinTime(mine.checked_in_at)}`;
+  const sub = others ? `${since} · กับ ${others}` : `${since} · ออกอัตโนมัติ 17:00`;
 
   return (
     <View style={s.card}>
