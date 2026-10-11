@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -175,7 +173,7 @@ export default function AdminCategories() {
   };
 
   return (
-    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <View style={s.container}>
       <ScreenHeader
         title={"หมวดหมู่อุปกรณ์"}
         subtitle={"เพิ่ม แก้ชื่อ เรียงลำดับ หรือปิดหมวด"}
@@ -185,7 +183,7 @@ export default function AdminCategories() {
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
       ) : (
-        <ScrollView
+        <KeyboardAwareScrollView bottomOffset={24}
           contentContainerStyle={s.body}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}
@@ -302,7 +300,7 @@ export default function AdminCategories() {
           <Text style={s.hint}>
             ไอคอนตา = ปิด/เปิดหมวด (ซ่อนชั่วคราว) · ถังขยะ = ลบ ถ้ามีของต้องเลือกหมวดที่จะย้ายไปก่อน · เปลี่ยนหมวดของอุปกรณ์ได้ที่หน้าจัดการอุปกรณ์ (กดการ์ด)
           </Text>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
 
       {busy && (
@@ -310,7 +308,7 @@ export default function AdminCategories() {
           <ActivityIndicator color={C.purple} />
         </View>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

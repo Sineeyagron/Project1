@@ -7,7 +7,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
@@ -216,7 +218,7 @@ export default function RoomReports() {
       )}
 
       <Modal visible={!!decision} transparent animationType="slide">
-        <View style={s.overlay}>
+        <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={s.modalBox}>
             <Text style={s.modalTitle}>
               {decision?.accept ? "รับเป็นงานซ่อม" : "ปิดคำแจ้ง"} · {decision?.report.room_id} {decision?.report.label}
@@ -247,7 +249,7 @@ export default function RoomReports() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

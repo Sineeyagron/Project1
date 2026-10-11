@@ -5,11 +5,12 @@ import {
   Image,
   Modal,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
+import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -309,7 +310,7 @@ export default function AdminRequests() {
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 50 }} />
       ) : (
-        <ScrollView
+        <KeyboardAwareScrollView bottomOffset={24}
           contentContainerStyle={s.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}
         >
@@ -324,7 +325,7 @@ export default function AdminRequests() {
             list.map((r) => <RequestCard key={r.id} r={r} />)
           )}
           <View style={{ height: 30 }} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
 
       {/* ขยายรูป */}
@@ -341,7 +342,7 @@ export default function AdminRequests() {
 
       {/* อนุมัติ / ปฏิเสธ */}
       <Modal visible={!!decision} transparent animationType="fade" onRequestClose={() => setDecision(null)}>
-        <View style={s.backdrop}>
+        <KeyboardAvoidingView style={s.backdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           {decision && (
             <View style={s.sheet}>
               <Text style={s.sheetTitle}>
@@ -407,7 +408,7 @@ export default function AdminRequests() {
               </TouchableOpacity>
             </View>
           )}
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

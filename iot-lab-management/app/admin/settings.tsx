@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   Switch,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -183,7 +181,7 @@ export default function AdminSettings() {
   };
 
   return (
-    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <View style={s.container}>
       <ScreenHeader
         title={"ตั้งค่าระบบ"}
         subtitle={"เกณฑ์แจ้งเตือนและกติกาการยืม"}
@@ -193,7 +191,7 @@ export default function AdminSettings() {
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
       ) : (
-        <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
           {GROUPS.map((g) => (
             <View key={g.title} style={{ gap: 8 }}>
               <Text style={s.section}>{g.title}</Text>
@@ -298,9 +296,9 @@ export default function AdminSettings() {
             <Text style={s.saveText}>{saving ? "กำลังบันทึก..." : changed.length ? `บันทึก (${changed.length} ค่า)` : "ยังไม่มีการเปลี่ยนแปลง"}</Text>
           </TouchableOpacity>
           <Text style={s.note}>ระบบตรวจประกัน/อายุทุกวัน 08:00 แต่ละชิ้นเตือนครั้งเดียวต่อเรื่อง</Text>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Modal,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../components/AppText";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -88,6 +89,7 @@ export default function ResetPassword() {
 
   return (
     <View style={styles.container}>
+      <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
       {/* LOGO */}
       <View style={styles.logoContainer}>
         <Image source={require("../assets/images/brand-mark.png")} style={styles.logo} />
@@ -179,6 +181,8 @@ export default function ResetPassword() {
           <Text style={styles.signup}>{isChange ? "กลับ" : "เข้าสู่ระบบ"}</Text>
         </TouchableOpacity>
       </View>
+
+      </KeyboardAwareScrollView>
 
       {/* RESULT MODAL */}
       <Modal

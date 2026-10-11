@@ -7,7 +7,9 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
+  Platform,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -272,7 +274,7 @@ export default function AdminLanPorts() {
 
       {/* ADD MODAL */}
       <Modal visible={addModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={styles.modalBox}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>เพิ่ม Port ใหม่</Text>
@@ -308,7 +310,7 @@ export default function AdminLanPorts() {
               }
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
     </View>

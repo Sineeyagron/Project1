@@ -2,13 +2,11 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -77,9 +75,8 @@ export default function Signup() {
   };
 
   return (
-    <KeyboardAvoidingView
+    <View
       style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => goBack("/login")} disabled={isLoading}>
@@ -91,7 +88,7 @@ export default function Signup() {
         </View>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView bottomOffset={24}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -177,8 +174,8 @@ export default function Signup() {
             <Text style={styles.footerLink}>เข้าสู่ระบบ</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

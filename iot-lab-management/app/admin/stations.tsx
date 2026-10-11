@@ -7,7 +7,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -436,7 +438,7 @@ export default function AdminStations() {
       )}
 
       <Modal visible={editModal} transparent animationType="slide">
-        <View style={s.overlay}>
+        <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={s.modalBox}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>แก้ไขเครื่องคอม</Text>
@@ -488,11 +490,11 @@ export default function AdminStations() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal visible={addModal} transparent animationType="slide">
-        <View style={s.overlay}>
+        <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={s.modalBox}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>เพิ่มเครื่องคอม · ห้อง {selectedRoom}</Text>
@@ -526,7 +528,7 @@ export default function AdminStations() {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

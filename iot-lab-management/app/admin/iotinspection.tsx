@@ -8,7 +8,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -332,7 +334,7 @@ export default function IotInspectionPage() {
       </ScrollView>
 
       <Modal visible={formModal} transparent animationType="slide">
-        <View style={s.modalOverlay}>
+        <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={s.modalBox}>
             <View style={s.modalHeader}>
               <View style={{ flex: 1 }}>
@@ -382,7 +384,7 @@ export default function IotInspectionPage() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

@@ -7,7 +7,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -319,7 +321,7 @@ export default function AdminRoom() {
       )}
 
       <Modal visible={roomModal} transparent animationType="slide">
-        <View style={s.overlay}>
+        <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={s.modalBox}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>{editing ? `แก้ไขห้อง ${editing.room.id}` : "เพิ่มห้องใหม่"}</Text>
@@ -361,7 +363,7 @@ export default function AdminRoom() {
               </View>
             ) : null}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

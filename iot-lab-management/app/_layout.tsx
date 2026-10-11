@@ -7,6 +7,7 @@ import { applyRememberLogin } from "../lib/session";
 import { isAdminPath } from "../lib/roles";
 import { useFonts, NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from "@expo-google-fonts/noto-sans-thai";
 import { C } from "../lib/theme";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 
 // หน้าที่เปิดได้โดยไม่ต้องล็อกอิน (หน้าอื่นทั้งหมดต้องล็อกอิน — หน้า /admin มีด่านของตัวเองใน app/admin/_layout.tsx)
 const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/forgot", "/reset-password"]);
@@ -111,8 +112,9 @@ export default function Layout() {
 
   if (!fontsLoaded && !fontError) return null;
 
+  // KeyboardProvider: ติดตามแป้นพิมพ์ฝั่ง native ทีละเฟรม (แผ่นเลื่อน/หน้าต่างเด้ง/หน้าเลื่อน หลบแป้นได้ลื่น — react-native-keyboard-controller)
   return (
-    <>
+    <KeyboardProvider>
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
       {/* Auth */}
       <Stack.Screen name="login" />
@@ -134,6 +136,6 @@ export default function Layout() {
     </Stack>
     {/* หน้าต่างแจ้งเตือน/ยืนยันของ notify() / confirmAction() บนเว็บ */}
     <DialogHost />
-    </>
+    </KeyboardProvider>
   );
 }

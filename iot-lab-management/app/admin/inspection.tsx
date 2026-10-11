@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
@@ -426,7 +427,7 @@ export default function InspectionPage() {
 
       <Modal visible={formModal} transparent animationType="slide">
         <View style={st.modalOverlay}>
-          <ScrollView contentContainerStyle={st.modalScroll} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={st.modalScroll} keyboardShouldPersistTaps="handled">
             <View style={st.modalBox}>
               <View style={st.modalHeader}>
                 <View>
@@ -507,7 +508,7 @@ export default function InspectionPage() {
                 )}
               </TouchableOpacity>
             </View>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </View>
       </Modal>
     </View>

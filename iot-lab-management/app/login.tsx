@@ -2,13 +2,12 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -190,12 +189,11 @@ export default function Login() {
   };
 
   return (
-    <KeyboardAvoidingView
+    <View
       style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.topBand} />
-      <ScrollView
+      <KeyboardAwareScrollView bottomOffset={24}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -343,8 +341,8 @@ export default function Login() {
           <Ionicons name="shield-checkmark" size={14} color="#047857" />
           <Text style={styles.sslText}>ปลอดภัย เข้ารหัส SSL</Text>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, TextInput } from "./AppText";
@@ -110,29 +110,43 @@ function PendingCard({ r, self, onDone }: { r: any; self: boolean; onDone: () =>
   const [declining, setDeclining] = useState(false);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const lock = useRef(false); // กันกดรัวก่อนปุ่มทันปิด (ครั้งที่ 2 จะเด้ง error "ไม่ได้รอนัดเวลาแล้ว")
 
-  const at = quick === "now" ? new Date().toISOString()
-    : quick === "10" ? new Date(Date.now() + 10 * 60000).toISOString()
-    : quick === "30" ? new Date(Date.now() + 30 * 60000).toISOString()
+  // เวลานัดคิดใหม่ทุกครั้ง (ตอนกด) — เดิมคิดตอน render ถ้าเปิดหน้าค้างไว้นาน "ตอนนี้" จะกลายเป็นเวลาย้อนหลัง → RPC ปฏิเสธ
+  const atOf = (q: Quick) =>
+    q === "now" ? new Date().toISOString()
+    : q === "10" ? new Date(Date.now() + 10 * 60000).toISOString()
+    : q === "30" ? new Date(Date.now() + 30 * 60000).toISOString()
     : customIso(dayOffset, time);
+  // ป้าย "นัด วันนี้ 13:40 น." ให้ตรงกับนาฬิกา (render ใหม่ทุก 30 วิ เฉพาะปุ่มลัด)
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    if (quick === "custom") return;
+    const t = setInterval(() => setTick((n) => n + 1), 30000);
+    return () => clearInterval(t);
+  }, [quick]);
+  const at = atOf(quick);
+  // เลือกเวลาเองแต่ย้อนหลัง (เกิน 2 นาทีตามด่านใน RPC) → บอกก่อนกด
+  const past = !!at && Date.parse(at) < Date.now() - 2 * 60000;
 
   const schedule = async () => {
-    if (!at) return;
+    const when = atOf(quick);
+    if (!when || past || lock.current) return;
+    lock.current = true;
     setBusy(true);
-    const { error } = await supabase.rpc("schedule_pickup", { p_id: r.id, p_pickup_at: at });
+    const { error } = await supabase.rpc("schedule_pickup", { p_id: r.id, p_pickup_at: when });
+    lock.current = false;
     setBusy(false);
-    if (error) {
-      notify("นัดไม่สำเร็จ", error.message);
-      onDone();
-      return;
-    }
+    if (error) notify("นัดไม่สำเร็จ", error.message);
     onDone();
   };
 
   const decline = async () => {
-    if (!reason.trim()) return;
+    if (!reason.trim() || lock.current) return;
+    lock.current = true;
     setBusy(true);
     const { error } = await supabase.rpc("decline_pickup", { p_id: r.id, p_note: reason.trim() });
+    lock.current = false;
     setBusy(false);
     if (error) {
       notify("ปฏิเสธไม่สำเร็จ", error.message);
@@ -193,7 +207,7 @@ function PendingCard({ r, self, onDone }: { r: any; self: boolean; onDone: () =>
                 </TouchableOpacity>
               ))}
               <TextInput
-                style={[s.input, s.timeInput, !!time && !at && { borderColor: C.red }]}
+                style={[s.input, s.timeInput, !!time && (!at || past) && { borderColor: C.red }]}
                 value={time}
                 onChangeText={setTime}
                 placeholder="13:30"
@@ -203,12 +217,18 @@ function PendingCard({ r, self, onDone }: { r: any; self: boolean; onDone: () =>
               />
             </View>
           )}
-          {at ? <Text style={s.when}>นัด {whenLabel(at)}</Text> : quick === "custom" ? <Text style={s.hint}>พิมพ์เวลาแบบ ชม.:นาที เช่น 13:30</Text> : null}
+          {past ? (
+            <Text style={[s.hint, { color: C.red }]}>เวลานี้ผ่านไปแล้ว — เลือกเวลาใหม่</Text>
+          ) : at ? (
+            <Text style={s.when}>นัด {whenLabel(at)}</Text>
+          ) : quick === "custom" ? (
+            <Text style={s.hint}>พิมพ์เวลาแบบ ชม.:นาที เช่น 13:30</Text>
+          ) : null}
           <View style={s.actions}>
             <TouchableOpacity style={[s.btn, s.btnDecline]} onPress={() => setDeclining(true)} activeOpacity={0.85}>
               <Text style={s.btnDeclineText}>ปฏิเสธ</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[s.btn, { backgroundColor: C.green }, (!at || busy) && s.off]} onPress={schedule} disabled={!at || busy} activeOpacity={0.85}>
+            <TouchableOpacity style={[s.btn, { backgroundColor: C.green }, (!at || past || busy) && s.off]} onPress={schedule} disabled={!at || past || busy} activeOpacity={0.85}>
               {busy ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>ยืนยันนัดรับ</Text>}
             </TouchableOpacity>
           </View>

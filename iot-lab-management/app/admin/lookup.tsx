@@ -2,14 +2,12 @@ import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
@@ -170,14 +168,14 @@ export default function AdminLookup() {
   };
 
   return (
-    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <View style={s.container}>
       <ScreenHeader
         title={"สแกนดูสถานะ"}
         subtitle={"ดูข้อมูลอุปกรณ์ ผู้ยืม และประวัติ"}
         onBack={() => goBack("/admin/home")}
       />
 
-      <ScrollView contentContainerStyle={s.body}>
+      <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.body}>
         {!item && (
           <>
             <View style={s.cameraBox}>
@@ -322,7 +320,7 @@ export default function AdminLookup() {
             </TouchableOpacity>
           </>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={() => setZoom(null)}>
         <TouchableOpacity style={s.zoomBackdrop} activeOpacity={1} onPress={() => setZoom(null)}>
@@ -334,7 +332,7 @@ export default function AdminLookup() {
           )}
         </TouchableOpacity>
       </Modal>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

@@ -7,7 +7,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
+import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
@@ -332,7 +334,7 @@ export default function RepairsPage() {
 
       <Modal visible={addModal} transparent animationType="slide">
         <View style={s.overlay}>
-          <ScrollView contentContainerStyle={s.modalBox} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.modalBox} keyboardShouldPersistTaps="handled">
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>แจ้งซ่อมใหม่</Text>
               <TouchableOpacity style={s.closeBtn} onPress={() => setAddModal(false)}>
@@ -394,12 +396,12 @@ export default function RepairsPage() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </View>
       </Modal>
 
       <Modal visible={updateModal} transparent animationType="slide">
-        <View style={s.overlay}>
+        <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={s.modalBox}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>อัปเดตสถานะ</Text>
@@ -448,7 +450,7 @@ export default function RepairsPage() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

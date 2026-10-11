@@ -8,7 +8,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import SearchBar from "../../components/SearchBar";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -576,7 +578,7 @@ export default function AdminItems() {
 
       {/* จำหน่ายออก: ต้องใส่เหตุผล */}
       <Modal visible={!!retireTarget} transparent animationType="fade" onRequestClose={() => setRetireTarget(null)}>
-        <View style={s.backdrop}>
+        <KeyboardAvoidingView style={s.backdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={s.sheet}>
             <Text style={s.sheetTitle}>จำหน่ายออก {retireTarget && label(retireTarget)}</Text>
             <Text style={s.sheetMessage}>
@@ -602,12 +604,12 @@ export default function AdminItems() {
               <Text style={s.sheetCancelText}>ยกเลิก</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* แก้ประกัน / Serial */}
       <Modal visible={!!editTarget} transparent animationType="fade" onRequestClose={() => setEditTarget(null)}>
-        <View style={s.backdrop}>
+        <KeyboardAvoidingView style={s.backdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={s.sheet}>
             <Text style={s.sheetTitle}>แก้ข้อมูล {editTarget && label(editTarget)}</Text>
             <Text style={s.sheetMessage}>
@@ -661,7 +663,7 @@ export default function AdminItems() {
               <Text style={s.sheetCancelText}>ยกเลิก</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {busy && !retireTarget && !editTarget && (

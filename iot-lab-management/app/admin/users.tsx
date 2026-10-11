@@ -1,14 +1,12 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import SearchBar from "../../components/SearchBar";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -141,7 +139,7 @@ export default function ManageTA() {
   );
 
   return (
-    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <View style={s.container}>
       <ScreenHeader
         title={"จัดการผู้ใช้"}
         subtitle={"รหัสนักศึกษา · แต่งตั้ง TA"}
@@ -151,7 +149,7 @@ export default function ManageTA() {
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
       ) : (
-        <ScrollView
+        <KeyboardAwareScrollView bottomOffset={24}
           contentContainerStyle={s.body}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -243,9 +241,9 @@ export default function ManageTA() {
             {admins.map((p) => <Person key={p.id} p={p} />)}
             <Text style={s.hint}>เพิ่ม/ถอดผู้ดูแลระบบ (admin) ทำในแอปไม่ได้ เพื่อความปลอดภัย</Text>
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

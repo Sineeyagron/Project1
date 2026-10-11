@@ -2,13 +2,11 @@ import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../components/AppText";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
@@ -242,9 +240,9 @@ export default function StudentScan() {
   // ── ยังไม่ได้สแกน ──
   if (!lookup) {
     return (
-      <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <View style={s.container}>
         {Header}
-        <ScrollView contentContainerStyle={s.body}>
+        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.body}>
           <View style={s.cameraBox}>
             {loading ? (
               <ActivityIndicator size="large" color={C.header} />
@@ -284,8 +282,8 @@ export default function StudentScan() {
               <Text style={s.manualBtnText}>ค้นหา</Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </View>
     );
   }
 
@@ -310,9 +308,9 @@ export default function StudentScan() {
   const dayOptions = lookup.day_options ?? [3, 5, 7];
 
   return (
-    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <View style={s.container}>
       {Header}
-      <ScrollView contentContainerStyle={s.body}>
+      <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.body}>
         {/* การ์ดอุปกรณ์ */}
         <View style={s.itemCard}>
           {item.image_url ? (
@@ -555,7 +553,7 @@ export default function StudentScan() {
             </TouchableOpacity>
           </View>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <ConfirmRulesSheet
         visible={confirmOpen && !!mode}
@@ -567,7 +565,7 @@ export default function StudentScan() {
         onClose={() => setConfirmOpen(false)}
         onConfirm={submit}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 
   // แถวสรุปในป๊อปอัปยืนยัน

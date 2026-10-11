@@ -1,14 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -299,14 +298,14 @@ export default function ImportItems() {
     : [];
 
   return (
-    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <View style={s.container}>
       <ScreenHeader
         title={"นำเข้าจาก CSV"}
         subtitle={"เพิ่มอุปกรณ์ทีละหลายรายการ"}
         onBack={() => goBack("/admin/home")}
       />
 
-      <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
         {result ? (
           <View style={s.card}>
             <View style={s.rowCenter}>
@@ -510,8 +509,8 @@ export default function ImportItems() {
             )}
           </>
         )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

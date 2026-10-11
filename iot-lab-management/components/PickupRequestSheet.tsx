@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, TextInput } from "./AppText";
@@ -41,10 +41,13 @@ export default function PickupRequestSheet({
     fetchBorrowRules().then(setRules);
   }, [model?.key]);
 
+  const lock = useRef(false); // กันกดรัว — ครั้งที่ 2 จะเด้ง "มีคำขอนัดรับรุ่นนี้อยู่แล้ว" ทับข้อความสำเร็จ
   const send = async () => {
-    if (!model || !accepted) return;
+    if (!model || !accepted || lock.current) return;
+    lock.current = true;
     setSending(true);
     const { error } = await supabase.rpc("request_pickup", { p_prefix: model.key, p_days: days, p_note: note.trim() });
+    lock.current = false;
     setSending(false);
     if (error) {
       notify("ส่งคำขอไม่สำเร็จ", error.message);
@@ -57,7 +60,8 @@ export default function PickupRequestSheet({
   return (
     <BottomSheet visible={!!model} onClose={sending ? () => {} : onClose} style={s.sheet}>
       <View style={s.handle} />
-      <ScrollView contentContainerStyle={{ gap: 10 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      {/* แป้นพิมพ์: BottomSheet ยกทั้งแผ่นขึ้นให้เอง · ลากเนื้อหาลง = ซ่อนแป้นพิมพ์ */}
+      <ScrollView contentContainerStyle={{ gap: 10 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <Text style={s.title}>ขอยืมแบบนัดรับ · {model?.name}</Text>
         <Text style={s.sub}>ไม่มีผู้ดูแลเปิดตู้ตอนนี้? ฝากคำขอไว้ ผู้ดูแลจะนัดเวลาให้</Text>
 

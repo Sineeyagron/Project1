@@ -2,13 +2,11 @@ import React, { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -54,9 +52,8 @@ export default function ForgotPassword() {
   };
 
   return (
-    <KeyboardAvoidingView
+    <View
       style={styles.screen}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerBack} onPress={() => goBack("/login")} disabled={isLoading}>
@@ -65,7 +62,7 @@ export default function ForgotPassword() {
         <Text style={styles.headerTitle}>ลืมรหัสผ่าน</Text>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView bottomOffset={24}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -138,8 +135,8 @@ export default function ForgotPassword() {
             <Text style={styles.footerLink}>กลับไปเข้าสู่ระบบ</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

@@ -6,9 +6,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
@@ -256,9 +256,8 @@ export default function Scan() {
   // ── RENDER: Step 1 — Details + Photo ──
   if (step === "details") {
     return (
-      <KeyboardAvoidingView
+      <View
         style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScreenHeader
           title={"เพิ่มอุปกรณ์"}
@@ -267,7 +266,7 @@ export default function Scan() {
 
         <StepBar />
 
-        <ScrollView contentContainerStyle={styles.form}>
+        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.form}>
 
           <View style={styles.autoFillBadge}>
             <Ionicons name="information-circle" size={16} color="#047857" />
@@ -397,8 +396,8 @@ export default function Scan() {
           </TouchableOpacity>
 
           <View style={{ height: 40 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </View>
     );
   }
 
