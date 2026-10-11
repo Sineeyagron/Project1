@@ -10,7 +10,6 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
@@ -50,7 +49,7 @@ const GROUPS: { title: string; fields: Field[] }[] = [
   {
     title: "การยืม",
     fields: [
-      { key: "max_active_borrows", label: "ยืมพร้อมกันได้สูงสุด", unit: "ชิ้น/คน", hint: "รวมคำขอที่รออนุมัติ", min: 1, max: 20, fallback: 3 },
+      { key: "max_active_borrows", label: "ยืมพร้อมกันได้สูงสุด", unit: "ชิ้น/คน", hint: "นับรวมคำขอที่รออนุมัติและคำขอนัดรับ", min: 1, max: 20, fallback: 3 },
       { key: "request_expiry_minutes", label: "คำขอหมดอายุใน", unit: "นาที", hint: "ไม่มีใครตอบภายในเวลานี้ คำขอยืมหมดอายุ / คำขอคืนคืนอัตโนมัติ", min: 5, max: 1440, fallback: 30 },
     ],
   },
@@ -58,10 +57,10 @@ const GROUPS: { title: string; fields: Field[] }[] = [
 const FIELDS = GROUPS.flatMap((g) => g.fields);
 
 export default function AdminSettings() {
-  const router = useRouter();
   const [saved, setSaved] = useState<Record<string, number>>({});
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   // สวิตช์ "รับเฉพาะ @kkumail.com" (app_settings.allowed_email_domain) — ช่วงพัฒนาปิดไว้ เปิดตอน Final Project
   const [restrictDomain, setRestrictDomain] = useState(false);
@@ -94,13 +93,19 @@ export default function AdminSettings() {
       .from("app_settings")
       .select("key, value")
       .in("key", [...FIELDS.map((f) => f.key), "allowed_email_domain", "borrow_rules", "borrow_day_options"]);
+    // โหลดพัง = ไม่โชว์ฟอร์ม (ไม่งั้นช่องขึ้นค่าตั้งต้นเหมือนค่าจริง กดบันทึกแล้วทับค่าในฐานข้อมูล)
+    if (error) {
+      setLoadError(error.message);
+      setLoading(false);
+      return;
+    }
+    setLoadError("");
     const loadedRules = rulesFromRows(data || []);
     setSavedRules(loadedRules);
     setRules(loadedRules.map(toThaiVars));
     setDayOptions(varsFromRows(data || []).days);
     const domainValue = (data || []).find((r: any) => r.key === "allowed_email_domain")?.value;
     setRestrictDomain(typeof domainValue === "string" && domainValue.trim() !== "");
-    if (error) notify("โหลดค่าตั้งไม่สำเร็จ", error.message);
     const values: Record<string, number> = {};
     FIELDS.forEach((f) => {
       const n = Number((data || []).find((r: any) => r.key === f.key)?.value);
@@ -241,6 +246,18 @@ export default function AdminSettings() {
 
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
+      ) : loadError ? (
+        // แถบลองใหม่ของหน้านี้เอง (components/LoadError เป็นของระบบห้อง ระบบยืมห้าม import)
+        <View style={s.errorBox}>
+          <Ionicons name="cloud-offline-outline" size={20} color="#b91c1c" />
+          <View style={{ flex: 1 }}>
+            <Text style={s.errorTitle}>โหลดค่าตั้งไม่สำเร็จ</Text>
+            <Text style={s.errorMsg} numberOfLines={2}>{loadError}</Text>
+          </View>
+          <TouchableOpacity style={s.retryBtn} onPress={() => { setLoading(true); load(); }} activeOpacity={0.85}>
+            <Text style={s.retryText}>ลองใหม่</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <KeyboardAwareScrollView bottomOffset={editing === null ? 24 : 190} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
           {GROUPS.map((g) => (
@@ -406,22 +423,11 @@ export default function AdminSettings() {
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingTop: 52,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
+  errorBox: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#fef2f2", borderWidth: 1, borderColor: "#fecaca", borderRadius: 12, padding: 12, margin: 16 },
+  errorTitle: { color: "#b91c1c", fontSize: 13, fontWeight: "900" },
+  errorMsg: { color: "#7f1d1d", fontSize: 11.5, marginTop: 2 },
+  retryBtn: { backgroundColor: C.red, borderRadius: 9, paddingHorizontal: 12, paddingVertical: 7 },
+  retryText: { color: "#fff", fontSize: 12, fontWeight: "900" },
   body: { padding: 16, gap: 14, paddingBottom: 40 },
   section: { fontSize: 15, fontWeight: "900", color: C.ink },
   card: { ...W.card },
