@@ -63,7 +63,7 @@ const SELECT = `
   borrow_locations(name),
   requester:profiles!borrow_requests_user_id_fkey(email, full_name, student_id),
   decider:profiles!borrow_requests_decided_by_fkey(email),
-  record:borrow_records!borrow_requests_borrow_record_id_fkey(due_date, renew_count, borrow_photo_path)
+  record:borrow_records!borrow_requests_borrow_record_id_fkey(due_date, renew_count, borrow_photo_path, borrow_date)
 `;
 // ยังไม่ได้รัน migration profile_student_id → ไม่มี full_name/student_id: ใช้ชุดเดิม (อีเมล) ให้กล่องคำขอยังใช้ได้
 const SELECT_LEGACY = SELECT.replace("(email, full_name, student_id)", "(email)");
@@ -257,7 +257,7 @@ export default function AdminRequests() {
         {r.kind === "return" && r.record?.borrow_photo_path && (
           <View style={s.compare}>
             <Text style={s.compareLabel}>เทียบรูปตอนยืม</Text>
-            <PhotoThumb path={r.record.borrow_photo_path} code={code} />
+            <PhotoThumb path={r.record.borrow_photo_path} code={code} at={r.record.borrow_date} />
           </View>
         )}
 

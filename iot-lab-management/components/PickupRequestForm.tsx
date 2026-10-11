@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, TextInput } from "./AppText";
-import BottomSheet from "./BottomSheet";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import supabase from "../lib/supabase";
 import { fetchBorrowRules } from "../lib/borrowRules";
 import { notify } from "../lib/notify";
@@ -10,12 +10,13 @@ import { C, W, NG } from "../lib/theme";
 
 // F2 ขอยืมแบบนัดรับ (ระบบยืม-คืน): เลือกรุ่นจากหน้าอุปกรณ์ ไม่ต้องสแกน → ผู้ดูแลนัดเวลาให้
 // กติกาทั้งหมดอยู่ใน RPC request_pickup (โควตา / ของว่างหลังหักนัด / ซ้ำ)
-export default function PickupRequestSheet({
+// เนื้อหาฟอร์ม — แสดงในแผ่นมาตรฐานของ iOS (app/pickup-sheet.tsx, presentation "formSheet")
+export default function PickupRequestForm({
   model,
   onClose,
   onSent,
 }: {
-  model: { key: string; name: string } | null;
+  model: { key: string; name: string };
   onClose: () => void;
   onSent: () => void;
 }) {
@@ -26,6 +27,7 @@ export default function PickupRequestSheet({
   const [showRules, setShowRules] = useState(false);
   const [rules, setRules] = useState<string[] | null>(null);
   const [sending, setSending] = useState(false);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (!model) return;
@@ -58,9 +60,8 @@ export default function PickupRequestSheet({
   };
 
   return (
-    <BottomSheet visible={!!model} onClose={sending ? () => {} : onClose} style={s.sheet}>
-      <View style={s.handle} />
-      {/* แป้นพิมพ์: BottomSheet ยกทั้งแผ่นขึ้นให้เอง · ลากเนื้อหาลง = ซ่อนแป้นพิมพ์ */}
+    <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+      {/* ลากเนื้อหาลง = ซ่อนแป้นพิมพ์ */}
       <ScrollView contentContainerStyle={{ gap: 10 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <Text style={s.title}>ขอยืมแบบนัดรับ · {model?.name}</Text>
         <Text style={s.sub}>ไม่มีผู้ดูแลเปิดตู้ตอนนี้? ฝากคำขอไว้ ผู้ดูแลจะนัดเวลาให้</Text>
@@ -120,7 +121,7 @@ export default function PickupRequestSheet({
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </BottomSheet>
+    </View>
   );
 }
 
@@ -134,8 +135,7 @@ function InfoRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: s
 }
 
 const s = StyleSheet.create({
-  sheet: { ...W.sheet, padding: 20, paddingTop: 0, paddingBottom: 36, maxHeight: "88%" },
-  handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: "#CBD5E1", marginTop: 10, marginBottom: 8 },
+  sheet: { backgroundColor: C.surface, paddingHorizontal: 20, paddingTop: 24 },
   title: { fontSize: 18, fontWeight: "700", color: C.ink },
   sub: { fontSize: 13, color: C.text2, marginTop: -4 },
   label: { fontSize: 13, color: C.text2, marginTop: 2 },

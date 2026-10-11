@@ -249,8 +249,8 @@ export default function Borrow() {
             </>
           )}
 
-          {/* LIST */}
-          {borrows.length === 0 ? (
+          {/* LIST — ว่างเมื่อไม่มีเหตุการณ์เลย (ไม่ใช่แค่ไม่มีรายการยืม: คำขอที่ถูกปฏิเสธ/หมดอายุ/นัดรับที่ไม่มา ก็ต้องเห็นในประวัติ) */}
+          {events.length === 0 ? (
             <View style={s.empty}>
               <Ionicons name="cube-outline" size={52} color="#cbd5e1" />
               <Text style={s.emptyTitle}>ยังไม่มีประวัติการยืม</Text>

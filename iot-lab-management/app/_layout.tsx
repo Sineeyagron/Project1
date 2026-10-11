@@ -8,9 +8,21 @@ import { isAdminPath } from "../lib/roles";
 import { useFonts, NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from "@expo-google-fonts/noto-sans-thai";
 import { C } from "../lib/theme";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import type { NativeStackNavigationOptions } from "expo-router";
 
 // หน้าที่เปิดได้โดยไม่ต้องล็อกอิน (หน้าอื่นทั้งหมดต้องล็อกอิน — หน้า /admin มีด่านของตัวเองใน app/admin/_layout.tsx)
 const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/forgot", "/reset-password"]);
+
+// แผ่นมาตรฐานของ iOS (UISheetPresentationController ผ่าน react-native-screens): ขีดจับ + ปัดลงปิด
+//   iOS เลื่อนแผ่น/จางฉากเทาเอง → 120Hz แม้ใน Expo Go (แผ่นที่เลื่อนด้วย Animated ถูกจำกัด 60Hz = รู้สึกหน่วง) — เจ้าของโปรเจกต์เลือก 11 ต.ค. 2569
+//   ความสูง: แต่ละแผ่นตั้งเองให้พอดีเนื้อหา (lib/sheetFit) — ค่าตรงนี้เป็นค่าเริ่มต้นเผื่อไว้
+const SHEET: NativeStackNavigationOptions = {
+  presentation: "formSheet",
+  sheetAllowedDetents: [0.6],
+  sheetGrabberVisible: true,
+  sheetCornerRadius: 28,
+  contentStyle: { backgroundColor: C.surface },
+};
 
 export default function Layout() {
   const router = useRouter();
@@ -131,6 +143,9 @@ export default function Layout() {
       <Stack.Screen name="notifications" />
       <Stack.Screen name="borrow" />
       <Stack.Screen name="scan" />
+      {/* แผ่นรายละเอียดรุ่น (หน้าอุปกรณ์) + แผ่นขอยืมแบบนัดรับ (F2) */}
+      <Stack.Screen name="equipment-sheet" options={SHEET} />
+      <Stack.Screen name="pickup-sheet" options={SHEET} />
       {/* Admin — ทุกหน้าใน app/admin/ ผ่านด่านเช็กสิทธิ์ใน app/admin/_layout.tsx */}
       <Stack.Screen name="admin" />
     </Stack>

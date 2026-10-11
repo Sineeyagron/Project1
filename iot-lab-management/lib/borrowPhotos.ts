@@ -2,6 +2,7 @@ import { Platform } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import supabase, { SUPABASE_ANON_KEY, SUPABASE_URL } from "./supabase";
+import { EVIDENCE_PHOTO_MAX, shrinkPhoto } from "./shrinkPhoto";
 
 const FS = FileSystem as any;
 const BUCKET = "borrow-photos";
@@ -30,6 +31,8 @@ export async function takeLivePhoto(): Promise<string | null> {
 export async function uploadBorrowPhoto(uri: string): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) throw new Error("กรุณาเข้าสู่ระบบ");
+  // ย่อเหลือด้านยาว 1600px ก่อนส่ง (ยังเห็นรอย/ตำหนิชัด แต่ไฟล์เล็กลงหลายเท่า ส่งคำขอเร็วขึ้น)
+  uri = await shrinkPhoto(uri, EVIDENCE_PHOTO_MAX, 0.75);
 
   const path = `${session.user.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
   const res = await FS.uploadAsync(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, uri, {

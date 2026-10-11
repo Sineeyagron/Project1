@@ -14,6 +14,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { ITEM_PHOTO_MAX, shrinkPhoto } from "../../lib/shrinkPhoto";
 import supabase from "../../lib/supabase";
 import { goBack as navBack } from "../../lib/nav";
 import { addYears, isValidDate } from "../../lib/itemInfo";
@@ -124,10 +125,12 @@ export default function Scan() {
         const fileBase = `items/${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         let fileName = "";
         let uploadError = "";
+        // ย่อเหลือด้านยาว 1000px + JPEG ก่อนอัปโหลด (รูปกล้องเต็มขนาดหนักเกินที่แอปใช้ — lib/shrinkPhoto)
+        const uploadUri = await shrinkPhoto(photoUri, ITEM_PHOTO_MAX);
 
         if (Platform.OS === "web") {
-          // บนเว็บรูปเป็น blob: URL และไม่มี FileSystem.uploadAsync → อัปโหลดผ่าน supabase-js
-          const blob = await (await fetch(photoUri)).blob();
+          // บนเว็บรูปเป็น blob:/data: URL และไม่มี FileSystem.uploadAsync → อัปโหลดผ่าน supabase-js
+          const blob = await (await fetch(uploadUri)).blob();
           const ext = blob.type === "image/png" ? "png" : "jpg";
           fileName = `${fileBase}.${ext}`;
           const { error: upErr } = await supabase.storage
@@ -136,7 +139,7 @@ export default function Scan() {
           if (upErr) uploadError = upErr.message;
         } else {
           // มือถือ: FileSystem.uploadAsync (reliable ที่สุดใน RN, กัน bug ไฟล์ 0 ไบต์)
-          const ext = photoUri.split(".").pop()?.split("?")[0]?.toLowerCase() || "jpg";
+          const ext = uploadUri.split(".").pop()?.split("?")[0]?.toLowerCase() || "jpg";
           fileName = `${fileBase}.${ext}`;
           const contentType = ext === "png" ? "image/png" : "image/jpeg";
           // Storage อนุญาตเฉพาะ admin → ต้องส่ง token ของผู้ใช้ที่ล็อกอิน ไม่ใช่ anon key
@@ -144,7 +147,7 @@ export default function Scan() {
 
           const uploadRes = await FS.uploadAsync(
             `${SUPABASE_URL}/storage/v1/object/item-images/${fileName}`,
-            photoUri,
+            uploadUri,
             {
               uploadType: FS.FileSystemUploadType.BINARY_CONTENT,
               mimeType: contentType,
