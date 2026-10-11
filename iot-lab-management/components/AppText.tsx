@@ -49,6 +49,8 @@ export function Text(props: TextProps) {
   return inside ? text : <InsideText.Provider value>{text}</InsideText.Provider>;
 }
 
-export function TextInput(props: TextInputProps) {
-  return <RNTextInput {...props} style={withFont(props.style, false)} />;
-}
+// forwardRef: หน้าที่ต้องสั่งโฟกัสเอง (ref.current.focus()) ใช้ได้
+export const TextInput = React.forwardRef<RNTextInput, TextInputProps>((props, ref) => (
+  <RNTextInput ref={ref} {...props} style={withFont(props.style, false)} />
+));
+TextInput.displayName = "TextInput";

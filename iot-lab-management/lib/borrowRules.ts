@@ -45,6 +45,27 @@ export function fillRule(text: string, vars: RuleVars) {
     .replace(/\{expiry\}/g, String(vars.expiry));
 }
 
+// หน้าตั้งค่า: admin เห็นตัวแปรเป็นภาษาไทย [จำนวนสูงสุด] ไม่ใช่ {max} — แปลงไป-กลับตอนโหลด/บันทึก
+export const VAR_LABEL = { max: "จำนวนสูงสุด", days: "ระยะยืม", expiry: "เวลาหมดอายุ" } as const;
+export type RuleVar = keyof typeof VAR_LABEL;
+const VAR_KEYS = Object.keys(VAR_LABEL) as RuleVar[];
+
+export const toThaiVars = (text: string) =>
+  VAR_KEYS.reduce((t, k) => t.split(`{${k}}`).join(`[${VAR_LABEL[k]}]`), text);
+export const fromThaiVars = (text: string) =>
+  VAR_KEYS.reduce((t, k) => t.split(`[${VAR_LABEL[k]}]`).join(`{${k}}`), text);
+
+// เหลือวงเล็บ [] {} ที่ไม่ใช่ตัวแปรที่รู้จัก (เช่นลบวงเล็บไปครึ่งเดียว) = ผิด กันโค้ดหลุดไปให้ นศ. เห็น
+export const hasBadVar = (template: string) => /[[\]{}]/.test(template.replace(/\{(max|days|expiry)\}/g, ""));
+
+// แยกข้อความกฎเป็นท่อน ตัวแปร = ค่าจริง + isVar (หน้าตั้งค่าระบายสีตัวเลขที่ระบบเติมให้)
+export function ruleParts(template: string, vars: RuleVars) {
+  return template
+    .split(/(\{(?:max|days|expiry)\})/)
+    .filter(Boolean)
+    .map((p) => (/^\{(max|days|expiry)\}$/.test(p) ? { text: fillRule(p, vars), isVar: true } : { text: p, isVar: false }));
+}
+
 // โหลดกฎที่แทนตัวแปรแล้ว (โหลดไม่ได้ = ใช้ค่าตั้งต้น ไม่ให้ป๊อปอัปว่าง)
 export async function fetchBorrowRules(): Promise<string[]> {
   const { data } = await supabase.from("app_settings").select("key, value").in("key", RULE_KEYS);

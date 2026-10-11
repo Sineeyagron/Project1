@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Keyboard,
   Switch,
   StyleSheet,
   TouchableOpacity,
@@ -16,7 +17,11 @@ import { confirmAction, notify } from "../../lib/notify";
 import { ALLOWED_DOMAIN } from "../../lib/googleAuth";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
-import { DEFAULT_RULES, rulesFromRows } from "../../lib/borrowRules";
+import {
+  DEFAULT_RULES, VAR_LABEL, RuleVar, fillRule, fromThaiVars, hasBadVar, ruleParts, rulesFromRows, toThaiVars, varsFromRows,
+} from "../../lib/borrowRules";
+
+const VAR_KEYS = Object.keys(VAR_LABEL) as RuleVar[];
 
 // ตั้งค่าระบบ (ตาราง app_settings) — แก้ได้เฉพาะ admin (RLS)
 // ค่าเหล่านี้ RPC ฝั่งฐานข้อมูลอ่านเองทุกครั้ง เปลี่ยนแล้วมีผลทันที
@@ -62,11 +67,23 @@ export default function AdminSettings() {
   const [restrictDomain, setRestrictDomain] = useState(false);
   const [domainBusy, setDomainBusy] = useState(false);
   // F1 กฎการยืม-คืน (app_settings.borrow_rules) — แสดงในป๊อปอัปยืนยันของ นศ. + หน้าโปรไฟล์
+  // savedRules = แบบที่เก็บใน DB ({max}) / rules = แบบที่ admin แก้ ([จำนวนสูงสุด])
   const [savedRules, setSavedRules] = useState<string[]>([]);
   const [rules, setRules] = useState<string[]>([]);
   const [rulesSaving, setRulesSaving] = useState(false);
-  // ความสูงช่องกฎแต่ละข้อ (ยืดตามข้อความ — เว็บไม่ยืดเอง)
-  const [ruleHeights, setRuleHeights] = useState<Record<number, number>>({});
+  const [dayOptions, setDayOptions] = useState<number[]>([3, 5, 7]);
+  // แก้ได้ทีละข้อ (null = ดูอย่างเดียว) + ความสูงช่องที่แก้ (ยืดตามข้อความ — เว็บไม่ยืดเอง) + ตำแหน่งเคอร์เซอร์ไว้แทรกตัวแปร
+  const [editing, setEditing] = useState<number | null>(null);
+  const [ruleHeight, setRuleHeight] = useState(44);
+  const ruleInputRef = useRef<React.ElementRef<typeof TextInput>>(null);
+
+  // เปิดแก้ข้อไหน → โฟกัสช่องนั้นหลังแถวกางเสร็จ (autoFocus ยิงก่อนวัดตำแหน่ง แป้นพิมพ์เลยบังช่อง)
+  useEffect(() => {
+    if (editing === null) return;
+    const t = setTimeout(() => ruleInputRef.current?.focus(), 120);
+    return () => clearTimeout(t);
+  }, [editing]);
+  const [sel, setSel] = useState({ start: 0, end: 0 });
 
   useEffect(() => {
     load();
@@ -76,10 +93,11 @@ export default function AdminSettings() {
     const { data, error } = await supabase
       .from("app_settings")
       .select("key, value")
-      .in("key", [...FIELDS.map((f) => f.key), "allowed_email_domain", "borrow_rules"]);
+      .in("key", [...FIELDS.map((f) => f.key), "allowed_email_domain", "borrow_rules", "borrow_day_options"]);
     const loadedRules = rulesFromRows(data || []);
     setSavedRules(loadedRules);
-    setRules(loadedRules);
+    setRules(loadedRules.map(toThaiVars));
+    setDayOptions(varsFromRows(data || []).days);
     const domainValue = (data || []).find((r: any) => r.key === "allowed_email_domain")?.value;
     setRestrictDomain(typeof domainValue === "string" && domainValue.trim() !== "");
     if (error) notify("โหลดค่าตั้งไม่สำเร็จ", error.message);
@@ -109,19 +127,50 @@ export default function AdminSettings() {
   const changed = FIELDS.filter((f) => Number(draft[f.key]) !== saved[f.key]);
   const canSave = changed.length > 0 && Object.keys(errors).length === 0 && !saving;
 
-  const cleanRules = rules.map((t) => t.trim());
+  // แบบที่จะเก็บ DB ({max}) — ใช้ตรวจ/เทียบ/บันทึก
+  const cleanRules = rules.map((t) => fromThaiVars(t.trim()));
   const rulesChanged = JSON.stringify(cleanRules) !== JSON.stringify(savedRules);
   const rulesError = cleanRules.length === 0 ? "ต้องมีอย่างน้อย 1 ข้อ"
     : cleanRules.some((t) => !t) ? "มีข้อที่ว่างอยู่ — พิมพ์ข้อความหรือลบข้อนั้น"
+    : cleanRules.some(hasBadVar) ? "มีตัวแปรไม่ถูกต้อง — ลบวงเล็บที่เกินออก แล้วกดปุ่ม + เพื่อแทรกใหม่"
     : cleanRules.some((t) => t.length > 300) ? "ข้อความยาวเกิน 300 ตัวอักษร" : "";
   const canSaveRules = rulesChanged && !rulesError && !rulesSaving;
+  // ตัวเลขที่เติมแทนตัวแปร = ค่าที่บันทึกแล้วด้านบน (เหมือนที่ นศ. เห็นจริง)
+  const vars = {
+    max: saved.max_active_borrows ?? 3,
+    days: dayOptions,
+    expiry: saved.request_expiry_minutes ?? 30,
+  };
 
+  const startEdit = (i: number, text = rules[i] ?? "") => {
+    setEditing(i);
+    setRuleHeight(44);
+    setSel({ start: text.length, end: text.length });
+  };
   const moveRule = (i: number, dir: -1 | 1) => {
     const j = i + dir;
     if (j < 0 || j >= rules.length) return;
     setRules((r) => { const next = [...r]; [next[i], next[j]] = [next[j], next[i]]; return next; });
+    if (editing === i) setEditing(j);
   };
-  const removeRule = (i: number) => setRules((r) => r.filter((_, k) => k !== i));
+  const removeRule = (i: number) => {
+    setRules((r) => r.filter((_, k) => k !== i));
+    setEditing(null);
+  };
+  const addRule = () => {
+    startEdit(rules.length, "");
+    setRules((r) => [...r, ""]);
+  };
+  // แทรก [ตัวแปร] ตรงเคอร์เซอร์ของข้อที่กำลังแก้
+  const insertVar = (k: RuleVar) => {
+    if (editing === null) return;
+    const token = `[${VAR_LABEL[k]}]`;
+    const t = rules[editing] ?? "";
+    const start = Math.min(sel.start, t.length);
+    const end = Math.min(Math.max(sel.end, start), t.length);
+    setRules((r) => r.map((x, i) => (i === editing ? t.slice(0, start) + token + t.slice(end) : x)));
+    setSel({ start: start + token.length, end: start + token.length });
+  };
 
   const saveRules = async () => {
     if (!canSaveRules) return;
@@ -136,7 +185,8 @@ export default function AdminSettings() {
       return;
     }
     setSavedRules(cleanRules);
-    setRules(cleanRules);
+    setRules(cleanRules.map(toThaiVars));
+    setEditing(null);
     notify("บันทึกกฎแล้ว", "นักศึกษาเห็นกฎใหม่ทันทีในป๊อปอัปยืนยันและหน้าโปรไฟล์");
   };
 
@@ -177,7 +227,8 @@ export default function AdminSettings() {
       return;
     }
     notify("บันทึกแล้ว", "ค่าใหม่มีผลทันที");
-    load();
+    // ไม่ load() ใหม่ — จะล้างกฎที่กำลังแก้ค้างอยู่
+    setSaved((old) => ({ ...old, ...Object.fromEntries(changed.map((f) => [f.key, Number(draft[f.key])])) }));
   };
 
   return (
@@ -191,7 +242,7 @@ export default function AdminSettings() {
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
       ) : (
-        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView bottomOffset={editing === null ? 24 : 190} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
           {GROUPS.map((g) => (
             <View key={g.title} style={{ gap: 8 }}>
               <Text style={s.section}>{g.title}</Text>
@@ -222,45 +273,96 @@ export default function AdminSettings() {
             <View style={s.card}>
               <View style={s.field}>
                 <Text style={[s.hint, { flex: 1, marginTop: 0 }]}>
-                  แสดงในป๊อปอัปยืนยันตอน นศ. ขอยืม/คืน/ยืมต่อ และหน้าโปรไฟล์ · ใส่ตัวแปรได้{"\n"}
-                  <Text style={s.varText}>{"{max}"}</Text> ยืมได้สูงสุด  <Text style={s.varText}>{"{days}"}</Text> ระยะยืม  <Text style={s.varText}>{"{expiry}"}</Text> นาทีหมดอายุ
+                  นักศึกษาเห็นกฎนี้ตอนขอยืม/คืน/ยืมต่อ และในหน้าโปรไฟล์ · ตัวเลข<Text style={s.varText}>สีฟ้า</Text>เปลี่ยนตามค่าตั้งด้านบนอัตโนมัติ
                 </Text>
               </View>
-              {rules.map((t, i) => (
-                <View key={i} style={[s.ruleRow, s.divider]}>
-                  <Text style={s.ruleNo}>{i + 1}</Text>
-                  <TextInput
-                    style={[s.ruleInput, { height: Math.max(44, ruleHeights[i] ?? 44) }, !t.trim() && s.inputError]}
-                    onContentSizeChange={(e) => {
-                      const h = Math.ceil(e.nativeEvent.contentSize.height) + 2;
-                      setRuleHeights((m) => (m[i] === h ? m : { ...m, [i]: h }));
-                    }}
-                    value={t}
-                    onChangeText={(v) => setRules((r) => r.map((x, k) => (k === i ? v : x)))}
-                    placeholder="พิมพ์กฎข้อนี้"
-                    placeholderTextColor={C.faint}
-                    multiline
-                    maxLength={300}
-                  />
-                  <View style={s.ruleTools}>
-                    <TouchableOpacity onPress={() => moveRule(i, -1)} disabled={i === 0} hitSlop={6} accessibilityLabel="เลื่อนขึ้น">
-                      <Ionicons name="chevron-up" size={18} color={i === 0 ? "#CBD5E1" : C.muted} />
+              {rules.map((t, i) => {
+                const template = fromThaiVars(t.trim());
+                const bad = hasBadVar(template);
+                if (editing !== i) {
+                  return (
+                    <TouchableOpacity key={i} style={[s.ruleRow, s.divider]} onPress={() => startEdit(i)} activeOpacity={0.7} accessibilityLabel={`แก้กฎข้อ ${i + 1}`}>
+                      <Text style={s.ruleNo}>{i + 1}</Text>
+                      {!template ? (
+                        <Text style={[s.ruleText, { color: C.red }]}>ข้อนี้ว่าง — แตะเพื่อพิมพ์ หรือลบข้อนี้</Text>
+                      ) : bad ? (
+                        <Text style={[s.ruleText, { color: C.red }]}>{t}</Text>
+                      ) : (
+                        <Text style={s.ruleText}>
+                          {ruleParts(template, vars).map((p, k) =>
+                            p.isVar ? <Text key={k} style={s.varText}>{p.text}</Text> : p.text
+                          )}
+                        </Text>
+                      )}
+                      <Ionicons name="pencil" size={17} color={C.faint} style={{ marginTop: 2 }} />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => moveRule(i, 1)} disabled={i === rules.length - 1} hitSlop={6} accessibilityLabel="เลื่อนลง">
-                      <Ionicons name="chevron-down" size={18} color={i === rules.length - 1 ? "#CBD5E1" : C.muted} />
-                    </TouchableOpacity>
+                  );
+                }
+                return (
+                  <View key={i} style={[s.ruleEdit, s.divider]}>
+                    <View style={s.ruleEditTop}>
+                      <Text style={[s.ruleNo, { marginTop: 11 }]}>{i + 1}</Text>
+                      <TextInput
+                        style={[s.ruleInput, { height: Math.max(44, ruleHeight) }, (!t.trim() || bad) && s.inputError]}
+                        onContentSizeChange={(e) => {
+                          const h = Math.ceil(e.nativeEvent.contentSize.height) + 2;
+                          setRuleHeight((old) => (old === h ? old : h));
+                        }}
+                        value={t}
+                        onChangeText={(v) => setRules((r) => r.map((x, k) => (k === i ? v : x)))}
+                        onSelectionChange={(e) => setSel(e.nativeEvent.selection)}
+                        placeholder="พิมพ์กฎข้อนี้"
+                        placeholderTextColor={C.faint}
+                        multiline
+                        ref={ruleInputRef}
+                        maxLength={300}
+                      />
+                    </View>
+                    <View style={s.ruleEditBody}>
+                      <View style={s.chips}>
+                        {VAR_KEYS.map((k) => (
+                          <TouchableOpacity key={k} style={s.chip} onPress={() => insertVar(k)} activeOpacity={0.75}>
+                            <Text style={s.chipText}>+ {VAR_LABEL[k]}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      {bad ? (
+                        <Text style={[s.hint, { color: C.red, marginTop: 0 }]}>
+                          ตัวแปรไม่ถูกต้อง — ลบวงเล็บที่เกินออก แล้วกดปุ่ม + เพื่อแทรกใหม่
+                        </Text>
+                      ) : (
+                        <View style={s.preview}>
+                          <Ionicons name="eye-outline" size={15} color={C.muted} style={{ marginTop: 2 }} />
+                          <Text style={s.previewText}>นศ. เห็น: {template ? fillRule(template, vars) : "—"}</Text>
+                        </View>
+                      )}
+                      <View style={s.editTools}>
+                        <View style={s.editToolsLeft}>
+                          <TouchableOpacity onPress={() => moveRule(i, -1)} disabled={i === 0} hitSlop={8} accessibilityLabel="เลื่อนขึ้น">
+                            <Ionicons name="chevron-up" size={20} color={i === 0 ? "#CBD5E1" : C.muted} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => moveRule(i, 1)} disabled={i === rules.length - 1} hitSlop={8} accessibilityLabel="เลื่อนลง">
+                            <Ionicons name="chevron-down" size={20} color={i === rules.length - 1 ? "#CBD5E1" : C.muted} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => removeRule(i)} hitSlop={8} style={s.deleteBtn} accessibilityLabel="ลบข้อนี้">
+                            <Ionicons name="trash-outline" size={17} color={C.red} />
+                            <Text style={s.deleteText}>ลบ</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <TouchableOpacity onPress={() => { Keyboard.dismiss(); setEditing(null); }} hitSlop={8}>
+                          <Text style={s.doneText}>เสร็จ</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
                   </View>
-                  <TouchableOpacity onPress={() => removeRule(i)} hitSlop={6} accessibilityLabel="ลบข้อนี้">
-                    <Ionicons name="trash-outline" size={18} color={C.red} />
-                  </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
               <View style={[s.ruleActions, s.divider]}>
-                <TouchableOpacity onPress={() => setRules((r) => [...r, ""])} activeOpacity={0.8} style={s.addRule}>
+                <TouchableOpacity onPress={addRule} activeOpacity={0.8} style={s.addRule}>
                   <Ionicons name="add" size={18} color={C.purple} />
                   <Text style={s.addRuleText}>เพิ่มข้อ</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setRules(DEFAULT_RULES)} activeOpacity={0.8}>
+                <TouchableOpacity onPress={() => { setRules(DEFAULT_RULES.map(toThaiVars)); setEditing(null); }} activeOpacity={0.8}>
                   <Text style={s.resetText}>ใช้กฎตั้งต้น</Text>
                 </TouchableOpacity>
               </View>
@@ -345,8 +447,22 @@ const s = StyleSheet.create({
   saveText: { color: "#fff", fontSize: 16, fontWeight: "900" },
   note: { fontSize: 12, color: C.faint, textAlign: "center" },
   varText: { color: C.purple, fontWeight: "800" },
-  ruleRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 10 },
+  ruleRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, paddingHorizontal: 14, paddingVertical: 12 },
   ruleNo: { width: 18, fontSize: 14, fontWeight: "800", color: C.faint, textAlign: "center" },
+  ruleText: { flex: 1, fontSize: 14, lineHeight: 21, color: C.ink },
+  ruleEdit: { paddingHorizontal: 14, paddingVertical: 12, gap: 8, backgroundColor: "#F8FBFF" },
+  ruleEditTop: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  ruleEditBody: { paddingLeft: 26, gap: 8 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  chip: { borderWidth: 1, borderColor: "#BFD3F7", backgroundColor: "#EFF5FF", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
+  chipText: { color: "#1D4ED8", fontSize: 12.5, fontWeight: "700" },
+  preview: { flexDirection: "row", gap: 6, backgroundColor: "#F1F5F9", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6 },
+  previewText: { flex: 1, fontSize: 12.5, lineHeight: 19, color: C.muted },
+  editTools: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  editToolsLeft: { flexDirection: "row", alignItems: "center", gap: 14 },
+  deleteBtn: { flexDirection: "row", alignItems: "center", gap: 3 },
+  deleteText: { color: C.red, fontSize: 13, fontWeight: "700" },
+  doneText: { color: C.purple, fontSize: 14, fontWeight: "800" },
   ruleInput: {
     flex: 1,
     minHeight: 44,
@@ -361,7 +477,6 @@ const s = StyleSheet.create({
     color: C.ink,
     textAlignVertical: "top",
   },
-  ruleTools: { gap: 2, alignItems: "center" },
   ruleActions: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14, paddingVertical: 12 },
   addRule: { flexDirection: "row", alignItems: "center", gap: 4 },
   addRuleText: { color: C.purple, fontSize: 14, fontWeight: "800" },
