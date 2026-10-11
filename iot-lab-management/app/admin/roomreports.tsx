@@ -14,7 +14,7 @@ import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { fetchRoomPeople } from "../../lib/roomPeople";
-import { notify } from "../../lib/notify";
+import { notify, DialogHost } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRealtime } from "../../lib/realtime";
 import LoadError from "../../components/LoadError";
@@ -250,6 +250,7 @@ export default function RoomReports() {
             </View>
           </View>
         </KeyboardAvoidingView>
+        <DialogHost />
       </Modal>
     </View>
   );

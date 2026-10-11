@@ -15,6 +15,7 @@ import supabase from "../lib/supabase";
 import { authErrorThai, PASSWORD_HINT, passwordProblem } from "../lib/password";
 import { goBack } from "../lib/nav";
 import { W } from "../lib/theme";
+import { DialogHost } from "../lib/notify";
 
 type ResultState = {
   visible: boolean;
@@ -221,6 +222,7 @@ export default function ResetPassword() {
             </TouchableOpacity>
           </View>
         </View>
+        <DialogHost />
       </Modal>
     </View>
   );

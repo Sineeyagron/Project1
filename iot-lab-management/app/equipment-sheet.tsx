@@ -53,6 +53,8 @@ export default function EquipmentSheet() {
           <View style={[s.avail, { backgroundColor: tone.bg }]}>
             <Text style={[s.availText, { color: tone.fg }]}>ว่าง {g.available} จาก {g.units.length} ชิ้น</Text>
           </View>
+          {/* F2: ชิ้นที่กันไว้ให้คำขอนัดรับ (หักออกจากชิ้นว่างแล้ว) — บอกให้รู้ว่าทำไมว่างน้อยกว่าชิ้นที่ขึ้น "ว่าง" ด้านล่าง */}
+          {g.held > 0 ? <Text style={s.held}>มีคนขอนัดรับไว้ {g.held} ชิ้น</Text> : null}
         </View>
         <TouchableOpacity onPress={() => router.back()} style={s.closeBtn} hitSlop={8} accessibilityLabel="ปิด">
           <Ionicons name="close" size={20} color={C.muted} />
@@ -69,6 +71,8 @@ export default function EquipmentSheet() {
             ? `ไปที่ห้อง ${g.location} หยิบชิ้นที่ว่าง แล้วสแกน QR ที่ตัวอุปกรณ์เพื่อขอยืม`
             : g.nextDue
             ? `ตอนนี้ไม่มีชิ้นว่าง ชิ้นแรกครบกำหนดคืน ${formatDue(g.nextDue)}`
+            : g.held > 0
+            ? "ชิ้นที่เหลือมีคนขอนัดรับไว้แล้ว ลองกลับมาดูใหม่ภายหลัง"
             : "ตอนนี้ไม่มีชิ้นว่าง ลองกลับมาดูใหม่ภายหลัง"}
         </Text>
       </View>
@@ -119,6 +123,7 @@ const s = StyleSheet.create({
   sub: { color: C.text2, fontSize: 13, marginTop: 2 },
   avail: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginTop: 8 },
   availText: { fontSize: 13, fontWeight: "700" },
+  held: { color: C.text2, fontSize: 12.5, marginTop: 6 },
   closeBtn: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#F1F5F9" },
   desc: { color: C.text2, fontSize: 14, lineHeight: 21, marginTop: 14 },
   howTo: { flexDirection: "row", gap: 8, alignItems: "flex-start", marginTop: 14, padding: 12, borderRadius: 14, backgroundColor: C.primaryTint },

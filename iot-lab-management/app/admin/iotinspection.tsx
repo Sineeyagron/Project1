@@ -16,7 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { currentUser } from "../../lib/session";
-import { notify } from "../../lib/notify";
+import { notify, DialogHost } from "../../lib/notify";
 import { goBack } from "../../lib/nav";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
@@ -385,6 +385,7 @@ export default function IotInspectionPage() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+        <DialogHost />
       </Modal>
     </View>
   );

@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
-import { confirmAction, notify } from "../../lib/notify";
+import { confirmAction, notify, DialogHost } from "../../lib/notify";
 import { STATION_STATUS } from "../../lib/roomStatus";
 import { ROOM_CODE_RE, Room, fetchRooms, roomPlace } from "../../lib/rooms";
 import LoadError from "../../components/LoadError";
@@ -364,6 +364,7 @@ export default function AdminRoom() {
             ) : null}
           </View>
         </KeyboardAvoidingView>
+        <DialogHost />
       </Modal>
     </View>
   );

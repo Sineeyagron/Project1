@@ -14,7 +14,7 @@ import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { fetchRoomPeople } from "../../lib/roomPeople";
-import { notify } from "../../lib/notify";
+import { notify, DialogHost } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { REPAIR_STATUS, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
@@ -398,6 +398,7 @@ export default function RepairsPage() {
             </TouchableOpacity>
           </KeyboardAwareScrollView>
         </View>
+        <DialogHost />
       </Modal>
 
       <Modal visible={updateModal} transparent animationType="slide">
@@ -451,6 +452,7 @@ export default function RepairsPage() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+        <DialogHost />
       </Modal>
     </View>
   );

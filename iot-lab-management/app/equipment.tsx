@@ -34,13 +34,14 @@ const SORTS: { key: SortKey; label: string; short: string }[] = [
 ];
 
 // ข้อมูลชุดล่าสุด (หน่วยความจำ) — เปิดหน้าซ้ำเห็นรายการทันที แล้วค่อยโหลดใหม่เบื้องหลัง / ล้างเมื่อออกจากระบบ
-let cache: { items: any[]; categories: string[] } | null = null;
+let cache: { items: any[]; categories: string[]; holds: Record<string, number> } | null = null;
 supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") cache = null; });
 
 export default function Equipment() {
   const router = useRouter();
   const [items, setItems] = useState<any[]>(cache?.items ?? []);
   const [categories, setCategories] = useState<string[]>(cache?.categories ?? []);
+  const [holds, setHolds] = useState<Record<string, number>>(cache?.holds ?? {});
   const [loading, setLoading] = useState(!cache);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
@@ -70,12 +71,14 @@ export default function Equipment() {
 
   const fetchItems = async () => {
     // ยิงพร้อมกันรอบเดียว / ของที่จำหน่ายแล้วไม่แสดง (แผน 2.3)
-    const [{ data, error }, { data: loans }, { data: cats }, { data: locs }] = await Promise.all([
+    const [{ data, error }, { data: loans }, { data: cats }, { data: locs }, { data: holds }] = await Promise.all([
       supabase.from("items").select("*").neq("status", "retired"),
       // RLS: นักศึกษาเห็นแค่ประวัติของตัวเอง → RPC คืนแค่ ชิ้นไหน + วันคืน (ไม่บอกผู้ยืม)
       supabase.rpc("item_active_loans"),
       supabase.from("categories").select("id, name, sort_order").eq("active", true).order("sort_order"),
       supabase.from("borrow_locations").select("id, name"),
+      // F2: ชิ้นที่ถูกกันไว้ให้คำขอนัดรับ ต่อรุ่น (ไม่บอกว่าใครขอ) — หักออกจากชิ้นว่าง ให้ตรงกับที่ยืมได้จริง
+      supabase.rpc("pickup_holds"),
     ]);
     setLoadError(error ? error.message : "");
     if (!error) {
@@ -98,9 +101,12 @@ export default function Equipment() {
         location: locName[item.location_id],
       }));
       const nextCats = catList.map((c: any) => c.name);
-      cache = { items: nextItems, categories: nextCats };
+      const nextHolds: Record<string, number> = {};
+      (holds || []).forEach((h: any) => { if (h.model) nextHolds[h.model] = h.held; });
+      cache = { items: nextItems, categories: nextCats, holds: nextHolds };
       setCategories(nextCats);
       setItems(nextItems);
+      setHolds(nextHolds);
     }
     setLoading(false);
     setRefreshing(false);
@@ -113,7 +119,7 @@ export default function Equipment() {
       const key = String(it.item_prefix || it.name || it.id).trim().toLowerCase();
       let g = map.get(key);
       if (!g) {
-        g = { key, name: it.name || it.item_prefix, category: it.category, image: null, description: null, location: it.location || "IoT Lab", units: [], available: 0, nextDue: null };
+        g = { key, name: it.name || it.item_prefix, category: it.category, image: null, description: null, location: it.location || "IoT Lab", units: [], available: 0, held: 0, nextDue: null };
         map.set(key, g);
       }
       g.units.push(it);
@@ -122,9 +128,14 @@ export default function Equipment() {
       if (it.status === "available") g.available += 1;
       if (it.status === "borrowed" && it.due_date && (!g.nextDue || it.due_date < g.nextDue)) g.nextDue = it.due_date;
     });
-    map.forEach((g) => g.units.sort((a, b) => (a.item_no || 0) - (b.item_no || 0)));
+    map.forEach((g) => {
+      g.units.sort((a, b) => (a.item_no || 0) - (b.item_no || 0));
+      // หักชิ้นที่กันไว้ให้คำขอนัดรับ (ไม่เกินจำนวนที่ว่างอยู่)
+      g.held = Math.min(g.available, holds[g.key] || 0);
+      g.available -= g.held;
+    });
     return [...map.values()];
-  }, [items]);
+  }, [items, holds]);
 
   // พิมพ์แล้วกรองทันที ไม่สนช่องว่าง/ตัวพิมพ์ ("dht22002" เจอ "DHT22 002") / ระหว่างค้นหา หาทุกหมวด
   const compact = (v?: string | null) => (v || "").toLowerCase().replace(/[\s\-_.]/g, "");
@@ -147,7 +158,7 @@ export default function Equipment() {
     });
 
   const types = [ALL, ...categories.filter((name) => groups.some((g) => g.category === name)), ...(groups.some((g) => g.category === OTHER) && !categories.includes(OTHER) ? [OTHER] : [])];
-  const totalAvailable = items.filter((i) => i.status === "available").length;
+  const totalAvailable = groups.reduce((sum, g) => sum + g.available, 0);
 
   return (
     <View style={s.container}>
@@ -253,7 +264,7 @@ function GroupCard({ group: g, index, onPress }: { group: Group; index: number; 
   const total = g.units.length;
   const ratio = total ? g.available / total : 0;
   // ข้อความใต้แถบ: มีว่าง = ไม่ต้องพูดซ้ำ (ตัวเลขขวาบอกแล้ว) / ไม่มีว่าง = บอกว่าจะว่างเมื่อไร
-  const note = g.available > 0 ? null : g.nextDue ? `ว่างอีกครั้ง ~${formatDue(g.nextDue)}` : "ไม่ว่างตอนนี้";
+  const note = g.available > 0 ? null : g.nextDue ? `ว่างอีกครั้ง ~${formatDue(g.nextDue)}` : g.held > 0 ? "มีคนขอนัดรับไว้หมดแล้ว" : "ไม่ว่างตอนนี้";
   return (
     <FadeIn delay={Math.min(index, 8) * 40}>
       <PressScale style={s.card} onPress={onPress} scaleTo={0.98} accessibilityLabel={`${g.name} ว่าง ${g.available} จาก ${total}`}>

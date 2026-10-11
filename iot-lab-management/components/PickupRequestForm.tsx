@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, LayoutChangeEvent, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, TextInput } from "./AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -11,14 +11,18 @@ import { C, W, NG } from "../lib/theme";
 // F2 ขอยืมแบบนัดรับ (ระบบยืม-คืน): เลือกรุ่นจากหน้าอุปกรณ์ ไม่ต้องสแกน → ผู้ดูแลนัดเวลาให้
 // กติกาทั้งหมดอยู่ใน RPC request_pickup (โควตา / ของว่างหลังหักนัด / ซ้ำ)
 // เนื้อหาฟอร์ม — แสดงในแผ่นมาตรฐานของ iOS (app/pickup-sheet.tsx, presentation "formSheet")
+//   ScrollView ต้องเต็มแผ่นพอดี (flex 1, ไม่มี padding รอบนอก) — แผ่นของ iOS จับ ScrollView ตัวแรกไปยืดชิดขอบแผ่น
+//   ถ้ามี padding ข้างนอก ScrollView ตัวหนังสือจะชิดซ้ายจนตกขอบ (เจอบน iPhone 11 ต.ค. 2569) → padding อยู่ใน View ข้างในแทน
 export default function PickupRequestForm({
   model,
   onClose,
   onSent,
+  onLayout,
 }: {
   model: { key: string; name: string };
   onClose: () => void;
   onSent: () => void;
+  onLayout?: (e: LayoutChangeEvent) => void; // วัดความสูงเนื้อหาจริง (lib/sheetFit)
 }) {
   const [dayOptions, setDayOptions] = useState<number[]>([3, 5, 7]);
   const [days, setDays] = useState(3);
@@ -60,9 +64,9 @@ export default function PickupRequestForm({
   };
 
   return (
-    <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-      {/* ลากเนื้อหาลง = ซ่อนแป้นพิมพ์ */}
-      <ScrollView contentContainerStyle={{ gap: 10 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+    // ลากเนื้อหาลง = ซ่อนแป้นพิมพ์
+    <ScrollView style={s.fill} showsVerticalScrollIndicator={false} bounces={false} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <View style={[s.sheet, { paddingBottom: Math.max(insets.bottom, 16) }]} onLayout={onLayout}>
         <Text style={s.title}>ขอยืมแบบนัดรับ · {model?.name}</Text>
         <Text style={s.sub}>ไม่มีผู้ดูแลเปิดตู้ตอนนี้? ฝากคำขอไว้ ผู้ดูแลจะนัดเวลาให้</Text>
 
@@ -120,8 +124,8 @@ export default function PickupRequestForm({
             {sending ? <ActivityIndicator color="#fff" /> : <Text style={s.confirmText}>ส่งคำขอนัดรับ</Text>}
           </TouchableOpacity>
         </View>
-      </ScrollView>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
@@ -135,7 +139,8 @@ function InfoRow({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: s
 }
 
 const s = StyleSheet.create({
-  sheet: { backgroundColor: C.surface, paddingHorizontal: 20, paddingTop: 24 },
+  fill: { flex: 1, backgroundColor: C.surface },
+  sheet: { paddingHorizontal: 20, paddingTop: 24, gap: 10 },
   title: { fontSize: 18, fontWeight: "700", color: C.ink },
   sub: { fontSize: 13, color: C.text2, marginTop: -4 },
   label: { fontSize: 13, color: C.text2, marginTop: 2 },

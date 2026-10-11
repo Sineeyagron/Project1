@@ -18,7 +18,7 @@ import supabase from "../../lib/supabase";
 import { isMissingColumn, who } from "../../lib/people";
 import { useRealtime } from "../../lib/realtime";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
-import { notify } from "../../lib/notify";
+import { notify, DialogHost } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import Countdown from "../../components/Countdown";
 import { useRole } from "../../lib/roles";
@@ -338,6 +338,7 @@ export default function AdminRequests() {
             </View>
           )}
         </TouchableOpacity>
+        <DialogHost />
       </Modal>
 
       {/* อนุมัติ / ปฏิเสธ */}
@@ -409,6 +410,7 @@ export default function AdminRequests() {
             </View>
           )}
         </KeyboardAvoidingView>
+        <DialogHost />
       </Modal>
     </View>
   );

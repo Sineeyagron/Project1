@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useRole } from "../../lib/roles";
 import supabase from "../../lib/supabase";
-import { confirmAction, notify } from "../../lib/notify";
+import { confirmAction, notify, DialogHost } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { LAN_STATUS, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
@@ -311,6 +311,7 @@ export default function AdminLanPorts() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+        <DialogHost />
       </Modal>
 
     </View>

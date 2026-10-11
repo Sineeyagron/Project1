@@ -11,7 +11,7 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
-import { notify } from "../../lib/notify";
+import { notify, DialogHost } from "../../lib/notify";
 import { goBack } from "../../lib/nav";
 import { currentUser } from "../../lib/session";
 import { currentTerm } from "../../lib/term";
@@ -510,6 +510,7 @@ export default function InspectionPage() {
             </View>
           </KeyboardAwareScrollView>
         </View>
+        <DialogHost />
       </Modal>
     </View>
   );

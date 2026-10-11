@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, Easing, Modal, Platform, Pressable, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { useKeyboardAnimation } from "react-native-keyboard-controller";
+import { DialogHost } from "../lib/notify";
 
 // แผ่นเลื่อนจากล่าง ใช้ซ้ำทั้งแอป
 // การเลื่อนขึ้น-ลง = แอนิเมชันของ iOS เอง (Modal animationType="slide") — ได้ 120Hz บนจอ ProMotion แม้ใน Expo Go
@@ -66,6 +67,7 @@ export default function BottomSheet({
           {children}
         </Animated.View>
       </View>
+      <DialogHost />
     </Modal>
   );
 }

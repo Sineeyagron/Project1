@@ -18,7 +18,7 @@ import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { ITEM_STATUS, RECORD_STATUS } from "../../lib/status";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
-import { notify } from "../../lib/notify";
+import { notify, DialogHost } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
 import { parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
 import WarrantyDateField, { warrantyBlocked } from "../../components/WarrantyDateField";
@@ -576,6 +576,7 @@ export default function AdminItems() {
             </Pressable>
           </View>
         </View>
+        <DialogHost />
       </Modal>
 
       {/* จำหน่ายออก: ต้องใส่เหตุผล */}
@@ -607,6 +608,7 @@ export default function AdminItems() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+        <DialogHost />
       </Modal>
 
       {/* แก้ประกัน / Serial */}
@@ -644,6 +646,7 @@ export default function AdminItems() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+        <DialogHost />
       </Modal>
 
       {busy && !retireTarget && !editTarget && (

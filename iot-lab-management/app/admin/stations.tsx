@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useRole } from "../../lib/roles";
 import supabase from "../../lib/supabase";
-import { confirmAction, notify } from "../../lib/notify";
+import { confirmAction, notify, DialogHost } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { STATION_STATUS, naturalNo, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
@@ -491,6 +491,7 @@ export default function AdminStations() {
             </View>
           </View>
         </KeyboardAvoidingView>
+        <DialogHost />
       </Modal>
 
       <Modal visible={addModal} transparent animationType="slide">
@@ -529,6 +530,7 @@ export default function AdminStations() {
             </View>
           </View>
         </KeyboardAvoidingView>
+        <DialogHost />
       </Modal>
     </View>
   );

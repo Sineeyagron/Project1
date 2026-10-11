@@ -27,7 +27,8 @@ export type Group = {
   description: string | null;
   location: string;
   units: Unit[];
-  available: number;
+  available: number; // ว่างให้ยืมจริง = ชิ้นสถานะว่าง − ชิ้นที่กันไว้ให้คำขอนัดรับ
+  held: number; // กันไว้ให้คำขอนัดรับ (รอนัด + นัดแล้ว) — RPC pickup_holds
   nextDue: string | null; // ชิ้นที่ถูกยืมและจะคืนเร็วสุด
 };
 

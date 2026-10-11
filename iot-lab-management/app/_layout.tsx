@@ -1,5 +1,6 @@
 import { Stack, usePathname, useRouter } from "expo-router";
 import { useEffect } from "react";
+import { View } from "react-native";
 import * as Linking from "expo-linking";
 import supabase from "../lib/supabase";
 import { DialogHost } from "../lib/notify";
@@ -127,6 +128,7 @@ export default function Layout() {
   // KeyboardProvider: ติดตามแป้นพิมพ์ฝั่ง native ทีละเฟรม (แผ่นเลื่อน/หน้าต่างเด้ง/หน้าเลื่อน หลบแป้นได้ลื่น — react-native-keyboard-controller)
   return (
     <KeyboardProvider>
+    <View style={{ flex: 1 }}>
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
       {/* Auth */}
       <Stack.Screen name="login" />
@@ -149,8 +151,9 @@ export default function Layout() {
       {/* Admin — ทุกหน้าใน app/admin/ ผ่านด่านเช็กสิทธิ์ใน app/admin/_layout.tsx */}
       <Stack.Screen name="admin" />
     </Stack>
-    {/* หน้าต่างแจ้งเตือน/ยืนยันของ notify() / confirmAction() บนเว็บ */}
+    {/* ป๊อปอัปของ notify() / confirmAction() ทั้งแอป (ในหน้าต่าง Modal มี DialogHost ของตัวเอง) */}
     <DialogHost />
+    </View>
     </KeyboardProvider>
   );
 }

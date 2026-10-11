@@ -18,7 +18,7 @@ import supabase from "../../lib/supabase";
 import { fetchPeople, who } from "../../lib/people";
 import { ITEM_STATUS, RECORD_STATUS as RECORD_STYLE } from "../../lib/status";
 import { goBack } from "../../lib/nav";
-import { notify } from "../../lib/notify";
+import { notify, DialogHost } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import { ageText, thaiDate, warrantyInfo } from "../../lib/itemInfo";
 import { W, NG } from "../../lib/theme";
@@ -395,6 +395,7 @@ export default function AdminLookup() {
             </>
           )}
         </TouchableOpacity>
+        <DialogHost />
       </Modal>
     </View>
   );
