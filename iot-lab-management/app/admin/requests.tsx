@@ -8,9 +8,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-  Platform,
 } from "react-native";
-import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -25,6 +24,7 @@ import { useRole } from "../../lib/roles";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import PickupInbox from "../../components/PickupInbox";
+import BottomSheet from "../../components/BottomSheet";
 
 // กล่องคำขอของผู้ดูแล: อนุมัติ / ปฏิเสธ คำขอยืม-คืน-ยืมต่อ (แผน 2.4, 2.6)
 // การตัดสินทั้งหมดผ่าน RPC decide_request (ตรวจสิทธิ์ + ล็อกแถวในฐานข้อมูล)
@@ -341,11 +341,10 @@ export default function AdminRequests() {
         <DialogHost />
       </Modal>
 
-      {/* อนุมัติ / ปฏิเสธ */}
-      <Modal visible={!!decision} transparent animationType="fade" onRequestClose={() => setDecision(null)}>
-        <KeyboardAvoidingView style={s.backdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      {/* อนุมัติ / ปฏิเสธ = แผ่น iOS แท้ (components/BottomSheet) */}
+      <BottomSheet visible={!!decision} onClose={() => { if (!saving) setDecision(null); }} style={s.sheet}>
           {decision && (
-            <View style={s.sheet}>
+            <View style={s.sheetBody}>
               <Text style={s.sheetTitle}>
                 {decision.approve
                   ? decision.req.kind === "return" ? "ตรวจสภาพตอนคืน" : `อนุมัติ${KIND[decision.req.kind].label}`
@@ -409,9 +408,7 @@ export default function AdminRequests() {
               </TouchableOpacity>
             </View>
           )}
-        </KeyboardAvoidingView>
-        <DialogHost />
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }
@@ -490,7 +487,8 @@ const s = StyleSheet.create({
   zoomStamp: { color: "#fff", fontSize: 14, fontWeight: "800" },
 
   backdrop: { flex: 1, backgroundColor: "rgba(15,23,42,0.45)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 28, gap: 10 },
+  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 28 },
+  sheetBody: { gap: 10 },
   sheetTitle: { fontSize: 18, fontWeight: "900", color: C.ink },
   label: { fontSize: 12, fontWeight: "800", color: C.muted },
   chipRow: { flexDirection: "row", gap: 8 },

@@ -13,6 +13,7 @@
 - นำทาง `lib/nav.ts`: ← = `goBack(fallback)` (ห้าม `router.replace` เป็นปุ่มย้อน) / แถบล่าง นศ. `goTab` / หน้าที่ต้องสดตอนกลับมา `useRefreshOnFocus(load)`
 - user ที่ล็อกอิน: `currentUser()` (lib/session) ไม่ใช่ `auth.getUser()` (ยิงเซิร์ฟเวอร์ กิน Disk IO แพ็กเกจฟรี)
 - แป้นพิมพ์: `react-native-keyboard-controller` (`KeyboardProvider` ใน `_layout`, `KeyboardAwareScrollView`)
+- **แผ่นล่างจอทุกอันใช้ `<BottomSheet visible onClose style>`** (components/BottomSheet) = เปิดแผ่น iOS แท้ผ่าน route `app/sheet-host.tsx` + `lib/sheetHost` (120Hz, ฉากมืดระบบ, ปัดลงปิด) — ห้ามทำแผ่นเองด้วย `<Modal>` (ใช้ `<Modal>` ได้เฉพาะของเต็มจอ เช่น ซูมรูป) · เนื้อหาห้ามมี ScrollView แนวตั้งซ้อน
 - แผ่น iOS (`presentation: "formSheet"`, `SHEET` ใน `_layout`): ความสูงพอดีเนื้อหาด้วย `lib/sheetFit` · **ScrollView ต้องเป็นรากของแผ่นเลย** (ห้ามห่อ View → แผ่นขาว / ห้าม padding นอก ScrollView → ตัวหนังสือตกขอบ / ห้ามมี ScrollView ซ้อนข้างใน → ยืดทับ) ดูตัวอย่าง `app/equipment-sheet.tsx`
 - รูปก่อนอัปโหลด: `lib/shrinkPhoto.ts` (อุปกรณ์ 1000px, หลักฐานยืม 1600px) · รูปแสดงผลใช้ `expo-image`
 - วันหมดประกัน: ช่องกรอก วว/ดด/ปปปป พ.ศ. (`components/WarrantyDateField`, `parseThaiDate`/`toThaiDateInput` ใน lib/itemInfo) — DB เก็บ ค.ศ. `date`

@@ -1,25 +1,23 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   ActivityIndicator,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
-  Platform,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { fetchRoomPeople } from "../../lib/roomPeople";
-import { notify, DialogHost } from "../../lib/notify";
+import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRealtime } from "../../lib/realtime";
 import LoadError from "../../components/LoadError";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import BottomSheet from "../../components/BottomSheet";
 
 // คิวคำแจ้งปัญหาจากนักศึกษา (ระบบห้อง R3) — Admin/TA รับเป็นงานซ่อม หรือปิดพร้อมเหตุผล
 // ตัดสินผ่าน RPC decide_room_report (รับเครื่อง = สร้างงานซ่อม + เครื่องเป็น "กำลังซ่อม" / รับ LAN = port เป็น "กำลังซ่อม")
@@ -141,6 +139,11 @@ export default function RoomReports() {
     load();
   };
 
+  // แผ่นค่อยๆ เลื่อนลงหลังกดยกเลิก/บันทึก (decision = null แล้ว) → แสดงค่าล่าสุดต่อ ไม่ให้ข้อความเปลี่ยนแวบ
+  const lastDecision = useRef(decision);
+  if (decision) lastDecision.current = decision;
+  const shownDecision = decision ?? lastDecision.current;
+
   return (
     <View style={s.container}>
       <ScreenHeader
@@ -217,19 +220,17 @@ export default function RoomReports() {
         </ScrollView>
       )}
 
-      <Modal visible={!!decision} transparent animationType="slide">
-        <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={s.modalBox}>
+      <BottomSheet visible={!!decision} onClose={() => { if (!saving) setDecision(null); }} style={s.modalBox}>
             <Text style={s.modalTitle}>
-              {decision?.accept ? "รับเป็นงานซ่อม" : "ปิดคำแจ้ง"} · {decision?.report.room_id} {decision?.report.label}
+              {shownDecision?.accept ? "รับเป็นงานซ่อม" : "ปิดคำแจ้ง"} · {shownDecision?.report.room_id} {shownDecision?.report.label}
             </Text>
-            <Text style={s.modalDesc}>"{decision?.report.description}"</Text>
-            <Text style={s.fieldLabel}>{decision?.accept ? "หมายเหตุ (ไม่บังคับ)" : "เหตุผล * (ผู้แจ้งจะเห็น)"}</Text>
+            <Text style={s.modalDesc}>"{shownDecision?.report.description}"</Text>
+            <Text style={s.fieldLabel}>{shownDecision?.accept ? "หมายเหตุ (ไม่บังคับ)" : "เหตุผล * (ผู้แจ้งจะเห็น)"}</Text>
             <TextInput
               style={s.input}
               value={note}
               onChangeText={setNote}
-              placeholder={decision?.accept ? "เช่น จะเข้าไปดูพรุ่งนี้" : "เช่น เครื่องปกติ ลองรีสตาร์ทแล้วใช้ได้"}
+              placeholder={shownDecision?.accept ? "เช่น จะเข้าไปดูพรุ่งนี้" : "เช่น เครื่องปกติ ลองรีสตาร์ทแล้วใช้ได้"}
               placeholderTextColor="#94a3b8"
               multiline
               maxLength={300}
@@ -239,19 +240,16 @@ export default function RoomReports() {
                 <Text style={s.closeBtnText}>ยกเลิก</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[decision?.accept ? s.acceptBtn : s.rejectBtn, saving && { opacity: 0.6 }]}
+                style={[shownDecision?.accept ? s.acceptBtn : s.rejectBtn, saving && { opacity: 0.6 }]}
                 onPress={submitDecision}
                 disabled={saving}
               >
                 {saving ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={s.acceptBtnText}>{decision?.accept ? "ยืนยันรับเรื่อง" : "ยืนยันปิด"}</Text>
+                  <Text style={s.acceptBtnText}>{shownDecision?.accept ? "ยืนยันรับเรื่อง" : "ยืนยันปิด"}</Text>
                 )}
               </TouchableOpacity>
             </View>
-          </View>
-        </KeyboardAvoidingView>
-        <DialogHost />
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }

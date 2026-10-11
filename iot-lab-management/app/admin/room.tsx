@@ -1,21 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
-  Platform,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
-import { confirmAction, notify, DialogHost } from "../../lib/notify";
+import { confirmAction, notify } from "../../lib/notify";
 import { STATION_STATUS } from "../../lib/roomStatus";
 import { ROOM_CODE_RE, Room, fetchRooms, roomPlace } from "../../lib/rooms";
 import LoadError from "../../components/LoadError";
@@ -23,6 +20,7 @@ import { useRole } from "../../lib/roles";
 import { useRoomLive } from "../../lib/roomRealtime";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import BottomSheet from "../../components/BottomSheet";
 
 const C = {
   bg: "#EAF1FC",
@@ -307,7 +305,7 @@ export default function AdminRoom() {
                   </View>
 
                   <View style={s.actionRow}>
-                    <ActionButton icon="map-outline" label="ผังห้อง" onPress={() => router.push({ pathname: "/roommap", params: { room_id: room.id } } as any)} />
+                    <ActionButton icon="map-outline" label="ผังห้อง" onPress={() => router.push({ pathname: "/roommap", params: { room_id: room.id, from: "admin" } } as any)} />
                     <ActionButton icon="desktop-outline" label="จัดการเครื่อง" onPress={() => router.push({ pathname: "/admin/stations", params: { room_id: room.id } } as any)} />
                     <ActionButton icon="git-network-outline" label="LAN Port" onPress={() => router.push({ pathname: "/admin/lanports", params: { room_id: room.id } } as any)} />
                   </View>
@@ -320,9 +318,7 @@ export default function AdminRoom() {
         </ScrollView>
       )}
 
-      <Modal visible={roomModal} transparent animationType="slide">
-        <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={s.modalBox}>
+      <BottomSheet visible={roomModal} onClose={() => setRoomModal(false)} style={s.modalBox}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>{editing ? `แก้ไขห้อง ${editing.room.id}` : "เพิ่มห้องใหม่"}</Text>
               <TouchableOpacity onPress={() => setRoomModal(false)}>
@@ -362,10 +358,7 @@ export default function AdminRoom() {
                 </TouchableOpacity>
               </View>
             ) : null}
-          </View>
-        </KeyboardAvoidingView>
-        <DialogHost />
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }

@@ -1,21 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
-  Platform,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useRole } from "../../lib/roles";
 import supabase from "../../lib/supabase";
-import { confirmAction, notify, DialogHost } from "../../lib/notify";
+import { confirmAction, notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { STATION_STATUS, naturalNo, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
@@ -23,6 +20,7 @@ import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { useRoomLive } from "../../lib/roomRealtime";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import BottomSheet from "../../components/BottomSheet";
 
 const C = {
   bg: "#EAF1FC",
@@ -437,9 +435,7 @@ export default function AdminStations() {
         </ScrollView>
       )}
 
-      <Modal visible={editModal} transparent animationType="slide">
-        <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={s.modalBox}>
+      <BottomSheet visible={editModal} onClose={() => setEditModal(false)} style={s.modalBox}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>แก้ไขเครื่องคอม</Text>
               <TouchableOpacity onPress={() => setEditModal(false)}>
@@ -489,14 +485,9 @@ export default function AdminStations() {
                 <Text style={s.deleteBtnText}>ลบ / ปิดใช้งาน</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </KeyboardAvoidingView>
-        <DialogHost />
-      </Modal>
+      </BottomSheet>
 
-      <Modal visible={addModal} transparent animationType="slide">
-        <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={s.modalBox}>
+      <BottomSheet visible={addModal} onClose={() => setAddModal(false)} style={s.modalBox}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>เพิ่มเครื่องคอม · ห้อง {selectedRoom}</Text>
               <TouchableOpacity onPress={() => setAddModal(false)}>
@@ -528,10 +519,7 @@ export default function AdminStations() {
                 {editSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>เพิ่มเครื่อง</Text>}
               </TouchableOpacity>
             </View>
-          </View>
-        </KeyboardAvoidingView>
-        <DialogHost />
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }

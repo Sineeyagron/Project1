@@ -1,16 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
-  Platform,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import SearchBar from "../../components/SearchBar";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,13 +15,14 @@ import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { ITEM_STATUS, RECORD_STATUS } from "../../lib/status";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
-import { notify, DialogHost } from "../../lib/notify";
+import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
 import { parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
 import WarrantyDateField, { warrantyBlocked } from "../../components/WarrantyDateField";
 import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import BottomSheet from "../../components/BottomSheet";
 
 const C = {
   bg: "#EAF1FC",
@@ -553,12 +551,8 @@ export default function AdminItems() {
         </ScrollView>
       )}
 
-      {/* เมนูจัดการ (ใช้แทน Alert ที่ไม่ทำงานบนเว็บ) */}
-      {/* ไม่ซ้อนปุ่มในปุ่ม: พื้นหลังกดปิดเป็นชั้นแยก อยู่ "ข้าง" แผ่นเมนู (บนมือถือปุ่มชั้นนอกแย่งการกด) */}
-      <Modal visible={!!sheet} transparent animationType="fade" onRequestClose={() => setSheet(null)}>
-        <View style={s.backdrop}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSheet(null)} accessibilityLabel="ปิดเมนู" />
-          <View style={s.sheet}>
+      {/* เมนูจัดการ = แผ่น iOS แท้ (components/BottomSheet) · เนื้อหาเปลี่ยนในแผ่นเดิมได้ (เช่น เมนู → รายการหมวด) */}
+      <BottomSheet visible={!!sheet} onClose={() => setSheet(null)} style={s.sheet}>
             <Text style={s.sheetTitle}>{sheet?.title}</Text>
             {!!sheet?.message && <Text style={s.sheetMessage}>{sheet.message}</Text>}
             {sheet?.actions.map((a) => (
@@ -574,15 +568,10 @@ export default function AdminItems() {
             <Pressable style={s.sheetCancel} onPress={() => setSheet(null)}>
               <Text style={s.sheetCancelText}>ปิด</Text>
             </Pressable>
-          </View>
-        </View>
-        <DialogHost />
-      </Modal>
+      </BottomSheet>
 
       {/* จำหน่ายออก: ต้องใส่เหตุผล */}
-      <Modal visible={!!retireTarget} transparent animationType="fade" onRequestClose={() => setRetireTarget(null)}>
-        <KeyboardAvoidingView style={s.backdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={s.sheet}>
+      <BottomSheet visible={!!retireTarget} onClose={() => { if (!busy) setRetireTarget(null); }} style={s.sheet}>
             <Text style={s.sheetTitle}>จำหน่ายออก {retireTarget && label(retireTarget)}</Text>
             <Text style={s.sheetMessage}>
               ของจะหายจากสต็อกและหน้ายืม แต่ยังอยู่ในประวัติ/รายงาน รหัสเดิมไม่ถูกนำกลับมาใช้
@@ -606,15 +595,10 @@ export default function AdminItems() {
             <TouchableOpacity style={s.sheetCancel} onPress={() => setRetireTarget(null)} activeOpacity={0.8}>
               <Text style={s.sheetCancelText}>ยกเลิก</Text>
             </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-        <DialogHost />
-      </Modal>
+      </BottomSheet>
 
       {/* แก้ประกัน / Serial */}
-      <Modal visible={!!editTarget} transparent animationType="fade" onRequestClose={() => setEditTarget(null)}>
-        <KeyboardAvoidingView style={s.backdrop} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={s.sheet}>
+      <BottomSheet visible={!!editTarget} onClose={() => { if (!busy) setEditTarget(null); }} style={s.sheet}>
             <Text style={s.sheetTitle}>แก้ข้อมูล {editTarget && label(editTarget)}</Text>
             <Text style={s.sheetMessage}>
               ตอนนี้: {editTarget?.warranty_expires_at ? `ประกันถึง ${thaiDate(editTarget.warranty_expires_at)}` : "ไม่มีประกัน"}
@@ -644,10 +628,7 @@ export default function AdminItems() {
             <TouchableOpacity style={s.sheetCancel} onPress={() => setEditTarget(null)} activeOpacity={0.8}>
               <Text style={s.sheetCancelText}>ยกเลิก</Text>
             </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-        <DialogHost />
-      </Modal>
+      </BottomSheet>
 
       {busy && !retireTarget && !editTarget && (
         <View style={s.busyOverlay} pointerEvents="none">

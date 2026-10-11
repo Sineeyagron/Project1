@@ -44,7 +44,6 @@ export default function ConfirmRulesSheet({
 
   return (
     <BottomSheet visible={visible} onClose={submitting ? () => {} : onClose} style={s.sheet}>
-      <View style={s.handle} />
       <Text style={s.title}>{title}</Text>
 
       {item ? (
@@ -79,14 +78,14 @@ export default function ConfirmRulesSheet({
       <Text style={s.rulesTitle}>กฎการยืม-คืน</Text>
       <View style={s.rulesBox}>
         {rules ? (
-          <ScrollView nestedScrollEnabled contentContainerStyle={{ padding: 12, gap: 6 }}>
+          <View style={{ padding: 12, gap: 6 }}>
             {rules.map((t, i) => (
               <View key={i} style={s.rule}>
                 <Text style={s.ruleNo}>{i + 1}.</Text>
                 <Text style={s.ruleText}>{t}</Text>
               </View>
             ))}
-          </ScrollView>
+          </View>
         ) : (
           <ActivityIndicator color={C.primary} style={{ margin: 16 }} />
         )}
@@ -123,7 +122,8 @@ export default function ConfirmRulesSheet({
 }
 
 const s = StyleSheet.create({
-  sheet: { ...W.sheet, padding: 20, paddingTop: 0, paddingBottom: 36, gap: 10, maxHeight: "88%" },
+  // แผ่น iOS แท้ (BottomSheet) มีขีดจับ/พื้น/มุมโค้งให้เอง
+  sheet: { padding: 20, paddingTop: 18, gap: 10 },
   handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: "#CBD5E1", marginTop: 10, marginBottom: 2 },
   title: { fontSize: 18, fontWeight: "700", color: C.ink },
 
@@ -140,7 +140,7 @@ const s = StyleSheet.create({
   rowOld: { color: C.faint, fontWeight: "400", textDecorationLine: "line-through" },
 
   rulesTitle: { fontSize: 14, fontWeight: "700", color: C.ink, marginTop: 2 },
-  rulesBox: { maxHeight: 250, borderRadius: 14, borderWidth: 1, borderColor: C.border, backgroundColor: "#F8FAFF" },
+  rulesBox: { borderRadius: 14, borderWidth: 1, borderColor: C.border, backgroundColor: "#F8FAFF" },
   rule: { flexDirection: "row", gap: 6 },
   ruleNo: { width: 18, fontSize: 13, lineHeight: 20, color: C.primary, fontWeight: "700" },
   ruleText: { flex: 1, fontSize: 13, lineHeight: 20, color: C.text2 },

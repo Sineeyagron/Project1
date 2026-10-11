@@ -79,6 +79,8 @@ export default function Layout() {
       {/* แผ่นรายละเอียดรุ่น (หน้าอุปกรณ์) + แผ่นขอยืมแบบนัดรับ (F2) */}
       <Stack.Screen name="equipment-sheet" options={SHEET} />
       <Stack.Screen name="pickup-sheet" options={SHEET} />
+      {/* แผ่นของ <BottomSheet> ทุกตัว (components/BottomSheet → lib/sheetHost) */}
+      <Stack.Screen name="sheet-host" options={SHEET} />
       {/* Admin — ทุกหน้าใน app/admin/ ผ่านด่านเช็กสิทธิ์ใน app/admin/_layout.tsx */}
       <Stack.Screen name="admin" />
     </Stack>

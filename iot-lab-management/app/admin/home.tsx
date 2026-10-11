@@ -185,7 +185,7 @@ export default function AdminHome() {
   // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
   useRefreshOnFocus(() => { fetchDashboard(); });
 
-  // แจ้งเตือนที่ยังไม่อ่าน (ประกัน/อายุ/คำขอ ฯลฯ) — นับใหม่ทุกครั้งที่กลับมาหน้านี้
+  // แจ้งเตือนงานผู้ดูแลที่ยังไม่อ่าน (ประกัน/อายุ/เกินกำหนด/คำแจ้งห้อง + สิทธิ์ TA) — เรื่องของตัวเองนับที่แถบโหมดนักศึกษา
   const refreshUnread = useCallback(async () => {
     const user = await currentUser();
     if (!user) return;
@@ -193,6 +193,7 @@ export default function AdminHome() {
       .from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("user_id", user.id)
+      .or("for_staff.eq.true,type.eq.role_changed")
       .eq("read", false);
     setUnread(count || 0);
   }, []);

@@ -2,24 +2,22 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
-  Platform,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { currentUser } from "../../lib/session";
-import { notify, DialogHost } from "../../lib/notify";
+import { notify } from "../../lib/notify";
 import { goBack } from "../../lib/nav";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import BottomSheet from "../../components/BottomSheet";
 
 const C = {
   bg: "#f4f4f7",
@@ -333,9 +331,7 @@ export default function IotInspectionPage() {
         )}
       </ScrollView>
 
-      <Modal visible={formModal} transparent animationType="slide">
-        <KeyboardAvoidingView style={s.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={s.modalBox}>
+      <BottomSheet visible={formModal} onClose={() => setFormModal(false)} style={s.modalBox}>
             <View style={s.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={s.modalTitle}>{formItem?.name || "อุปกรณ์"}</Text>
@@ -383,10 +379,7 @@ export default function IotInspectionPage() {
                 </>
               )}
             </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-        <DialogHost />
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }

@@ -6,16 +6,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Modal,
-  Platform,
 } from "react-native";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { useRole } from "../../lib/roles";
 import supabase from "../../lib/supabase";
-import { confirmAction, notify, DialogHost } from "../../lib/notify";
+import { confirmAction, notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { LAN_STATUS, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
@@ -24,6 +21,7 @@ import { useRoomLive } from "../../lib/roomRealtime";
 import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import BottomSheet from "../../components/BottomSheet";
 
 // กด port = เปลี่ยนสถานะวนตามลำดับนี้
 const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
@@ -46,7 +44,7 @@ export default function AdminLanPorts() {
   // ห้อง/กลุ่มล่าสุดที่เลือก — กันผลโหลดเก่า (ตอบช้า) มาทับตอนสลับเร็วๆ
   const viewRef = useRef("");
 
-  // Modal เพิ่ม port
+  // แผ่นเพิ่ม port
   const [addModal, setAddModal]   = useState(false);
   const [newPortNo, setNewPortNo] = useState("");
   const [newLabel, setNewLabel]   = useState("");
@@ -273,9 +271,7 @@ export default function AdminLanPorts() {
       )}
 
       {/* ADD MODAL */}
-      <Modal visible={addModal} transparent animationType="slide">
-        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={styles.modalBox}>
+      <BottomSheet visible={addModal} onClose={() => setAddModal(false)} style={styles.modalBox}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>เพิ่ม Port ใหม่</Text>
               <TouchableOpacity onPress={() => setAddModal(false)}>
@@ -309,10 +305,7 @@ export default function AdminLanPorts() {
                 : <Text style={styles.addBtnTxt}>เพิ่ม Port</Text>
               }
             </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-        <DialogHost />
-      </Modal>
+      </BottomSheet>
 
     </View>
   );

@@ -1,20 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
-  Platform,
 } from "react-native";
-import { KeyboardAvoidingView, KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { fetchRoomPeople } from "../../lib/roomPeople";
-import { notify, DialogHost } from "../../lib/notify";
+import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { REPAIR_STATUS, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
@@ -22,6 +19,7 @@ import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { naturalNo } from "../../lib/roomStatus";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import BottomSheet from "../../components/BottomSheet";
 
 const C = {
   bg: "#EAF1FC",
@@ -327,14 +325,11 @@ export default function RepairsPage() {
           <Ionicons name="add" size={18} color="#FFFFFF" />
           <Text style={s.bottomAddText}>แจ้งซ่อมใหม่</Text>
         </TouchableOpacity>
-        <View style={s.downFab}>
-          <Ionicons name="arrow-down" size={18} color="#64748b" />
-        </View>
       </View>
 
-      <Modal visible={addModal} transparent animationType="slide">
-        <View style={s.overlay}>
-          <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.modalBox} keyboardShouldPersistTaps="handled">
+      {/* แผ่น iOS แท้ (components/BottomSheet) — รากแผ่นเลื่อนได้อยู่แล้ว ห้ามมี ScrollView แนวตั้งซ้อน */}
+      <BottomSheet visible={addModal} onClose={() => setAddModal(false)} style={s.modalBox}>
+          <View>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>แจ้งซ่อมใหม่</Text>
               <TouchableOpacity style={s.closeBtn} onPress={() => setAddModal(false)}>
@@ -396,14 +391,10 @@ export default function RepairsPage() {
                 </>
               )}
             </TouchableOpacity>
-          </KeyboardAwareScrollView>
-        </View>
-        <DialogHost />
-      </Modal>
+          </View>
+      </BottomSheet>
 
-      <Modal visible={updateModal} transparent animationType="slide">
-        <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <View style={s.modalBox}>
+      <BottomSheet visible={updateModal} onClose={() => setUpdateModal(false)} style={s.modalBox}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>อัปเดตสถานะ</Text>
               <TouchableOpacity style={s.closeBtn} onPress={() => setUpdateModal(false)}>
@@ -450,10 +441,7 @@ export default function RepairsPage() {
                 </>
               )}
             </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-        <DialogHost />
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }
@@ -594,23 +582,7 @@ const s = StyleSheet.create({
     gap: 8,
   },
   bottomAddText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
-  downFab: {
-    position: "absolute",
-    alignSelf: "center",
-    bottom: -10,
-    width: 35,
-    height: 35,
-    borderRadius: 18,
-    backgroundColor: "#ffffff",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.16,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  overlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.42)", justifyContent: "flex-end" },
+
   modalBox: {
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 24,

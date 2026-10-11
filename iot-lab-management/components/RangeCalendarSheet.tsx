@@ -97,7 +97,6 @@ export default function RangeCalendarSheet({
 
   return (
     <BottomSheet visible={visible} onClose={onClose} style={s.sheet}>
-      <View style={s.handle} />
 
       {/* ช่องที่กำลังแก้ */}
       <View style={s.seg}>
@@ -237,7 +236,8 @@ export default function RangeCalendarSheet({
 }
 
 const s = StyleSheet.create({
-  sheet: { ...W.sheet, paddingHorizontal: 16, paddingBottom: 32 },
+  // แผ่น iOS แท้ (BottomSheet) มีขีดจับ/พื้น/มุมโค้งให้เอง
+  sheet: { paddingHorizontal: 16, paddingTop: 14 },
   handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: "#CBD5E1", marginTop: 10, marginBottom: 10 },
   seg: { flexDirection: "row", gap: 10 },
   segBox: { flex: 1, borderRadius: 14, borderWidth: 1.5, borderColor: C.border, backgroundColor: "#F8FAFF", paddingVertical: 8, paddingHorizontal: 12 },

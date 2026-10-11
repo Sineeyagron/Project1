@@ -1,17 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
-import { notify, DialogHost } from "../../lib/notify";
+import { notify } from "../../lib/notify";
 import { goBack } from "../../lib/nav";
 import { currentUser } from "../../lib/session";
 import { currentTerm } from "../../lib/term";
@@ -20,6 +18,7 @@ import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import BottomSheet from "../../components/BottomSheet";
 
 const EQUIP_TYPES = ["mouse", "keyboard", "monitor"] as const;
 type EquipType = (typeof EQUIP_TYPES)[number];
@@ -425,9 +424,9 @@ export default function InspectionPage() {
         <View style={{ height: 28 }} />
       </ScrollView>
 
-      <Modal visible={formModal} transparent animationType="slide">
-        <View style={st.modalOverlay}>
-          <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={st.modalScroll} keyboardShouldPersistTaps="handled">
+      {/* แผ่น iOS แท้ (components/BottomSheet) — รากแผ่นเลื่อนได้อยู่แล้ว ห้ามมี ScrollView แนวตั้งซ้อน */}
+      <BottomSheet visible={formModal} onClose={() => setFormModal(false)}>
+          <View>
             <View style={st.modalBox}>
               <View style={st.modalHeader}>
                 <View>
@@ -508,10 +507,8 @@ export default function InspectionPage() {
                 )}
               </TouchableOpacity>
             </View>
-          </KeyboardAwareScrollView>
-        </View>
-        <DialogHost />
-      </Modal>
+          </View>
+      </BottomSheet>
     </View>
   );
 }
@@ -721,7 +718,6 @@ const st = StyleSheet.create({
     backgroundColor: "rgba(15,23,42,0.45)",
     justifyContent: "flex-end",
   },
-  modalScroll: { flexGrow: 1, justifyContent: "flex-end" },
   modalBox: {
     backgroundColor: "#fff",
     borderTopLeftRadius: 24,

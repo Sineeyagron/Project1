@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Image,
   ActivityIndicator,
-  Modal,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../components/AppText";
@@ -14,14 +13,7 @@ import supabase from "../lib/supabase";
 import { authErrorThai, PASSWORD_HINT, passwordProblem } from "../lib/password";
 import { goBack } from "../lib/nav";
 import { W } from "../lib/theme";
-import { DialogHost } from "../lib/notify";
-
-type ResultState = {
-  visible: boolean;
-  type: "success" | "error";
-  title: string;
-  message: string;
-};
+import { notify } from "../lib/notify";
 
 export default function ResetPassword() {
   // เปลี่ยนรหัสผ่านจากหน้าโปรไฟล์ (ต้องล็อกอิน) — ระบบลืมรหัสผ่านทางอีเมลถอดออกแล้ว (12 ต.ค. 2569)
@@ -31,15 +23,10 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [result, setResult] = useState<ResultState>({
-    visible: false,
-    type: "success",
-    title: "",
-    message: "",
-  });
 
+  // ผลลัพธ์ = ป๊อปอัปของแอป (lib/notify) เหมือนทั้งแอป · สำเร็จ → กดโอเคแล้วกลับหน้าโปรไฟล์
   const showResult = (type: "success" | "error", title: string, message: string) => {
-    setResult({ visible: true, type, title, message });
+    notify(title, message, type === "success" ? () => goBack("/profile") : undefined);
   };
 
   const handleReset = async () => {
@@ -76,13 +63,6 @@ export default function ResetPassword() {
     showResult("success", "เปลี่ยนรหัสสำเร็จ", "ครั้งหน้าใช้รหัสผ่านใหม่เข้าสู่ระบบ");
   };
 
-  const handleCloseModal = () => {
-    const wasSuccess = result.type === "success";
-    setResult({ ...result, visible: false });
-    if (wasSuccess) {
-      goBack("/profile");
-    }
-  };
 
   return (
     <View style={styles.container}>
@@ -181,45 +161,6 @@ export default function ResetPassword() {
 
       </KeyboardAwareScrollView>
 
-      {/* RESULT MODAL */}
-      <Modal
-        visible={result.visible}
-        transparent
-        animationType="fade"
-        onRequestClose={handleCloseModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
-            <View
-              style={[
-                styles.modalIconCircle,
-                { backgroundColor: result.type === "success" ? "#ECFDF5" : "#fee2e2" },
-              ]}
-            >
-              <Ionicons
-                name={result.type === "success" ? "checkmark-circle" : "alert-circle"}
-                size={48}
-                color={result.type === "success" ? "#047857" : "#dc2626"}
-              />
-            </View>
-            <Text style={styles.modalTitle}>{result.title}</Text>
-            <Text style={styles.modalMessage}>{result.message}</Text>
-            <TouchableOpacity
-              style={[
-                styles.modalBtn,
-                { backgroundColor: result.type === "success" ? "#047857" : "#1D4ED8" },
-              ]}
-              onPress={handleCloseModal}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.modalBtnTxt}>
-                {result.type === "success" ? "ไปเข้าสู่ระบบ" : "ตกลง"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-        <DialogHost />
-      </Modal>
     </View>
   );
 }
@@ -326,47 +267,4 @@ const styles = StyleSheet.create({
   },
 
   // ── MODAL ──
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(15,23,42,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalBox: {
-    ...W.card,
-    width: "100%",
-    maxWidth: 360,
-    padding: 24,
-    alignItems: "center",
-  },
-  modalIconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#1e293b",
-    marginBottom: 6,
-    textAlign: "center",
-  },
-  modalMessage: {
-    fontSize: 13,
-    color: "#475569",
-    textAlign: "center",
-    marginBottom: 20,
-    lineHeight: 19,
-  },
-  modalBtn: {
-    width: "100%",
-    paddingVertical: 13,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  modalBtnTxt: { color: "#fff", fontSize: 14, fontWeight: "700" },
 });
