@@ -191,7 +191,7 @@ export default function ManageTA() {
           <View style={s.card}>
             <SearchBar value={query} onChangeText={setQuery} placeholder="ค้นหาชื่อ อีเมล หรือรหัส นศ." style={{ marginBottom: 6 }} />
             {candidates.length === 0 && (
-              <Text style={s.empty}>{q ? "ไม่พบผู้ใช้นี้ (ต้องสมัครแอปก่อน)" : "ยังไม่มีผู้ใช้"}</Text>
+              <Text style={s.empty}>{q ? "ไม่พบผู้ใช้นี้ (ต้องเข้าสู่ระบบแอปครั้งแรกก่อน)" : "ยังไม่มีผู้ใช้"}</Text>
             )}
             {candidates.map((p) => (
               <View key={p.id}>

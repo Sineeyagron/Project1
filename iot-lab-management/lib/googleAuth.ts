@@ -42,8 +42,11 @@ function readParams(url: string) {
   return out;
 }
 
-export async function signInWithGoogle(): Promise<{ ok?: boolean; cancelled?: boolean; error?: string }> {
-  const queryParams = { hd: ALLOWED_DOMAIN, prompt: "select_account" };
+// loginHint = อีเมล kkumail ที่พิมพ์ในหน้า login แล้ว → Google กรอกอีเมลให้ ใส่แค่รหัส
+export async function signInWithGoogle(loginHint?: string): Promise<{ ok?: boolean; cancelled?: boolean; error?: string }> {
+  const queryParams: Record<string, string> = loginHint
+    ? { hd: ALLOWED_DOMAIN, login_hint: loginHint }
+    : { hd: ALLOWED_DOMAIN, prompt: "select_account" };
 
   if (Platform.OS === "web") {
     const { error } = await supabase.auth.signInWithOAuth({

@@ -1,7 +1,6 @@
 import { Stack, usePathname, useRouter } from "expo-router";
 import { useEffect } from "react";
 import { View } from "react-native";
-import * as Linking from "expo-linking";
 import supabase from "../lib/supabase";
 import { DialogHost } from "../lib/notify";
 import { applyRememberLogin } from "../lib/session";
@@ -12,7 +11,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import type { NativeStackNavigationOptions } from "expo-router";
 
 // หน้าที่เปิดได้โดยไม่ต้องล็อกอิน (หน้าอื่นทั้งหมดต้องล็อกอิน — หน้า /admin มีด่านของตัวเองใน app/admin/_layout.tsx)
-const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/forgot", "/reset-password"]);
+const PUBLIC_PATHS = new Set(["/", "/login"]);
 
 // แผ่นมาตรฐานของ iOS (UISheetPresentationController ผ่าน react-native-screens): ขีดจับ + ปัดลงปิด
 //   iOS เลื่อนแผ่น/จางฉากเทาเอง → 120Hz แม้ใน Expo Go (แผ่นที่เลื่อนด้วย Animated ถูกจำกัด 60Hz = รู้สึกหน่วง) — เจ้าของโปรเจกต์เลือก 11 ต.ค. 2569
@@ -46,80 +45,13 @@ export default function Layout() {
     // ไม่ได้ติ๊ก "จดจำการเข้าสู่ระบบ" ตอนล็อกอินครั้งก่อน → ออกจากระบบตอนเปิดแอปใหม่
     applyRememberLogin();
 
-    // ── วิธีที่ 1: onAuthStateChange ─────────────────────────────────────
-    // Supabase SDK จะ "ฟัง" อยู่ตลอดว่ามี session เปลี่ยนแปลงไหม
-    // เมื่อ user กดลิงก์รีเซ็ตรหัส → event จะเป็น "PASSWORD_RECOVERY"
-    // ตอนนั้นเราแค่พาไปหน้า reset-password ได้เลย
-    // วิธีนี้น่าเชื่อถือกว่า deep link เพราะ Supabase SDK จัดการ token เอง
-    // ────────────────────────────────────────────────────────────────────
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === "PASSWORD_RECOVERY") {
-          setTimeout(() => router.replace("/reset-password"), 0);
-          return;
-        }
-        // ถ้า logout → ไปหน้า login
-        if (event === "SIGNED_OUT") {
-          setTimeout(() => router.replace("/login"), 0);
-        }
-      }
-    );
-
-    // ── วิธีที่ 2: Deep Link (fallback) ──────────────────────────────────
-    // กรณีที่ onAuthStateChange ไม่ทำงาน ยังมี deep link เป็น backup
-    // Supabase v2 ส่ง token มาใน hash (#) ไม่ใช่ query string (?)
-    // เลยต้อง split('#') แล้ว parse เองด้วย URLSearchParams
-    // ────────────────────────────────────────────────────────────────────
-    const handleUrl = async (url: string) => {
-      const hashPart = url.split("#")[1];
-      if (hashPart) {
-        const hashParams = new URLSearchParams(hashPart);
-        const access_token = hashParams.get("access_token");
-        const refresh_token = hashParams.get("refresh_token");
-        const type = hashParams.get("type");
-
-        if (access_token && refresh_token) {
-          // set session ให้ Supabase รู้ว่า user คนนี้ผ่าน recovery แล้ว
-          await supabase.auth.setSession({ access_token, refresh_token });
-
-          // ถ้าเป็น recovery link → ไปหน้าเปลี่ยนรหัส
-          if (type === "recovery") {
-            setTimeout(() => router.replace("/reset-password"), 0);
-          }
-          return;
-        }
-      }
-
-      // fallback: query string
-      const parsed = Linking.parse(url);
-      const access_token = parsed.queryParams?.access_token;
-      const refresh_token = parsed.queryParams?.refresh_token;
-
-      if (access_token && refresh_token) {
-        const tokenA = Array.isArray(access_token) ? access_token[0] : access_token;
-        const tokenR = Array.isArray(refresh_token) ? refresh_token[0] : refresh_token;
-        await supabase.auth.setSession({ access_token: tokenA, refresh_token: tokenR });
-        setTimeout(() => router.replace("/reset-password"), 0);
-        return;
-      }
-
-      // ลิงก์รีเซ็ตจากอีเมล → หน้าตั้งรหัสใหม่ (ยกเว้นโหมดเปลี่ยนรหัสจากหน้าโปรไฟล์ ไม่งั้นพารามิเตอร์หาย)
-      if (url.includes("reset-password") && !url.includes("mode=change")) {
-        setTimeout(() => router.replace("/reset-password"), 0);
-      }
-    };
-
-    Linking.getInitialURL().then((url) => {
-      if (url) handleUrl(url);
-    });
-
-    const sub = Linking.addEventListener("url", ({ url }) => {
-      handleUrl(url);
+    // ออกจากระบบ → หน้า login (ระบบลืมรหัสผ่าน/ลิงก์รีเซ็ตทางอีเมลถอดออกแล้ว 12 ต.ค. 2569)
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") setTimeout(() => router.replace("/login"), 0);
     });
 
     return () => {
       authListener.subscription.unsubscribe();
-      sub.remove();
     };
   }, []);
 
@@ -132,8 +64,7 @@ export default function Layout() {
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
       {/* Auth */}
       <Stack.Screen name="login" />
-      <Stack.Screen name="signup" />
-      <Stack.Screen name="forgot" />
+      {/* เปลี่ยนรหัสผ่าน (จากหน้าโปรไฟล์ ต้องล็อกอิน) */}
       <Stack.Screen name="reset-password" />
       {/* User */}
       <Stack.Screen name="home" />

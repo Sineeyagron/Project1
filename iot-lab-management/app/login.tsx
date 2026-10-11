@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   Platform,
   StyleSheet,
   TouchableOpacity,
@@ -10,12 +13,102 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { setRememberLogin } from "../lib/session";
 import { notify } from "../lib/notify";
 import { getAllowedDomain, isAllowedEmail, signInWithGoogle, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
 import { W, NG } from "../lib/theme";
+
+const KKU = { brick: "#A8341C", orange: "#D97A1E", shadow: "#7A2412" };
+
+// พื้นไล่สีอ่อนๆ (สว่างกว่านิดเดียวด้านบน) — ไม่มีแสงมัน (เจ้าของโปรเจกต์ว่าปุ่มนูนไม่สวย 12 ต.ค. 2569) · วางเป็นลูกแรกของปุ่ม
+// kku = ปุ่ม KKU Mail (สีอิฐ มีแถบส้มล่าง) / ไม่ใส่ = ปุ่มเข้าสู่ระบบสีฟ้าของแอป
+function Shine({ kku }: { kku?: boolean }) {
+  return (
+    <>
+      <LinearGradient
+        pointerEvents="none"
+        colors={kku ? ["#B23B21", KKU.brick, "#9E3019"] : ["#3170EE", "#2563EB", "#215CE0"]}
+        locations={[0, 0.5, 1]}
+        style={[styles.shineFill, kku && styles.shineFillKku]}
+      />
+    </>
+  );
+}
+
+// กรอบการ์ดมีไฟวิ่ง: แผ่นไล่สีน้ำเงิน (โทนทางการ) หมุนช้าๆ อยู่หลังการ์ด โผล่ให้เห็นแค่ขอบ
+// หมุนด้วย native driver (ไม่กิน JS) · เครื่องเปิด "ลดภาพเคลื่อนไหว" = ขอบนิ่ง
+function GlowFrame({ children }: { children: React.ReactNode }) {
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const spin = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let loop: Animated.CompositeAnimation | null = null;
+    let active = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
+      if (!active || reduce) return;
+      loop = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 6500, easing: Easing.linear, useNativeDriver: true }));
+      loop.start();
+    });
+    return () => { active = false; loop?.stop(); };
+  }, []);
+
+  // แผ่นจัตุรัสกว้าง = เส้นทแยงการ์ด จุดหมุนอยู่กลางการ์ด → ลิ่มแสงยาวถึงขอบทุกมุม
+  const d = Math.ceil(Math.hypot(box.w, box.h));
+  // ความเร็วคงที่บนขอบ: หมุนมุมเท่ากันทุกช่วง = ตรงมุมการ์ด (ไกลจุดกลาง) แสงวิ่งเร็วขึ้น
+  // → แบ่งเส้นรอบเป็นช่วงเท่าๆ กัน แล้วแปลงแต่ละจุดเป็นมุมที่ต้องหมุน (หัวลิ่มชี้ไปที่จุดนั้น)
+  const rotate = useMemo(() => {
+    const { w, h } = box;
+    if (!w || !h) return spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+    const per = 2 * (w + h);
+    const N = 96;
+    const input: number[] = [];
+    const output: string[] = [];
+    let prev = -Infinity;
+    for (let i = 0; i <= N; i++) {
+      // เริ่มกลางขอบบน วิ่งตามเข็มนาฬิกา
+      let d0 = (i / N) * per;
+      let x: number, y: number;
+      if (d0 <= w / 2) { x = w / 2 + d0; y = 0; }
+      else if ((d0 -= w / 2) <= h) { x = w; y = d0; }
+      else if ((d0 -= h) <= w) { x = w - d0; y = h; }
+      else if ((d0 -= w) <= h) { x = 0; y = h - d0; }
+      else { d0 -= h; x = d0; y = 0; }
+      // ทิศจากกลางการ์ด วัดตามเข็มจากทิศบน (องศา) — คลายให้เพิ่มขึ้นต่อเนื่อง
+      let deg = (Math.atan2(x - w / 2, h / 2 - y) * 180) / Math.PI;
+      while (deg < prev - 1e-6) deg += 360;
+      prev = deg;
+      input.push(i / N);
+      output.push(`${deg - 90}deg`); // หัวลิ่มอยู่ที่ +90° จากแนวตั้งของแผ่น
+    }
+    return spin.interpolate({ inputRange: input, outputRange: output });
+  }, [box.w, box.h]);
+  return (
+    <View style={styles.glowShadow}>
+      <View style={styles.glowClip} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
+        {d > 0 && (
+          <Animated.View
+            pointerEvents="none"
+            style={{ position: "absolute", width: d, height: d, left: (box.w - d) / 2, top: (box.h - d) / 2, transform: [{ rotate }] }}
+          >
+            {/* ลิ่มแสง = ควอดแรนต์ขวาบน (มุมอยู่กลางการ์ด) → หมุนแล้วแตะขอบตลอด ไม่กระโดดตอนผ่านด้านแคบ
+                ไล่สีตามแนวทแยง ≈ ตามมุม: หางจาง → หัวสว่างด้านที่หมุนไป (ตามเข็มนาฬิกา) */}
+            <LinearGradient
+              colors={["rgba(37,99,235,0)", "rgba(30,58,138,0.55)", "#2563EB", "#93C5FD"]}
+              locations={[0, 0.45, 0.82, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ position: "absolute", left: d / 2, top: 0, width: d / 2, height: d / 2 }}
+            />
+          </Animated.View>
+        )}
+        {children}
+      </View>
+    </View>
+  );
+}
 
 export default function Login() {
   const router = useRouter();
@@ -28,8 +121,10 @@ export default function Login() {
   const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
 
-  const canSubmit = email.trim().length > 0 && password.length > 0 && !isLoading;
   const [googleLoading, setGoogleLoading] = useState(false);
+  // อีเมล @kkumail.com = บัญชี Google ของมหาวิทยาลัย → ซ่อนช่องรหัส ปุ่มหลักพาไปหน้า Google (แอปไม่รับรหัส มข.)
+  const isUniEmail = email.trim().toLowerCase().endsWith("@" + ALLOWED_DOMAIN) && email.trim().indexOf("@") > 0;
+  const canSubmit = email.trim().length > 0 && (isUniEmail || password.length > 0) && !isLoading && !googleLoading;
 
   // ล็อกอิน Google สำเร็จ → ตรวจโดเมนซ้ำ (ด่านจริงอยู่ที่ Auth Hook) แล้วไปต่อเหมือนล็อกอินปกติ
   const afterGoogle = async () => {
@@ -57,9 +152,9 @@ export default function Login() {
     if (/access_token|[?&]code=/.test(window.location.href)) afterGoogle();
   }, []);
 
-  const handleGoogle = async () => {
+  const handleGoogle = async (hint?: string) => {
     setGoogleLoading(true);
-    const res = await signInWithGoogle();
+    const res = await signInWithGoogle(hint);
     setGoogleLoading(false);
     if (res.error) {
       showPopup("เข้าสู่ระบบด้วย Google ไม่สำเร็จ", res.error);
@@ -87,6 +182,11 @@ export default function Login() {
 
   const handleLogin = async () => {
     const normalizedEmail = email.trim();
+    if (isUniEmail) {
+      setPassword("");
+      await handleGoogle(normalizedEmail);
+      return;
+    }
 
     if (!normalizedEmail || !password) {
       const nextErrors = {
@@ -192,7 +292,8 @@ export default function Login() {
     <View
       style={styles.screen}
     >
-      <View style={styles.topBand} />
+      {/* พื้นหลังเฉพาะหน้า login: โทนฟ้าเดียวกับทั้งแอป (W.page) แต่เข้มกว่า */}
+      <LinearGradient colors={["#4F82EC", "#79A2F3", "#B0C9F8", "#DCE7FB"]} locations={[0, 0.32, 0.64, 1]} style={styles.topBand} />
       <KeyboardAwareScrollView bottomOffset={24}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
@@ -211,14 +312,15 @@ export default function Login() {
             LabHub
           </Text>
           <View style={styles.subtitleRow}>
-            <Ionicons name="time-outline" size={11} color="#2563EB" />
+            <Ionicons name="hardware-chip-outline" size={12} color="#1D4ED8" />
             <Text style={styles.appSubtitle}>ทุกอุปกรณ์ในห้องแล็บ รวมไว้ที่เดียว</Text>
           </View>
         </View>
 
+        <GlowFrame>
         <View style={styles.card}>
           <Text style={styles.title}>เข้าสู่ระบบ</Text>
-          <Text style={styles.description}>ยินดีต้อนรับกลับ! กรุณาเข้าสู่ระบบเพื่อใช้งาน</Text>
+          <Text style={styles.description}>นักศึกษาเข้าด้วย KKU Mail · เจ้าหน้าที่ใช้อีเมลและรหัสผ่าน</Text>
 
           <Text style={styles.label}>อีเมล</Text>
           <View style={[styles.inputBox, fieldErrors.email && styles.inputBoxError, focusedField === "email" && styles.inputBoxFocused]}>
@@ -226,7 +328,7 @@ export default function Login() {
               <Ionicons name="mail-outline" size={18} color={focusedField === "email" ? "#2563EB" : "#7f8ea3"} />
             </View>
             <TextInput
-              placeholder={focusedField === "email" ? "" : "student@iotlab.ac.th"}
+              placeholder={focusedField === "email" ? "" : "Student@kkumail.com"}
               placeholderTextColor="#94a3b8"
               style={styles.input}
               value={email}
@@ -246,12 +348,17 @@ export default function Login() {
             </View>
           )}
 
-          <View style={styles.passwordHeader}>
-            <Text style={styles.label}>รหัสผ่าน</Text>
-            <TouchableOpacity onPress={() => router.push("/forgot")} disabled={isLoading}>
-              <Text style={styles.forgot}>ลืมรหัสผ่าน?</Text>
-            </TouchableOpacity>
-          </View>
+          {isUniEmail ? (
+            <View style={styles.uniBox}>
+              <Ionicons name="school-outline" size={18} color="#1D4ED8" />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.uniTitle}>บัญชี KKU Mail</Text>
+                <Text style={styles.uniText}>ใส่รหัสผ่านที่หน้า Google</Text>
+              </View>
+            </View>
+          ) : (
+          <>
+          <Text style={styles.label}>รหัสผ่าน</Text>
 
           <View style={[styles.inputBox, fieldErrors.password && styles.inputBoxError, focusedField === "password" && styles.inputBoxFocused]}>
             <View style={styles.inputIconBox}>
@@ -279,6 +386,8 @@ export default function Login() {
               <Text style={styles.errorText}>{fieldErrors.password}</Text>
             </View>
           )}
+          </>
+          )}
 
           <TouchableOpacity
             style={styles.rememberRow}
@@ -293,20 +402,30 @@ export default function Login() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.loginBtn, !canSubmit && styles.loginBtnDisabled]}
+            style={[styles.loginBtn, isUniEmail && styles.kkuBtn, !canSubmit && styles.loginBtnDisabled]}
             onPress={handleLogin}
             disabled={!canSubmit}
           >
-            {isLoading ? (
+            {isLoading || (isUniEmail && googleLoading) ? (
               <ActivityIndicator color="#fff" />
+            ) : isUniEmail ? (
+              <>
+                <Shine kku />
+                <Ionicons name="logo-google" size={18} color="#ffffff" />
+                <Text style={styles.loginText}>ดำเนินการต่อด้วย Google</Text>
+              </>
             ) : (
               <>
+                <Shine />
                 <Text style={styles.loginText}>เข้าสู่ระบบ</Text>
                 <Ionicons name="arrow-forward" size={18} color="#ffffff" />
               </>
             )}
           </TouchableOpacity>
 
+          {/* อีเมล kkumail → ปุ่มหลักเป็น Google แล้ว ซ่อนปุ่มซ้ำ */}
+          {!isUniEmail && (
+          <>
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>หรือเข้าใช้ระบบ</Text>
@@ -314,29 +433,33 @@ export default function Login() {
           </View>
 
           <TouchableOpacity
-            style={[styles.googleBtn, (googleLoading || isLoading) && styles.loginBtnDisabled]}
-            onPress={handleGoogle}
+            style={[styles.googleBtn, styles.kkuBtn, (googleLoading || isLoading) && styles.loginBtnDisabled]}
+            onPress={() => handleGoogle()}
             disabled={googleLoading || isLoading}
             activeOpacity={0.85}
           >
             {googleLoading ? (
-              <ActivityIndicator color="#172033" />
+              <ActivityIndicator color="#ffffff" />
             ) : (
               <>
-                <Ionicons name="logo-google" size={18} color="#ea4335" />
-                <Text style={styles.googleText}>เข้าสู่ระบบด้วย Google (@{ALLOWED_DOMAIN})</Text>
+                <Shine kku />
+                <Ionicons name="logo-google" size={18} color="#ffffff" />
+                <Text style={styles.googleText}>เข้าสู่ระบบด้วย KKU Mail</Text>
               </>
             )}
           </TouchableOpacity>
-        </View>
+          </>
+          )}
 
-        <View style={styles.signupRow}>
-          <Text style={styles.signupHint}>ยังไม่มีบัญชี?</Text>
-          <TouchableOpacity onPress={() => router.push("/signup")} disabled={isLoading}>
-            <Text style={styles.signup}>สมัครสมาชิก</Text>
-          </TouchableOpacity>
+          {/* ไม่มีลืมรหัสผ่าน/สมัครสมาชิกในแอป → บอกทางออกให้คนที่เข้าไม่ได้ */}
+          <View style={styles.helpRow}>
+            <Ionicons name="help-circle-outline" size={14} color="#64748B" />
+            <Text style={styles.helpText}>มีปัญหาเข้าระบบ? ติดต่อผู้ดูแลห้องแล็บ</Text>
+          </View>
         </View>
+        </GlowFrame>
 
+        {/* ไม่มีสมัครสมาชิกในแอป (ถอดออก 12 ต.ค. 2569) — นศ. เข้าด้วย Google @kkumail.com ครั้งแรก = สร้างบัญชีให้เอง */}
         <View style={styles.sslPill}>
           <Ionicons name="shield-checkmark" size={14} color="#047857" />
           <Text style={styles.sslText}>ปลอดภัย เข้ารหัส SSL</Text>
@@ -359,7 +482,31 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
     marginTop: 4,
   },
-  googleText: { fontSize: 14, fontWeight: "600", color: "#172033", flexShrink: 1 },
+  googleText: { fontSize: 15, fontWeight: "800", color: "#ffffff", flexShrink: 1 },
+  // ปุ่ม KKU Mail = สีมหาวิทยาลัย (อิฐ + แถบส้ม) — ข้อยกเว้นเดียวจากสีฟ้าของแอป (เจ้าของโปรเจกต์เลือก 12 ต.ค. 2569)
+  kkuBtn: {
+    minHeight: 50,
+    borderRadius: 14,
+    borderWidth: 0,
+    borderBottomWidth: 4,
+    borderBottomColor: KKU.orange,
+    backgroundColor: KKU.brick,
+    shadowColor: KKU.shadow,
+    shadowOpacity: 0.38,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 7,
+  },
+  shineFill: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 14,
+  },
+  // ปุ่ม KKU มีแถบส้มหนา 4 ด้านล่าง → มุมล่างด้านในโค้งน้อยลง
+  shineFillKku: { borderBottomLeftRadius: 10, borderBottomRightRadius: 10 },
   screen: {
     ...W.page,
     flex: 1,
@@ -432,24 +579,45 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0,
   },
+  // ป้ายขาวโปร่งรองคำโปรย — พื้นหลังหน้า login เข้มขึ้น ตัวเทาเดิมกลืน
   subtitleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    alignSelf: "center",
     gap: 5,
-    marginTop: 4,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.9)",
   },
   appSubtitle: {
-    color: "#475569",
+    color: "#1E3A8A",
     fontSize: 11.5,
     fontWeight: "700",
     textAlign: "center",
   },
-  card: {
-    ...W.card,
+  glowShadow: {
     width: "100%",
     maxWidth: 430,
     alignSelf: "center",
+    borderRadius: 24,
+    boxShadow: (W.card as any).boxShadow,
+  },
+  glowClip: {
+    borderRadius: 24,
+    overflow: "hidden",
+    padding: 1.5, // ความหนาขอบไฟ
+    backgroundColor: "#BFD3F7", // ขอบน้ำเงินอ่อนตอนไฟไม่ผ่าน
+  },
+  card: {
+    ...W.card,
+    borderRadius: 22,
+    borderWidth: 0,
+    boxShadow: undefined,
     paddingHorizontal: 22,
     paddingTop: 24,
     paddingBottom: 20,
@@ -518,11 +686,20 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     fontWeight: "500",
   },
-  passwordHeader: {
+  uniBox: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 10,
+    backgroundColor: "#EFF5FF",
+    borderWidth: 1,
+    borderColor: "#BFD3F7",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 18, // เท่าช่องรหัสผ่านที่แทนที่ (แถว "จดจำ" ดึงขึ้น -4)
   },
+  uniTitle: { color: "#1D4ED8", fontSize: 13.5, fontWeight: "800" },
+  uniText: { color: "#1E40AF", fontSize: 12.5, marginTop: 1 },
   errorRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -534,12 +711,6 @@ const styles = StyleSheet.create({
     color: "#ef4444",
     fontSize: 11.5,
     fontWeight: "700",
-  },
-  forgot: {
-    color: "#475569",
-    fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 7,
   },
   rememberRow: {
     flexDirection: "row",
@@ -569,8 +740,13 @@ const styles = StyleSheet.create({
   },
   loginBtn: {
     ...W.primarySolid,
-    minHeight: 44,
-    borderRadius: 15,
+    minHeight: 50,
+    borderRadius: 14,
+    shadowColor: "#1D4ED8",
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -596,27 +772,18 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#DCE6F5",
   },
+  helpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    marginTop: 16,
+  },
+  helpText: { color: "#64748B", fontSize: 12, fontWeight: "600" },
   dividerText: {
     color: "#a2aec0",
     fontSize: 11,
     fontWeight: "700",
-  },
-  signupRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 28,
-  },
-  signupHint: {
-    color: "#475569",
-    fontSize: 12.5,
-    fontWeight: "700",
-  },
-  signup: {
-    color: "#1D4ED8",
-    fontSize: 12.5,
-    fontWeight: "900",
   },
   sslPill: {
     alignSelf: "center",
@@ -627,7 +794,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 5,
-    marginTop: 16,
+    marginTop: 28, // เดิมมีแถว "สมัครสมาชิก" คั่น
     borderWidth: 1,
     borderColor: "#bbf7d0",
   },

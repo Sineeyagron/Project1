@@ -9,7 +9,6 @@ import {
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../components/AppText";
-import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
 import { authErrorThai, PASSWORD_HINT, passwordProblem } from "../lib/password";
@@ -25,9 +24,7 @@ type ResultState = {
 };
 
 export default function ResetPassword() {
-  const router = useRouter();
-  // ?mode=change = เปลี่ยนรหัสจากหน้าโปรไฟล์ (ล็อกอินอยู่) / ไม่มี = มาจากลิงก์ลืมรหัสผ่านในอีเมล
-  const isChange = useLocalSearchParams<{ mode?: string }>().mode === "change";
+  // เปลี่ยนรหัสผ่านจากหน้าโปรไฟล์ (ต้องล็อกอิน) — ระบบลืมรหัสผ่านทางอีเมลถอดออกแล้ว (12 ต.ค. 2569)
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -76,15 +73,14 @@ export default function ResetPassword() {
       return;
     }
 
-    showResult("success", "เปลี่ยนรหัสสำเร็จ", isChange ? "ครั้งหน้าใช้รหัสผ่านใหม่เข้าสู่ระบบ" : "คุณสามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้แล้ว");
+    showResult("success", "เปลี่ยนรหัสสำเร็จ", "ครั้งหน้าใช้รหัสผ่านใหม่เข้าสู่ระบบ");
   };
 
   const handleCloseModal = () => {
     const wasSuccess = result.type === "success";
     setResult({ ...result, visible: false });
     if (wasSuccess) {
-      if (isChange) goBack("/profile");
-      else router.replace("/login");
+      goBack("/profile");
     }
   };
 
@@ -100,7 +96,7 @@ export default function ResetPassword() {
 
       {/* CARD */}
       <View style={styles.card}>
-        <Text style={styles.welcome}>{isChange ? "เปลี่ยนรหัสผ่าน" : "ตั้งรหัสผ่านใหม่"}</Text>
+        <Text style={styles.welcome}>เปลี่ยนรหัสผ่าน</Text>
         <Text style={styles.desc}>{PASSWORD_HINT}</Text>
 
         {/* NEW PASSWORD */}
@@ -177,9 +173,9 @@ export default function ResetPassword() {
 
       {/* BACK TO LOGIN */}
       <View style={styles.signupRow}>
-        <Text style={{ color: "#475569" }}>{isChange ? "ไม่เปลี่ยนแล้ว? " : "จำรหัสผ่านได้แล้ว? "}</Text>
-        <TouchableOpacity onPress={() => (isChange ? goBack("/profile") : router.replace("/login"))} disabled={isLoading}>
-          <Text style={styles.signup}>{isChange ? "กลับ" : "เข้าสู่ระบบ"}</Text>
+        <Text style={{ color: "#475569" }}>ไม่เปลี่ยนแล้ว? </Text>
+        <TouchableOpacity onPress={() => goBack("/profile")} disabled={isLoading}>
+          <Text style={styles.signup}>กลับ</Text>
         </TouchableOpacity>
       </View>
 

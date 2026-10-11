@@ -31,6 +31,7 @@ export default function PickupRequestForm({
   const [showRules, setShowRules] = useState(false);
   const [rules, setRules] = useState<string[] | null>(null);
   const [sending, setSending] = useState(false);
+  const [limits, setLimits] = useState({ hours: 12, grace: 10 });
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
@@ -38,12 +39,22 @@ export default function PickupRequestForm({
     setNote("");
     setAccepted(false);
     setShowRules(false);
-    supabase.from("app_settings").select("value").eq("key", "borrow_day_options").maybeSingle().then(({ data }) => {
-      const v = Array.isArray(data?.value) ? (data!.value as any[]).map(Number).filter((n) => n > 0) : [];
-      const opts = v.length ? v : [3, 5, 7];
-      setDayOptions(opts);
-      setDays(opts[0]);
-    });
+    supabase.from("app_settings").select("key, value")
+      .in("key", ["borrow_day_options", "pickup_expiry_hours", "pickup_grace_minutes"])
+      .then(({ data }) => {
+        const rows = data || [];
+        const d = rows.find((r: any) => r.key === "borrow_day_options")?.value;
+        const v = Array.isArray(d) ? (d as any[]).map(Number).filter((n) => n > 0) : [];
+        const opts = v.length ? v : [3, 5, 7];
+        setDayOptions(opts);
+        setDays(opts[0]);
+        // เวลาหมดอายุ/ผ่อนผัน ตั้งได้ที่ admin/settings (ฐานข้อมูลใช้ค่าเดียวกัน)
+        const num = (key: string, fallback: number) => {
+          const n = Number(rows.find((r: any) => r.key === key)?.value);
+          return Number.isInteger(n) && n > 0 ? n : fallback;
+        };
+        setLimits({ hours: num("pickup_expiry_hours", 12), grace: num("pickup_grace_minutes", 10) });
+      });
     fetchBorrowRules().then(setRules);
   }, [model?.key]);
 
@@ -92,8 +103,8 @@ export default function PickupRequestForm({
 
         <View style={s.info}>
           <InfoRow icon="calendar-outline" text="ผู้ดูแลเป็นคนกำหนดวัน-เวลานัดรับ แล้วแจ้งให้ทราบในแอป" />
-          <InfoRow icon="timer-outline" text="ไม่มีผู้ดูแลนัดภายใน 12 ชั่วโมง คำขอหมดอายุ" />
-          <InfoRow icon="alert-circle-outline" text="เลยเวลานัด 10 นาที นัดถูกยกเลิก · คำขอนัดรับนับรวมในจำนวนที่ยืมได้" />
+          <InfoRow icon="timer-outline" text={`ไม่มีผู้ดูแลนัดภายใน ${limits.hours} ชั่วโมง คำขอหมดอายุ`} />
+          <InfoRow icon="alert-circle-outline" text={`เลยเวลานัด ${limits.grace} นาที นัดถูกยกเลิก · คำขอนัดรับนับรวมในจำนวนที่ยืมได้`} />
         </View>
 
         <TouchableOpacity style={s.check} onPress={() => setAccepted((v) => !v)} activeOpacity={0.8} accessibilityRole="checkbox" accessibilityState={{ checked: accepted }}>

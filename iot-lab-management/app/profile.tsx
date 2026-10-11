@@ -259,7 +259,7 @@ export default function Profile() {
         {/* บัญชี */}
         <FadeIn delay={280} style={s.menu}>
           {canChangePassword ? (
-            <MenuRow icon="key-outline" color={C.primary} title="เปลี่ยนรหัสผ่าน" onPress={() => router.push("/reset-password?mode=change" as any)} />
+            <MenuRow icon="key-outline" color={C.primary} title="เปลี่ยนรหัสผ่าน" onPress={() => router.push("/reset-password")} />
           ) : null}
           <MenuRow icon="log-out-outline" color={C.error} title="ออกจากระบบ" danger onPress={logout} />
         </FadeIn>

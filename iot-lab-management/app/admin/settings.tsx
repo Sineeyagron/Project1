@@ -8,6 +8,8 @@ import {
   View,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+// SDK 56: ห้าม import @react-navigation ตรงๆ (Metro error) → ใช้ตัวที่ expo-router ห่อไว้
+import { useNavigation, usePreventRemove } from "expo-router/react-navigation";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
@@ -37,7 +39,8 @@ const C = {
 
 type Field = { key: string; label: string; unit: string; hint: string; min: number; max: number; fallback: number };
 
-const GROUPS: { title: string; fields: Field[] }[] = [
+// days = แถวชิประยะยืม (borrow_day_options) ต่อท้ายการ์ดนั้น
+const GROUPS: { title: string; fields: Field[]; days?: boolean }[] = [
   {
     title: "แจ้งเตือนอุปกรณ์",
     fields: [
@@ -52,8 +55,20 @@ const GROUPS: { title: string; fields: Field[] }[] = [
       { key: "max_active_borrows", label: "ยืมพร้อมกันได้สูงสุด", unit: "ชิ้น/คน", hint: "นับรวมคำขอที่รออนุมัติและคำขอนัดรับ", min: 1, max: 20, fallback: 3 },
       { key: "request_expiry_minutes", label: "คำขอหมดอายุใน", unit: "นาที", hint: "ไม่มีใครตอบภายในเวลานี้ คำขอยืมหมดอายุ / คำขอคืนคืนอัตโนมัติ", min: 5, max: 1440, fallback: 30 },
     ],
+    days: true,
+  },
+  {
+    // ช่วงเดียวกับ _setting_int ใน migration pickup_settings
+    title: "นัดรับ",
+    fields: [
+      { key: "pickup_expiry_hours", label: "คำขอนัดรับหมดอายุใน", unit: "ชม.", hint: "ไม่มีผู้ดูแลนัดเวลาภายในเวลานี้ (ใช้กับคำขอใหม่)", min: 1, max: 72, fallback: 12 },
+      { key: "pickup_grace_minutes", label: "เลยเวลานัดแล้วยกเลิกใน", unit: "นาที", hint: "นศ. ไม่มารับตามนัด = ไม่มารับ", min: 5, max: 120, fallback: 10 },
+    ],
   },
 ];
+const DAY_MIN = 1;
+const DAY_MAX = 30;
+const DAY_LIMIT = 6;
 const FIELDS = GROUPS.flatMap((g) => g.fields);
 
 export default function AdminSettings() {
@@ -70,7 +85,10 @@ export default function AdminSettings() {
   const [savedRules, setSavedRules] = useState<string[]>([]);
   const [rules, setRules] = useState<string[]>([]);
   const [rulesSaving, setRulesSaving] = useState(false);
+  // ระยะยืมให้เลือก: savedDays = ใน DB / dayOptions = ที่กำลังแก้ (บันทึกพร้อมปุ่ม "บันทึกการตั้งค่า")
+  const [savedDays, setSavedDays] = useState<number[]>([3, 5, 7]);
   const [dayOptions, setDayOptions] = useState<number[]>([3, 5, 7]);
+  const [newDay, setNewDay] = useState<string | null>(null); // null = ไม่ได้เปิดช่องเพิ่ม
   // แก้ได้ทีละข้อ (null = ดูอย่างเดียว) + ความสูงช่องที่แก้ (ยืดตามข้อความ — เว็บไม่ยืดเอง) + ตำแหน่งเคอร์เซอร์ไว้แทรกตัวแปร
   const [editing, setEditing] = useState<number | null>(null);
   const [ruleHeight, setRuleHeight] = useState(44);
@@ -103,7 +121,10 @@ export default function AdminSettings() {
     const loadedRules = rulesFromRows(data || []);
     setSavedRules(loadedRules);
     setRules(loadedRules.map(toThaiVars));
-    setDayOptions(varsFromRows(data || []).days);
+    const days = [...new Set(varsFromRows(data || []).days)].sort((a, b) => a - b);
+    setSavedDays(days);
+    setDayOptions(days);
+    setNewDay(null);
     const domainValue = (data || []).find((r: any) => r.key === "allowed_email_domain")?.value;
     setRestrictDomain(typeof domainValue === "string" && domainValue.trim() !== "");
     const values: Record<string, number> = {};
@@ -130,7 +151,20 @@ export default function AdminSettings() {
   }
 
   const changed = FIELDS.filter((f) => Number(draft[f.key]) !== saved[f.key]);
-  const canSave = changed.length > 0 && Object.keys(errors).length === 0 && !saving;
+  const daysChanged = JSON.stringify(dayOptions) !== JSON.stringify(savedDays);
+  const changeCount = changed.length + (daysChanged ? 1 : 0);
+  const canSave = changeCount > 0 && Object.keys(errors).length === 0 && dayOptions.length > 0 && !saving;
+
+  // ช่องเพิ่มระยะยืม → ข้อความผิด (ว่าง = ใช้ได้)
+  const newDayNum = Number(newDay);
+  const newDayError = !newDay ? ""
+    : !Number.isInteger(newDayNum) || newDayNum < DAY_MIN || newDayNum > DAY_MAX ? `ใส่ได้ ${DAY_MIN}–${DAY_MAX} วัน`
+    : dayOptions.includes(newDayNum) ? "มีตัวเลือกนี้แล้ว" : "";
+  const addDay = () => {
+    if (!newDay || newDayError) return;
+    setDayOptions((d) => [...d, newDayNum].sort((a, b) => a - b));
+    setNewDay(null);
+  };
 
   // แบบที่จะเก็บ DB ({max}) — ใช้ตรวจ/เทียบ/บันทึก
   const cleanRules = rules.map((t) => fromThaiVars(t.trim()));
@@ -140,10 +174,24 @@ export default function AdminSettings() {
     : cleanRules.some(hasBadVar) ? "มีตัวแปรไม่ถูกต้อง — ลบวงเล็บที่เกินออก แล้วกดปุ่ม + เพื่อแทรกใหม่"
     : cleanRules.some((t) => t.length > 300) ? "ข้อความยาวเกิน 300 ตัวอักษร" : "";
   const canSaveRules = rulesChanged && !rulesError && !rulesSaving;
+
+  // แก้แล้วยังไม่บันทึก → กด ← / ปัดกลับ ถามก่อน (usePreventRemove กันได้ทั้งปุ่มและท่าปัดของ iOS)
+  const navigation = useNavigation();
+  const unsaved = !loading && !loadError && (changeCount > 0 || rulesChanged);
+  usePreventRemove(unsaved, ({ data }) => {
+    const parts = [changeCount > 0 && `การตั้งค่า ${changeCount} รายการ`, rulesChanged && "กฎที่แก้ไว้"].filter(Boolean).join(" และ ");
+    confirmAction(
+      "ยังไม่ได้บันทึก",
+      `มี${parts}ยังไม่ได้บันทึก ออกตอนนี้จะหายทั้งหมด`,
+      "ออกเลย",
+      () => navigation.dispatch(data.action),
+      true
+    );
+  });
   // ตัวเลขที่เติมแทนตัวแปร = ค่าที่บันทึกแล้วด้านบน (เหมือนที่ นศ. เห็นจริง)
   const vars = {
     max: saved.max_active_borrows ?? 3,
-    days: dayOptions,
+    days: savedDays,
     expiry: saved.request_expiry_minutes ?? 30,
   };
 
@@ -223,9 +271,11 @@ export default function AdminSettings() {
   const save = async () => {
     if (!canSave) return;
     setSaving(true);
-    const { error } = await supabase
-      .from("app_settings")
-      .upsert(changed.map((f) => ({ key: f.key, value: Number(draft[f.key]), updated_at: new Date().toISOString() })));
+    const now = new Date().toISOString();
+    const rows: { key: string; value: any; updated_at: string }[] =
+      changed.map((f) => ({ key: f.key, value: Number(draft[f.key]), updated_at: now }));
+    if (daysChanged) rows.push({ key: "borrow_day_options", value: dayOptions, updated_at: now });
+    const { error } = await supabase.from("app_settings").upsert(rows);
     setSaving(false);
     if (error) {
       notify("บันทึกไม่สำเร็จ", error.message);
@@ -234,6 +284,7 @@ export default function AdminSettings() {
     notify("บันทึกแล้ว", "ค่าใหม่มีผลทันที");
     // ไม่ load() ใหม่ — จะล้างกฎที่กำลังแก้ค้างอยู่
     setSaved((old) => ({ ...old, ...Object.fromEntries(changed.map((f) => [f.key, Number(draft[f.key])])) }));
+    setSavedDays(dayOptions);
   };
 
   return (
@@ -251,7 +302,7 @@ export default function AdminSettings() {
         <View style={s.errorBox}>
           <Ionicons name="cloud-offline-outline" size={20} color="#b91c1c" />
           <View style={{ flex: 1 }}>
-            <Text style={s.errorTitle}>โหลดค่าตั้งไม่สำเร็จ</Text>
+            <Text style={s.errorTitle}>โหลดการตั้งค่าไม่สำเร็จ</Text>
             <Text style={s.errorMsg} numberOfLines={2}>{loadError}</Text>
           </View>
           <TouchableOpacity style={s.retryBtn} onPress={() => { setLoading(true); load(); }} activeOpacity={0.85}>
@@ -281,16 +332,74 @@ export default function AdminSettings() {
                     <Text style={s.unit}>{f.unit}</Text>
                   </View>
                 ))}
+                {g.days && (
+                  <View style={[s.daysRow, s.divider]}>
+                    <Text style={s.label}>ระยะยืมให้เลือก</Text>
+                    <Text style={[s.hint, (!dayOptions.length || !!newDayError) && { color: C.red }]}>
+                      {!dayOptions.length ? "ต้องมีอย่างน้อย 1 ตัวเลือก"
+                        : newDayError || `นศ. เลือกได้ตอนขอยืม · ${DAY_MIN}–${DAY_MAX} วัน ไม่เกิน ${DAY_LIMIT} ตัวเลือก`}
+                    </Text>
+                    <View style={s.chips}>
+                      {dayOptions.map((d) => (
+                        <TouchableOpacity
+                          key={d}
+                          style={s.dayChip}
+                          onPress={() => setDayOptions((o) => o.filter((x) => x !== d))}
+                          hitSlop={4}
+                          accessibilityLabel={`ลบตัวเลือก ${d} วัน`}
+                        >
+                          <Text style={s.chipText}>{d} วัน</Text>
+                          <Ionicons name="close" size={14} color="#1D4ED8" />
+                        </TouchableOpacity>
+                      ))}
+                      {newDay !== null ? (
+                        <View style={s.dayAdd}>
+                          <TextInput
+                            style={[s.dayInput, !!newDayError && s.inputError]}
+                            value={newDay}
+                            onChangeText={(t) => setNewDay(t.replace(/[^\d]/g, ""))}
+                            onSubmitEditing={addDay}
+                            keyboardType="number-pad"
+                            returnKeyType="done"
+                            maxLength={2}
+                            placeholder="วัน"
+                            placeholderTextColor={C.faint}
+                            autoFocus
+                          />
+                          <TouchableOpacity onPress={addDay} disabled={!newDay || !!newDayError} hitSlop={6} accessibilityLabel="เพิ่มตัวเลือก">
+                            <Ionicons name="checkmark-circle" size={26} color={!newDay || newDayError ? "#CBD5E1" : C.purple} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => setNewDay(null)} hitSlop={6} accessibilityLabel="ยกเลิก">
+                            <Ionicons name="close-circle-outline" size={24} color={C.faint} />
+                          </TouchableOpacity>
+                        </View>
+                      ) : dayOptions.length < DAY_LIMIT ? (
+                        <TouchableOpacity style={[s.dayChip, s.dayChipAdd]} onPress={() => setNewDay("")} activeOpacity={0.75}>
+                          <Ionicons name="add" size={15} color={C.muted} />
+                          <Text style={[s.chipText, { color: C.muted }]}>เพิ่ม</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
           ))}
+
+          {/* ปุ่มบันทึกตัวเลขอยู่ใต้การ์ดตัวเลขเลย (เดิมอยู่ล่างสุด ต่อจากกฎ — สับสนกับ "บันทึกกฎ") */}
+          <View style={{ gap: 6 }}>
+            <TouchableOpacity style={[s.saveBtn, !canSave && { opacity: 0.4 }]} disabled={!canSave} onPress={save} activeOpacity={0.85}>
+              <Text style={s.saveText}>{saving ? "กำลังบันทึก..." : changeCount ? `บันทึกการตั้งค่า (${changeCount} รายการ)` : "การตั้งค่ายังไม่มีการเปลี่ยนแปลง"}</Text>
+            </TouchableOpacity>
+            <Text style={s.note}>ระบบตรวจประกัน/อายุทุกวัน 08:00 แต่ละชิ้นเตือนครั้งเดียวต่อเรื่อง</Text>
+          </View>
 
           <View style={{ gap: 8 }}>
             <Text style={s.section}>กฎการยืม-คืน</Text>
             <View style={s.card}>
               <View style={s.field}>
                 <Text style={[s.hint, { flex: 1, marginTop: 0 }]}>
-                  นักศึกษาเห็นกฎนี้ตอนขอยืม/คืน/ยืมต่อ และในหน้าโปรไฟล์ · ตัวเลข<Text style={s.varText}>สีฟ้า</Text>เปลี่ยนตามค่าตั้งด้านบนอัตโนมัติ
+                  นักศึกษาเห็นกฎนี้ตอนขอยืม/คืน/ยืมต่อ และในหน้าโปรไฟล์ · ตัวเลข<Text style={s.varText}>สีฟ้า</Text>เปลี่ยนตามค่าที่ตั้งด้านบนอัตโนมัติ
                 </Text>
               </View>
               {rules.map((t, i) => {
@@ -410,11 +519,6 @@ export default function AdminSettings() {
               </View>
             </View>
           </View>
-
-          <TouchableOpacity style={[s.saveBtn, !canSave && { opacity: 0.4 }]} disabled={!canSave} onPress={save} activeOpacity={0.85}>
-            <Text style={s.saveText}>{saving ? "กำลังบันทึก..." : changed.length ? `บันทึก (${changed.length} ค่า)` : "ยังไม่มีการเปลี่ยนแปลง"}</Text>
-          </TouchableOpacity>
-          <Text style={s.note}>ระบบตรวจประกัน/อายุทุกวัน 08:00 แต่ละชิ้นเตือนครั้งเดียวต่อเรื่อง</Text>
         </KeyboardAwareScrollView>
       )}
     </View>
@@ -460,6 +564,11 @@ const s = StyleSheet.create({
   ruleEditTop: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   ruleEditBody: { paddingLeft: 26, gap: 8 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  daysRow: { paddingHorizontal: 14, paddingVertical: 12, gap: 6 },
+  dayChip: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderColor: "#BFD3F7", backgroundColor: "#EFF5FF", borderRadius: 999, paddingHorizontal: 11, paddingVertical: 6 },
+  dayChipAdd: { borderStyle: "dashed", borderColor: "#94A3B8", backgroundColor: "#fff" },
+  dayAdd: { flexDirection: "row", alignItems: "center", gap: 6 },
+  dayInput: { width: 56, height: 34, borderRadius: 10, borderWidth: 1, borderColor: C.line, backgroundColor: "#f8fafc", textAlign: "center", fontSize: 15, fontWeight: "800", color: C.ink, paddingVertical: 0 },
   chip: { borderWidth: 1, borderColor: "#BFD3F7", backgroundColor: "#EFF5FF", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   chipText: { color: "#1D4ED8", fontSize: 12.5, fontWeight: "700" },
   preview: { flexDirection: "row", gap: 6, backgroundColor: "#F1F5F9", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 6 },

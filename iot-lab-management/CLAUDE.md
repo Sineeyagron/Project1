@@ -16,7 +16,7 @@
 - แผ่น iOS (`presentation: "formSheet"`, `SHEET` ใน `_layout`): ความสูงพอดีเนื้อหาด้วย `lib/sheetFit` · **ScrollView ต้องเป็นรากของแผ่นเลย** (ห้ามห่อ View → แผ่นขาว / ห้าม padding นอก ScrollView → ตัวหนังสือตกขอบ / ห้ามมี ScrollView ซ้อนข้างใน → ยืดทับ) ดูตัวอย่าง `app/equipment-sheet.tsx`
 - รูปก่อนอัปโหลด: `lib/shrinkPhoto.ts` (อุปกรณ์ 1000px, หลักฐานยืม 1600px) · รูปแสดงผลใช้ `expo-image`
 - วันหมดประกัน: ช่องกรอก วว/ดด/ปปปป พ.ศ. (`components/WarrantyDateField`, `parseThaiDate`/`toThaiDateInput` ใน lib/itemInfo) — DB เก็บ ค.ศ. `date`
-- รหัสผ่าน `lib/password.ts` (8 ตัว มีตัวอักษร+ตัวเลข) · เปลี่ยนรหัสจากโปรไฟล์ = `/reset-password?mode=change` (deep link handler ห้าม redirect เมื่อมี `mode=change`)
+- รหัสผ่าน `lib/password.ts` (8 ตัว มีตัวอักษร+ตัวเลข) · เปลี่ยนรหัสจากโปรไฟล์ = `/reset-password` (ต้องล็อกอิน) · **ไม่มีหน้าสมัครสมาชิก/ลืมรหัสผ่าน** (ถอดออก 12 ต.ค. 2569 — นศ. เข้าด้วย Google @kkumail.com ครั้งแรก = สร้างบัญชีเอง / จำรหัสไม่ได้ให้ติดต่อผู้ดูแล)
 - `app/index.tsx` ต้องเป็น `<Redirect href="/admin/home" />` (ห้าม router.replace ใน useEffect) · router ใน `onAuthStateChange`/deep link ห่อ `setTimeout(...,0)`
 - `expo-file-system`: `import * as FileSystem` แล้ว `const FS = FileSystem as any` · UI ค้าง → `npx expo start --clear`
 
