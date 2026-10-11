@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -6,10 +6,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import ScanCamera from "../../components/ScanCamera";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
@@ -49,6 +51,19 @@ const RECORD_STATUS: Record<string, string> = {
 
 const warrantyText = warrantyInfo;
 
+// สแกนล่าสุด (เก็บในเครื่อง 5 รายการ) — กดดูซ้ำได้ไม่ต้องสแกนใหม่ เวลาตรวจของหลายชิ้นติดกัน
+type Recent = { id: string; code: string; name: string; status: string; at: number };
+const RECENT_KEY = "lookup_recent";
+const RECENT_MAX = 5;
+const agoText = (at: number) => {
+  const min = Math.floor((Date.now() - at) / 60000);
+  if (min < 1) return "เมื่อสักครู่";
+  if (min < 60) return `${min} นาทีที่แล้ว`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} ชั่วโมงที่แล้ว`;
+  return `${Math.floor(hr / 24)} วันที่แล้ว`;
+};
+
 async function findItem(code: string) {
   const raw = code.trim();
   const upper = raw.toUpperCase();
@@ -72,8 +87,26 @@ async function findItem(code: string) {
 
 export default function AdminLookup() {
   const router = useRouter();
-  const [permission, requestPermission] = useCameraPermissions();
+  const windowHeight = useWindowDimensions().height;
   const scanLock = useRef(false);
+  const [recent, setRecent] = useState<Recent[]>([]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(RECENT_KEY)
+      .then((v) => v && setRecent(JSON.parse(v)))
+      .catch(() => {});
+  }, []);
+
+  const remember = (found: any) => {
+    setRecent((prev) => {
+      const next = [
+        { id: found.id, code: found.item_code || found.name, name: found.name, status: found.status, at: Date.now() },
+        ...prev.filter((r) => r.id !== found.id),
+      ].slice(0, RECENT_MAX);
+      AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
 
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -129,6 +162,7 @@ export default function AdminLookup() {
       (signed || []).forEach((s: any) => { if (s.path && s.signedUrl) photoMap[s.path] = s.signedUrl; });
     }
 
+    remember(found);
     setItem(found);
     setRecords(list);
     setPending(req || null);
@@ -179,43 +213,72 @@ export default function AdminLookup() {
       <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.body}>
         {!item && (
           <>
-            <View style={s.cameraBox}>
-              {loading ? (
-                <ActivityIndicator size="large" color={C.purple} />
-              ) : permission?.granted ? (
-                <CameraView
-                  style={StyleSheet.absoluteFill}
-                  facing="back"
-                  onBarcodeScanned={onBarcode}
-                  barcodeScannerSettings={{ barcodeTypes: ["qr", "code128", "code39", "ean13"] }}
+            {/* แบบ ก (11 ต.ค. 2569): กล้องใหญ่ + กรอบเล็ง + ไฟฉาย — components/ScanCamera */}
+            <ScanCamera
+              height={Math.round(Math.min(380, windowHeight * 0.42))}
+              onScanned={(data) => onBarcode({ data })}
+              barcodeTypes={["qr", "code128", "code39", "ean13"]}
+              tip="สแกน QR หรือบาร์โค้ดบนอุปกรณ์"
+              busy={loading}
+            />
+            <View style={s.panel}>
+              <View style={s.panelLabelRow}>
+                <Ionicons name="search-outline" size={15} color={C.muted} />
+                <Text style={s.panelLabel}>ค้นหาด้วยรหัส</Text>
+              </View>
+              <View style={s.manualRow}>
+                <TextInput
+                  style={s.manualInput}
+                  value={code}
+                  onChangeText={setCode}
+                  placeholder="รหัส 4 ตัว หรือ NodeMCU 001"
+                  placeholderTextColor={C.faint}
+                  autoCapitalize="characters"
+                  onSubmitEditing={() => lookup(code)}
                 />
-              ) : (
-                <TouchableOpacity style={{ alignItems: "center", gap: 8 }} onPress={requestPermission} activeOpacity={0.85}>
-                  <Ionicons name="camera-outline" size={42} color={C.purple} />
-                  <Text style={s.askText}>แตะเพื่ออนุญาตใช้กล้อง</Text>
+                <TouchableOpacity
+                  style={[s.manualBtn, !code.trim() && { opacity: 0.45 }]}
+                  disabled={!code.trim()}
+                  onPress={() => lookup(code)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={s.manualBtnText}>ค้นหา</Text>
                 </TouchableOpacity>
-              )}
-            </View>
-            <View style={s.manualRow}>
-              <TextInput
-                style={s.manualInput}
-                value={code}
-                onChangeText={setCode}
-                placeholder="รหัสสแกน 4 ตัว หรือรหัสเรียก เช่น NodeMCU 001"
-                placeholderTextColor={C.faint}
-                autoCapitalize="characters"
-                onSubmitEditing={() => lookup(code)}
-              />
-              <TouchableOpacity
-                style={[s.manualBtn, !code.trim() && { opacity: 0.45 }]}
-                disabled={!code.trim()}
-                onPress={() => lookup(code)}
-                activeOpacity={0.85}
-              >
-                <Text style={s.manualBtnText}>ค้นหา</Text>
-              </TouchableOpacity>
+              </View>
             </View>
             {notFound && <Text style={s.notFound}>ไม่พบอุปกรณ์นี้ในระบบ</Text>}
+            {recent.length > 0 && (
+              <View style={s.panel}>
+                <View style={s.panelLabelRow}>
+                  <Ionicons name="time-outline" size={15} color={C.muted} />
+                  <Text style={s.panelLabel}>สแกนล่าสุด</Text>
+                </View>
+                {recent.map((r, i) => {
+                  const st = STATUS[r.status] || STATUS.available;
+                  return (
+                    <TouchableOpacity
+                      key={r.id}
+                      style={[s.recentRow, i > 0 && s.recentDivider]}
+                      onPress={() => lookup(r.code)}
+                      activeOpacity={0.7}
+                      accessibilityLabel={`ดู ${r.code} อีกครั้ง`}
+                    >
+                      <View style={s.recentIcon}>
+                        <Ionicons name="cube-outline" size={16} color={C.purple} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={s.recentCode} numberOfLines={1}>{r.code}</Text>
+                        <Text style={s.recentMeta} numberOfLines={1}>{r.name} · {agoText(r.at)}</Text>
+                      </View>
+                      {/* สถานะตอนที่สแกน — กดแล้วโหลดสถานะล่าสุดใหม่ */}
+                      <View style={[s.pill, { backgroundColor: st.bg, alignSelf: "center" }]}>
+                        <Text style={[s.pillText, { color: st.color }]}>{st.label}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
           </>
         )}
 
@@ -366,15 +429,14 @@ const s = StyleSheet.create({
   headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 12 },
 
-  cameraBox: {
-    ...W.card,
-    height: 260,
-    overflow: "hidden",
-    borderStyle: "dashed",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  askText: { color: C.purple, fontWeight: "800" },
+  panel: { ...W.card, padding: 14, gap: 10 },
+  panelLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  panelLabel: { color: C.muted, fontSize: 13, fontWeight: "700" },
+  recentRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 6 },
+  recentDivider: { borderTopWidth: 1, borderTopColor: "#E3EAF5", paddingTop: 10 },
+  recentIcon: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center", backgroundColor: "#EAF2FF" },
+  recentCode: { fontSize: 14, fontWeight: "800", color: C.ink },
+  recentMeta: { fontSize: 12, color: C.muted, marginTop: 1 },
   manualRow: { flexDirection: "row", gap: 8 },
   manualInput: {
     flex: 1,

@@ -20,7 +20,8 @@ import { ITEM_STATUS, RECORD_STATUS } from "../../lib/status";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
-import { addYears, isValidDate, thaiDate } from "../../lib/itemInfo";
+import { parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
+import WarrantyDateField, { warrantyBlocked } from "../../components/WarrantyDateField";
 import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
@@ -354,19 +355,20 @@ export default function AdminItems() {
   // แก้วันหมดประกัน / Serial (ชื่อ-รหัสแก้ไม่ได้ เพราะติดป้ายไปแล้ว)
   const openEdit = (item: any) => {
     setSheet(null);
-    setEditWarranty(item.warranty_expires_at || "");
+    setEditWarranty(toThaiDateInput(item.warranty_expires_at));
     setEditSerial(item.manufacturer_serial || "");
     setEditTarget(item);
   };
 
-  const editWarrantyInvalid = !!editWarranty.trim() && !isValidDate(editWarranty.trim());
+  // ช่องพิมพ์ วว/ดด/ปปปป (พ.ศ.) → บันทึกเป็น ปปปป-ดด-วว (ค.ศ.)
+  const editWarrantyInvalid = warrantyBlocked(editWarranty);
 
   const saveEdit = async () => {
     if (editWarrantyInvalid) return;
     const ok = await run(
       () => supabase.from("items")
         .update({
-          warranty_expires_at: editWarranty.trim() || null,
+          warranty_expires_at: parseThaiDate(editWarranty),
           manufacturer_serial: editSerial.trim() || null,
         })
         .eq("id", editTarget.id),
@@ -617,29 +619,7 @@ export default function AdminItems() {
             </Text>
 
             <Text style={s.editLabel}>วันหมดประกัน (เว้นว่าง = ไม่มีประกัน)</Text>
-            <TextInput
-              style={[s.reasonInput, editWarrantyInvalid && s.inputError]}
-              value={editWarranty}
-              onChangeText={setEditWarranty}
-              placeholder="ปปปป-ดด-วว เช่น 2027-10-02"
-              placeholderTextColor={C.faint}
-              keyboardType="numbers-and-punctuation"
-            />
-            {editWarrantyInvalid && (
-              <Text style={s.editError}>วันที่ไม่ถูกต้อง ใช้รูปแบบ ปปปป-ดด-วว (ค.ศ.)</Text>
-            )}
-            <View style={s.editChips}>
-              {[1, 2, 3].map((y) => (
-                <TouchableOpacity key={y} style={s.editChip} onPress={() => setEditWarranty(addYears(y))} activeOpacity={0.8}>
-                  <Text style={s.editChipText}>+{y} ปีจากวันนี้</Text>
-                </TouchableOpacity>
-              ))}
-              {!!editWarranty && (
-                <TouchableOpacity style={s.editChip} onPress={() => setEditWarranty("")} activeOpacity={0.8}>
-                  <Text style={s.editChipText}>ไม่มีประกัน</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <WarrantyDateField value={editWarranty} onChange={setEditWarranty} inputStyle={s.reasonInput} />
 
             <Text style={s.editLabel}>Serial ผู้ผลิต</Text>
             <TextInput
@@ -774,19 +754,6 @@ const s = StyleSheet.create({
     borderColor: "#DCE6F5",
   },
   editLabel: { fontSize: 13, fontWeight: "800", color: C.ink, marginTop: 4 },
-  editError: { fontSize: 12.5, color: C.red, fontWeight: "700" },
-  inputError: { ...NG, borderColor: C.red, backgroundColor: "#fef2f2" },
-  editChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  editChip: {
-    minHeight: 36,
-    justifyContent: "center",
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: C.purpleSoft,
-    backgroundColor: "#EEF5FF",
-  },
-  editChipText: { fontSize: 13, fontWeight: "700", color: C.purple },
   chipManage: { borderStyle: "dashed", borderColor: C.purpleSoft, backgroundColor: "#EEF5FF" },
   chipActive: {
     ...NG,

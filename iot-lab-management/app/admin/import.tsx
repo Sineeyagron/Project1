@@ -51,7 +51,7 @@ const C = {
 
 const TEMPLATE = [
   ["ชื่อ", "หมวด", "จำนวน", "วันหมดประกัน", "ชื่อย่อ"],
-  ["NodeMCU ESP8266", "Module", "5", "2027-10-31", "NodeMCU"],
+  ["NodeMCU ESP8266", "Module", "5", "31/10/2570", "NodeMCU"],
   ["DHT22 Temperature Sensor", "Sensor", "10", "", "DHT22"],
 ];
 
@@ -344,7 +344,7 @@ export default function ImportItems() {
                 คอลัมน์: <Text style={s.bold}>ชื่อ</Text> (บังคับ), หมวด, จำนวน, วันหมดประกัน, ชื่อย่อ{"\n"}
                 • หมวดต้องมีในระบบ (สะกดผิดเลือกแก้ในหน้านี้ได้) เว้นว่าง = "{OTHER}"{"\n"}
                 • จำนวน 1–{MAX_PER_ROW} ต่อแถว เว้นว่าง = 1 · รวมไม่เกิน {MAX_TOTAL} ชิ้นต่อครั้ง{"\n"}
-                • วันหมดประกัน ปปปป-ดด-วว หรือ วว/ดด/ปปปป (ปี พ.ศ. แปลงให้) เว้นว่าง = ไม่มีประกัน{"\n"}
+                • วันหมดประกัน วว/ดด/ปปปป ปี พ.ศ. เช่น 31/10/2570 (ปี ค.ศ. / ปปปป-ดด-วว ก็ได้) เว้นว่าง = ไม่มีประกัน{"\n"}
                 • Excel: "บันทึกเป็น" → "CSV UTF-8" · หรือก๊อปเซลล์จาก Excel/Google Sheets มาวาง
               </Text>
               <TouchableOpacity style={s.outlineBtn} onPress={shareTemplate} activeOpacity={0.85}>

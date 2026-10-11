@@ -3,7 +3,7 @@
 // กันพลาดที่เจอบ่อย: หมวดสะกดผิด, ปี พ.ศ./ปีผิด, นำเข้าไฟล์ซ้ำ, ชื่อซ้ำในไฟล์, รหัสชนของเดิม, ไฟล์ Excel ไม่ใช่ CSV
 
 import { parseCsv } from "./csv";
-import { isValidDate } from "./itemInfo";
+import { isValidDate, toThaiDateInput } from "./itemInfo";
 
 export const OTHER = "อื่นๆ";
 export const MAX_TOTAL = 500;
@@ -157,17 +157,15 @@ export function parseDate(raw: string, today = new Date()): { value: string | nu
     [y, m, d] = [dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate()];
     note = `แปลงเลขวันที่ Excel ${v}`;
   } else {
-    return { value: null, error: `วันหมดประกัน "${raw.trim()}" อ่านไม่ออก — ใช้ ปปปป-ดด-วว เช่น 2027-10-31` };
+    return { value: null, error: `วันหมดประกัน "${raw.trim()}" อ่านไม่ออก — ใช้ วว/ดด/ปปปป (พ.ศ.) เช่น 31/10/2570` };
   }
-  if (y > 2400) {
-    note = `แปลงปี พ.ศ. ${y} → ค.ศ. ${y - 543}`;
-    y -= 543;
-  }
+  // ปี พ.ศ. = รูปแบบหลักของระบบ (เหมือนช่องประกันในแอป) แปลงเงียบ ๆ — หน้านำเข้าโชว์ "ประกันถึง ..." ให้ตรวจอยู่แล้ว
+  if (y > 2400) y -= 543;
   const iso = `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   if (!isValidDate(iso)) return { value: null, error: `ไม่มีวันที่ "${raw.trim()}" ในปฏิทิน` };
   const todayIso = today.toISOString().slice(0, 10);
   const yearsAhead = (Date.parse(iso) - today.getTime()) / (365.25 * 86400000);
-  if (iso < todayIso) return { value: iso, note, warning: `วันหมดประกันผ่านไปแล้ว (${iso}) — พิมพ์ปีผิดหรือเปล่า?` };
+  if (iso < todayIso) return { value: iso, note, warning: `วันหมดประกันผ่านไปแล้ว (${toThaiDateInput(iso)}) — พิมพ์ปีผิดหรือเปล่า?` };
   if (yearsAhead > 20) return { value: iso, note, warning: `ประกันอีก ${Math.floor(yearsAhead)} ปี ดูนานผิดปกติ — ปีถูกไหม?` };
   return { value: iso, note };
 }

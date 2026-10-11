@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -17,9 +17,11 @@ import { useRouter } from "expo-router";
 import { ITEM_PHOTO_MAX, shrinkPhoto } from "../../lib/shrinkPhoto";
 import supabase from "../../lib/supabase";
 import { goBack as navBack } from "../../lib/nav";
-import { addYears, isValidDate } from "../../lib/itemInfo";
+import { parseThaiDate } from "../../lib/itemInfo";
+import WarrantyDateField, { warrantyBlocked } from "../../components/WarrantyDateField";
 import { notify } from "../../lib/notify";
-import { W, NG } from "../../lib/theme";
+import { C, W, NG, gradient } from "../../lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import ScreenHeader from "../../components/ScreenHeader";
 
 const FS = FileSystem as any;
@@ -59,6 +61,15 @@ export default function Scan() {
   const [photoUri, setPhotoUri] = useState("");
 
   const [saving, setSaving] = useState(false);
+  const insets = useSafeAreaInsets();
+  // ส่วน "ข้อมูลเพิ่มเติม" พับเก็บไว้ก่อน
+  const [showMore, setShowMore] = useState(false);
+  // เลขถัดไปของรุ่นนี้ (แค่แสดงช่วงรหัสตัวอย่าง)
+  const [nextNo, setNextNo] = useState<number | null>(null);
+  // เลื่อนจอให้การ์ด "ข้อมูลเพิ่มเติม" ขึ้นมาอยู่บนสุดตอนเปิด/กดพิมพ์ในการ์ดนี้
+  const scrollRef = useRef<any>(null);
+  const moreY = useRef(0);
+  const focusMore = () => scrollRef.current?.scrollTo({ y: Math.max(0, moreY.current - 8), animated: true });
 
   useEffect(() => {
     supabase
@@ -70,8 +81,40 @@ export default function Scan() {
   }, []);
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
-  const warrantyInvalid = !!warranty.trim() && !isValidDate(warranty.trim());
+  // ช่องประกันพิมพ์ วว/ดด/ปปปป (พ.ศ.) → warrantyIso = ปปปป-ดด-วว (ค.ศ.) ที่บันทึกลงฐานข้อมูล
+  const warrantyIso = parseThaiDate(warranty);
+  const warrantyInvalid = warrantyBlocked(warranty);
   const canContinue = !!name.trim() && !warrantyInvalid;
+  // วันที่ผิด = เปิดส่วนข้อมูลเพิ่มเติมเองให้เห็นช่องที่ผิด
+  const moreOpen = showMore || warrantyInvalid;
+  const moreSummary =
+    [serial.trim() && `Serial ${serial.trim()}`, warrantyIso && `ประกันถึง ${formatThaiDate(warrantyIso)}`, description.trim() && "มีรายละเอียด"]
+      .filter(Boolean)
+      .join(" · ") || "Serial, วันหมดประกัน, รายละเอียด";
+
+  // หาเลขล่าสุดของรุ่นนี้ (หน่วง 400 ms ระหว่างพิมพ์)
+  useEffect(() => {
+    const prefix = codePrefixPreview(name, shortName);
+    if (!name.trim()) {
+      setNextNo(null);
+      return;
+    }
+    let alive = true;
+    const t = setTimeout(async () => {
+      const { data, error } = await supabase
+        .from("items")
+        .select("item_no")
+        .ilike("item_prefix", prefix)
+        .order("item_no", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (alive) setNextNo(error ? null : (data?.item_no ?? 0) + 1);
+    }, 400);
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [name, shortName]);
 
   // ── ถ่ายรูปอุปกรณ์ ──
   const handleTakePhoto = async () => {
@@ -105,8 +148,8 @@ export default function Scan() {
   // ── Upload รูป + บันทึก items ──
   const handleSave = async () => {
     if (!name.trim()) { notify("กรอกชื่ออุปกรณ์ก่อน"); return; }
-    if (warranty.trim() && !isValidDate(warranty.trim())) {
-      notify("วันหมดประกันไม่ถูกต้อง", "ใช้รูปแบบ ปปปป-ดด-วว เช่น 2027-10-02");
+    if (warrantyInvalid) {
+      notify("วันหมดประกันไม่ถูกต้อง", "ใช้รูปแบบ วัน/เดือน/ปี พ.ศ. เช่น 31/12/2570");
       return;
     }
     // พิมพ์ติดลบ/ตัวอักษร/เยอะเกิน → เดิมบันทึก 0 แถวแต่ขึ้นว่าสำเร็จ หรือเพิ่มของทีละหลายร้อยชิ้นโดยไม่ตั้งใจ
@@ -184,7 +227,7 @@ export default function Scan() {
         type: selectedCategory?.name || null,
         short_name: shortName.trim() || null,
         manufacturer_serial: serial.trim() || null,
-        warranty_expires_at: warranty.trim() || null,
+        warranty_expires_at: warrantyIso,
       }));
 
       const { data: saved, error } = await supabase
@@ -219,6 +262,7 @@ export default function Scan() {
     setShortName("");
     setSerial("");
     setWarranty("");
+    setShowMore(false);
   };
 
   const resetAll = () => {
@@ -230,517 +274,385 @@ export default function Scan() {
     navBack("/admin/home");
   };
 
-  // ── STEP INDICATOR ──
-  const StepBar = () => (
-    <View style={si.row}>
-      {["รายละเอียด", "ยืนยัน & บันทึก"].map((label, i) => {
-        const num = i + 1;
-        const current = step === "details" ? 1 : 2;
-        const done = num < current;
-        const active = num === current;
-        return (
-          <React.Fragment key={i}>
-            <View style={si.step}>
-              <View style={[si.circle, done && si.done, active && si.active]}>
-                {done
-                  ? <Ionicons name="checkmark" size={12} color="#fff" />
-                  : <Text style={[si.num, active && { color: "#fff" }]}>{num}</Text>
-                }
+  // ── ตัวบอกขั้น 1 → 2 ──
+  const StepBar = () => {
+    const current = step === "details" ? 1 : 2;
+    return (
+      <View style={si.row}>
+        {["รายละเอียด", "ยืนยัน & บันทึก"].map((label, i) => {
+          const num = i + 1;
+          const done = num < current;
+          const active = num === current;
+          return (
+            <React.Fragment key={label}>
+              <View style={si.step}>
+                <View style={[si.circle, (active || done) && si.active]}>
+                  {done ? <Ionicons name="checkmark" size={12} color="#fff" /> : <Text style={[si.num, active && { color: "#fff" }]}>{num}</Text>}
+                </View>
+                <Text style={[si.label, (active || done) && si.labelActive]}>{label}</Text>
               </View>
-              <Text style={[si.label, active && si.labelActive]}>{label}</Text>
-            </View>
-            {i < 1 && <View style={[si.line, done && si.lineDone]} />}
-          </React.Fragment>
-        );
-      })}
-    </View>
-  );
+              {i < 1 && <View style={[si.line, done && si.lineDone]} />}
+            </React.Fragment>
+          );
+        })}
+      </View>
+    );
+  };
 
-  // ── RENDER: Step 1 — Details + Photo ──
+  const prefix = codePrefixPreview(name, shortName);
+  const qtyNum = Math.max(1, parseInt(quantity, 10) || 1);
+  // ช่วงรหัสที่จะได้ (ประมาณจากเลขล่าสุดของรุ่นนี้ — ฐานข้อมูลออกเลขจริงตอนบันทึก)
+  const codeRange =
+    nextNo == null
+      ? `${prefix} ###`
+      : qtyNum === 1
+      ? `${prefix} ${pad3(nextNo)}`
+      : `${prefix} ${pad3(nextNo)}–${pad3(nextNo + qtyNum - 1)}`;
+
+  // ── ขั้น 1: รายละเอียด (แบบ ก 11 ต.ค. 2569: รูปขึ้นก่อน + การ์ดตามกลุ่ม + ส่วนไม่บังคับพับเก็บ + ปุ่มติดล่าง) ──
   if (step === "details") {
     return (
-      <View
-        style={styles.container}
-      >
-        <ScreenHeader
-          title={"เพิ่มอุปกรณ์"}
-          onBack={() => goBack()}
-        />
-
+      <View style={styles.container}>
+        <ScreenHeader title={"เพิ่มอุปกรณ์"} onBack={() => goBack()} />
         <StepBar />
 
-        <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={styles.form}>
-
-          <View style={styles.autoFillBadge}>
-            <Ionicons name="information-circle" size={16} color="#047857" />
-            <Text style={styles.autoFillText}>
-              ระบบออกรหัสเรียกและรหัสสแกนให้เองตอนบันทึก — พิมพ์ป้าย QR ได้ที่เมนู "สร้าง QR"
-            </Text>
-          </View>
-
-          <Text style={styles.fieldLabel}>ชื่ออุปกรณ์ *</Text>
-          <TextInput style={styles.input} value={name} onChangeText={setName} />
-
-          <Text style={styles.fieldLabel}>ชื่อย่อสำหรับรหัส (ไม่บังคับ)</Text>
-          <TextInput
-            style={styles.input} value={shortName} onChangeText={setShortName}
-            placeholder="ใช้เมื่อชื่อยาว เช่น DHT22"
-          />
-          {!!name.trim() && (
-            <Text style={styles.fieldHint}>
-              รหัสที่จะได้: {codePrefixPreview(name, shortName)} 001, 002, …  (ระบบนับเลขต่อจากของเดิมให้เอง)
-            </Text>
-          )}
-
-          <Text style={styles.fieldLabel}>หมวดหมู่</Text>
-          <View style={styles.chipWrap}>
-            {categories.map((c) => {
-              const active = c.id === categoryId;
-              return (
-                <TouchableOpacity
-                  key={c.id}
-                  style={[styles.chip, active && styles.chipActive]}
-                  onPress={() => setCategoryId(active ? "" : c.id)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.name}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <Text style={styles.fieldLabel}>Serial ผู้ผลิต (ไม่บังคับ)</Text>
-          <TextInput
-            style={styles.input} value={serial} onChangeText={setSerial}
-            placeholder="เลขที่พิมพ์บนตัวอุปกรณ์" autoCapitalize="characters"
-          />
-
-          <Text style={styles.fieldLabel}>วันหมดประกัน (ไม่บังคับ)</Text>
-          <TextInput
-            style={[styles.input, warrantyInvalid && styles.inputError]}
-            value={warranty} onChangeText={setWarranty}
-            placeholder="ปปปป-ดด-วว เช่น 2027-10-02" keyboardType="numbers-and-punctuation"
-          />
-          {warrantyInvalid && (
-            <Text style={styles.fieldError}>
-              วันที่ไม่ถูกต้อง ใช้รูปแบบ ปปปป-ดด-วว (ค.ศ.) หรือกด "ไม่มีประกัน" เพื่อล้าง
-            </Text>
-          )}
-          <View style={styles.chipWrap}>
-            {[1, 2, 3].map((years) => (
-              <TouchableOpacity
-                key={years} style={styles.chip} activeOpacity={0.8}
-                onPress={() => setWarranty(addYears(years))}
-              >
-                <Text style={styles.chipText}>+{years} ปีจากวันนี้</Text>
-              </TouchableOpacity>
-            ))}
-            {!!warranty && (
-              <TouchableOpacity style={styles.chip} activeOpacity={0.8} onPress={() => setWarranty("")}>
-                <Text style={styles.chipText}>ไม่มีประกัน</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <Text style={styles.fieldLabel}>รายละเอียด</Text>
-          <TextInput
-            style={[styles.input, styles.inputMulti]}
-            value={description} onChangeText={setDescription}
-            multiline numberOfLines={2}
-            placeholder="คุณสมบัติ, รุ่น, หมายเหตุ..."
-          />
-
-          <Text style={styles.fieldLabel}>จำนวนที่เพิ่ม</Text>
-          <View style={styles.qtyRow}>
-            <TouchableOpacity style={styles.qtyBtn}
-              onPress={() => setQuantity(q => String(Math.max(1, (parseInt(q, 10) || 1) - 1)))}>
-              <Ionicons name="remove" size={20} color="#1D4ED8" />
-            </TouchableOpacity>
-            <TextInput
-              style={styles.qtyInput} value={quantity}
-              onChangeText={setQuantity} keyboardType="numeric" textAlign="center"
-            />
-            <TouchableOpacity style={styles.qtyBtn}
-              onPress={() => setQuantity(q => String(Math.min(200, (parseInt(q, 10) || 0) + 1)))}>
-              <Ionicons name="add" size={20} color="#1D4ED8" />
-            </TouchableOpacity>
-          </View>
-
-          {/* PHOTO SECTION */}
-          <Text style={styles.fieldLabel}>ถ่ายรูปอุปกรณ์จริง</Text>
-
+        <KeyboardAwareScrollView ref={scrollRef} bottomOffset={24} contentContainerStyle={styles.form}>
+          {/* รูป — แตะกรอบ = ถ่ายรูป / ลิงก์ล่าง = เลือกจากคลังรูป */}
           {photoUri ? (
             <View style={styles.photoPreview}>
               <Image source={{ uri: photoUri }} style={styles.photoImage} />
-              <TouchableOpacity style={styles.retakeBtn} onPress={handleTakePhoto}>
-                <Ionicons name="camera-outline" size={14} color="#fff" />
-                <Text style={styles.retakeBtnText}>ถ่ายใหม่</Text>
-              </TouchableOpacity>
+              <View style={styles.photoTools}>
+                <TouchableOpacity style={styles.photoTool} onPress={handleTakePhoto} activeOpacity={0.85}>
+                  <Ionicons name="camera-outline" size={15} color="#fff" />
+                  <Text style={styles.photoToolText}>ถ่ายใหม่</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.photoTool} onPress={handlePickPhoto} activeOpacity={0.85}>
+                  <Ionicons name="images-outline" size={15} color="#fff" />
+                  <Text style={styles.photoToolText}>เลือกรูปอื่น</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
-            <View style={styles.photoActions}>
-              <TouchableOpacity style={styles.photoBtn} onPress={handleTakePhoto}>
-                <Ionicons name="camera-outline" size={24} color="#1D4ED8" />
-                <Text style={styles.photoBtnText}>ถ่ายรูป</Text>
+            <View style={styles.photoEmpty}>
+              <TouchableOpacity style={styles.photoTap} onPress={handleTakePhoto} activeOpacity={0.85} accessibilityLabel="ถ่ายรูปอุปกรณ์">
+                <View style={styles.photoIcon}>
+                  <Ionicons name="camera" size={24} color="#fff" />
+                </View>
+                <Text style={styles.photoTitle}>ถ่ายรูปอุปกรณ์จริง</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.photoBtn} onPress={handlePickPhoto}>
-                <Ionicons name="image-outline" size={24} color="#1D4ED8" />
-                <Text style={styles.photoBtnText}>เลือกจาก Gallery</Text>
+              <TouchableOpacity onPress={handlePickPhoto} hitSlop={8} activeOpacity={0.7}>
+                <Text style={styles.photoLink}>หรือเลือกจากคลังรูป</Text>
               </TouchableOpacity>
             </View>
           )}
 
+          {/* 1 ข้อมูลหลัก */}
+          <View style={styles.card}>
+            <SectionTitle no="1" title="ข้อมูลหลัก" />
+            <Text style={styles.fieldLabel}>ชื่ออุปกรณ์ *</Text>
+            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="เช่น เซนเซอร์อุณหภูมิ DHT22" placeholderTextColor="#94A3B8" />
+
+            <Text style={styles.fieldLabel}>ชื่อย่อสำหรับรหัส</Text>
+            <TextInput
+              style={styles.input}
+              value={shortName}
+              onChangeText={setShortName}
+              placeholder="ไม่บังคับ — ใช้เมื่อชื่อยาว เช่น DHT22"
+              placeholderTextColor="#94A3B8"
+            />
+            {!!name.trim() && (
+              <View style={styles.codeHint}>
+                <Ionicons name="pricetag-outline" size={13} color="#1D4ED8" />
+                <Text style={styles.codeHintText}>
+                  รหัสที่จะได้: {nextNo == null ? `${prefix} 001, 002, …` : codeRange} (นับต่อจากของเดิมให้เอง)
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.fieldLabel}>หมวดหมู่</Text>
+            <View style={styles.chipWrap}>
+              {categories.map((c) => {
+                const active = c.id === categoryId;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => setCategoryId(active ? "" : c.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* 2 จำนวน */}
+          <View style={[styles.card, styles.qtyCard]}>
+            <SectionTitle no="2" title="จำนวนที่เพิ่ม" />
+            <View style={styles.qtyRow}>
+              <TouchableOpacity
+                style={styles.qtyBtn}
+                onPress={() => setQuantity((q) => String(Math.max(1, (parseInt(q, 10) || 1) - 1)))}
+                accessibilityLabel="ลดจำนวน"
+              >
+                <Ionicons name="remove" size={20} color="#1D4ED8" />
+              </TouchableOpacity>
+              <TextInput style={styles.qtyInput} value={quantity} onChangeText={setQuantity} keyboardType="numeric" textAlign="center" />
+              <TouchableOpacity
+                style={styles.qtyBtn}
+                onPress={() => setQuantity((q) => String(Math.min(200, (parseInt(q, 10) || 0) + 1)))}
+                accessibilityLabel="เพิ่มจำนวน"
+              >
+                <Ionicons name="add" size={20} color="#1D4ED8" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ข้อมูลเพิ่มเติม (ไม่บังคับ) — พับเก็บ / เปิดเองถ้าวันที่ผิด */}
+          <View style={styles.card} onLayout={(e) => (moreY.current = e.nativeEvent.layout.y)}>
+            <TouchableOpacity
+              style={styles.moreHead}
+              onPress={() => {
+                if (moreOpen) return setShowMore(false);
+                setShowMore(true);
+                setTimeout(focusMore, 80); // รอให้ช่องกรอกโผล่ก่อนค่อยเลื่อน
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.moreTitle}>
+                  ข้อมูลเพิ่มเติม <Text style={styles.moreOptional}>· ไม่บังคับ</Text>
+                </Text>
+                {!moreOpen && <Text style={styles.moreSub}>{moreSummary}</Text>}
+              </View>
+              <Ionicons name={moreOpen ? "chevron-up" : "chevron-down"} size={18} color="#1D4ED8" />
+            </TouchableOpacity>
+
+            {moreOpen && (
+              <>
+                <Text style={styles.fieldLabel}>Serial ผู้ผลิต</Text>
+                <TextInput
+                  style={styles.input}
+                  value={serial}
+                  onChangeText={setSerial}
+                  onFocus={focusMore}
+                  placeholder="เลขที่พิมพ์บนตัวอุปกรณ์"
+                  placeholderTextColor="#94A3B8"
+                  autoCapitalize="characters"
+                />
+
+                <Text style={styles.fieldLabel}>วันหมดประกัน</Text>
+                <WarrantyDateField value={warranty} onChange={setWarranty} inputStyle={styles.input} onFocus={focusMore} />
+
+                <Text style={styles.fieldLabel}>รายละเอียด</Text>
+                <TextInput
+                  style={[styles.input, styles.inputMulti]}
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  numberOfLines={2}
+                  placeholder="คุณสมบัติ, รุ่น, หมายเหตุ..."
+                  placeholderTextColor="#94A3B8"
+                />
+              </>
+            )}
+          </View>
+        </KeyboardAwareScrollView>
+
+        {/* ปุ่มหลักติดขอบล่างเสมอ */}
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
           <TouchableOpacity
             style={[styles.nextBtn, !canContinue && styles.btnDisabled]}
-            onPress={() => { if (canContinue) setStep("preview"); }}
+            onPress={() => {
+              if (canContinue) setStep("preview");
+            }}
             disabled={!canContinue}
+            activeOpacity={0.85}
           >
-            <Text style={styles.nextBtnText}>ดูสรุปก่อนบันทึก →</Text>
+            <Text style={styles.nextBtnText}>ดูสรุปก่อนบันทึก</Text>
+            <Ionicons name="arrow-forward" size={18} color="#fff" />
           </TouchableOpacity>
-
-          <View style={{ height: 40 }} />
-        </KeyboardAwareScrollView>
+        </View>
       </View>
     );
   }
 
-  // ── RENDER: Step 2 — Preview & Save ──
+  // ── ขั้น 2: ยืนยัน & บันทึก — การ์ดตัวอย่าง (แบบที่ นศ. จะเห็น) + สรุป ──
   return (
     <View style={styles.container}>
-      <ScreenHeader
-        title="ยืนยัน & บันทึก"
-        onBack={() => setStep("details")}
-      />
-
+      <ScreenHeader title="ยืนยัน & บันทึก" onBack={() => setStep("details")} />
       <StepBar />
 
-      <ScrollView contentContainerStyle={styles.form}>
-
-        {/* รูปภาพ */}
-        {photoUri ? (
-          <Image source={{ uri: photoUri }} style={styles.previewImg} />
-        ) : (
-          <View style={styles.noPhoto}>
-            <Ionicons name="image-outline" size={36} color="#cbd5e1" />
-            <Text style={styles.noPhotoText}>ไม่มีรูปภาพ</Text>
+      <ScrollView contentContainerStyle={[styles.form, { paddingBottom: 150 + insets.bottom }]}>
+        <View style={styles.hero}>
+          {photoUri ? (
+            <Image source={{ uri: photoUri }} style={styles.heroImg} />
+          ) : (
+            <View style={[styles.heroImg, styles.heroEmpty]}>
+              <Ionicons name="cube-outline" size={40} color="#93C5FD" />
+              <Text style={styles.noPhotoText}>ไม่มีรูปภาพ</Text>
+            </View>
+          )}
+          <View style={styles.heroBody}>
+            <Text style={styles.heroCode}>
+              {codeRange} <Text style={styles.heroQty}>· {qtyNum} ชิ้น</Text>
+            </Text>
+            <Text style={styles.heroName} numberOfLines={2}>
+              {name}
+              {selectedCategory ? ` · ${selectedCategory.name}` : ""}
+            </Text>
           </View>
-        )}
+        </View>
 
-        {/* สรุปข้อมูล */}
-        <View style={styles.summaryBox}>
+        <View style={styles.card}>
           {[
-            { label: "ชื่ออุปกรณ์", val: name },
-            { label: "รหัสเรียก", val: `${codePrefixPreview(name, shortName)} ### (ออกให้ตอนบันทึก)` },
-            { label: "หมวดหมู่", val: selectedCategory?.name || "-" },
             { label: "Serial ผู้ผลิต", val: serial || "-" },
-            { label: "หมดประกัน", val: isValidDate(warranty.trim()) ? formatThaiDate(warranty.trim()) : "-" },
+            { label: "หมดประกัน", val: warrantyIso ? formatThaiDate(warrantyIso) : "-" },
             { label: "รายละเอียด", val: description || "-" },
-            { label: "จำนวน", val: `${quantity} ชิ้น` },
-            { label: "สถานะ", val: "available" },
-          ].map((r) => (
-            <View key={r.label} style={styles.summaryRow}>
+            { label: "สถานะเริ่มต้น", val: "ว่าง", ok: true },
+          ].map((r, i) => (
+            <View key={r.label} style={[styles.summaryRow, i === 0 && { borderTopWidth: 0 }]}>
               <Text style={styles.summaryLabel}>{r.label}</Text>
-              <Text style={[
-                styles.summaryVal,
-                r.label === "สถานะ" && { color: "#047857" }
-              ]}>{r.val}</Text>
+              <Text style={[styles.summaryVal, r.ok && { color: "#047857" }]}>{r.val}</Text>
             </View>
           ))}
         </View>
 
-        <TouchableOpacity
-          style={[styles.saveBtn, saving && styles.btnDisabled]}
-          onPress={handleSave}
-          disabled={saving}
-        >
-          {saving ? <ActivityIndicator color="#fff" /> : (
+        <View style={styles.infoNote}>
+          <Ionicons name="information-circle-outline" size={16} color="#1D4ED8" />
+          <Text style={styles.infoNoteText}>ระบบออกรหัสเรียก + รหัสสแกนให้เองตอนบันทึก · พิมพ์ป้าย QR ได้ที่เมนู "สร้าง QR"</Text>
+        </View>
+      </ScrollView>
+
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+        <TouchableOpacity style={[styles.nextBtn, saving && styles.btnDisabled]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
             <>
               <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-              <Text style={styles.saveBtnText}>  บันทึกเข้าระบบ</Text>
+              <Text style={styles.nextBtnText}>บันทึกเข้าระบบ</Text>
             </>
           )}
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.cancelBtn} onPress={resetAll}>
+        <TouchableOpacity style={styles.cancelBtn} onPress={resetAll} disabled={saving}>
           <Text style={styles.cancelBtnText}>ล้างฟอร์ม เริ่มใหม่</Text>
         </TouchableOpacity>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+      </View>
     </View>
   );
 }
 
-// Step indicator styles
+const pad3 = (n: number) => String(n).padStart(3, "0");
+
+function SectionTitle({ no, title }: { no: string; title: string }) {
+  return (
+    <View style={styles.sectionRow}>
+      <View style={styles.sectionNo}>
+        <Text style={styles.sectionNoText}>{no}</Text>
+      </View>
+      <Text style={styles.sectionTitle}>{title}</Text>
+    </View>
+  );
+}
+
+// ตัวบอกขั้น
 const si = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingVertical: 10 },
-  step: { alignItems: "center", gap: 3 },
-  circle: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#DCE6F5", alignItems: "center", justifyContent: "center" },
-  active: { backgroundColor: "#1D4ED8" },
-  done: { backgroundColor: "#047857" },
-  num: { fontSize: 11, fontWeight: "700", color: "#475569" },
-  label: { fontSize: 11, color: "#475569" },
-  labelActive: { color: "#1D4ED8", fontWeight: "700" },
-  line: { flex: 1, height: 2, backgroundColor: "#DCE6F5", marginBottom: 12 },
-  lineDone: { ...NG, backgroundColor: "#047857" },
+  row: { flexDirection: "row", alignItems: "center", paddingHorizontal: 20, paddingTop: 2, paddingBottom: 10 },
+  step: { flexDirection: "row", alignItems: "center", gap: 6 },
+  circle: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#DCE6F5", alignItems: "center", justifyContent: "center" },
+  active: { backgroundColor: C.primary },
+  num: { fontSize: 11, fontWeight: "700", color: C.text2 },
+  label: { fontSize: 12, color: C.text2 },
+  labelActive: { color: C.primaryDark, fontWeight: "700" },
+  line: { flex: 1, height: 2, borderRadius: 1, backgroundColor: "#DCE6F5", marginHorizontal: 10 },
+  lineDone: { ...NG, backgroundColor: C.primary },
 });
 
 const styles = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, padding: 20 },
-  header: { ...W.headerBar,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingTop: 52,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  headerText: { flex: 1, color: "#172033", fontSize: 20, fontWeight: "700" },
-  backBtn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
+  form: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 130, gap: 12 },
 
-  permText: { fontSize: 14, color: "#475569", textAlign: "center" },
-  permBtn: { ...W.primarySolid, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 15 },
-  permBtnText: { color: "#fff", fontWeight: "600" },
-
-  // Scan
-  scanHeader: {
-    minHeight: 114,
-    backgroundColor: "#2563EB",
-    paddingTop: 54,
-    paddingHorizontal: 30,
-    paddingBottom: 17,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  scanBackBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.20)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  scanHeaderTitleWrap: {
-    flex: 1,
-  },
-  scanHeaderTitle: {
-    color: "#fff",
-    fontSize: 25,
-    fontWeight: "900",
-    lineHeight: 29,
-  },
-  scanHeaderSub: {
-    color: "#BFDBFE",
-    fontSize: 12,
-    fontWeight: "900",
-    marginTop: 4,
-  },
-  scanBody: {
-    flex: 1,
-    paddingHorizontal: 30,
-    paddingTop: 21,
-    alignItems: "center",
-  },
-  scannerPanel: {
-    width: 200,
-    height: 200,
-    borderRadius: 10,
-    borderWidth: 1.5,
+  // รูป
+  photoEmpty: {
+    height: 160,
+    borderRadius: 22,
+    borderWidth: 2,
     borderStyle: "dashed",
-    borderColor: "#0d9488",
-    backgroundColor: "#f8fafc",
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#94a3b8",
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 2,
-  },
-  camera: {
-    width: "100%",
-    height: "100%",
-  },
-  cameraOverlay: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent",
-  },
-  permissionPanel: {
-    flex: 1,
-    width: "100%",
+    borderColor: "#93C5FD",
+    backgroundColor: "rgba(255,255,255,0.65)",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
   },
-  permissionText: {
-    color: "#0d9488",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  scanLine: {
-    position: "absolute",
-    left: 18,
-    right: 18,
-    bottom: 31,
-    height: 1,
-    backgroundColor: "#14b8a6",
-    opacity: 0.7,
-  },
-  scanTitle: {
-    color: "#172033",
-    fontSize: 15,
-    fontWeight: "900",
-    marginTop: 12,
-  },
-  scanDesc: {
-    color: "#475569",
-    fontSize: 11,
-    fontWeight: "700",
-    lineHeight: 17,
-    textAlign: "center",
-    marginTop: 7,
-  },
-  autoInfo: {
-    width: "100%",
-    maxWidth: 420,
-    minHeight: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 11,
-    backgroundColor: "#cffafe",
-    borderWidth: 1,
-    borderColor: "#67e8f9",
-    borderRadius: 12,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    marginTop: 20,
-  },
-  autoInfoTextWrap: {
-    flex: 1,
-  },
-  autoInfoTitle: {
-    color: "#0f766e",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  autoInfoText: {
-    color: "#0f766e",
-    fontSize: 11,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  manualBtn: {
-    ...W.primarySolid,
-    width: "100%",
-    maxWidth: 420,
-    minHeight: 42,
-    borderRadius: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    marginTop: 19,
-  },
-  manualBtnText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  scanWrap: { flex: 1 },
-  overlay: { flex: 1, justifyContent: "center", alignItems: "center" },
-  frameBox: {
-    width: 240, height: 240, position: "relative",
-    justifyContent: "flex-end", alignItems: "center",
-  },
-  corner: { position: "absolute", width: 28, height: 28, borderColor: "#fff", borderWidth: 3 },
-  cTL: { top: 0, left: 0, borderBottomWidth: 0, borderRightWidth: 0 },
-  cTR: { top: 0, right: 0, borderBottomWidth: 0, borderLeftWidth: 0 },
-  cBL: { bottom: 0, left: 0, borderTopWidth: 0, borderRightWidth: 0 },
-  cBR: { bottom: 0, right: 0, borderTopWidth: 0, borderLeftWidth: 0 },
-  frameHint: { color: "#fff", fontSize: 12, marginBottom: 8, backgroundColor: "rgba(0,0,0,0.4)", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  photoTap: { alignItems: "center", gap: 8 },
+  photoIcon: { ...W.primary, width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center" },
+  photoTitle: { fontSize: 15, fontWeight: "700", color: C.ink },
+  photoLink: { fontSize: 13, color: C.primaryDark, fontWeight: "600" },
+  photoPreview: { height: 200, borderRadius: 22, overflow: "hidden", backgroundColor: "#DBEAFE" },
+  photoImage: { width: "100%", height: "100%" },
+  photoTools: { position: "absolute", right: 10, bottom: 10, flexDirection: "row", gap: 8 },
+  photoTool: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(15,23,42,0.6)", borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  photoToolText: { color: "#fff", fontSize: 12.5, fontWeight: "600" },
 
-  scanBottom: { padding: 20, alignItems: "center", gap: 12, backgroundColor: "#f1f5f9" },
-  qrGenBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "#DBEAFE", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10,
-  },
-  qrGenText: { color: "#2563EB", fontSize: 12, fontWeight: "600" },
-
-  // Form
-  form: { padding: 16 },
-  autoFillBadge: {
-    ...NG,
-    flexDirection: "row", alignItems: "center", gap: 6,
-    backgroundColor: "#ECFDF5", padding: 10, borderRadius: 10, marginBottom: 12,
-  },
-  autoFillText: { fontSize: 12, color: "#166534", flex: 1 },
-  fieldLabel: { fontSize: 12, fontWeight: "700", color: "#475569", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 5, marginTop: 12 },
-  input: { backgroundColor: "#fff", borderRadius: 12, padding: 13, fontSize: 14, borderWidth: 1, borderColor: "#DCE6F5" },
-  inputMulti: { height: 72, textAlignVertical: "top" },
-  inputError: { borderColor: "#ef4444" },
-  fieldHint: { fontSize: 12, color: "#2563EB", marginTop: 5 },
-  fieldError: { fontSize: 12, color: "#dc2626", marginTop: 5 },
-  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
-  chip: {
-    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999,
-    backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5",
-  },
-  chipActive: { ...NG, backgroundColor: "#2563EB", borderColor: "#2563EB" },
-  chipText: { fontSize: 12, fontWeight: "700", color: "#475569" },
+  // การ์ด
+  card: { ...W.card, padding: 14 },
+  sectionRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 },
+  sectionNo: { width: 22, height: 22, borderRadius: 8, backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center" },
+  sectionNoText: { fontSize: 12, fontWeight: "700", color: C.primaryDark },
+  sectionTitle: { fontSize: 15, fontWeight: "700", color: C.ink },
+  fieldLabel: { fontSize: 13, color: C.text2, marginTop: 12, marginBottom: 6 },
+  input: { ...(W.input as {}), paddingHorizontal: 14, paddingVertical: 11, fontSize: 15, color: C.ink },
+  inputMulti: { minHeight: 70, textAlignVertical: "top" },
+  codeHint: { flexDirection: "row", gap: 6, alignItems: "flex-start", marginTop: 8, padding: 8, borderRadius: 10, backgroundColor: C.primaryTint },
+  codeHintText: { flex: 1, fontSize: 12.5, color: C.primaryDark, lineHeight: 18 },
+  chipWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { paddingHorizontal: 13, paddingVertical: 7, borderRadius: 999, backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5" },
+  chipActive: { ...NG, backgroundColor: C.primary, borderColor: C.primary },
+  chipText: { fontSize: 13, color: C.text2, fontWeight: "600" },
   chipTextActive: { color: "#fff" },
-  qtyRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-  qtyBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5", justifyContent: "center", alignItems: "center" },
-  qtyInput: { flex: 1, backgroundColor: "#fff", borderRadius: 12, padding: 10, fontSize: 18, fontWeight: "700", borderWidth: 1, borderColor: "#DCE6F5" },
 
-  // Photo
-  photoActions: { flexDirection: "row", gap: 10, marginTop: 4 },
-  photoBtn: {
-    flex: 1, ...W.small, padding: 16,
-    alignItems: "center", gap: 6,
-  },
-  photoBtnText: { fontSize: 12, color: "#1D4ED8", fontWeight: "600" },
-  photoPreview: { borderRadius: 12, overflow: "hidden", position: "relative", marginTop: 4 },
-  photoImage: { width: "100%", height: 180, borderRadius: 12 },
-  retakeBtn: {
-    position: "absolute", bottom: 10, right: 10,
-    backgroundColor: "rgba(0,0,0,0.6)", flexDirection: "row", alignItems: "center",
-    gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
-  },
-  retakeBtnText: { color: "#fff", fontSize: 12 },
+  // จำนวน
+  qtyCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  qtyRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  qtyBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#EEF4FF", alignItems: "center", justifyContent: "center" },
+  qtyInput: { width: 54, fontSize: 20, fontWeight: "700", color: C.ink, paddingVertical: 4 },
 
-  nextBtn: {
-    ...W.primarySolid,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
-    borderRadius: 15,
-    marginTop: 16,
-  },
-  nextBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  btnDisabled: { ...NG, backgroundColor: "#94a3b8" },
+  // ข้อมูลเพิ่มเติม
+  moreHead: { flexDirection: "row", alignItems: "center", gap: 10 },
+  moreTitle: { fontSize: 15, fontWeight: "700", color: C.ink },
+  moreOptional: { fontSize: 13, fontWeight: "400", color: C.faint },
+  moreSub: { fontSize: 12.5, color: C.faint, marginTop: 2 },
 
-  // Preview
-  previewImg: { width: "100%", height: 200, borderRadius: 14, marginBottom: 12, resizeMode: "cover" },
-  noPhoto: { ...W.card, height: 120, justifyContent: "center", alignItems: "center", gap: 6, marginBottom: 12 },
-  noPhotoText: { color: "#475569", fontSize: 12 },
-  summaryBox: { ...W.card, padding: 14, marginBottom: 14 },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: "#f8fafc" },
-  summaryLabel: { fontSize: 12, color: "#475569" },
-  summaryVal: { fontSize: 12, fontWeight: "700", color: "#1e293b", flex: 1, textAlign: "right" },
-  saveBtn: {
-    flexDirection: "row", justifyContent: "center", alignItems: "center",
-    backgroundColor: "#047857", padding: 16, borderRadius: 14, marginBottom: 10,
+  // ปุ่มติดล่าง
+  footer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    ...gradient("linear-gradient(180deg, rgba(234,241,252,0) 0%, #EAF1FC 32%)"),
   },
-  saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  cancelBtn: { alignItems: "center", padding: 10 },
-  cancelBtnText: { color: "#475569", fontSize: 13 },
+  nextBtn: { ...W.primary, height: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  nextBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+  btnDisabled: { opacity: 0.45 },
+  cancelBtn: { alignItems: "center", paddingVertical: 10 },
+  cancelBtnText: { color: C.faint, fontSize: 14, fontWeight: "600" },
+
+  // ขั้น 2
+  hero: { ...W.card, overflow: "hidden" },
+  heroImg: { width: "100%", height: 190, backgroundColor: "#DBEAFE" },
+  heroEmpty: { alignItems: "center", justifyContent: "center", gap: 6 },
+  noPhotoText: { fontSize: 13, color: C.faint },
+  heroBody: { padding: 14, gap: 2 },
+  heroCode: { fontSize: 20, fontWeight: "700", color: C.ink },
+  heroQty: { fontSize: 14, fontWeight: "400", color: C.faint },
+  heroName: { fontSize: 14, color: C.text2 },
+  summaryRow: { flexDirection: "row", justifyContent: "space-between", gap: 12, paddingVertical: 9, borderTopWidth: 1, borderTopColor: "#EEF2F7" },
+  summaryLabel: { fontSize: 14, color: C.text2 },
+  summaryVal: { flex: 1, textAlign: "right", fontSize: 14, fontWeight: "600", color: C.ink },
+  infoNote: { flexDirection: "row", gap: 8, alignItems: "flex-start", padding: 12, borderRadius: 14, backgroundColor: C.primaryTint },
+  infoNoteText: { flex: 1, fontSize: 12.5, color: C.primaryDark, lineHeight: 19 },
 });

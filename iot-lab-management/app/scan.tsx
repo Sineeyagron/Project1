@@ -5,12 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../components/AppText";
-import { CameraView, useCameraPermissions } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import ScanCamera from "../components/ScanCamera";
 import supabase from "../lib/supabase";
 import { goBack } from "../lib/nav";
 import { currentUser } from "../lib/session";
@@ -18,7 +19,7 @@ import { notify, confirmAction } from "../lib/notify";
 import { canTakeLivePhoto, takeLivePhoto, uploadBorrowPhoto } from "../lib/borrowPhotos";
 import Countdown from "../components/Countdown";
 import ConfirmRulesSheet, { SummaryRow } from "../components/ConfirmRulesSheet";
-import { W, NG } from "../lib/theme";
+import { W, NG, C as TC } from "../lib/theme";
 import ScreenHeader from "../components/ScreenHeader";
 
 // นักศึกษาสแกน QR ที่ตัวของ ณ ห้อง → ขอยืม / ขอคืน / ขอยืมต่อ (แผน 2.6)
@@ -73,7 +74,7 @@ const addDays = (base: string | null, n: number) => {
 
 export default function StudentScan() {
   const router = useRouter();
-  const [permission, requestPermission] = useCameraPermissions();
+  const windowHeight = useWindowDimensions().height;
   const scanLock = useRef(false);
 
   const [lookup, setLookup] = useState<Lookup | null>(null);
@@ -243,44 +244,46 @@ export default function StudentScan() {
       <View style={s.container}>
         {Header}
         <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.body}>
-          <View style={s.cameraBox}>
-            {loading ? (
-              <ActivityIndicator size="large" color={C.header} />
-            ) : permission?.granted ? (
-              <CameraView
-                style={StyleSheet.absoluteFill}
-                facing="back"
-                onBarcodeScanned={onBarcode}
-                barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
-              />
-            ) : (
-              <TouchableOpacity style={s.cameraAsk} onPress={requestPermission} activeOpacity={0.85}>
-                <Ionicons name="camera-outline" size={44} color={C.header} />
-                <Text style={s.cameraAskText}>แตะเพื่ออนุญาตใช้กล้อง</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <Text style={s.hint}>ส่องกล้องไปที่ QR บนป้ายอุปกรณ์</Text>
+          {/* แบบ ก (11 ต.ค. 2569): กล้องใหญ่ + กรอบเล็ง + เส้นสแกน + ไฟฉาย — components/ScanCamera */}
+          <ScanCamera
+            height={Math.round(Math.min(440, windowHeight * 0.5))}
+            onScanned={(data) => onBarcode({ data })}
+            tip="ส่องกล้องไปที่ QR บนป้ายอุปกรณ์"
+            footnote="ให้ QR อยู่ในกรอบ · ห่าง 10–20 ซม."
+            busy={loading}
+          />
 
-          <View style={s.manualRow}>
-            <TextInput
-              style={s.manualInput}
-              value={manualCode}
-              onChangeText={setManualCode}
-              placeholder="หรือพิมพ์รหัสสแกน 4 ตัว เช่น A7K2"
-              placeholderTextColor={C.faint}
-              autoCapitalize="characters"
-              maxLength={8}
-              onSubmitEditing={() => runLookup(manualCode)}
-            />
-            <TouchableOpacity
-              style={[s.manualBtn, !manualCode.trim() && s.disabled]}
-              disabled={!manualCode.trim()}
-              onPress={() => runLookup(manualCode)}
-              activeOpacity={0.85}
-            >
-              <Text style={s.manualBtnText}>ค้นหา</Text>
-            </TouchableOpacity>
+          <View style={s.manualCard}>
+            <View style={s.manualLabelRow}>
+              <Ionicons name="keypad-outline" size={15} color={TC.text2} />
+              <Text style={s.manualLabel}>สแกนไม่ติด? พิมพ์รหัส 4 ตัวใต้ QR</Text>
+            </View>
+            <View style={s.manualRow}>
+              <TextInput
+                style={s.manualInput}
+                value={manualCode}
+                onChangeText={setManualCode}
+                placeholder="เช่น A7K2"
+                placeholderTextColor={C.faint}
+                autoCapitalize="characters"
+                maxLength={8}
+                onSubmitEditing={() => runLookup(manualCode)}
+              />
+              <TouchableOpacity
+                style={[s.manualBtn, !manualCode.trim() && s.disabled]}
+                disabled={!manualCode.trim()}
+                onPress={() => runLookup(manualCode)}
+                activeOpacity={0.85}
+              >
+                <Text style={s.manualBtnText}>ค้นหา</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ขั้นตอนการยืมแบบย่อ (รายละเอียดอยู่ในป๊อปอัปกฎตอนส่ง) */}
+          <View style={s.stepsCard}>
+            <Ionicons name="footsteps-outline" size={15} color={TC.primary} />
+            <Text style={s.stepsText}>สแกน → ถ่ายรูป + แจ้งสภาพ → รอผู้ดูแลอนุมัติ</Text>
           </View>
         </KeyboardAwareScrollView>
       </View>
@@ -607,17 +610,11 @@ const s = StyleSheet.create({
   body: { padding: 16, paddingTop: 4, gap: 12 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
 
-  cameraBox: {
-    ...W.card,
-    height: 280,
-    overflow: "hidden",
-    borderStyle: "dashed",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cameraAsk: { alignItems: "center", gap: 8 },
-  cameraAskText: { color: C.header, fontSize: 14, fontWeight: "600" },
-  hint: { textAlign: "center", color: C.muted, fontSize: 12.5 },
+  manualCard: { ...W.card, padding: 14, gap: 10 },
+  manualLabelRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  manualLabel: { color: TC.text2, fontSize: 13 },
+  stepsCard: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 11, borderRadius: 16, backgroundColor: TC.primaryTint },
+  stepsText: { flex: 1, color: TC.primaryDark, fontSize: 13 },
   manualRow: { flexDirection: "row", gap: 8 },
   manualInput: {
     flex: 1,
