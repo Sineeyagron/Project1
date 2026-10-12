@@ -1,7 +1,10 @@
 import React, { useEffect, useRef } from "react";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import { useRouter } from "expo-router";
 import { dropSheet, getSheet, patchSheet, setSheet } from "../lib/sheetHost";
+import { DialogHost } from "../lib/notify";
+import { useIsDesktop } from "../lib/layout";
 
 // แผ่นล่างจอ ใช้ซ้ำทั้งแอป = แผ่น iOS แท้ แบบเดียวกับแผ่นรายละเอียดอุปกรณ์ของ นศ. (เจ้าของโปรเจกต์เลือก 12 ต.ค. 2569)
 //   iOS เลื่อนแผ่น 120Hz + ฉากมืดของระบบอยู่กับที่ (ไม่มีขอบเทาไถขึ้นมา) + ขีดจับ + ปัดลงปิด + สูงพอดีเนื้อหา
@@ -15,19 +18,55 @@ import { dropSheet, getSheet, patchSheet, setSheet } from "../lib/sheetHost";
 const DISMISS_MS = 420;
 let lastClosedAt = 0;
 
-export default function BottomSheet({
-  visible,
-  onClose,
-  style,
-  children,
-}: {
+// เว็บ: ไม่มีแผ่น iOS (route sheet-host บนเว็บกลายเป็นหน้าเต็มจอ เมนูซ้ายหาย) → หน้าต่างทับหน้าเดิมแทน
+//   จอคอม = หน้าต่างกลางจอ / เว็บมือถือ = แผ่นจากล่าง · แตะฉากมืด = ปิด
+export default function BottomSheet(props: SheetProps) {
+  return Platform.OS === "web" ? <WebSheet {...props} /> : <NativeSheet {...props} />;
+}
+
+function WebSheet({ visible, onClose, style, children }: SheetProps) {
+  const desktop = useIsDesktop();
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={[web.backdrop, desktop ? web.center : web.bottom]}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="ปิด" />
+        <View style={[web.box, desktop ? web.boxDialog : web.boxSheet]}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <View style={[style, web.reset]}>{children}</View>
+          </ScrollView>
+        </View>
+      </View>
+      <DialogHost />
+    </Modal>
+  );
+}
+
+const web = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: "rgba(15,23,42,0.42)" },
+  center: { alignItems: "center", justifyContent: "center", padding: 24 },
+  bottom: { justifyContent: "flex-end" },
+  box: { backgroundColor: "#fff", overflow: "hidden" },
+  boxDialog: { width: "100%", maxWidth: 520, maxHeight: "88%", borderRadius: 22, boxShadow: "0 24px 60px rgba(15,23,42,0.28)" } as any,
+  boxSheet: { width: "100%", maxHeight: "90%", borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  // style เดิมทำมาให้ลอยล่างจอ → ล้างส่วนที่กล่องนี้ทำให้แล้ว
+  reset: { position: "relative", maxHeight: undefined, borderTopLeftRadius: 0, borderTopRightRadius: 0, backgroundColor: "transparent", boxShadow: "none" } as any,
+});
+
+type SheetProps = {
   visible: boolean;
   onClose: () => void;
   onHidden?: () => void;
   style?: StyleProp<ViewStyle>;
   liftKeyboard?: boolean;
   children: React.ReactNode;
-}) {
+};
+
+function NativeSheet({
+  visible,
+  onClose,
+  style,
+  children,
+}: SheetProps) {
   const router = useRouter();
   const id = useRef(`sheet-${Math.random().toString(36).slice(2, 10)}`).current;
   const opened = useRef(false); // หน้าเดิมสั่งเปิดอยู่

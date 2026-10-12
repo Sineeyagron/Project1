@@ -26,6 +26,8 @@ import { FadeIn, PressScale, Pulse } from "../../components/Motion";
 import { confirmAction, notify } from "../../lib/notify";
 import { canAccess, ROLE_LABEL, useRole } from "../../lib/roles";
 import { W, NG, gradient, iconDot, BADGE_TEXT } from "../../lib/theme";
+import { useIsDesktop } from "../../lib/layout";
+import AdminDashboardDesktop from "../../components/desktop/AdminDashboardDesktop";
 
 const C = {
   bg: "#EAF1FC",
@@ -149,6 +151,7 @@ export default function AdminHome() {
   const { role, userId } = useRole();
   // F4 ผู้ดูแลที่อยู่ห้องตอนนี้ — การ์ดเช็กอิน + จุดสีบนบรรทัดทักทาย (เช็กอินแล้ว = เขียว / ยังไม่เช็กอิน = แดง)
   const presence = usePresence();
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → แดชบอร์ดแบบคอม (ข้อมูลชุดเดียวกัน)
   const checkedIn = presence.list.some((p) => p.user_id === userId);
   // TA เห็นเฉพาะเมนูที่มีสิทธิ์ (lib/roles.ts) + ทางไปหน้านักศึกษาเพื่อยืมของเอง
   const primary: Tile[] = [
@@ -337,6 +340,24 @@ export default function AdminHome() {
   const confirmLogout = () => {
     confirmAction("ออกจากระบบ", "ต้องการออกจากระบบใช่ไหม?", "ออกจากระบบ", handleLogout, true);
   };
+
+  if (isDesktop) {
+    return (
+      <AdminDashboardDesktop
+        role={role}
+        userId={userId}
+        presence={presence}
+        checkedIn={checkedIn}
+        loading={loading}
+        stock={{ total, available, borrowed, repair }}
+        today={{ borrowed: statusBorrowed, returned: statusReturned, repairOpen: statusRepair }}
+        pending={pendingRequests}
+        unread={unread}
+        activities={activities}
+        onRefresh={onRefresh}
+      />
+    );
+  }
 
   const stats = [
     { icon: "cube-outline", iconBg: "#dbeafe", color: C.blue, num: total, label: "ทั้งหมด", data: series.total },

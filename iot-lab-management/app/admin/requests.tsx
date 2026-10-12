@@ -25,6 +25,8 @@ import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import PickupInbox from "../../components/PickupInbox";
 import BottomSheet from "../../components/BottomSheet";
+import RequestsDesktop from "../../components/desktop/RequestsDesktop";
+import { useIsDesktop } from "../../lib/layout";
 
 // กล่องคำขอของผู้ดูแล: อนุมัติ / ปฏิเสธ คำขอยืม-คืน-ยืมต่อ (แผน 2.4, 2.6)
 // การตัดสินทั้งหมดผ่าน RPC decide_request (ตรวจสิทธิ์ + ล็อกแถวในฐานข้อมูล)
@@ -85,6 +87,7 @@ export default function AdminRequests() {
   const router = useRouter();
   const { role, userId } = useRole();
   const { id: focusId } = useLocalSearchParams<{ id?: string }>();
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → รายการซ้าย + รายละเอียดขวา (components/desktop/RequestsDesktop)
 
   const [tab, setTab] = useState<"pending" | "pickup" | "history">("pending");
   // F2 คำขอนัดรับที่รอนัดเวลา (เลขบนแท็บ)
@@ -287,6 +290,50 @@ export default function AdminRequests() {
 
   const list = tab === "pending" ? pending : history;
 
+  const zoomModal = (
+    <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={() => setZoom(null)}>
+      <TouchableOpacity style={s.zoomBackdrop} activeOpacity={1} onPress={() => setZoom(null)}>
+        {zoom && (
+          <View style={s.zoomWrap}>
+            <Image source={{ uri: zoom.url }} style={s.zoomImg} resizeMode="contain" />
+            <Text style={s.zoomStamp}>{zoom.stamp}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      <DialogHost />
+    </Modal>
+  );
+
+  if (isDesktop) {
+    return (
+      <View style={{ flex: 1 }}>
+        <RequestsDesktop
+          tab={tab}
+          setTab={setTab}
+          pending={pending}
+          history={history}
+          pickupCount={pickupCount}
+          setPickupCount={setPickupCount}
+          loading={loading}
+          focusId={focusId}
+          role={role}
+          userId={userId}
+          photoUrls={photoUrls}
+          onZoom={setZoom}
+          decision={decision}
+          setDecision={setDecision}
+          decisionReady={decisionReady}
+          saving={saving}
+          onSubmit={submitDecision}
+          onReload={load}
+          KIND={KIND}
+          RESULT={RESULT}
+        />
+        {zoomModal}
+      </View>
+    );
+  }
+
   return (
     <View style={s.container}>
       <ScreenHeader
@@ -328,18 +375,7 @@ export default function AdminRequests() {
         </KeyboardAwareScrollView>
       )}
 
-      {/* ขยายรูป */}
-      <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={() => setZoom(null)}>
-        <TouchableOpacity style={s.zoomBackdrop} activeOpacity={1} onPress={() => setZoom(null)}>
-          {zoom && (
-            <View style={s.zoomWrap}>
-              <Image source={{ uri: zoom.url }} style={s.zoomImg} resizeMode="contain" />
-              <Text style={s.zoomStamp}>{zoom.stamp}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-        <DialogHost />
-      </Modal>
+      {zoomModal}
 
       {/* อนุมัติ / ปฏิเสธ = แผ่น iOS แท้ (components/BottomSheet) */}
       <BottomSheet visible={!!decision} onClose={() => { if (!saving) setDecision(null); }} style={s.sheet}>

@@ -4,6 +4,8 @@ import { ActivityIndicator, View } from "react-native";
 import supabase from "../../lib/supabase";
 import { notify } from "../../lib/notify";
 import { canAccess, isAdminPath, isStaffRole, Role, RoleContext } from "../../lib/roles";
+import { useIsDesktop } from "../../lib/layout";
+import AdminShell from "../../components/desktop/AdminShell";
 
 // ด่านตรวจทุกหน้าใน app/admin/ — admin เข้าได้ทุกหน้า / TA เข้าได้เฉพาะหน้าที่อนุญาต (lib/roles.ts) / อื่นๆ กลับหน้าผู้ใช้
 // (กันแค่ฝั่งแอปเพื่อ UX สิทธิ์จริงอยู่ที่ RLS ในฐานข้อมูล)
@@ -12,6 +14,7 @@ export default function AdminLayout() {
   const pathname = usePathname();
   const [role, setRole] = useState<Role | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     let active = true;
@@ -83,7 +86,14 @@ export default function AdminLayout() {
 
   return (
     <RoleContext.Provider value={{ role, userId }}>
-      <Stack screenOptions={{ headerShown: false }} />
+      {/* เว็บจอใหญ่ = เมนูซ้ายถาวร (components/desktop/AdminShell) / มือถือ = เหมือนเดิม */}
+      {isDesktop ? (
+        <AdminShell>
+          <Stack screenOptions={{ headerShown: false }} />
+        </AdminShell>
+      ) : (
+        <Stack screenOptions={{ headerShown: false }} />
+      )}
     </RoleContext.Provider>
   );
 }

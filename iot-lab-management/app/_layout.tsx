@@ -1,6 +1,6 @@
 import { Stack, usePathname, useRouter } from "expo-router";
-import { useEffect } from "react";
-import { View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Platform, StyleSheet, View } from "react-native";
 import supabase from "../lib/supabase";
 import { DialogHost } from "../lib/notify";
 import { applyRememberLogin } from "../lib/session";
@@ -8,6 +8,7 @@ import { isAdminPath } from "../lib/roles";
 import { useFonts, NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from "@expo-google-fonts/noto-sans-thai";
 import { C } from "../lib/theme";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { PHONE_COLUMN_WIDTH, useIsDesktop } from "../lib/layout";
 import type { NativeStackNavigationOptions } from "expo-router";
 
 // หน้าที่เปิดได้โดยไม่ต้องล็อกอิน (หน้าอื่นทั้งหมดต้องล็อกอิน — หน้า /admin มีด่านของตัวเองใน app/admin/_layout.tsx)
@@ -27,6 +28,12 @@ const SHEET: NativeStackNavigationOptions = {
 export default function Layout() {
   const router = useRouter();
   const pathname = usePathname();
+  // จอใหญ่ + หน้า admin = ใช้เต็มจอ (มีเมนูซ้ายของ app/admin/_layout) / ที่เหลือ = แท่งแบบมือถือกลางจอ
+  //   แผ่น (sheet-host) เปิดทับหน้าเดิม → ใช้ค่าของหน้าเดิม ไม่ให้พื้นหลังหดตอนเปิดแผ่น
+  const isDesktop = useIsDesktop();
+  const lastPage = useRef(pathname);
+  if (pathname !== "/sheet-host") lastPage.current = pathname;
+  const wide = isDesktop && isAdminPath(lastPage.current);
   // ฟอนต์เดียวทั้งแอป (ไทย + อังกฤษ) — ดู components/AppText.tsx
   const [fontsLoaded, fontError] = useFonts({ NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold });
 
@@ -60,7 +67,9 @@ export default function Layout() {
   // KeyboardProvider: ติดตามแป้นพิมพ์ฝั่ง native ทีละเฟรม (แผ่นเลื่อน/หน้าต่างเด้ง/หน้าเลื่อน หลบแป้นได้ลื่น — react-native-keyboard-controller)
   return (
     <KeyboardProvider>
-    <View style={{ flex: 1 }}>
+    {/* เว็บจอกว้าง (คอม) → ล็อกแอปเป็นแท่งกว้างแบบจอมือถือไว้กลางจอ / มือถือจริงแคบกว่าอยู่แล้ว ไม่เปลี่ยน */}
+    <View style={frame.outer}>
+    <View style={[frame.app, wide && frame.wide]}>
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg } }}>
       {/* Auth */}
       <Stack.Screen name="login" />
@@ -87,6 +96,18 @@ export default function Layout() {
     {/* ป๊อปอัปของ notify() / confirmAction() ทั้งแอป (ในหน้าต่าง Modal มี DialogHost ของตัวเอง) */}
     <DialogHost />
     </View>
+    </View>
     </KeyboardProvider>
   );
 }
+
+// แอปออกแบบสำหรับจอมือถือ — บนเว็บจอกว้างไม่ยืดเต็มจอ (เจ้าของโปรเจกต์เลือก 12 ต.ค. 2569)
+const frame = StyleSheet.create({
+  outer: Platform.OS === "web"
+    ? { flex: 1, alignItems: "center", backgroundColor: "#D5E2F7" }
+    : { flex: 1 },
+  app: Platform.OS === "web"
+    ? { flex: 1, width: "100%", maxWidth: PHONE_COLUMN_WIDTH, overflow: "hidden", backgroundColor: C.bg, boxShadow: "0 0 32px rgba(23,32,51,0.12)" }
+    : { flex: 1 },
+  wide: { maxWidth: "100%" as any, boxShadow: "none" },
+});

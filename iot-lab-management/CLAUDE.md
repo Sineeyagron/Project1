@@ -9,6 +9,7 @@
 - **ระบบห้องคอม แยกจากระบบยืม-คืนเด็ดขาด** (ตาราง/หน้า/lib/กติกา) — งานฝั่งหนึ่งห้ามแก้หรือ import ของอีกฝั่ง (สั่ง 5 ต.ค. 2569)
 
 ## กติกาโค้ดทั้งแอป
+- **แอปมือถือคือหลัก** · เว็บ: แท่งกว้าง 480px กลางจอ (`app/_layout`) · **แบบจอใหญ่เฉพาะหน้า admin** (เว็บกว้าง ≥1024 — ตัดสินที่ `lib/layout.ts` ที่เดียว ห้ามเช็กเองในหน้า): เมนูซ้าย `components/desktop/AdminShell` + หน้าที่ทำแล้วอยู่ใน `ADMIN_DESKTOP_READY` (ตอนนี้แดชบอร์ด `components/desktop/AdminDashboardDesktop`) — ฟีเจอร์/สิทธิ์เหมือนมือถือทุกอย่าง แยกแค่ส่วนแสดงผล · `<BottomSheet>` บนเว็บ = หน้าต่างกลางจอ/แผ่นล่าง (แผ่น iOS ใช้ไม่ได้บนเว็บ)
 - ป๊อปอัป: `notify` / `confirmAction` / `pickOption` (lib/notify) — หน้าตาของแอปทุกแพลตฟอร์ม ห้ามใช้ `Alert.alert` · **`<Modal>` ใหม่ต้องใส่ `<DialogHost />` เป็นลูกตัวสุดท้าย** (แผ่น formSheet ที่เรียก notify ก็ต้องใส่) ไม่งั้นป๊อปอัปอยู่ใต้หน้าต่าง
 - นำทาง `lib/nav.ts`: ← = `goBack(fallback)` (ห้าม `router.replace` เป็นปุ่มย้อน) / แถบล่าง นศ. `goTab` / หน้าที่ต้องสดตอนกลับมา `useRefreshOnFocus(load)`
 - user ที่ล็อกอิน: `currentUser()` (lib/session) ไม่ใช่ `auth.getUser()` (ยิงเซิร์ฟเวอร์ กิน Disk IO แพ็กเกจฟรี)
