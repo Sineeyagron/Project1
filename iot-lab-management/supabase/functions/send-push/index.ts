@@ -2,6 +2,7 @@
 //   GET  → { publicKey } ให้แอปเว็บใช้สมัครรับ push (public key เปิดเผยได้)
 //   POST { id } ← trigger notifications_push (pg_net) → ส่งไปทุกเครื่องของผู้รับ
 //   POST { request_id, source: "borrow" | "pickup" } ← trigger borrow_requests_push / pickup_requests_push
+//   POST { request_id, source: "pickup_cancel" } ← cancel_pickup (นักศึกษายกเลิกคำขอนัดรับเอง — migration 20261013120000)
 //        → ส่งถึงผู้ดูแล (admin + TA) ทุกคนยกเว้นคนขอเอง (คำขอไม่มีแถวใน notifications — ดู migration 20261013090000)
 // secrets ที่ต้องตั้ง: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (เช่น mailto:you@example.com) — ดู docs/DEPLOY_PWA.md
 // deploy แบบไม่เช็ก JWT (--no-verify-jwt): trigger ไม่มี token / กันคนนอกด้วย id แจ้งเตือน (uuid เห็นเฉพาะผู้รับ) + ต้องเพิ่งสร้างไม่เกิน 2 นาที
@@ -78,8 +79,46 @@ const KIND_TEXT: Record<string, [string, string]> = {
   pickup: ["คำขอนัดรับใหม่", "ขอนัดรับ"],
 };
 
+// "วันที่ 14/10/2569 เวลา 13:00 น." (เวลาไทย ปี พ.ศ. — แบบเดียวกับ _thai_when ในฐานข้อมูล)
+function thaiWhen(iso: string) {
+  const d = new Date(new Date(iso).getTime() + 7 * 3600 * 1000);
+  const p2 = (n: number) => String(n).padStart(2, "0");
+  return `วันที่ ${p2(d.getUTCDate())}/${p2(d.getUTCMonth() + 1)}/${d.getUTCFullYear() + 543} เวลา ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())} น.`;
+}
+
+// ส่งถึงเครื่องของผู้ดูแลทุกคน (admin + TA) ยกเว้นเจ้าของคำขอ
+async function deliverToStaff(ownerId: string, payload: Payload) {
+  const staffRes = await rest(`profiles?role=in.(admin,ta)&id=neq.${ownerId}&select=id`);
+  const staff: { id: string }[] = staffRes.ok ? await staffRes.json() : [];
+  if (!staff.length) return json({ sent: 0 });
+  const sRes = await rest(`push_subscriptions?user_id=in.(${staff.map((x) => x.id).join(",")})&select=id,endpoint,p256dh,auth`);
+  const subs: Sub[] = sRes.ok ? await sRes.json() : [];
+  return deliver(subs, payload);
+}
+
+async function ownerName(userId: string) {
+  const pRes = await rest(`profiles?id=eq.${userId}&select=full_name,email`);
+  const [p] = pRes.ok ? await pRes.json() : [];
+  return p?.full_name || p?.email || "นักศึกษา";
+}
+
+// นักศึกษายกเลิกคำขอนัดรับเอง → ผู้ดูแล
+async function pushPickupCancel(id: string) {
+  const rRes = await rest(`pickup_requests?id=eq.${id}&status=eq.cancelled&decided_at=gte.${recent()}&select=id,user_id,item_prefix,pickup_at`);
+  const [r] = rRes.ok ? await rRes.json() : [];
+  if (!r) return json({ sent: 0 });
+  const who = await ownerName(r.user_id);
+  return deliverToStaff(r.user_id, {
+    title: "นักศึกษายกเลิกนัดรับ",
+    body: `${who} ยกเลิกคำขอนัดรับ รุ่น ${r.item_prefix}${r.pickup_at ? ` (นัด${thaiWhen(r.pickup_at)})` : ""}`,
+    url: "/admin/requests",
+    tag: r.id,
+  });
+}
+
 // คำขอใหม่ (ยืม/คืน/ยืมต่อ/นัดรับ) → เครื่องของผู้ดูแลทุกคน ยกเว้นคนขอเอง
 async function pushStaffRequest(id: string, source: string) {
+  if (source === "pickup_cancel") return pushPickupCancel(id);
   const isPickup = source === "pickup";
   const rRes = await rest(
     isPickup
@@ -89,18 +128,11 @@ async function pushStaffRequest(id: string, source: string) {
   const [r] = rRes.ok ? await rRes.json() : [];
   if (!r) return json({ sent: 0 });
 
-  const pRes = await rest(`profiles?id=eq.${r.user_id}&select=full_name,email,student_id`);
-  const [p] = pRes.ok ? await pRes.json() : [];
-  const who = p?.full_name || p?.email || "นักศึกษา";
+  const who = await ownerName(r.user_id);
   const what = isPickup ? `รุ่น ${r.item_prefix}` : r.item ? `"${r.item.name}" (${r.item.item_code})` : "อุปกรณ์";
   const [title, verb] = KIND_TEXT[isPickup ? "pickup" : r.kind] || KIND_TEXT.borrow;
 
-  const staffRes = await rest(`profiles?role=in.(admin,ta)&id=neq.${r.user_id}&select=id`);
-  const staff: { id: string }[] = staffRes.ok ? await staffRes.json() : [];
-  if (!staff.length) return json({ sent: 0 });
-  const sRes = await rest(`push_subscriptions?user_id=in.(${staff.map((x) => x.id).join(",")})&select=id,endpoint,p256dh,auth`);
-  const subs: Sub[] = sRes.ok ? await sRes.json() : [];
-  return deliver(subs, {
+  return deliverToStaff(r.user_id, {
     title,
     body: `${who} ${verb} ${what}`,
     url: isPickup ? "/admin/requests" : `/admin/requests?id=${r.id}`,
