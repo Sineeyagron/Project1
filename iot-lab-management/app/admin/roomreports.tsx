@@ -18,6 +18,7 @@ import LoadError from "../../components/LoadError";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
+import { desktopGrid, useIsDesktop } from "../../lib/layout";
 
 // คิวคำแจ้งปัญหาจากนักศึกษา (ระบบห้อง R3) — Admin/TA รับเป็นงานซ่อม หรือปิดพร้อมเหตุผล
 // ตัดสินผ่าน RPC decide_room_report (รับเครื่อง = สร้างงานซ่อม + เครื่องเป็น "กำลังซ่อม" / รับ LAN = port เป็น "กำลังซ่อม")
@@ -56,6 +57,7 @@ function timeText(d: string) {
 }
 
 export default function RoomReports() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → การ์ด 2 คอลัมน์
   const [reports, setReports] = useState<Report[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<FilterKey>("open");
@@ -167,12 +169,12 @@ export default function RoomReports() {
         <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />
       ) : (
         <ScrollView
-          contentContainerStyle={s.list}
+          contentContainerStyle={[s.list, isDesktop && desktopGrid.list]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#2563EB" />}
         >
-          {!!loadError && <LoadError message={loadError} onRetry={load} />}
+          {!!loadError && <View style={desktopGrid.full}><LoadError message={loadError} onRetry={load} /></View>}
           {!loadError && shown.length === 0 ? (
-            <View style={s.empty}>
+            <View style={[s.empty, desktopGrid.full]}>
               <Ionicons name="checkmark-done-outline" size={44} color="#cbd5e1" />
               <Text style={s.emptyText}>{filter === "open" ? "ไม่มีคำแจ้งรอตรวจ" : "ไม่มีรายการ"}</Text>
             </View>
@@ -181,7 +183,7 @@ export default function RoomReports() {
           {shown.map((r) => {
             const cfg = STATUS_CFG[r.status];
             return (
-              <View key={r.id} style={s.card}>
+              <View key={r.id} style={[s.card, isDesktop && desktopGrid.item]}>
                 <View style={s.cardTop}>
                   <View style={[s.kindIcon, { backgroundColor: r.kind === "lan" ? "#DBEAFE" : "#dbeafe" }]}>
                     <Ionicons name={r.kind === "lan" ? "git-network-outline" : "desktop-outline"} size={18} color={r.kind === "lan" ? "#2563EB" : "#1d4ed8"} />

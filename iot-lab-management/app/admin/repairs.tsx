@@ -20,6 +20,7 @@ import { naturalNo } from "../../lib/roomStatus";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
+import { desktopGrid, useIsDesktop } from "../../lib/layout";
 
 const C = {
   bg: "#EAF1FC",
@@ -61,6 +62,7 @@ function stationSub(record: any) {
 }
 
 export default function RepairsPage() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → การ์ด 2 คอลัมน์
   const [records, setRecords] = useState<any[]>([]);
   const [loadError, setLoadError] = useState("");
   const [stations, setStations] = useState<any[]>([]);
@@ -274,13 +276,13 @@ export default function RepairsPage() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={s.list}
+          contentContainerStyle={[s.list, isDesktop && desktopGrid.list]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
         >
-          {!!loadError && <LoadError message={loadError} onRetry={() => fetchAll()} />}
+          {!!loadError && <View style={desktopGrid.full}><LoadError message={loadError} onRetry={() => fetchAll()} /></View>}
           {loadError && records.length === 0 ? null : filtered.length === 0 ? (
-            <View style={s.empty}>
+            <View style={[s.empty, desktopGrid.full]}>
               <Ionicons name="construct-outline" size={45} color="#cbd5e1" />
               <Text style={s.emptyTitle}>ไม่มีรายการซ่อม</Text>
               <Text style={s.emptyText}>กดปุ่มเพิ่มเพื่อแจ้งซ่อมใหม่</Text>
@@ -291,7 +293,7 @@ export default function RepairsPage() {
               return (
                 <TouchableOpacity
                   key={record.id}
-                  style={s.card}
+                  style={[s.card, isDesktop && desktopGrid.item]}
                   activeOpacity={0.88}
                   onPress={() => record.status !== "done" && openUpdate(record)}
                 >
@@ -316,7 +318,7 @@ export default function RepairsPage() {
               );
             })
           )}
-          <View style={{ height: 92 }} />
+          <View style={{ height: 92, width: "100%" }} />
         </ScrollView>
       )}
 

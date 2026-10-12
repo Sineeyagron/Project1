@@ -1,4 +1,4 @@
-import { Platform, useWindowDimensions } from "react-native";
+import { Platform, StyleSheet, useWindowDimensions } from "react-native";
 
 // แบบจอใหญ่ (คอม) สำหรับหน้า admin/TA — เจ้าของโปรเจกต์เลือก 12 ต.ค. 2569
 //   แอปมือถือคือหลัก: มือถือทุกแบบ (แอป + PWA) ใช้หน้าตาเดิมเสมอ / จอใหญ่ = ของเสริมเฉพาะหน้า admin
@@ -15,5 +15,14 @@ export function useIsDesktop() {
 }
 
 // หน้า admin ที่ทำแบบจอใหญ่แล้ว (ใช้เต็มพื้นที่ขวาของเมนู) — หน้าอื่นแสดงแบบมือถือกลางพื้นที่ไปก่อน
-export const ADMIN_DESKTOP_READY = new Set(["/admin", "/admin/home", "/admin/requests", "/admin/items", "/admin/users"]);
+export const ADMIN_DESKTOP_READY = new Set(["/admin", "/admin/home", "/admin/requests", "/admin/items", "/admin/users", "/admin/repairs", "/admin/roomreports"]);
 export const isDesktopReady = (path: string) => ADMIN_DESKTOP_READY.has(path.replace(/\/+$/, "") || "/");
+
+// หน้ารายการการ์ดบนจอใหญ่: การ์ดเรียง 2 คอลัมน์ (มือถือไม่ใช้)
+//   ใช้: contentContainerStyle={[s.list, isDesktop && desktopGrid.list]} · การ์ด [s.card, isDesktop && desktopGrid.item]
+//   ของอื่นในรายการ (แถบโหลดพัง/ว่าง/ช่องว่างท้าย) ใส่ desktopGrid.full ให้เต็มแถว
+export const desktopGrid = StyleSheet.create({
+  list: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-start", width: "100%", maxWidth: 1180, alignSelf: "center" },
+  item: { width: "49.2%" },
+  full: { width: "100%" },
+});
