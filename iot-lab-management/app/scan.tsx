@@ -525,7 +525,7 @@ export default function StudentScan() {
                   <View style={[s.banner, s.bannerWarn]}>
                     <Ionicons name="phone-portrait-outline" size={18} color={C.orange} />
                     <Text style={[s.bannerText, { color: "#92400e" }]}>
-                      ขอยืม/คืนได้เฉพาะในแอปมือถือ (ต้องถ่ายรูปสดจากกล้อง)
+                      ขอยืม/คืนได้เฉพาะบนมือถือ (ต้องถ่ายรูปสดจากกล้อง)
                     </Text>
                   </View>
                 )}

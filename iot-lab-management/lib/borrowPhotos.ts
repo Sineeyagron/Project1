@@ -7,16 +7,25 @@ import { EVIDENCE_PHOTO_MAX, shrinkPhoto } from "./shrinkPhoto";
 const FS = FileSystem as any;
 const BUCKET = "borrow-photos";
 
-// รูปหลักฐานตอนยืม/คืน: ต้องถ่ายสดจากกล้องเท่านั้น (แผน 2.4) → ทำได้แค่ในแอปมือถือ
-export const canTakeLivePhoto = Platform.OS !== "web";
+// รูปหลักฐานตอนยืม/คืน: ต้องถ่ายสดจากกล้องเท่านั้น (แผน 2.4)
+//   แอปมือถือ = กล้อง / เว็บบนมือถือ (PWA) = <input capture> เปิดกล้องตรงๆ (expo-image-picker บนเว็บ)
+//   เว็บบนคอม = ปิด (กล่องเลือกไฟล์ = ส่งรูปเก่าได้ ผิดกติกาถ่ายสด)
+const isPhoneBrowser = () =>
+  Platform.OS === "web" &&
+  typeof navigator !== "undefined" &&
+  (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.maxTouchPoints || 0) > 1);
+export const canTakeLivePhoto = Platform.OS !== "web" || isPhoneBrowser();
 
 export async function takeLivePhoto(): Promise<string | null> {
   if (!canTakeLivePhoto) {
-    throw new Error("ถ่ายรูปหลักฐานได้เฉพาะในแอปมือถือ");
+    throw new Error("ถ่ายรูปหลักฐานได้เฉพาะบนมือถือ");
   }
-  const { status } = await ImagePicker.requestCameraPermissionsAsync();
-  if (status !== "granted") {
-    throw new Error("ต้องอนุญาตให้แอปใช้กล้องก่อน");
+  // เว็บ: เบราว์เซอร์ถามสิทธิ์กล้องเองตอนเปิดกล้อง
+  if (Platform.OS !== "web") {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      throw new Error("ต้องอนุญาตให้แอปใช้กล้องก่อน");
+    }
   }
   const result = await ImagePicker.launchCameraAsync({
     quality: 0.6,
@@ -35,6 +44,13 @@ export async function uploadBorrowPhoto(uri: string): Promise<string> {
   uri = await shrinkPhoto(uri, EVIDENCE_PHOTO_MAX, 0.75);
 
   const path = `${session.user.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+  // เว็บ: รูปเป็น blob:/data: URL และไม่มี FileSystem.uploadAsync → อัปโหลดผ่าน supabase-js (แบบเดียวกับ admin/scan)
+  if (Platform.OS === "web") {
+    const blob = await (await fetch(uri)).blob();
+    const { error } = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
+    if (error) throw new Error(`อัปโหลดรูปไม่สำเร็จ (${error.message})`);
+    return path;
+  }
   const res = await FS.uploadAsync(`${SUPABASE_URL}/storage/v1/object/${BUCKET}/${path}`, uri, {
     uploadType: FS.FileSystemUploadType.BINARY_CONTENT,
     httpMethod: "POST",
