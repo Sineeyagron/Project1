@@ -152,7 +152,9 @@ export default function Login() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     // สวิตช์ปิดอยู่ (ช่วงพัฒนา) = ทุกบัญชีผ่าน / เปิดตอน Final Project = เฉพาะโดเมนที่ตั้ง
-    const domain = await getAllowedDomain();
+    //   เช็กเฉพาะบัญชีที่เข้าด้วย Google — เจ้าหน้าที่ที่ใช้อีเมล/รหัสผ่าน (session ค้างแล้วเปิดหน้านี้) ไม่โดนออก
+    const viaGoogle = user.app_metadata?.provider === "google" || (user.identities || []).some((i) => i.provider === "google");
+    const domain = viaGoogle ? await getAllowedDomain() : "";
     if (!isAllowedEmail(user.email, domain)) {
       await supabase.auth.signOut();
       showPopup("ใช้อีเมลนี้ไม่ได้", `ตอนนี้ระบบรับเฉพาะอีเมล @${domain} (มหาวิทยาลัยขอนแก่น)`);
@@ -164,19 +166,31 @@ export default function Login() {
 
   // เว็บ: กลับมาจากหน้า Google → supabase-js อ่าน token จาก URL ให้แล้ว / มี error → แจ้ง
   //   เดิมดูแค่ URL — แต่ supabase-js ลบ token ออกจาก URL ก่อนหน้านี้แสดง (รอฟอนต์บนมือถือ) → บางครั้งเด้งกลับมาเฉย ๆ ไม่ล็อกอิน
-  //   ตอนนี้: ป้ายที่ตั้งก่อนออกไป Google (oauthReturned) → getSession รอ supabase-js อ่าน URL เสร็จ แล้วไปต่อ
+  //   Android แบบติดตั้ง: หน้า Google เปิดเป็นหน้าต่างย่อย บางเครื่องล็อกอินเสร็จในหน้าต่างนั้น แล้วกลับมาหน้า login เดิมที่ไม่รู้ตัว
+  //   ตอนนี้: มี session อยู่แล้ว (getSession รอ supabase-js อ่าน URL เสร็จ) = พาเข้าระบบ · กลับมาที่แอป = เช็กอีกรอบ
   useEffect(() => {
     if (Platform.OS !== "web") return;
     const err = webRedirectError();
+    oauthReturned(); // ล้างป้าย (ใช้ getSession ตัดสินแทน)
     if (err) {
-      oauthReturned(); // ล้างป้าย
       showPopup("เข้าสู่ระบบด้วย Google ไม่สำเร็จ", err);
       return;
     }
-    if (!oauthReturned()) return;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) afterGoogle();
-    });
+    let busy = false;
+    const check = async () => {
+      if (busy || document.visibilityState !== "visible") return;
+      busy = true;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) await afterGoogle();
+      busy = false;
+    };
+    check();
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    return () => {
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
+    };
   }, []);
 
   const handleGoogle = async (hint?: string) => {
