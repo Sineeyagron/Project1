@@ -44,3 +44,6 @@ app-example
 
 # Claude Code worktrees
 .claude/worktrees/
+
+# ฟอนต์ไอคอนฉบับย่อของเว็บ (scripts/subset-ionicons.js สร้างตอน build)
+assets/fonts/Ionicons.web.ttf
