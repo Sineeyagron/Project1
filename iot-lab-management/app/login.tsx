@@ -18,7 +18,7 @@ import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { setRememberLogin } from "../lib/session";
 import { notify } from "../lib/notify";
-import { getAllowedDomain, isAllowedEmail, signInWithGoogle, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
+import { getAllowedDomain, isAllowedEmail, oauthReturned, signInWithGoogle, uniEmailTypoFix, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
 import { W, NG, TOP_INSET } from "../lib/theme";
 import InstallBanner, { INSTALL_BANNER_SPACE } from "../components/InstallBanner";
 import { useInstallMode } from "../lib/installApp";
@@ -144,13 +144,17 @@ export default function Login() {
   // อีเมล @kkumail.com = บัญชี Google ของมหาวิทยาลัย → ซ่อนช่องรหัส ปุ่มหลักพาไปหน้า Google (แอปไม่รับรหัส มข.)
   const isUniEmail = email.trim().toLowerCase().endsWith("@" + ALLOWED_DOMAIN) && email.trim().indexOf("@") > 0;
   const canSubmit = email.trim().length > 0 && (isUniEmail || password.length > 0) && !isLoading && !googleLoading;
+  // พิมพ์โดเมนผิดนิดหน่อย (เช่น @kkmail.com) → เสนอแก้เป็น @kkumail.com + ปุ่ม KKU Mail ส่งอีเมลที่แก้แล้วให้ Google
+  const kkuFix = uniEmailTypoFix(email);
 
   // ล็อกอิน Google สำเร็จ → ตรวจโดเมนซ้ำ (ด่านจริงอยู่ที่ Auth Hook) แล้วไปต่อเหมือนล็อกอินปกติ
   const afterGoogle = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     // สวิตช์ปิดอยู่ (ช่วงพัฒนา) = ทุกบัญชีผ่าน / เปิดตอน Final Project = เฉพาะโดเมนที่ตั้ง
-    const domain = await getAllowedDomain();
+    //   เช็กเฉพาะบัญชีที่เข้าด้วย Google — เจ้าหน้าที่ที่ใช้อีเมล/รหัสผ่าน (session ค้างแล้วเปิดหน้านี้) ไม่โดนออก
+    const viaGoogle = user.app_metadata?.provider === "google" || (user.identities || []).some((i) => i.provider === "google");
+    const domain = viaGoogle ? await getAllowedDomain() : "";
     if (!isAllowedEmail(user.email, domain)) {
       await supabase.auth.signOut();
       showPopup("ใช้อีเมลนี้ไม่ได้", `ตอนนี้ระบบรับเฉพาะอีเมล @${domain} (มหาวิทยาลัยขอนแก่น)`);
@@ -161,14 +165,32 @@ export default function Login() {
   };
 
   // เว็บ: กลับมาจากหน้า Google → supabase-js อ่าน token จาก URL ให้แล้ว / มี error → แจ้ง
+  //   เดิมดูแค่ URL — แต่ supabase-js ลบ token ออกจาก URL ก่อนหน้านี้แสดง (รอฟอนต์บนมือถือ) → บางครั้งเด้งกลับมาเฉย ๆ ไม่ล็อกอิน
+  //   Android แบบติดตั้ง: หน้า Google เปิดเป็นหน้าต่างย่อย บางเครื่องล็อกอินเสร็จในหน้าต่างนั้น แล้วกลับมาหน้า login เดิมที่ไม่รู้ตัว
+  //   ตอนนี้: มี session อยู่แล้ว (getSession รอ supabase-js อ่าน URL เสร็จ) = พาเข้าระบบ · กลับมาที่แอป = เช็กอีกรอบ
   useEffect(() => {
     if (Platform.OS !== "web") return;
     const err = webRedirectError();
+    oauthReturned(); // ล้างป้าย (ใช้ getSession ตัดสินแทน)
     if (err) {
       showPopup("เข้าสู่ระบบด้วย Google ไม่สำเร็จ", err);
       return;
     }
-    if (/access_token|[?&]code=/.test(window.location.href)) afterGoogle();
+    let busy = false;
+    const check = async () => {
+      if (busy || document.visibilityState !== "visible") return;
+      busy = true;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) await afterGoogle();
+      busy = false;
+    };
+    check();
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    return () => {
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
+    };
   }, []);
 
   const handleGoogle = async (hint?: string) => {
@@ -366,6 +388,14 @@ export default function Login() {
               <Text style={styles.errorText}>{fieldErrors.email}</Text>
             </View>
           )}
+          {!!kkuFix && (
+            <TouchableOpacity style={styles.fixRow} onPress={() => updateEmail(kkuFix)} activeOpacity={0.7} accessibilityRole="button">
+              <Ionicons name="help-circle-outline" size={15} color="#B45309" />
+              <Text style={styles.fixText}>
+                หมายถึง <Text style={styles.fixEmail}>{kkuFix}</Text> ใช่ไหม? <Text style={styles.fixAction}>แตะเพื่อแก้</Text>
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {isUniEmail ? (
             <View style={styles.uniBox}>
@@ -453,7 +483,7 @@ export default function Login() {
 
           <TouchableOpacity
             style={[styles.googleBtn, styles.kkuBtn, (googleLoading || isLoading) && styles.loginBtnDisabled]}
-            onPress={() => handleGoogle()}
+            onPress={() => handleGoogle(kkuFix || undefined)}
             disabled={googleLoading || isLoading}
             activeOpacity={0.85}
           >
@@ -737,6 +767,23 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: "700",
   },
+  // เสนอแก้อีเมลที่พิมพ์โดเมนผิด (โทนเตือนสีส้มของ DESIGN.md)
+  fixRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: -6,
+    marginBottom: 12,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: "#FFFBEB",
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+  fixText: { flex: 1, color: "#92400E", fontSize: 12.5, lineHeight: 18 },
+  fixEmail: { fontWeight: "800" },
+  fixAction: { color: "#B45309", fontWeight: "800", textDecorationLine: "underline" },
   rememberRow: {
     flexDirection: "row",
     alignItems: "center",
