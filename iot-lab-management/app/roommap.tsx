@@ -20,7 +20,7 @@ import { notify } from "../lib/notify";
 import { currentUser } from "../lib/session";
 import RoomReportForm from "../components/RoomReportForm";
 import { useRoomLive } from "../lib/roomRealtime";
-import { W, gradient } from "../lib/theme";
+import { W, gradient, TOP_INSET } from "../lib/theme";
 import Svg, { Circle } from "react-native-svg";
 import { FadeIn, PressScale } from "../components/Motion";
 import BottomSheet from "../components/BottomSheet";
@@ -524,7 +524,7 @@ function HeroChip({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   header: { ...W.headerBar,
-    paddingTop: 52,
+    paddingTop: TOP_INSET,
     paddingBottom: 10,
     marginBottom: 8,
     paddingHorizontal: 16,

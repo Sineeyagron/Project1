@@ -15,7 +15,7 @@ import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRealtime } from "../../lib/realtime";
 import LoadError from "../../components/LoadError";
-import { W, NG } from "../../lib/theme";
+import { W, NG, TOP_INSET } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
@@ -258,7 +258,7 @@ export default function RoomReports() {
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar, flexDirection: "row", alignItems: "center", gap: 12, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10, marginBottom: 8 },
+  header: { ...W.headerBar, flexDirection: "row", alignItems: "center", gap: 12, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10, marginBottom: 8 },
   iconBtn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
   headerTitle: { color: "#172033", fontSize: 18, fontWeight: "900" },
   headerSub: { color: "#475569", fontSize: 12, fontWeight: "800", marginTop: 2 },

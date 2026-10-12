@@ -16,7 +16,7 @@ import { currentUser } from "../lib/session";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { confirmAction, notify } from "../lib/notify";
 import Countdown from "../components/Countdown";
-import { W } from "../lib/theme";
+import { W, TOP_INSET } from "../lib/theme";
 import StatWidget from "../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 import TimelineDays from "../components/TimelineDays";
@@ -287,7 +287,7 @@ const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
 
   header: { ...W.headerBar,
-    paddingTop: 52,
+    paddingTop: TOP_INSET,
     paddingBottom: 10,
     marginBottom: 8,
     paddingHorizontal: 16,

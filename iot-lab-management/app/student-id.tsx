@@ -7,7 +7,7 @@ import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { currentUser } from "../lib/session";
 import { confirmAction, notify } from "../lib/notify";
-import { C, W, iconDot } from "../lib/theme";
+import { C, W, iconDot, TOP_INSET } from "../lib/theme";
 
 // กรอกรหัสนักศึกษาครั้งแรก (บังคับก่อนใช้งาน — หน้าแรกพามาที่นี่ถ้ายังไม่มี)
 // อาจารย์/ผู้ดูแลเห็นรหัสคู่กับชื่อในคำขอยืม-คืน ไม่ต้องไปไล่หาจากอีเมล
@@ -125,7 +125,7 @@ export default function StudentIdScreen() {
 
 const s = StyleSheet.create({
   container: { ...W.page },
-  body: { flexGrow: 1, justifyContent: "center", padding: 20, paddingTop: 72, paddingBottom: 40 },
+  body: { flexGrow: 1, justifyContent: "center", padding: 20, paddingTop: TOP_INSET + 20, paddingBottom: 40 },
   hero: { alignItems: "center", gap: 10, marginBottom: 22 },
   title: { color: C.ink, fontSize: 24, fontWeight: "700", marginTop: 6 },
   sub: { color: C.text2, fontSize: 14, lineHeight: 21, textAlign: "center", maxWidth: 320 },

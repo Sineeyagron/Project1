@@ -9,7 +9,7 @@ import { useRefreshOnFocus } from "../lib/nav";
 import { isMissingColumn } from "../lib/people";
 import { Role, ROLE_LABEL } from "../lib/roles";
 import { confirmAction } from "../lib/notify";
-import { C, W, iconDot } from "../lib/theme";
+import { C, W, iconDot, TOP_INSET } from "../lib/theme";
 import TabBar from "../components/TabBar";
 import { FadeIn, PressScale } from "../components/Motion";
 import { RULE_KEYS, fillRule, rulesFromRows, varsFromRows } from "../lib/borrowRules";
@@ -311,7 +311,7 @@ const s = StyleSheet.create({
   headerTop: {
     ...W.headerBar,
     marginHorizontal: -16,
-    paddingTop: 52,
+    paddingTop: TOP_INSET,
     paddingHorizontal: 16,
     paddingBottom: 10,
     marginBottom: 14,

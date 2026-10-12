@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { fetchPeople, who } from "../../lib/people";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
-import { W } from "../../lib/theme";
+import { W, TOP_INSET } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import SearchBar from "../../components/SearchBar";
 import TimelineDays from "../../components/TimelineDays";
@@ -277,7 +277,7 @@ const s = StyleSheet.create({
   moreText: { color: "#1D4ED8", fontSize: 14, fontWeight: "700" },
   empty: {
     alignItems: "center",
-    paddingTop: 70,
+    paddingTop: TOP_INSET + 18,
     gap: 10,
   },
   emptyText: {

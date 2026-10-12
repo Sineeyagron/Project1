@@ -20,7 +20,7 @@ import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
 import { parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
 import WarrantyDateField, { warrantyBlocked } from "../../components/WarrantyDateField";
-import { W, NG } from "../../lib/theme";
+import { W, NG, TOP_INSET } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
@@ -750,7 +750,7 @@ const s = StyleSheet.create({
     paddingBottom: 17,
   },
   headerTop: {
-    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
+    ...W.headerBar, marginHorizontal: -16, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,

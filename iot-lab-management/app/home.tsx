@@ -25,7 +25,7 @@ import LoanQuickCard from "../components/LoanSummary";
 import StaffPresenceBanner from "../components/StaffPresenceBanner";
 import StatWidget from "../components/StatWidget";
 import { currentUser } from "../lib/session";
-import { C, W, gradient, iconDot } from "../lib/theme";
+import { C, W, gradient, iconDot, TOP_INSET } from "../lib/theme";
 
 type Station = {
   id: string;
@@ -333,7 +333,7 @@ const s = StyleSheet.create({
   container: { ...W.page },
   body: { paddingHorizontal: 18, paddingTop: 0 },
   headerTop: {
-    ...W.headerBar, marginHorizontal: -18, paddingTop: 52, paddingHorizontal: 18, paddingBottom: 10,
+    ...W.headerBar, marginHorizontal: -18, paddingTop: TOP_INSET, paddingHorizontal: 18, paddingBottom: 10,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",

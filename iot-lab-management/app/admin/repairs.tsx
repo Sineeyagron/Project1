@@ -17,7 +17,7 @@ import { REPAIR_STATUS, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { naturalNo } from "../../lib/roomStatus";
-import { W, NG } from "../../lib/theme";
+import { W, NG, TOP_INSET } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
@@ -465,7 +465,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 24,
   },
-  heroTop: { ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  heroTop: { ...W.headerBar, marginHorizontal: -16, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   headerIconBtn: {
     ...W.iconBtn,
     alignItems: "center",

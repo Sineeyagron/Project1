@@ -19,7 +19,7 @@ import supabase from "../lib/supabase";
 import { setRememberLogin } from "../lib/session";
 import { notify } from "../lib/notify";
 import { getAllowedDomain, isAllowedEmail, signInWithGoogle, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
-import { W, NG } from "../lib/theme";
+import { W, NG, TOP_INSET } from "../lib/theme";
 
 const KKU = { brick: "#A8341C", orange: "#D97A1E", shadow: "#7A2412" };
 
@@ -538,7 +538,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: 32,
-    paddingTop: 48,
+    paddingTop: TOP_INSET - 4,
     paddingBottom: 28,
   },
   brandBlock: {

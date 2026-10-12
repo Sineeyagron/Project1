@@ -19,7 +19,7 @@ import supabase from "../lib/supabase";
 import { useRealtime } from "../lib/realtime";
 import { currentUser } from "../lib/session";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
-import { W } from "../lib/theme";
+import { W, TOP_INSET } from "../lib/theme";
 import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 import { haptic } from "../components/Motion";
 import TabBar from "../components/TabBar";
@@ -345,7 +345,7 @@ const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
 
   header: { ...W.headerBar,
-    paddingTop: 52,
+    paddingTop: TOP_INSET,
     paddingBottom: 10,
     marginBottom: 8,
     paddingHorizontal: 16,

@@ -3,7 +3,7 @@ import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from "react-
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./AppText";
 import { usePathname } from "expo-router";
-import { BADGE_TEXT, C, W } from "../lib/theme";
+import { BADGE_TEXT, C, W, TOP_INSET } from "../lib/theme";
 import { useIsDesktop } from "../lib/layout";
 import { isAdminPath } from "../lib/roles";
 
@@ -88,7 +88,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingTop: 52,
+    paddingTop: TOP_INSET,
     paddingHorizontal: 16,
     paddingBottom: 10,
     marginBottom: 8,
