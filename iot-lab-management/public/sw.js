@@ -4,7 +4,7 @@
 //   2) รับ Web Push จาก Edge Function send-push → แสดงแจ้งเตือน / แตะแล้วเปิดหรือโฟกัสแอปไปหน้าที่ระบุ
 // แก้ไฟล์นี้แล้วเปลี่ยน VERSION → cache เก่าถูกล้างตอนเปิดครั้งถัดไป
 
-const VERSION = "labhub-v2";
+const VERSION = "labhub-v3";
 const SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
