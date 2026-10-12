@@ -21,7 +21,7 @@ import { notify, DialogHost } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import Countdown from "../../components/Countdown";
 import { useRole } from "../../lib/roles";
-import { W, NG } from "../../lib/theme";
+import { W, NG, TOP_INSET } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import PickupInbox from "../../components/PickupInbox";
 import BottomSheet from "../../components/BottomSheet";
@@ -455,7 +455,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingTop: 52,
+    paddingTop: TOP_INSET,
     paddingHorizontal: 16,
     paddingBottom: 10,
     marginBottom: 8,

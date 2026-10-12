@@ -25,7 +25,7 @@ import { usePresence } from "../../lib/presence";
 import { FadeIn, PressScale, Pulse } from "../../components/Motion";
 import { confirmAction, notify } from "../../lib/notify";
 import { canAccess, ROLE_LABEL, useRole } from "../../lib/roles";
-import { W, NG, gradient, iconDot, BADGE_TEXT } from "../../lib/theme";
+import { W, NG, gradient, iconDot, BADGE_TEXT, TOP_INSET } from "../../lib/theme";
 import { useIsDesktop } from "../../lib/layout";
 import AdminDashboardDesktop from "../../components/desktop/AdminDashboardDesktop";
 
@@ -753,7 +753,7 @@ const s = StyleSheet.create({
     paddingBottom: 16,
   },
   heroTop: {
-    ...W.headerBar, marginHorizontal: -16, paddingTop: 52, paddingHorizontal: 16, paddingBottom: 10,
+    ...W.headerBar, marginHorizontal: -16, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

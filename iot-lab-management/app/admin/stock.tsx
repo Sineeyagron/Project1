@@ -15,7 +15,7 @@ import { ITEM_STATUS } from "../../lib/status";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { ageMonths, ageText, warrantyInfo } from "../../lib/itemInfo";
-import { W, gradient, tint } from "../../lib/theme";
+import { W, gradient, tint, TOP_INSET } from "../../lib/theme";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 
@@ -276,7 +276,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingTop: 52,
+    paddingTop: TOP_INSET,
     paddingHorizontal: 16,
     paddingBottom: 10,
     marginBottom: 8,

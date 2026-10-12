@@ -29,7 +29,7 @@ import {
   thDate,
   todayBkk,
 } from "../../lib/report";
-import { W, NG, gradient, tint } from "../../lib/theme";
+import { W, NG, gradient, tint, TOP_INSET } from "../../lib/theme";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import RangeCalendarSheet from "../../components/RangeCalendarSheet";
@@ -356,7 +356,7 @@ const st = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingTop: 52,
+    paddingTop: TOP_INSET,
     paddingHorizontal: 16,
     paddingBottom: 10,
     marginBottom: 8,

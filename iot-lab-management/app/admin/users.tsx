@@ -15,7 +15,7 @@ import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { useRole } from "../../lib/roles";
-import { W } from "../../lib/theme";
+import { W, TOP_INSET } from "../../lib/theme";
 import { useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import { isMissingColumn } from "../../lib/people";
@@ -288,7 +288,7 @@ const s = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingTop: 52,
+    paddingTop: TOP_INSET,
     paddingHorizontal: 16,
     paddingBottom: 10,
     marginBottom: 8,

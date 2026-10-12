@@ -36,6 +36,10 @@ export function gradient(css: string): ViewStyle {
 const CARD_SHADOW = "inset 0 1px 0 #FFFFFF, inset 0 -2px 0 rgba(37,99,235,0.04), 0 2px 4px rgba(15,23,42,0.06), 0 9px 18px rgba(37,99,235,0.115)";
 const SMALL_SHADOW = "inset 0 1px 0 #FFFFFF, 0 1px 2px rgba(15,23,42,0.05), 0 6px 14px rgba(37,99,235,0.13)";
 
+// ระยะหัวหน้าจอจากขอบบน (paddingTop ของแถบหัวทุกหน้า) — แก้ที่นี่ที่เดียว
+//   มือถือ: แอปวาดใต้แถบสถานะ → เว้น 52 / เว็บ (iPhone PWA + เบราว์เซอร์): ระบบเว้นแถบสถานะให้แล้ว → เว้นน้อยลง
+export const TOP_INSET = Platform.OS === "web" ? 24 : 52;
+
 export const W = {
   // พื้นหลังทั้งหน้า (ฟ้าสดด้านบน ค่อย ๆ จางลง)
   page: {
