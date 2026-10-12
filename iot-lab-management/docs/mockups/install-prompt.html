@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup — ชวนติดตั้งแอป</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root { --primary:#2563EB; --primaryDark:#1D4ED8; --soft:#DBEAFE; --tint:#EEF5FF; --ink:#172033; --text2:#475569; --faint:#64748B; --border:#D3E0F5; --bg:#EAF1FC; --warn:#B45309; --warnBg:#FFFBEB; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:"Noto Sans Thai",system-ui,sans-serif; background:#D5E2F7; color:var(--ink); padding:28px 16px 60px; }
+  h1 { text-align:center; font-size:22px; margin:0 0 4px; }
+  .lead { text-align:center; color:var(--text2); margin:0 0 28px; font-size:14px; }
+  .row { display:flex; flex-wrap:wrap; gap:28px; justify-content:center; }
+  .col { width:300px; }
+  .label { font-weight:700; font-size:15px; margin:0 0 4px; }
+  .sub { color:var(--text2); font-size:12.5px; margin:0 0 10px; min-height:36px; }
+  .phone { width:300px; height:610px; border-radius:40px; background:#111; padding:10px; box-shadow:0 18px 40px rgba(23,32,51,.25); }
+  .screen { width:100%; height:100%; border-radius:31px; overflow:hidden; position:relative;
+    background:linear-gradient(180deg,#C7DBFF 0%,#DDE9FF 30%,#EAF1FC 62%); display:flex; flex-direction:column; }
+  .status { height:30px; display:flex; justify-content:space-between; align-items:center; padding:0 22px; font-size:11px; font-weight:700; color:#111; background:#fff; }
+  .body { flex:1; padding:12px 14px; overflow:hidden; }
+  .card { border-radius:22px; background:linear-gradient(165deg,#fff 0%,#F3F7FF 55%,#E7EFFC 100%); border:1px solid rgba(255,255,255,.9);
+    box-shadow:inset 0 1px 0 #fff,0 2px 4px rgba(15,23,42,.06),0 9px 18px rgba(37,99,235,.115); }
+  /* login (ย่อ) */
+  .logo { width:62px; height:62px; border-radius:16px; background:#fff; margin:6px auto 8px; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 18px rgba(37,99,235,.2); }
+  .logo div { width:42px; height:42px; border-radius:11px; background:var(--primary); display:flex; align-items:center; justify-content:center; }
+  .app { text-align:center; font-weight:900; font-size:20px; margin:0 0 10px; }
+  .loginCard { padding:14px; }
+  .field { height:34px; border-radius:12px; background:#fff; border:1px solid var(--border); margin-bottom:8px; font-size:11px; color:#94a3b8; display:flex; align-items:center; padding:0 10px; }
+  .btn { height:36px; border-radius:12px; color:#fff; font-weight:700; font-size:12.5px; display:flex; align-items:center; justify-content:center; gap:6px;
+    background:linear-gradient(135deg,#1D4ED8 0%,#2563EB 55%,#3B82F6 100%); box-shadow:0 6px 14px rgba(37,99,235,.28); }
+  .kku { background:#A8341C; box-shadow:none; margin-top:6px; }
+  .dim { opacity:.55; }
+  /* การ์ดติดตั้ง */
+  .install { padding:12px 12px 12px; margin-top:12px; }
+  .ihead { display:flex; gap:10px; align-items:center; }
+  .iicon { width:38px; height:38px; border-radius:11px; flex:none; display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(135deg,#3B82F6,#1D4ED8); box-shadow:0 4px 10px rgba(37,99,235,.3); }
+  .ititle { font-weight:700; font-size:13.5px; line-height:1.3; }
+  .isub { color:var(--text2); font-size:11.5px; line-height:1.4; }
+  .x { margin-left:auto; align-self:flex-start; color:#94a3b8; font-size:16px; line-height:1; padding:2px 4px; }
+  .steps { margin-top:10px; display:flex; flex-direction:column; gap:7px; }
+  .step { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink); background:rgba(255,255,255,.75); border:1px solid var(--border); border-radius:12px; padding:7px 9px; }
+  .num { width:20px; height:20px; border-radius:10px; background:var(--soft); color:var(--primaryDark); font-weight:800; font-size:11px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .chip { display:inline-flex; align-items:center; gap:3px; background:var(--tint); border:1px solid var(--soft); color:var(--primaryDark); border-radius:7px; padding:1px 6px; font-weight:700; font-size:11.5px; }
+  .ibtn { margin-top:10px; }
+  .later { text-align:center; color:var(--faint); font-size:11.5px; margin-top:8px; font-weight:600; }
+  .warn .iicon { background:linear-gradient(135deg,#F59E0B,#D97706); box-shadow:0 4px 10px rgba(217,119,6,.3); }
+  .ghost { margin-top:10px; height:34px; border-radius:12px; border:1px solid var(--border); background:#fff; color:var(--primaryDark); font-weight:700; font-size:12.5px; display:flex; align-items:center; justify-content:center; gap:6px; }
+  /* safari bar */
+  .safari { height:44px; background:rgba(248,250,252,.96); border-top:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-around; color:var(--primary); }
+  .safari .hl { background:#FEF3C7; border-radius:8px; padding:3px 6px; outline:2px solid #F59E0B; }
+  .linebar { height:36px; background:#fff; display:flex; align-items:center; padding:0 12px; font-size:11px; color:#334155; border-bottom:1px solid #e2e8f0; gap:8px; }
+  /* home */
+  .greet { font-size:11px; color:var(--text2); margin-top:4px; }
+  .h1 { font-size:20px; font-weight:800; margin:2px 0 12px; }
+  .h1 b { color:var(--primary); }
+  .tile { height:70px; margin-bottom:10px; opacity:.6; }
+  .tabbar { height:56px; background:rgba(255,255,255,.92); border-top:1px solid var(--border); display:flex; justify-content:space-around; align-items:center; font-size:10px; color:var(--faint); }
+  .note { max-width:980px; margin:30px auto 0; background:#fff; border-radius:16px; padding:16px 20px; font-size:13.5px; color:var(--text2); line-height:1.7; }
+  .note b { color:var(--ink); }
+  svg { display:block; }
+</style>
+</head>
+<body>
+<h1>การ์ดชวนติดตั้ง LabHub ลงหน้าจอโฮม</h1>
+<p class="lead">แสดงเฉพาะบนมือถือที่ยังไม่ได้ติดตั้ง · ติดตั้งแล้ว / บนคอม = ไม่แสดง</p>
+
+<div class="row">
+
+  <!-- A: login iPhone Safari -->
+  <div class="col">
+    <p class="label">A · หน้า login — iPhone (Safari)</p>
+    <p class="sub">Apple ไม่ให้เว็บสั่งติดตั้งเอง → บอก 2 ขั้น พร้อมไอคอนที่ต้องแตะ</p>
+    <div class="phone"><div class="screen">
+      <div class="status"><span>9:41</span><span>●●● ◔</span></div>
+      <div class="body">
+        <div class="logo"><div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7 15h10"/></svg></div></div>
+        <p class="app">LabHub</p>
+        <div class="card loginCard dim">
+          <div class="field">อีเมล</div><div class="field">รหัสผ่าน</div>
+          <div class="btn">เข้าสู่ระบบ →</div><div class="btn kku">เข้าสู่ระบบด้วย KKU Mail</div>
+        </div>
+        <div class="card install">
+          <div class="ihead">
+            <div class="iicon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M12 7v7M9 11l3 3 3-3"/></svg></div>
+            <div><div class="ititle">ติดตั้ง LabHub ลงหน้าจอโฮม</div><div class="isub">เปิดเร็ว เต็มจอ และรับแจ้งเตือนได้</div></div>
+            <div class="x">×</div>
+          </div>
+          <div class="steps">
+            <div class="step"><span class="num">1</span>แตะ <span class="chip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg>แชร์</span> แถบล่างของ Safari</div>
+            <div class="step"><span class="num">2</span>เลือก <span class="chip"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M12 8v8M8 12h8"/></svg>เพิ่มไปยังหน้าจอโฮม</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="safari"><span>‹</span><span>›</span><span class="hl"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg></span><span>▢</span><span>⧉</span></div>
+    </div></div>
+  </div>
+
+  <!-- B: login Android -->
+  <div class="col">
+    <p class="label">B · หน้า login — Android (Chrome)</p>
+    <p class="sub">กดปุ่มเดียว → ขึ้นหน้าต่างติดตั้งของระบบ</p>
+    <div class="phone"><div class="screen">
+      <div class="status"><span>9:41</span><span>▲ ◔</span></div>
+      <div class="body">
+        <div class="logo"><div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7 15h10"/></svg></div></div>
+        <p class="app">LabHub</p>
+        <div class="card loginCard dim">
+          <div class="field">อีเมล</div><div class="field">รหัสผ่าน</div>
+          <div class="btn">เข้าสู่ระบบ →</div><div class="btn kku">เข้าสู่ระบบด้วย KKU Mail</div>
+        </div>
+        <div class="card install">
+          <div class="ihead">
+            <div class="iicon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M12 7v7M9 11l3 3 3-3"/></svg></div>
+            <div><div class="ititle">ติดตั้ง LabHub เป็นแอป</div><div class="isub">เปิดเร็ว เต็มจอ และรับแจ้งเตือนได้</div></div>
+            <div class="x">×</div>
+          </div>
+          <div class="btn ibtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>ติดตั้งแอป</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- C: in-app browser -->
+  <div class="col">
+    <p class="label">C · เปิดลิงก์จาก LINE / Facebook</p>
+    <p class="sub">ในแอปพวกนี้ติดตั้งไม่ได้ → บอกให้เปิดใน Safari/Chrome ก่อน (สีส้ม = ต้องทำก่อน)</p>
+    <div class="phone"><div class="screen">
+      <div class="status"><span>9:41</span><span>●●● ◔</span></div>
+      <div class="linebar"><span>✕</span><span style="flex:1;text-align:center;font-weight:700">labhub-kku.vercel.app</span><span>⋯</span></div>
+      <div class="body">
+        <div class="logo"><div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7 15h10"/></svg></div></div>
+        <p class="app">LabHub</p>
+        <div class="card loginCard dim">
+          <div class="field">อีเมล</div><div class="field">รหัสผ่าน</div>
+          <div class="btn">เข้าสู่ระบบ →</div>
+        </div>
+        <div class="card install warn">
+          <div class="ihead">
+            <div class="iicon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></div>
+            <div><div class="ititle">เปิดใน Safari เพื่อติดตั้งแอป</div><div class="isub">แตะ ⋯ มุมขวาบน → "เปิดในเบราว์เซอร์" (ล็อกอิน Google ในแอป LINE อาจใช้ไม่ได้)</div></div>
+          </div>
+          <div class="ghost"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>คัดลอกลิงก์</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- D: home after login -->
+  <div class="col">
+    <p class="label">D · หน้าแรกหลังล็อกอิน (นศ. / แดชบอร์ด)</p>
+    <p class="sub">เผื่อคนข้ามไปตอน login · "ไว้ทีหลัง" = ซ่อน 7 วัน</p>
+    <div class="phone"><div class="screen">
+      <div class="status"><span>9:41</span><span>●●● ◔</span></div>
+      <div class="body">
+        <div class="greet">☾ สวัสดีตอนค่ำ · นักศึกษา</div>
+        <div class="h1">ห้องแล็บ <b>IoT</b></div>
+        <div class="card install" style="margin-top:0;margin-bottom:12px">
+          <div class="ihead">
+            <div class="iicon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M12 7v7M9 11l3 3 3-3"/></svg></div>
+            <div><div class="ititle">ติดตั้ง LabHub ลงหน้าจอโฮม</div><div class="isub">เปิดเร็ว เต็มจอ และรับแจ้งเตือนได้</div></div>
+          </div>
+          <div class="steps">
+            <div class="step"><span class="num">1</span>แตะ <span class="chip">แชร์</span> แถบล่างของ Safari</div>
+            <div class="step"><span class="num">2</span>เลือก <span class="chip">เพิ่มไปยังหน้าจอโฮม</span></div>
+          </div>
+          <div class="later">ไว้ทีหลัง</div>
+        </div>
+        <div class="card tile"></div><div class="card tile"></div><div class="card tile"></div>
+      </div>
+      <div class="tabbar"><span>หน้าแรก</span><span>อุปกรณ์</span><span>แจ้งเตือน</span><span>โปรไฟล์</span></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="note">
+  <b>กติกา</b><br />
+  • แสดงเฉพาะมือถือที่ยังไม่ได้ติดตั้ง — เปิดจากไอคอนหน้าจอโฮมแล้ว / แอปมือถือ native / คอม = ไม่แสดง<br />
+  • หน้า login: กด × = ซ่อนไว้จนเปิดเว็บครั้งหน้า · หน้าแรก: "ไว้ทีหลัง" = ซ่อน 7 วัน (จำในเครื่อง)<br />
+  • Android ที่เบราว์เซอร์ไม่มีปุ่มติดตั้ง (เช่น Samsung Internet บางรุ่น) → แสดงวิธี "เมนู ⋮ → ติดตั้งแอป" แบบเดียวกับ iPhone แทน<br />
+  • ข้อความแจ้งเตือนในหน้าแจ้งเตือน (การ์ดเดิม) ยังอยู่เหมือนเดิม
+</div>
+</body>
+</html>

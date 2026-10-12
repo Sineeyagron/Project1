@@ -20,6 +20,7 @@ import { setRememberLogin } from "../lib/session";
 import { notify } from "../lib/notify";
 import { getAllowedDomain, isAllowedEmail, signInWithGoogle, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
 import { W, NG, TOP_INSET } from "../lib/theme";
+import InstallAppCard from "../components/InstallAppCard";
 
 const KKU = { brick: "#A8341C", orange: "#D97A1E", shadow: "#7A2412" };
 
@@ -474,6 +475,9 @@ export default function Login() {
           </View>
         </View>
         </GlowFrame>
+
+        {/* เว็บมือถือที่ยังไม่ได้ติดตั้ง: ชวนเพิ่มลงหน้าจอโฮม (iPhone = บอกวิธี / Android = ปุ่มติดตั้ง) */}
+        <InstallAppCard />
 
         {/* ไม่มีสมัครสมาชิกในแอป (ถอดออก 12 ต.ค. 2569) — นศ. เข้าด้วย Google @kkumail.com ครั้งแรก = สร้างบัญชีให้เอง */}
         <View style={styles.sslPill}>
