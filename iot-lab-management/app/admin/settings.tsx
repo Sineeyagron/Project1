@@ -17,6 +17,7 @@ import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { ALLOWED_DOMAIN } from "../../lib/googleAuth";
 import { W, NG } from "../../lib/theme";
+import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import {
   DEFAULT_RULES, VAR_LABEL, RuleVar, fillRule, fromThaiVars, hasBadVar, ruleParts, rulesFromRows, toThaiVars, varsFromRows,
@@ -72,6 +73,7 @@ const DAY_LIMIT = 6;
 const FIELDS = GROUPS.flatMap((g) => g.fields);
 
 export default function AdminSettings() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
   const [saved, setSaved] = useState<Record<string, number>>({});
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -310,7 +312,225 @@ export default function AdminSettings() {
           </TouchableOpacity>
         </View>
       ) : (
-        <KeyboardAwareScrollView bottomOffset={editing === null ? 24 : 190} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView bottomOffset={editing === null ? 24 : 190} contentContainerStyle={[s.body, isDesktop && desktopBody.wide]} keyboardShouldPersistTaps="handled">
+          {isDesktop ? (
+            // จอใหญ่: ซ้าย = ค่าตัวเลข/ระยะยืม/นัดรับ + ปุ่มบันทึก · ขวา = กฎการยืม-คืน + การเข้าสู่ระบบ
+            <View style={desktopCols.row}>
+              <View style={desktopCols.half}>
+          {GROUPS.map((g) => (
+            <View key={g.title} style={{ gap: 8 }}>
+              <Text style={s.section}>{g.title}</Text>
+              <View style={s.card}>
+                {g.fields.map((f, idx) => (
+                  <View key={f.key} style={[s.field, idx > 0 && s.divider]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.label}>{f.label}</Text>
+                      <Text style={[s.hint, !!errors[f.key] && { color: C.red }]}>{errors[f.key] || f.hint}</Text>
+                    </View>
+                    <TextInput
+                      style={[s.input, !!errors[f.key] && s.inputError]}
+                      value={draft[f.key]}
+                      onChangeText={(t) => setDraft((d) => ({ ...d, [f.key]: t.replace(/[^\d]/g, "") }))}
+                      keyboardType="number-pad"
+                      maxLength={4}
+                      selectTextOnFocus
+                    />
+                    <Text style={s.unit}>{f.unit}</Text>
+                  </View>
+                ))}
+                {g.days && (
+                  <View style={[s.daysRow, s.divider]}>
+                    <Text style={s.label}>ระยะยืมให้เลือก</Text>
+                    <Text style={[s.hint, (!dayOptions.length || !!newDayError) && { color: C.red }]}>
+                      {!dayOptions.length ? "ต้องมีอย่างน้อย 1 ตัวเลือก"
+                        : newDayError || `นศ. เลือกได้ตอนขอยืม · ${DAY_MIN}–${DAY_MAX} วัน ไม่เกิน ${DAY_LIMIT} ตัวเลือก`}
+                    </Text>
+                    <View style={s.chips}>
+                      {dayOptions.map((d) => (
+                        <TouchableOpacity
+                          key={d}
+                          style={s.dayChip}
+                          onPress={() => setDayOptions((o) => o.filter((x) => x !== d))}
+                          hitSlop={4}
+                          accessibilityLabel={`ลบตัวเลือก ${d} วัน`}
+                        >
+                          <Text style={s.chipText}>{d} วัน</Text>
+                          <Ionicons name="close" size={14} color="#1D4ED8" />
+                        </TouchableOpacity>
+                      ))}
+                      {newDay !== null ? (
+                        <View style={s.dayAdd}>
+                          <TextInput
+                            style={[s.dayInput, !!newDayError && s.inputError]}
+                            value={newDay}
+                            onChangeText={(t) => setNewDay(t.replace(/[^\d]/g, ""))}
+                            onSubmitEditing={addDay}
+                            keyboardType="number-pad"
+                            returnKeyType="done"
+                            maxLength={2}
+                            placeholder="วัน"
+                            placeholderTextColor={C.faint}
+                            autoFocus
+                          />
+                          <TouchableOpacity onPress={addDay} disabled={!newDay || !!newDayError} hitSlop={6} accessibilityLabel="เพิ่มตัวเลือก">
+                            <Ionicons name="checkmark-circle" size={26} color={!newDay || newDayError ? "#CBD5E1" : C.purple} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => setNewDay(null)} hitSlop={6} accessibilityLabel="ยกเลิก">
+                            <Ionicons name="close-circle-outline" size={24} color={C.faint} />
+                          </TouchableOpacity>
+                        </View>
+                      ) : dayOptions.length < DAY_LIMIT ? (
+                        <TouchableOpacity style={[s.dayChip, s.dayChipAdd]} onPress={() => setNewDay("")} activeOpacity={0.75}>
+                          <Ionicons name="add" size={15} color={C.muted} />
+                          <Text style={[s.chipText, { color: C.muted }]}>เพิ่ม</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  </View>
+                )}
+              </View>
+            </View>
+          ))}
+
+          {/* ปุ่มบันทึกตัวเลขอยู่ใต้การ์ดตัวเลขเลย (เดิมอยู่ล่างสุด ต่อจากกฎ — สับสนกับ "บันทึกกฎ") */}
+          <View style={{ gap: 6 }}>
+            <TouchableOpacity style={[s.saveBtn, !canSave && { opacity: 0.4 }]} disabled={!canSave} onPress={save} activeOpacity={0.85}>
+              <Text style={s.saveText}>{saving ? "กำลังบันทึก..." : changeCount ? `บันทึกการตั้งค่า (${changeCount} รายการ)` : "การตั้งค่ายังไม่มีการเปลี่ยนแปลง"}</Text>
+            </TouchableOpacity>
+            <Text style={s.note}>ระบบตรวจประกัน/อายุทุกวัน 08:00 แต่ละชิ้นเตือนครั้งเดียวต่อเรื่อง</Text>
+          </View>
+
+              </View>
+              <View style={desktopCols.half}>
+          <View style={{ gap: 8 }}>
+            <Text style={s.section}>กฎการยืม-คืน</Text>
+            <View style={s.card}>
+              <View style={s.field}>
+                <Text style={[s.hint, { flex: 1, marginTop: 0 }]}>
+                  นักศึกษาเห็นกฎนี้ตอนขอยืม/คืน/ยืมต่อ และในหน้าโปรไฟล์ · ตัวเลข<Text style={s.varText}>สีฟ้า</Text>เปลี่ยนตามค่าที่ตั้งด้านบนอัตโนมัติ
+                </Text>
+              </View>
+              {rules.map((t, i) => {
+                const template = fromThaiVars(t.trim());
+                const bad = hasBadVar(template);
+                if (editing !== i) {
+                  return (
+                    <TouchableOpacity key={i} style={[s.ruleRow, s.divider]} onPress={() => startEdit(i)} activeOpacity={0.7} accessibilityLabel={`แก้กฎข้อ ${i + 1}`}>
+                      <Text style={s.ruleNo}>{i + 1}</Text>
+                      {!template ? (
+                        <Text style={[s.ruleText, { color: C.red }]}>ข้อนี้ว่าง — แตะเพื่อพิมพ์ หรือลบข้อนี้</Text>
+                      ) : bad ? (
+                        <Text style={[s.ruleText, { color: C.red }]}>{t}</Text>
+                      ) : (
+                        <Text style={s.ruleText}>
+                          {ruleParts(template, vars).map((p, k) =>
+                            p.isVar ? <Text key={k} style={s.varText}>{p.text}</Text> : p.text
+                          )}
+                        </Text>
+                      )}
+                      <Ionicons name="pencil" size={17} color={C.faint} style={{ marginTop: 2 }} />
+                    </TouchableOpacity>
+                  );
+                }
+                return (
+                  <View key={i} style={[s.ruleEdit, s.divider]}>
+                    <View style={s.ruleEditTop}>
+                      <Text style={[s.ruleNo, { marginTop: 11 }]}>{i + 1}</Text>
+                      <TextInput
+                        style={[s.ruleInput, { height: Math.max(44, ruleHeight) }, (!t.trim() || bad) && s.inputError]}
+                        onContentSizeChange={(e) => {
+                          const h = Math.ceil(e.nativeEvent.contentSize.height) + 2;
+                          setRuleHeight((old) => (old === h ? old : h));
+                        }}
+                        value={t}
+                        onChangeText={(v) => setRules((r) => r.map((x, k) => (k === i ? v : x)))}
+                        onSelectionChange={(e) => setSel(e.nativeEvent.selection)}
+                        placeholder="พิมพ์กฎข้อนี้"
+                        placeholderTextColor={C.faint}
+                        multiline
+                        ref={ruleInputRef}
+                        maxLength={300}
+                      />
+                    </View>
+                    <View style={s.ruleEditBody}>
+                      <View style={s.chips}>
+                        {VAR_KEYS.map((k) => (
+                          <TouchableOpacity key={k} style={s.chip} onPress={() => insertVar(k)} activeOpacity={0.75}>
+                            <Text style={s.chipText}>+ {VAR_LABEL[k]}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                      {bad ? (
+                        <Text style={[s.hint, { color: C.red, marginTop: 0 }]}>
+                          ตัวแปรไม่ถูกต้อง — ลบวงเล็บที่เกินออก แล้วกดปุ่ม + เพื่อแทรกใหม่
+                        </Text>
+                      ) : (
+                        <View style={s.preview}>
+                          <Ionicons name="eye-outline" size={15} color={C.muted} style={{ marginTop: 2 }} />
+                          <Text style={s.previewText}>นศ. เห็น: {template ? fillRule(template, vars) : "—"}</Text>
+                        </View>
+                      )}
+                      <View style={s.editTools}>
+                        <View style={s.editToolsLeft}>
+                          <TouchableOpacity onPress={() => moveRule(i, -1)} disabled={i === 0} hitSlop={8} accessibilityLabel="เลื่อนขึ้น">
+                            <Ionicons name="chevron-up" size={20} color={i === 0 ? "#CBD5E1" : C.muted} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => moveRule(i, 1)} disabled={i === rules.length - 1} hitSlop={8} accessibilityLabel="เลื่อนลง">
+                            <Ionicons name="chevron-down" size={20} color={i === rules.length - 1 ? "#CBD5E1" : C.muted} />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => removeRule(i)} hitSlop={8} style={s.deleteBtn} accessibilityLabel="ลบข้อนี้">
+                            <Ionicons name="trash-outline" size={17} color={C.red} />
+                            <Text style={s.deleteText}>ลบ</Text>
+                          </TouchableOpacity>
+                        </View>
+                        <TouchableOpacity onPress={() => { Keyboard.dismiss(); setEditing(null); }} hitSlop={8}>
+                          <Text style={s.doneText}>เสร็จ</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+              <View style={[s.ruleActions, s.divider]}>
+                <TouchableOpacity onPress={addRule} activeOpacity={0.8} style={s.addRule}>
+                  <Ionicons name="add" size={18} color={C.purple} />
+                  <Text style={s.addRuleText}>เพิ่มข้อ</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => { setRules(DEFAULT_RULES.map(toThaiVars)); setEditing(null); }} activeOpacity={0.8}>
+                  <Text style={s.resetText}>ใช้กฎตั้งต้น</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {!!rulesError && <Text style={[s.hint, { color: C.red }]}>{rulesError}</Text>}
+            <TouchableOpacity style={[s.saveBtn, !canSaveRules && { opacity: 0.4 }]} disabled={!canSaveRules} onPress={saveRules} activeOpacity={0.85}>
+              <Text style={s.saveText}>{rulesSaving ? "กำลังบันทึก..." : rulesChanged ? "บันทึกกฎ" : "กฎยังไม่มีการเปลี่ยนแปลง"}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ gap: 8 }}>
+            <Text style={s.section}>การเข้าสู่ระบบ</Text>
+            <View style={s.card}>
+              <View style={s.field}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.label}>รับเฉพาะอีเมล @{ALLOWED_DOMAIN}</Text>
+                  <Text style={s.hint}>
+                    {restrictDomain
+                      ? "เปิดอยู่ — ล็อกอิน Google / สมัครใหม่ได้เฉพาะอีเมลมหาวิทยาลัย"
+                      : "ปิดอยู่ (ช่วงพัฒนา) — ทุกอีเมลใช้ได้ · เปิดตอน Final Project"}
+                  </Text>
+                </View>
+                {domainBusy ? (
+                  <ActivityIndicator color={C.purple} />
+                ) : (
+                  <Switch value={restrictDomain} onValueChange={toggleDomain} trackColor={{ true: C.purple }} />
+                )}
+              </View>
+            </View>
+          </View>
+              </View>
+            </View>
+          ) : (
+            <>
           {GROUPS.map((g) => (
             <View key={g.title} style={{ gap: 8 }}>
               <Text style={s.section}>{g.title}</Text>
@@ -519,6 +739,8 @@ export default function AdminSettings() {
               </View>
             </View>
           </View>
+            </>
+          )}
         </KeyboardAwareScrollView>
       )}
     </View>

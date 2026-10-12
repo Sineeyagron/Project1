@@ -16,6 +16,8 @@ import { W } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import SearchBar from "../../components/SearchBar";
 import TimelineDays from "../../components/TimelineDays";
+import TimelineTable from "../../components/desktop/TimelineTable";
+import { desktopBody, useIsDesktop } from "../../lib/layout";
 import { PAGE_DAYS, TimelineFilter, buildEvents, filterEvents, groupByDay, sinceIso } from "../../lib/timeline";
 
 // ประวัติยืม-คืน (Admin/TA) — F3 แบบแอปธนาคาร: จัดกลุ่มตามวัน แต่ละแถว = เวลา · ชนิด · ของ · ใคร · รายละเอียด
@@ -43,6 +45,7 @@ const FILTERS: { key: TimelineFilter; label: string; color: string }[] = [
 ];
 
 export default function AdminHistory() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → ตาราง
   const [records, setRecords] = useState<any[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [pickups, setPickups] = useState<any[]>([]);
@@ -161,7 +164,7 @@ export default function AdminHistory() {
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 60 }} />
       ) : (
         <ScrollView
-          contentContainerStyle={s.body}
+          contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -204,7 +207,11 @@ export default function AdminHistory() {
               <Text style={s.emptyText}>ไม่พบรายการ</Text>
             </View>
           ) : (
-            <TimelineDays groups={groups} showCount person={(id) => people[id] || "-"} />
+            isDesktop ? (
+              <TimelineTable groups={groups} person={(id) => people[id] || "-"} />
+            ) : (
+              <TimelineDays groups={groups} showCount person={(id) => people[id] || "-"} />
+            )
           )}
 
           <TouchableOpacity style={s.moreBtn} onPress={loadMore} disabled={loadingMore} activeOpacity={0.85}>

@@ -14,6 +14,7 @@ import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { W, NG } from "../../lib/theme";
+import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 
 // จัดการหมวดหมู่อุปกรณ์ (แผน 2.2.1): เพิ่ม / แก้ชื่อ / เลื่อนลำดับ / ปิด-เปิด / ลบ
@@ -40,6 +41,7 @@ function errorText(error: any) {
 }
 
 export default function AdminCategories() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
   const router = useRouter();
   const [list, setList] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,10 +186,129 @@ export default function AdminCategories() {
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
       ) : (
         <KeyboardAwareScrollView bottomOffset={24}
-          contentContainerStyle={s.body}
+          contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}
         >
+          {isDesktop ? (
+            // จอใหญ่: ซ้าย = เพิ่มหมวด · ขวา = รายการหมวด
+            <View style={desktopCols.row}>
+              <View style={desktopCols.side}>
+          <View style={s.addRow}>
+            <TextInput
+              style={s.input}
+              value={newName}
+              onChangeText={setNewName}
+              placeholder="ชื่อหมวดใหม่ เช่น Actuator"
+              placeholderTextColor={C.faint}
+              returnKeyType="done"
+              onSubmitEditing={add}
+            />
+            <TouchableOpacity
+              style={[s.addBtn, (!newName.trim() || busy) && { opacity: 0.4 }]}
+              disabled={!newName.trim() || busy}
+              onPress={add}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add" size={18} color="#fff" />
+              <Text style={s.addBtnText}>เพิ่ม</Text>
+            </TouchableOpacity>
+          </View>
+
+              </View>
+              <View style={desktopCols.main}>
+          {list.map((c, index) => {
+            const locked = c.name === OTHER;
+            const editing = editId === c.id;
+            return (
+              <View key={c.id} style={[s.cardWrap, !c.active && moveFromId !== c.id && s.cardOff]}>
+              <View style={s.card}>
+                <View style={s.orderCol}>
+                  <TouchableOpacity disabled={index === 0 || busy} onPress={() => move(index, -1)} hitSlop={6}>
+                    <Ionicons name="chevron-up" size={18} color={index === 0 ? "#cbd5e1" : C.muted} />
+                  </TouchableOpacity>
+                  <TouchableOpacity disabled={index === list.length - 1 || busy} onPress={() => move(index, 1)} hitSlop={6}>
+                    <Ionicons name="chevron-down" size={18} color={index === list.length - 1 ? "#cbd5e1" : C.muted} />
+                  </TouchableOpacity>
+                </View>
+
+                {editing ? (
+                  <View style={s.editRow}>
+                    <TextInput
+                      style={[s.input, { flex: 1 }]}
+                      value={editName}
+                      onChangeText={setEditName}
+                      autoFocus
+                      returnKeyType="done"
+                      onSubmitEditing={() => saveEdit(c)}
+                    />
+                    <TouchableOpacity style={s.smallBtn} onPress={() => saveEdit(c)} disabled={busy}>
+                      <Ionicons name="checkmark" size={18} color={C.purple} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.smallBtn} onPress={() => setEditId(null)}>
+                      <Ionicons name="close" size={18} color={C.muted} />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <>
+                    <View style={{ flex: 1 }}>
+                      <Text style={s.name}>{c.name}</Text>
+                      <Text style={s.meta}>
+                        {c.inUse} ชิ้น{!c.active ? " · ปิดอยู่" : ""}{locked ? " · หมวดสำรอง" : ""}
+                      </Text>
+                    </View>
+                    {!locked && (
+                      <>
+                        <TouchableOpacity style={s.smallBtn} onPress={() => startEdit(c)} disabled={busy}>
+                          <Ionicons name="pencil-outline" size={17} color={C.purple} />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={s.smallBtn} onPress={() => toggleActive(c)} disabled={busy}>
+                          <Ionicons name={c.active ? "eye-off-outline" : "eye-outline"} size={17} color={C.muted} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[s.smallBtn, moveFromId === c.id && s.smallBtnActive]}
+                          onPress={() => remove(c)}
+                          disabled={busy}
+                        >
+                          <Ionicons name="trash-outline" size={17} color={C.red} />
+                        </TouchableOpacity>
+                      </>
+                    )}
+                  </>
+                )}
+              </View>
+
+              {moveFromId === c.id && (
+                <View style={s.moveBox}>
+                  <Text style={s.moveTitle}>
+                    มีอุปกรณ์ {c.total} ชิ้น เลือกหมวดที่จะย้ายไปก่อนลบ
+                  </Text>
+                  <View style={s.moveChips}>
+                    {list.filter((t) => t.id !== c.id).map((t) => (
+                      <TouchableOpacity
+                        key={t.id}
+                        style={s.moveChip}
+                        onPress={() => moveAndRemove(c, t)}
+                        disabled={busy}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={s.moveChipText}>{t.name}{!t.active ? " (ปิดอยู่)" : ""}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TouchableOpacity onPress={() => setMoveFromId(null)} style={s.moveCancel}>
+                    <Text style={s.moveCancelText}>ยกเลิก</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              </View>
+            );
+          })}
+
+              </View>
+            </View>
+          ) : (
+            <>
           <View style={s.addRow}>
             <TextInput
               style={s.input}
@@ -297,6 +418,8 @@ export default function AdminCategories() {
             );
           })}
 
+            </>
+          )}
           <Text style={s.hint}>
             ไอคอนตา = ปิด/เปิดหมวด (ซ่อนชั่วคราว) · ถังขยะ = ลบ ถ้ามีของต้องเลือกหมวดที่จะย้ายไปก่อน · เปลี่ยนหมวดของอุปกรณ์ได้ที่หน้าจัดการอุปกรณ์ (กดการ์ด)
           </Text>

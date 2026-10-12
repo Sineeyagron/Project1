@@ -16,6 +16,7 @@ import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { ageMonths, ageText, warrantyInfo } from "../../lib/itemInfo";
 import { W, gradient, tint } from "../../lib/theme";
+import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 
 // Stock Report (แผนเฟส 2 ข้อ 1): นับจำนวนชิ้นตามสถานะ แยกตามหมวด + อายุ + ประกันรายชิ้น
@@ -59,6 +60,7 @@ function countBy(list: Item[]) {
 }
 
 export default function StockReport() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
   const router = useRouter();
   // มาจากแจ้งเตือน → เปิดกลุ่มนั้นไว้เลย
   const params = useLocalSearchParams<{ watch?: string }>();
@@ -150,7 +152,7 @@ export default function StockReport() {
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
       ) : (
         <ScrollView
-          contentContainerStyle={s.body}
+          contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}
         >
           {/* ภาพรวม */}
@@ -161,6 +163,9 @@ export default function StockReport() {
             ))}
           </View>
 
+          {/* จอใหญ่: ต้องดูแล | แยกตามหมวด วางคู่กัน */}
+          <View style={isDesktop ? s.cols : { gap: 10 }}>
+          <View style={isDesktop ? s.col : { gap: 10 }}>
           {/* ต้องดูแล */}
           <Text style={s.section}>ต้องดูแล</Text>
           <View style={s.card}>
@@ -186,6 +191,8 @@ export default function StockReport() {
             })}
           </View>
 
+          </View>
+          <View style={isDesktop ? s.col : { gap: 10 }}>
           {/* แยกตามหมวด */}
           <Text style={s.section}>แยกตามหมวด</Text>
           <View style={s.card}>
@@ -221,6 +228,9 @@ export default function StockReport() {
                 </View>
               );
             })}
+          </View>
+
+          </View>
           </View>
 
           <Text style={s.hint}>
@@ -279,6 +289,8 @@ const s = StyleSheet.create({
   headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
   headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
+  cols: { flexDirection: "row", gap: 18, alignItems: "flex-start" },
+  col: { flex: 1, gap: 10, minWidth: 0 },
   statGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   stat: {
     ...W.card,

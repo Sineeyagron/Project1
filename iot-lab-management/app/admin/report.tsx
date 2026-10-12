@@ -30,6 +30,7 @@ import {
   todayBkk,
 } from "../../lib/report";
 import { W, NG, gradient, tint } from "../../lib/theme";
+import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import RangeCalendarSheet from "../../components/RangeCalendarSheet";
 import { thaiShort } from "../../lib/calendar";
@@ -81,6 +82,7 @@ async function fetchAll(page: (from: number) => PromiseLike<{ data: any[] | null
 }
 
 export default function BorrowReport() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → กว้าง + อันดับ 3 คอลัมน์
   const router = useRouter();
   const [preset, setPreset] = useState<PresetKey>("30d");
   const [customFrom, setCustomFrom] = useState(addDays(todayBkk(), -29));
@@ -227,7 +229,7 @@ export default function BorrowReport() {
       />
 
       <ScrollView
-        contentContainerStyle={st.body}
+        contentContainerStyle={[st.body, isDesktop && desktopBody.wide]}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}
       >
@@ -302,9 +304,12 @@ export default function BorrowReport() {
               </Text>
             </View>
 
-            <TopList title="อุปกรณ์ที่ยืมบ่อย" items={s.topItems} />
-            <TopList title="หมวดที่ยืมบ่อย" items={s.topCategories} />
-            <TopList title="ผู้ยืมบ่อย" items={s.topBorrowers} />
+            {/* จอใหญ่: อันดับ 3 ชุดวางคู่กัน */}
+            <View style={isDesktop ? st.cols3 : { gap: 10 }}>
+              <View style={isDesktop ? st.col : null}><TopList title="อุปกรณ์ที่ยืมบ่อย" items={s.topItems} /></View>
+              <View style={isDesktop ? st.col : null}><TopList title="หมวดที่ยืมบ่อย" items={s.topCategories} /></View>
+              <View style={isDesktop ? st.col : null}><TopList title="ผู้ยืมบ่อย" items={s.topBorrowers} /></View>
+            </View>
 
             <View style={st.card}>
               <Text style={st.cardTitle}>ส่งออกรายงาน ({rows.length} รายการยืม)</Text>
@@ -364,6 +369,8 @@ const st = StyleSheet.create({
   headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
   headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
+  cols3: { flexDirection: "row", gap: 14, alignItems: "flex-start" },
+  col: { flex: 1, minWidth: 0 },
   card: { ...W.card, padding: 14, gap: 8 },
   cardTitle: { fontSize: 15, fontWeight: "900", color: C.ink },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
