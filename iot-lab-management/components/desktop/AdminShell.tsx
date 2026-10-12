@@ -8,7 +8,7 @@ import { useRealtime } from "../../lib/realtime";
 import { useRoomLive } from "../../lib/roomRealtime";
 import { canAccess, ROLE_LABEL, useRole } from "../../lib/roles";
 import { confirmAction, notify } from "../../lib/notify";
-import { PHONE_COLUMN_WIDTH, isDesktopReady } from "../../lib/layout";
+import { ADMIN_COLUMN_WIDTH, isDesktopReady } from "../../lib/layout";
 import { C } from "../../lib/theme";
 
 // โครงหน้า admin แบบจอใหญ่ (คอม): เมนูซ้ายถาวร + พื้นที่เนื้อหา — ใช้เฉพาะเว็บจอกว้าง (lib/layout)
@@ -191,5 +191,5 @@ const s = StyleSheet.create({
   logout: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   content: { flex: 1, alignItems: "center" },
   page: { flex: 1, width: "100%" },
-  pagePhone: { maxWidth: PHONE_COLUMN_WIDTH, backgroundColor: C.bg, boxShadow: "0 0 32px rgba(23,32,51,0.10)" },
+  pagePhone: { maxWidth: ADMIN_COLUMN_WIDTH, backgroundColor: C.bg, boxShadow: "0 0 32px rgba(23,32,51,0.10)" },
 });

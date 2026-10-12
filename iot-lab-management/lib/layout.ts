@@ -6,6 +6,8 @@ import { Platform, useWindowDimensions } from "react-native";
 export const DESKTOP_MIN_WIDTH = 1024;
 // ความกว้างแอปแบบมือถือเมื่อเปิดบนจอกว้าง (หน้า นศ. + หน้า admin ที่ยังไม่มีแบบจอใหญ่)
 export const PHONE_COLUMN_WIDTH = 480;
+// หน้า admin ที่ยังไม่มีแบบจอใหญ่ของตัวเอง: แสดงแบบมือถือแต่กว้างขึ้นให้อ่านสบายบนคอม
+export const ADMIN_COLUMN_WIDTH = 760;
 
 export function useIsDesktop() {
   const { width } = useWindowDimensions();
@@ -13,5 +15,5 @@ export function useIsDesktop() {
 }
 
 // หน้า admin ที่ทำแบบจอใหญ่แล้ว (ใช้เต็มพื้นที่ขวาของเมนู) — หน้าอื่นแสดงแบบมือถือกลางพื้นที่ไปก่อน
-export const ADMIN_DESKTOP_READY = new Set(["/admin", "/admin/home", "/admin/requests"]);
+export const ADMIN_DESKTOP_READY = new Set(["/admin", "/admin/home", "/admin/requests", "/admin/items"]);
 export const isDesktopReady = (path: string) => ADMIN_DESKTOP_READY.has(path.replace(/\/+$/, "") || "/");
