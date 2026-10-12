@@ -20,6 +20,7 @@
 - วันหมดประกัน: ช่องกรอก วว/ดด/ปปปป พ.ศ. (`components/WarrantyDateField`, `parseThaiDate`/`toThaiDateInput` ใน lib/itemInfo) — DB เก็บ ค.ศ. `date`
 - รหัสผ่าน `lib/password.ts` (8 ตัว มีตัวอักษร+ตัวเลข) · เปลี่ยนรหัสจากโปรไฟล์ = `/reset-password` (ต้องล็อกอิน) · **ไม่มีหน้าสมัครสมาชิก/ลืมรหัสผ่าน** (ถอดออก 12 ต.ค. 2569 — นศ. เข้าด้วย Google @kkumail.com ครั้งแรก = สร้างบัญชีเอง / จำรหัสไม่ได้ให้ติดต่อผู้ดูแล)
 - `app/index.tsx` ต้องเป็น `<Redirect href="/admin/home" />` (ห้าม router.replace ใน useEffect) · router ใน `onAuthStateChange`/deep link ห่อ `setTimeout(...,0)`
+- **PWA/Web Push** (เว็บเท่านั้น): `public/` (manifest, ไอคอน, `sw.js` — แก้แล้วเปลี่ยน `VERSION`), meta ใน `app/+html.tsx`, `lib/webPush.ts` (ลงทะเบียน SW ใน `_layout`), การ์ด `WebPushCard` ในหน้าแจ้งเตือน · แถวใหม่ใน `notifications` → trigger `notifications_push` (pg_net, เฉพาะคนที่มี `push_subscriptions`) → Edge Function `send-push` (deploy `--no-verify-jwt`, VAPID ใน secrets) · ขั้นตอน deploy: `docs/DEPLOY_PWA.md`
 - `expo-file-system`: `import * as FileSystem` แล้ว `const FS = FileSystem as any` · UI ค้าง → `npx expo start --clear`
 
 ## Supabase — กติกาทั่วไป

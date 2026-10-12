@@ -23,6 +23,7 @@ import { W } from "../lib/theme";
 import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 import { haptic } from "../components/Motion";
 import TabBar from "../components/TabBar";
+import WebPushCard from "../components/WebPushCard";
 import { refreshUnreadCount } from "../lib/unread";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
@@ -250,6 +251,9 @@ export default function Notifications() {
         onBack={() => goBack(isStaff ? "/admin/home" : "/home")}
         right={unreadCount > 0 ? <HeaderButton icon="checkmark-done-outline" label="อ่านทั้งหมด" onPress={markAllRead} /> : null}
       />
+
+      {/* เว็บ/PWA: เปิด-ปิด Web Push บนเครื่องนี้ (แอปมือถือไม่แสดง) */}
+      <WebPushCard />
 
       {/* new banner */}
       {newCount > 0 && (

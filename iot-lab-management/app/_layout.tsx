@@ -4,6 +4,7 @@ import { Platform, StyleSheet, View } from "react-native";
 import supabase from "../lib/supabase";
 import { DialogHost } from "../lib/notify";
 import { applyRememberLogin } from "../lib/session";
+import { dropPushOnSignOut, registerServiceWorker } from "../lib/webPush";
 import { isAdminPath } from "../lib/roles";
 import { useFonts, NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from "@expo-google-fonts/noto-sans-thai";
 import { C } from "../lib/theme";
@@ -51,10 +52,15 @@ export default function Layout() {
   useEffect(() => {
     // ไม่ได้ติ๊ก "จดจำการเข้าสู่ระบบ" ตอนล็อกอินครั้งก่อน → ออกจากระบบตอนเปิดแอปใหม่
     applyRememberLogin();
+    // เว็บ/PWA: service worker (cache + Web Push) — แตะแจ้งเตือนตอนแอปเปิดอยู่ → ไปหน้านั้น (มือถือไม่ทำอะไร)
+    registerServiceWorker((path) => router.push(path as any));
 
     // ออกจากระบบ → หน้า login (ระบบลืมรหัสผ่าน/ลิงก์รีเซ็ตทางอีเมลถอดออกแล้ว 12 ต.ค. 2569)
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") setTimeout(() => router.replace("/login"), 0);
+      if (event !== "SIGNED_OUT") return;
+      // เครื่องนี้เลิกรับแจ้งเตือนของบัญชีที่ออกไป (เว็บเท่านั้น)
+      dropPushOnSignOut();
+      setTimeout(() => router.replace("/login"), 0);
     });
 
     return () => {
