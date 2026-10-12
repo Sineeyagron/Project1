@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./AppText";
-import { C, W, gradient } from "../lib/theme";
+import { C, W } from "../lib/theme";
 import { dismissInstall, iosSteps, promptInstall, useInstallMode } from "../lib/installApp";
 
-// แถบชวนติดตั้ง LabHub ลอยติดล่างจอ (หน้า login, เว็บมือถือเท่านั้น — ผู้ใช้เลือกแบบ 1 ใน docs/mockups/install-banner-ios26.html)
+// แถบชวนติดตั้ง LabHub ลอยติดล่างจอ (หน้า login, เว็บมือถือเท่านั้น — ผู้ใช้เลือกแบบ 1 ใน docs/mockups/install-banner-ios26.html · พื้นฟ้า ขึ้นทันที ตามที่ขอ)
 //   iPhone = บอกขั้นตอน (iOS 26: ≡ → แชร์ → เพิ่มไปยังหน้าจอโฮม / รุ่นเก่า: แชร์ → เพิ่ม...) ชื่อเมนูตามภาษาเครื่อง
 //   Android = ปุ่มติดตั้ง · กด × = ซ่อนจนเปิดครั้งหน้า · แตะช่องพิมพ์ = หลบไปก่อน (ไม่บังตอนกรอก)
 // หน้า login เว้นที่ล่างเท่าแถบ (INSTALL_BANNER_SPACE) เลื่อนขึ้นแล้วเห็นปุ่มครบ
-export const INSTALL_BANNER_SPACE = 130;
+export const INSTALL_BANNER_SPACE = 170; // แถบสูง ~143 + ขอบล่าง 12
 
 export default function InstallBanner() {
   const mode = useInstallMode();
@@ -21,7 +21,7 @@ export default function InstallBanner() {
     <View style={s.wrap} pointerEvents="box-none">
       <View style={[s.bar, s.enter]}>
         <View style={s.icon}>
-          <Ionicons name="download-outline" size={20} color="#fff" />
+          <Ionicons name="download-outline" size={24} color="#fff" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={s.title}>{steps ? "ติดตั้ง LabHub ลงหน้าจอโฮม" : "ติดตั้ง LabHub เป็นแอป"}</Text>
@@ -30,18 +30,18 @@ export default function InstallBanner() {
               <Text style={s.stepText}>แตะ</Text>
               {steps.menuFirst && (
                 <>
-                  <View style={s.chip}><Ionicons name="menu" size={13} color={C.primaryDark} /></View>
+                  <View style={s.chip}><Ionicons name="menu" size={15} color={C.primaryDark} /></View>
                   <Text style={s.stepText}>ในช่องที่อยู่เว็บ →</Text>
                 </>
               )}
               <View style={s.chip}>
-                <Ionicons name="share-outline" size={13} color={C.primaryDark} />
+                <Ionicons name="share-outline" size={15} color={C.primaryDark} />
                 <Text style={s.chipText}>{steps.share}</Text>
               </View>
               {!steps.menuFirst && <Text style={s.stepText}>ด้านล่าง</Text>}
               <Text style={s.stepText}>→</Text>
               <View style={s.chip}>
-                <Ionicons name="add-circle-outline" size={13} color={C.primaryDark} />
+                <Ionicons name="add-circle-outline" size={15} color={C.primaryDark} />
                 <Text style={s.chipText}>{steps.add}</Text>
               </View>
             </View>
@@ -55,7 +55,7 @@ export default function InstallBanner() {
           </Pressable>
         )}
         <Pressable onPress={dismissInstall} hitSlop={10} style={s.close} accessibilityRole="button" accessibilityLabel="ปิด">
-          <Ionicons name="close" size={18} color={C.faint} />
+          <Ionicons name="close" size={20} color="rgba(255,255,255,0.85)" />
         </Pressable>
       </View>
     </View>
@@ -82,35 +82,34 @@ function useTyping() {
 
 const s = StyleSheet.create({
   wrap: { position: "absolute", left: 12, right: 12, bottom: 12 },
+  // พื้นฟ้าไล่สีแบบปุ่มหลัก ตัวหนังสือขาว — เด่นกว่าการ์ดขาวในหน้า
   bar: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: C.surface, borderRadius: 18, borderWidth: 1, borderColor: C.primarySoft,
-    paddingVertical: 12, paddingLeft: 12, paddingRight: 8,
-    boxShadow: "0 2px 6px rgba(15,23,42,0.08), 0 12px 26px rgba(15,23,42,0.16)",
+    ...W.primary, borderRadius: 20,
+    flexDirection: "row", alignItems: "center", gap: 12,
+    paddingVertical: 16, paddingLeft: 14, paddingRight: 8,
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3), 0 4px 10px rgba(29,78,216,0.25), 0 16px 34px rgba(23,32,51,0.28)",
   },
-  // เด้งขึ้นนุ่ม ๆ หลังเปิดหน้า 1 วินาที (CSS animation ของเว็บ)
+  // เลื่อนขึ้นสั้น ๆ ทันทีที่เปิดหน้า (CSS animation ของเว็บ)
   enter: {
-    animationDuration: "420ms",
-    animationDelay: "1s",
+    animationDuration: "260ms",
     animationTimingFunction: "cubic-bezier(0.2, 0.8, 0.2, 1)",
     animationFillMode: "both",
-    animationKeyframes: [{ "0%": { opacity: 0, transform: "translateY(24px)" }, "100%": { opacity: 1, transform: "translateY(0px)" } }],
+    animationKeyframes: [{ "0%": { opacity: 0, transform: "translateY(16px)" }, "100%": { opacity: 1, transform: "translateY(0px)" } }],
   } as any,
   icon: {
-    width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center",
-    backgroundColor: C.primary, ...gradient("linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)"),
+    width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.35)",
   },
-  title: { fontSize: 14.5, fontWeight: "700", color: C.ink },
-  sub: { fontSize: 13, color: C.text2, marginTop: 1 },
-  steps: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 4, rowGap: 4, marginTop: 4 },
-  stepText: { fontSize: 13, color: C.text2 },
+  title: { fontSize: 16, fontWeight: "700", color: "#fff" },
+  sub: { fontSize: 13.5, color: "rgba(255,255,255,0.9)", marginTop: 2 },
+  steps: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 5, rowGap: 6, marginTop: 6 },
+  stepText: { fontSize: 14, color: "rgba(255,255,255,0.95)" },
   chip: {
-    flexDirection: "row", alignItems: "center", gap: 3,
-    backgroundColor: C.primaryTint, borderWidth: 1, borderColor: C.primarySoft, borderRadius: 7,
-    paddingVertical: 1, paddingHorizontal: 6,
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "#fff", borderRadius: 8, paddingVertical: 2, paddingHorizontal: 8,
   },
-  chipText: { fontSize: 12.5, fontWeight: "700", color: C.primaryDark },
-  btn: { ...W.primary, height: 38, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" },
-  btnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
-  close: { width: 32, height: 32, alignItems: "center", justifyContent: "center", alignSelf: "flex-start", marginTop: -4 },
+  chipText: { fontSize: 13.5, fontWeight: "700", color: C.primaryDark },
+  btn: { height: 40, paddingHorizontal: 18, borderRadius: 13, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+  btnText: { color: C.primaryDark, fontSize: 15, fontWeight: "700" },
+  close: { width: 34, height: 34, alignItems: "center", justifyContent: "center", alignSelf: "flex-start", marginTop: -6 },
 });
