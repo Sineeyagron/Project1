@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mockup — แถบติดตั้งล่างจอ</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root { --primary:#2563EB; --primaryDark:#1D4ED8; --soft:#DBEAFE; --tint:#EEF5FF; --ink:#172033; --text2:#475569; --faint:#64748B; --border:#D3E0F5; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Noto Sans Thai",system-ui,sans-serif; background:#D5E2F7; color:var(--ink); padding:28px 16px 60px; }
+  h1 { text-align:center; font-size:22px; margin:0 0 4px; }
+  .lead { text-align:center; color:var(--text2); margin:0 0 28px; font-size:14px; }
+  .row { display:flex; flex-wrap:wrap; gap:32px; justify-content:center; }
+  .col { width:340px; }
+  .label { font-weight:700; font-size:15px; margin:0 0 4px; }
+  .sub { color:var(--text2); font-size:13px; margin:0 0 10px; min-height:40px; }
+  .phone { width:340px; height:700px; border-radius:44px; background:#111; padding:11px; box-shadow:0 18px 40px rgba(23,32,51,.25); }
+  .screen { width:100%; height:100%; border-radius:34px; overflow:hidden; position:relative; display:flex; flex-direction:column;
+    background:linear-gradient(180deg,#C7DBFF 0%,#DDE9FF 30%,#EAF1FC 62%); }
+  .status { height:34px; display:flex; justify-content:space-between; align-items:center; padding:0 26px; font-size:12px; font-weight:700; background:#fff; }
+  .body { flex:1; padding:14px 16px; position:relative; }
+  .card { border-radius:22px; background:linear-gradient(165deg,#fff 0%,#F3F7FF 55%,#E7EFFC 100%); border:1px solid rgba(255,255,255,.9);
+    box-shadow:inset 0 1px 0 #fff,0 2px 4px rgba(15,23,42,.06),0 9px 18px rgba(37,99,235,.115); }
+  .logo { width:66px; height:66px; border-radius:18px; background:#fff; margin:8px auto 10px; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 18px rgba(37,99,235,.2); }
+  .logo div { width:44px; height:44px; border-radius:12px; background:var(--primary); display:flex; align-items:center; justify-content:center; }
+  .app { text-align:center; font-weight:900; font-size:22px; margin:0 0 12px; }
+  .loginCard { padding:16px; }
+  .ttl { font-weight:800; font-size:17px; margin:0 0 10px; }
+  .field { height:40px; border-radius:13px; background:#fff; border:1px solid var(--border); margin-bottom:10px; font-size:13px; color:#94a3b8; display:flex; align-items:center; padding:0 12px; }
+  .btn { height:42px; border-radius:14px; color:#fff; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; gap:6px;
+    background:linear-gradient(135deg,#1D4ED8 0%,#2563EB 55%,#3B82F6 100%); box-shadow:0 6px 14px rgba(37,99,235,.28); }
+  .kku { background:#A8341C; box-shadow:none; margin-top:8px; }
+  /* แถบติดตั้ง */
+  .bar { position:absolute; left:12px; right:12px; bottom:12px; border-radius:18px; background:#fff; padding:12px 12px 12px 12px;
+    box-shadow:0 2px 6px rgba(15,23,42,.08),0 14px 30px rgba(37,99,235,.28); border:1px solid var(--soft); display:flex; align-items:center; gap:10px; }
+  .bar .ic { width:40px; height:40px; border-radius:11px; flex:none; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#3B82F6,#1D4ED8); }
+  .bar .t { font-weight:700; font-size:14px; line-height:1.35; }
+  .bar .s { font-size:12.5px; color:var(--text2); line-height:1.45; }
+  .chip { display:inline-flex; align-items:center; gap:3px; background:var(--tint); border:1px solid var(--soft); color:var(--primaryDark); border-radius:7px; padding:0 6px; font-weight:700; font-size:12.5px; vertical-align:1px; }
+  .x { color:#94a3b8; font-size:18px; padding:2px 4px; align-self:flex-start; margin-left:auto; }
+  .ibtn { flex:none; height:36px; padding:0 14px; border-radius:12px; color:#fff; font-weight:700; font-size:13.5px; display:flex; align-items:center;
+    background:linear-gradient(135deg,#1D4ED8 0%,#2563EB 55%,#3B82F6 100%); }
+  /* หางลูกศรชี้ลงไปปุ่มแชร์ */
+  .tail { position:absolute; bottom:-9px; left:50%; margin-left:-9px; width:18px; height:18px; background:#fff; border-right:1px solid var(--soft); border-bottom:1px solid var(--soft); transform:rotate(45deg); }
+  .safari { height:52px; background:rgba(248,250,252,.97); border-top:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-around; color:var(--primary); font-size:18px; }
+  .safari .hl { outline:2px solid #F59E0B; outline-offset:4px; border-radius:6px; }
+  .note { max-width:760px; margin:30px auto 0; background:#fff; border-radius:16px; padding:16px 20px; font-size:14px; color:var(--text2); line-height:1.75; }
+  .note b { color:var(--ink); }
+</style>
+</head>
+<body>
+<h1>แถบติดตั้งแบบลอยติดล่างจอ</h1>
+<p class="lead">เห็นทันทีโดยไม่ต้องเลื่อน · ไม่บังฟอร์มล็อกอิน · กด × ปิดได้</p>
+
+<div class="row">
+  <!-- iPhone -->
+  <div class="col">
+    <p class="label">iPhone (Safari)</p>
+    <p class="sub">หางลูกศรชี้ลงไปที่ปุ่มแชร์ของ Safari ตรงกลางแถบล่าง</p>
+    <div class="phone"><div class="screen">
+      <div class="status"><span>9:41</span><span>●●● ◔</span></div>
+      <div class="body">
+        <div class="logo"><div><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7 15h10"/></svg></div></div>
+        <p class="app">LabHub</p>
+        <div class="card loginCard">
+          <p class="ttl">เข้าสู่ระบบ</p>
+          <div class="field">อีเมล</div><div class="field">รหัสผ่าน</div>
+          <div class="btn">เข้าสู่ระบบ →</div><div class="btn kku">เข้าสู่ระบบด้วย KKU Mail</div>
+        </div>
+        <div class="bar">
+          <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></div>
+          <div>
+            <div class="t">ติดตั้ง LabHub ลงหน้าจอโฮม</div>
+            <div class="s">แตะ <span class="chip">⇪ แชร์</span> ด้านล่าง → <span class="chip">⊕ เพิ่มไปยังหน้าจอโฮม</span></div>
+          </div>
+          <div class="x">×</div>
+          <div class="tail"></div>
+        </div>
+      </div>
+      <div class="safari"><span>‹</span><span>›</span><span class="hl"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8"/></svg></span><span>▢</span><span>⧉</span></div>
+    </div></div>
+  </div>
+
+  <!-- Android -->
+  <div class="col">
+    <p class="label">Android (Chrome)</p>
+    <p class="sub">ปุ่ม "ติดตั้ง" อยู่ในแถบเลย กดแล้วขึ้นหน้าต่างติดตั้งของระบบ</p>
+    <div class="phone"><div class="screen">
+      <div class="status"><span>9:41</span><span>▲ ◔</span></div>
+      <div class="body">
+        <div class="logo"><div><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4.5 19a1.5 1.5 0 0 0 1.3 2h12.4a1.5 1.5 0 0 0 1.3-2L14 9V3"/><path d="M7 15h10"/></svg></div></div>
+        <p class="app">LabHub</p>
+        <div class="card loginCard">
+          <p class="ttl">เข้าสู่ระบบ</p>
+          <div class="field">อีเมล</div><div class="field">รหัสผ่าน</div>
+          <div class="btn">เข้าสู่ระบบ →</div><div class="btn kku">เข้าสู่ระบบด้วย KKU Mail</div>
+        </div>
+        <div class="bar">
+          <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg></div>
+          <div>
+            <div class="t">ติดตั้ง LabHub เป็นแอป</div>
+            <div class="s">เปิดเร็ว เต็มจอ รับแจ้งเตือนได้</div>
+          </div>
+          <div class="ibtn" style="margin-left:auto">ติดตั้ง</div>
+          <div class="x" style="margin-left:0">×</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<div class="note">
+  <b>พฤติกรรม</b><br />
+  • แถบลอยอยู่ล่างจอเสมอ (ไม่เลื่อนตามฟอร์ม) — เด้งขึ้นนุ่ม ๆ หลังเปิดหน้า 1 วินาที<br />
+  • ตอนแตะช่องพิมพ์ (คีย์บอร์ดขึ้น) แถบหลบไปก่อน จะได้ไม่บังช่องกรอก<br />
+  • กด × = ซ่อนจนเปิดเว็บครั้งหน้า · ติดตั้งแล้ว / บนคอม / ในแอป LINE = ไม่แสดง<br />
+  • เอาการ์ดใต้กล่องล็อกอินแบบเดิมออก (แทนด้วยแถบนี้)
+</div>
+</body>
+</html>
