@@ -20,6 +20,31 @@ export async function getAllowedDomain(): Promise<string> {
   return typeof data?.value === "string" ? data.value.trim().toLowerCase() : "";
 }
 
+// โดเมนพิมพ์ผิดไม่เกิน 2 ตัวอักษรจาก kkumail.com (เช่น kkmail.com, kkumial.com, kkumail.co) → อีเมลที่แก้แล้ว / ไม่ใช่ = null
+//   ใช้เสนอแก้ในหน้า login — gmail.com / hotmail.com / kku.ac.th ห่างเกิน 2 ตัว จึงไม่ถูกเสนอ
+export function uniEmailTypoFix(email: string): string | null {
+  const e = email.trim().toLowerCase().replace(/\s+/g, "");
+  const at = e.lastIndexOf("@");
+  if (at <= 0) return null;
+  const domain = e.slice(at + 1);
+  if (!domain.includes(".") || domain === ALLOWED_DOMAIN) return null;
+  return editDistance(domain, ALLOWED_DOMAIN) <= 2 ? `${e.slice(0, at)}@${ALLOWED_DOMAIN}` : null;
+}
+
+function editDistance(a: string, b: string) {
+  const row = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = row[0];
+    row[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return row[b.length];
+}
+
 export const isAllowedEmail = (email: string | null | undefined, domain: string) =>
   !domain || (!!email && email.trim().toLowerCase().endsWith(`@${domain}`));
 
