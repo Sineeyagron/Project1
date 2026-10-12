@@ -18,6 +18,7 @@ import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
 
 const EQUIP_TYPES = ["mouse", "keyboard", "monitor"] as const;
@@ -60,6 +61,7 @@ function formatProblem(record?: any) {
 }
 
 export default function InspectionPage() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → กลุ่ม 2 คอลัมน์
   const [term, setTerm] = useState(currentTerm());
   // เทอมของข้อมูลที่แสดงอยู่จริง — บันทึกใช้ค่านี้ (เดิมใช้ช่องพิมพ์ พิมพ์เทอมใหม่แต่ไม่กดค้นหา → ฟอร์มโชว์เทอมเก่าแต่บันทึกเป็นเทอมใหม่)
   const [loadedTerm, setLoadedTerm] = useState(currentTerm());
@@ -396,21 +398,21 @@ export default function InspectionPage() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={st.body} keyboardShouldPersistTaps="handled">
-        {!!loadError && <LoadError message={loadError} onRetry={() => fetchData(loadedTerm, selectedRoom)} />}
+      <ScrollView contentContainerStyle={[st.body, isDesktop && desktopGrid.list]} keyboardShouldPersistTaps="handled">
+        {!!loadError && <View style={desktopGrid.full}><LoadError message={loadError} onRetry={() => fetchData(loadedTerm, selectedRoom)} /></View>}
         {termPending ? (
-          <Text style={st.termHint}>กำลังแสดงเทอม {loadedTerm} · กดค้นหาเพื่อเปิดเทอม {term.trim() || "-"}</Text>
+          <Text style={[st.termHint, desktopGrid.full]}>กำลังแสดงเทอม {loadedTerm} · กดค้นหาเพื่อเปิดเทอม {term.trim() || "-"}</Text>
         ) : null}
 
-        {loading ? <ActivityIndicator color="#2563EB" style={{ marginTop: 24 }} /> : null}
+        {loading ? <ActivityIndicator color="#2563EB" style={[{ marginTop: 24 }, desktopGrid.full]} /> : null}
 
         {!loading && !loadError && stations.length === 0 ? (
-          <Text style={st.emptyText}>ยังไม่มีเครื่องคอมพิวเตอร์ในห้อง {selectedRoom}</Text>
+          <Text style={[st.emptyText, desktopGrid.full]}>ยังไม่มีเครื่องคอมพิวเตอร์ในห้อง {selectedRoom}</Text>
         ) : null}
 
         {!loading &&
           grouped.map((group) => (
-            <View key={group.groupNo} style={st.groupSection}>
+            <View key={group.groupNo} style={[st.groupSection, isDesktop && desktopGrid.item]}>
               <View style={st.groupHeader}>
                 <Text style={st.groupTitle}>กลุ่มที่ {group.groupNo}</Text>
                 <View style={st.groupPill}>
@@ -421,7 +423,7 @@ export default function InspectionPage() {
             </View>
           ))}
 
-        <View style={{ height: 28 }} />
+        <View style={{ height: 28, width: "100%" }} />
       </ScrollView>
 
       {/* แผ่น iOS แท้ (components/BottomSheet) — รากแผ่นเลื่อนได้อยู่แล้ว ห้ามมี ScrollView แนวตั้งซ้อน */}

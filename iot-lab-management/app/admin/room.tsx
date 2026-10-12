@@ -20,6 +20,7 @@ import { useRole } from "../../lib/roles";
 import { useRoomLive } from "../../lib/roomRealtime";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
 
 const C = {
@@ -49,6 +50,7 @@ type RoomStats = {
 };
 
 export default function AdminRoom() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → การ์ดห้อง 2 คอลัมน์
   const router = useRouter();
   // TA ดูห้องและเข้าหน้าเครื่อง/LAN ได้ แต่เพิ่ม/แก้/ปิด/ลบห้องไม่ได้ (RLS กันจริง)
   const isAdmin = useRole().role === "admin";
@@ -236,13 +238,13 @@ export default function AdminRoom() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={s.scroll}
+          contentContainerStyle={[s.scroll, isDesktop && desktopGrid.list]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
         >
-          {!!loadError && <LoadError message={loadError} onRetry={onRefresh} />}
+          {!!loadError && <View style={desktopGrid.full}><LoadError message={loadError} onRetry={onRefresh} /></View>}
           <TouchableOpacity
-            style={[s.reportsBanner, openReports > 0 && s.reportsBannerHot]}
+            style={[s.reportsBanner, openReports > 0 && s.reportsBannerHot, isDesktop && desktopGrid.full]}
             onPress={() => router.push("/admin/roomreports" as any)}
             activeOpacity={0.86}
           >
@@ -253,7 +255,7 @@ export default function AdminRoom() {
             <Ionicons name="chevron-forward" size={18} color={C.faint} />
           </TouchableOpacity>
           {!loadError && stats.length === 0 ? (
-            <Text style={s.emptyText}>ยังไม่มีห้อง กด + เพื่อเพิ่มห้อง</Text>
+            <Text style={[s.emptyText, desktopGrid.full]}>ยังไม่มีห้อง กด + เพื่อเพิ่มห้อง</Text>
           ) : null}
           {stats.map((row) => {
             const room = row.room;
@@ -264,7 +266,7 @@ export default function AdminRoom() {
               row.lanIssues > 0 ? `LAN ${row.lanIssues}` : "",
             ].filter(Boolean).join(" · ");
             return (
-            <View key={room.id} style={[s.roomCard, !room.active && s.roomCardClosed]}>
+            <View key={room.id} style={[s.roomCard, !room.active && s.roomCardClosed, isDesktop && desktopGrid.item]}>
               <View style={s.roomHeader}>
                 <View style={s.roomIconBox}>
                   <Ionicons name="business-outline" size={21} color={room.active ? C.purple : C.faint} />
@@ -314,7 +316,7 @@ export default function AdminRoom() {
             </View>
             );
           })}
-          <View style={{ height: 32 }} />
+          <View style={{ height: 32, width: "100%" }} />
         </ScrollView>
       )}
 

@@ -21,6 +21,7 @@ import { useRoomLive } from "../../lib/roomRealtime";
 import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import { desktopBody, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
 
 // กด port = เปลี่ยนสถานะวนตามลำดับนี้
@@ -28,6 +29,7 @@ const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "brok
 const MAX_PORT = 12; // Server 1 เครื่องมี LAN 12 ช่อง
 
 export default function AdminLanPorts() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → port แถวละ 6
   // TA เปลี่ยนสถานะได้อย่างเดียว — เพิ่ม/ลบ port = admin (ฐานข้อมูลกันจริง)
   const isAdmin = useRole().role === "admin";
   const { room_id: roomParam } = useLocalSearchParams<{ room_id?: string }>(); // เปิดจากการ์ดห้อง → เลือกห้องนั้น
@@ -211,7 +213,7 @@ export default function AdminLanPorts() {
       {loading ? (
         <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll}
+        <ScrollView contentContainerStyle={[styles.scroll, isDesktop && desktopBody.wide]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D4ED8" />}>
 
           {!!loadError && <LoadError message={loadError} onRetry={retry} />}
@@ -243,7 +245,7 @@ export default function AdminLanPorts() {
                 return (
                   <TouchableOpacity
                     key={port.id}
-                    style={[styles.portCell, { backgroundColor: cfg.bg, borderColor: cfg.color + "50" }]}
+                    style={[styles.portCell, { backgroundColor: cfg.bg, borderColor: cfg.color + "50" }, isDesktop && { width: "15.5%" }]}
                     onPress={() => !isSaving && toggleStatus(port)}
                     onLongPress={isAdmin ? () => deletePort(port) : undefined}
                     disabled={isSaving}

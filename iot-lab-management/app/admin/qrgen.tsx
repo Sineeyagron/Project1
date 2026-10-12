@@ -24,6 +24,7 @@ import { notify } from "../../lib/notify";
 import { LABELS_PER_SHEET, buildLabelSheetHtml, formatItemNo, qrMatrix } from "../../lib/labels";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import { desktopBody, useIsDesktop } from "../../lib/layout";
 
 const FS = FileSystem as any;
 
@@ -78,6 +79,7 @@ function compareItems(a: any, b: any) {
 }
 
 export default function QRGen() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → รายการ 3 คอลัมน์
   const { role } = useRole();
   const router = useRouter();
   const [items, setItems] = useState<any[]>([]);
@@ -281,7 +283,7 @@ export default function QRGen() {
         <View style={s.loading}><ActivityIndicator size="large" color={C.purple} /></View>
       ) : (
         <ScrollView
-          contentContainerStyle={s.body}
+          contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
           showsVerticalScrollIndicator
           keyboardDismissMode="on-drag"
@@ -298,7 +300,7 @@ export default function QRGen() {
 
           <SearchBar value={search} onChangeText={setSearch} placeholder="ค้นหาอุปกรณ์" />
 
-          <View style={s.itemList}>
+          <View style={[s.itemList, isDesktop && s.itemGrid]}>
             {filtered.length === 0 ? (
               <View style={s.emptyCard}>
                 <Text style={s.emptyText}>ไม่พบอุปกรณ์ในระบบ</Text>
@@ -308,7 +310,7 @@ export default function QRGen() {
               return (
                 <TouchableOpacity
                   key={item.id}
-                  style={[s.itemCard, active && s.itemCardActive]}
+                  style={[s.itemCard, active && s.itemCardActive, isDesktop && s.itemCell]}
                   onPress={() => toggleItem(item)}
                   activeOpacity={0.86}
                 >
@@ -538,6 +540,9 @@ const s = StyleSheet.create({
   searchInput: { flex: 1, color: C.ink, fontSize: 13, fontWeight: "700", paddingVertical: 10 },
   filterBtn: { width: 34, height: 34, borderRadius: 9, backgroundColor: "#EEF5FF", alignItems: "center", justifyContent: "center" },
   itemList: { gap: 9, marginBottom: 18 },
+  // จอใหญ่: การ์ดเลือกอุปกรณ์ 3 คอลัมน์
+  itemGrid: { flexDirection: "row", flexWrap: "wrap" },
+  itemCell: { width: "32.6%" },
   itemCard: {
     ...W.card,
     minHeight: 60,

@@ -17,6 +17,7 @@ import { notify } from "../../lib/notify";
 import { goBack } from "../../lib/nav";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import { desktopBody, desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
 
 const C = {
@@ -115,6 +116,7 @@ function relativeInspection(value?: string) {
 }
 
 export default function IotInspectionPage() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → การ์ด 2 คอลัมน์
   const router = useRouter();
 
   const [term, setTerm] = useState(currentTerm());
@@ -256,7 +258,7 @@ export default function IotInspectionPage() {
       </View>
 
       <ScrollView
-        contentContainerStyle={s.body}
+        contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
@@ -289,11 +291,11 @@ export default function IotInspectionPage() {
                 <Text style={s.emptyText}>ไม่พบอุปกรณ์ในสถานะนี้</Text>
               </View>
             ) : (
-              <View style={s.list}>
+              <View style={[s.list, isDesktop && desktopGrid.list]}>
                 {filteredItems.map(({ item, inspection, condition, cfg }) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={s.itemCard}
+                    style={[s.itemCard, isDesktop && desktopGrid.item]}
                     onPress={() => openForm(item, condition, inspection)}
                     activeOpacity={0.86}
                   >
