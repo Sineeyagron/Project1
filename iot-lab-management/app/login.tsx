@@ -18,7 +18,7 @@ import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { setRememberLogin } from "../lib/session";
 import { notify } from "../lib/notify";
-import { getAllowedDomain, isAllowedEmail, signInWithGoogle, uniEmailTypoFix, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
+import { getAllowedDomain, isAllowedEmail, oauthReturned, signInWithGoogle, uniEmailTypoFix, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
 import { W, NG, TOP_INSET } from "../lib/theme";
 import InstallBanner, { INSTALL_BANNER_SPACE } from "../components/InstallBanner";
 import { useInstallMode } from "../lib/installApp";
@@ -163,14 +163,20 @@ export default function Login() {
   };
 
   // เว็บ: กลับมาจากหน้า Google → supabase-js อ่าน token จาก URL ให้แล้ว / มี error → แจ้ง
+  //   เดิมดูแค่ URL — แต่ supabase-js ลบ token ออกจาก URL ก่อนหน้านี้แสดง (รอฟอนต์บนมือถือ) → บางครั้งเด้งกลับมาเฉย ๆ ไม่ล็อกอิน
+  //   ตอนนี้: ป้ายที่ตั้งก่อนออกไป Google (oauthReturned) → getSession รอ supabase-js อ่าน URL เสร็จ แล้วไปต่อ
   useEffect(() => {
     if (Platform.OS !== "web") return;
     const err = webRedirectError();
     if (err) {
+      oauthReturned(); // ล้างป้าย
       showPopup("เข้าสู่ระบบด้วย Google ไม่สำเร็จ", err);
       return;
     }
-    if (/access_token|[?&]code=/.test(window.location.href)) afterGoogle();
+    if (!oauthReturned()) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) afterGoogle();
+    });
   }, []);
 
   const handleGoogle = async (hint?: string) => {

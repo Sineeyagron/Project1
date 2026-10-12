@@ -74,6 +74,9 @@ export async function signInWithGoogle(loginHint?: string): Promise<{ ok?: boole
     : { hd: ALLOWED_DOMAIN, prompt: "select_account" };
 
   if (Platform.OS === "web") {
+    // จำไว้ว่ากำลังไป Google — ขากลับ supabase-js อ่าน token แล้วลบออกจาก URL ก่อนหน้า login แสดงได้ (รอฟอนต์)
+    //   หน้า login เลยเช็กป้ายนี้ + session แทนการดู URL (oauthReturned)
+    try { sessionStorage.setItem(OAUTH_FLAG, "1"); } catch {}
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo: `${window.location.origin}/login`, queryParams },
@@ -111,6 +114,19 @@ export async function signInWithGoogle(loginHint?: string): Promise<{ ok?: boole
 }
 
 // อ่าน error ที่ Supabase ส่งกลับมาใน URL หลังล็อกอินบนเว็บ (เช่น โดเมนไม่ผ่าน)
+const OAUTH_FLAG = "labhub.oauth";
+
+// เว็บ: เพิ่งกลับมาจาก Google ใช่ไหม (ใช้ครั้งเดียว) — ดูทั้งป้ายที่ตั้งก่อนออกไป และ token/code ที่อาจยังอยู่ใน URL
+export function oauthReturned(): boolean {
+  if (Platform.OS !== "web" || typeof window === "undefined") return false;
+  let flag = false;
+  try {
+    flag = sessionStorage.getItem(OAUTH_FLAG) === "1";
+    sessionStorage.removeItem(OAUTH_FLAG);
+  } catch {}
+  return flag || /access_token|[?&]code=/.test(window.location.href);
+}
+
 export function webRedirectError(): string | null {
   if (Platform.OS !== "web" || typeof window === "undefined") return null;
   const params = readParams(window.location.href);
