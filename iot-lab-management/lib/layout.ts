@@ -15,5 +15,5 @@ export function useIsDesktop() {
 }
 
 // หน้า admin ที่ทำแบบจอใหญ่แล้ว (ใช้เต็มพื้นที่ขวาของเมนู) — หน้าอื่นแสดงแบบมือถือกลางพื้นที่ไปก่อน
-export const ADMIN_DESKTOP_READY = new Set(["/admin", "/admin/home", "/admin/requests", "/admin/items"]);
+export const ADMIN_DESKTOP_READY = new Set(["/admin", "/admin/home", "/admin/requests", "/admin/items", "/admin/users"]);
 export const isDesktopReady = (path: string) => ADMIN_DESKTOP_READY.has(path.replace(/\/+$/, "") || "/");

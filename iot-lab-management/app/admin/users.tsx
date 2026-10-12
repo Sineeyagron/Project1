@@ -16,6 +16,7 @@ import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { useRole } from "../../lib/roles";
 import { W } from "../../lib/theme";
+import { useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import { isMissingColumn } from "../../lib/people";
 
@@ -46,6 +47,7 @@ const CAN = ["อนุมัติ / ปฏิเสธคำขอยืม �
 const CANNOT = ["เพิ่ม / แก้ / จำหน่ายอุปกรณ์ แก้ประกัน", "หมวดหมู่ ตั้งค่าระบบ แต่งตั้ง TA", "อนุมัติคำขอของตัวเอง"];
 
 export default function ManageTA() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
   const router = useRouter();
   const { userId } = useRole();
   const [people, setPeople] = useState<Profile[]>([]);
@@ -120,7 +122,7 @@ export default function ManageTA() {
   const q = query.trim().toLowerCase();
   const candidates = people
     .filter((p) => p.role === "user" && (!q || [p.email, p.full_name, p.student_id].some((v) => (v || "").toLowerCase().includes(q))))
-    .slice(0, 30);
+    .slice(0, isDesktop ? 200 : 30); // จอใหญ่แสดงได้มากกว่า
 
   const Person = ({ p, action }: { p: Profile; action?: React.ReactNode }) => (
     <View style={s.person}>
@@ -136,6 +138,107 @@ export default function ManageTA() {
       </View>
       {busyId === p.id ? <ActivityIndicator color={C.purple} /> : action}
     </View>
+  );
+
+  // บล็อกของหน้า (ใช้ทั้งมือถือและจอใหญ่ — จอใหญ่แค่จัดเป็น 2 คอลัมน์)
+  const rulesBlock = (
+    <>
+        <View style={s.card}>
+          <Text style={s.cardTitle}>TA ทำอะไรได้บ้าง</Text>
+          {CAN.map((t) => (
+            <View key={t} style={s.ruleRow}>
+              <Ionicons name="checkmark-circle" size={16} color={C.green} />
+              <Text style={s.ruleText}>{t}</Text>
+            </View>
+          ))}
+          {CANNOT.map((t) => (
+            <View key={t} style={s.ruleRow}>
+              <Ionicons name="close-circle" size={16} color={C.red} />
+              <Text style={[s.ruleText, { color: C.muted }]}>{t}</Text>
+            </View>
+          ))}
+        </View>
+    </>
+  );
+  const taBlock = (
+    <>
+        <Text style={s.section}>TA ตอนนี้ ({tas.length})</Text>
+        <View style={s.card}>
+          {tas.length === 0 && <Text style={s.empty}>ยังไม่มี TA — ค้นหาอีเมลด้านล่างเพื่อแต่งตั้ง</Text>}
+          {tas.map((p) => (
+            <Person
+              key={p.id}
+              p={p}
+              action={
+                <TouchableOpacity style={s.removeBtn} onPress={() => setRole(p, "user")} disabled={!!busyId} activeOpacity={0.8}>
+                  <Text style={s.removeText}>ถอดสิทธิ์</Text>
+                </TouchableOpacity>
+              }
+            />
+          ))}
+        </View>
+    </>
+  );
+  const studentBlock = (
+    <>
+        <Text style={s.section}>นักศึกษา</Text>
+        <View style={s.card}>
+          <SearchBar value={query} onChangeText={setQuery} placeholder="ค้นหาชื่อ อีเมล หรือรหัส นศ." style={{ marginBottom: 6 }} />
+          {candidates.length === 0 && (
+            <Text style={s.empty}>{q ? "ไม่พบผู้ใช้นี้ (ต้องเข้าสู่ระบบแอปครั้งแรกก่อน)" : "ยังไม่มีผู้ใช้"}</Text>
+          )}
+          {candidates.map((p) => (
+            <View key={p.id}>
+              <Person
+                p={p}
+                action={
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    <TouchableOpacity
+                      style={s.editBtn}
+                      onPress={() => { setEditId(editId === p.id ? null : p.id); setEditValue(p.student_id || ""); }}
+                      disabled={!!busyId}
+                      activeOpacity={0.8}
+                      accessibilityLabel="แก้รหัสนักศึกษา"
+                    >
+                      <Ionicons name="create-outline" size={16} color={C.purple} />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.addBtn} onPress={() => setRole(p, "ta")} disabled={!!busyId} activeOpacity={0.8}>
+                      <Ionicons name="person-add-outline" size={15} color="#fff" />
+                      <Text style={s.addText}>TA</Text>
+                    </TouchableOpacity>
+                  </View>
+                }
+              />
+              {editId === p.id && (
+                <View style={s.editRow}>
+                  <TextInput
+                    style={s.editInput}
+                    value={editValue}
+                    onChangeText={(t) => setEditValue(formatId(t))}
+                    placeholder="633021098-9 (ว่าง = ล้าง)"
+                    placeholderTextColor={C.faint}
+                    keyboardType="number-pad"
+                    maxLength={11}
+                    autoFocus
+                  />
+                  <TouchableOpacity style={s.saveBtn} onPress={() => saveStudentId(p)} disabled={!!busyId} activeOpacity={0.8}>
+                    <Text style={s.addText}>บันทึก</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+    </>
+  );
+  const adminBlock = (
+    <>
+        <Text style={s.section}>ผู้ดูแลระบบ ({admins.length})</Text>
+        <View style={s.card}>
+          {admins.map((p) => <Person key={p.id} p={p} />)}
+          <Text style={s.hint}>เพิ่ม/ถอดผู้ดูแลระบบ (admin) ทำในแอปไม่ได้ เพื่อความปลอดภัย</Text>
+        </View>
+    </>
   );
 
   return (
@@ -155,92 +258,20 @@ export default function ManageTA() {
           keyboardDismissMode="on-drag"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}
         >
-          <View style={s.card}>
-            <Text style={s.cardTitle}>TA ทำอะไรได้บ้าง</Text>
-            {CAN.map((t) => (
-              <View key={t} style={s.ruleRow}>
-                <Ionicons name="checkmark-circle" size={16} color={C.green} />
-                <Text style={s.ruleText}>{t}</Text>
-              </View>
-            ))}
-            {CANNOT.map((t) => (
-              <View key={t} style={s.ruleRow}>
-                <Ionicons name="close-circle" size={16} color={C.red} />
-                <Text style={[s.ruleText, { color: C.muted }]}>{t}</Text>
-              </View>
-            ))}
-          </View>
-
-          <Text style={s.section}>TA ตอนนี้ ({tas.length})</Text>
-          <View style={s.card}>
-            {tas.length === 0 && <Text style={s.empty}>ยังไม่มี TA — ค้นหาอีเมลด้านล่างเพื่อแต่งตั้ง</Text>}
-            {tas.map((p) => (
-              <Person
-                key={p.id}
-                p={p}
-                action={
-                  <TouchableOpacity style={s.removeBtn} onPress={() => setRole(p, "user")} disabled={!!busyId} activeOpacity={0.8}>
-                    <Text style={s.removeText}>ถอดสิทธิ์</Text>
-                  </TouchableOpacity>
-                }
-              />
-            ))}
-          </View>
-
-          <Text style={s.section}>นักศึกษา</Text>
-          <View style={s.card}>
-            <SearchBar value={query} onChangeText={setQuery} placeholder="ค้นหาชื่อ อีเมล หรือรหัส นศ." style={{ marginBottom: 6 }} />
-            {candidates.length === 0 && (
-              <Text style={s.empty}>{q ? "ไม่พบผู้ใช้นี้ (ต้องเข้าสู่ระบบแอปครั้งแรกก่อน)" : "ยังไม่มีผู้ใช้"}</Text>
-            )}
-            {candidates.map((p) => (
-              <View key={p.id}>
-                <Person
-                  p={p}
-                  action={
-                    <View style={{ flexDirection: "row", gap: 6 }}>
-                      <TouchableOpacity
-                        style={s.editBtn}
-                        onPress={() => { setEditId(editId === p.id ? null : p.id); setEditValue(p.student_id || ""); }}
-                        disabled={!!busyId}
-                        activeOpacity={0.8}
-                        accessibilityLabel="แก้รหัสนักศึกษา"
-                      >
-                        <Ionicons name="create-outline" size={16} color={C.purple} />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={s.addBtn} onPress={() => setRole(p, "ta")} disabled={!!busyId} activeOpacity={0.8}>
-                        <Ionicons name="person-add-outline" size={15} color="#fff" />
-                        <Text style={s.addText}>TA</Text>
-                      </TouchableOpacity>
-                    </View>
-                  }
-                />
-                {editId === p.id && (
-                  <View style={s.editRow}>
-                    <TextInput
-                      style={s.editInput}
-                      value={editValue}
-                      onChangeText={(t) => setEditValue(formatId(t))}
-                      placeholder="633021098-9 (ว่าง = ล้าง)"
-                      placeholderTextColor={C.faint}
-                      keyboardType="number-pad"
-                      maxLength={11}
-                      autoFocus
-                    />
-                    <TouchableOpacity style={s.saveBtn} onPress={() => saveStudentId(p)} disabled={!!busyId} activeOpacity={0.8}>
-                      <Text style={s.addText}>บันทึก</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-              </View>
-            ))}
-          </View>
-
-          <Text style={s.section}>ผู้ดูแลระบบ ({admins.length})</Text>
-          <View style={s.card}>
-            {admins.map((p) => <Person key={p.id} p={p} />)}
-            <Text style={s.hint}>เพิ่ม/ถอดผู้ดูแลระบบ (admin) ทำในแอปไม่ได้ เพื่อความปลอดภัย</Text>
-          </View>
+          {isDesktop ? (
+            // จอใหญ่: ซ้าย = นักศึกษา (ค้นหา/แก้รหัส/ตั้ง TA) · ขวา = TA ตอนนี้ + สิทธิ์ TA + ผู้ดูแลระบบ
+            <View style={s.cols}>
+              <View style={s.colMain}>{studentBlock}</View>
+              <View style={s.colSide}>{taBlock}{rulesBlock}{adminBlock}</View>
+            </View>
+          ) : (
+            <>
+              {rulesBlock}
+              {taBlock}
+              {studentBlock}
+              {adminBlock}
+            </>
+          )}
         </KeyboardAwareScrollView>
       )}
     </View>
@@ -248,6 +279,10 @@ export default function ManageTA() {
 }
 
 const s = StyleSheet.create({
+  // จอใหญ่
+  cols: { flexDirection: "row", gap: 18, alignItems: "flex-start", width: "100%", maxWidth: 1180, alignSelf: "center" },
+  colMain: { flex: 1.5, gap: 8, minWidth: 0 },
+  colSide: { flex: 1, gap: 8, minWidth: 0 },
   container: { ...W.page, flex: 1 },
   header: { ...W.headerBar,
     flexDirection: "row",
