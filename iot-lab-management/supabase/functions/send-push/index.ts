@@ -1,6 +1,8 @@
 // Edge Function: send-push — ส่ง Web Push ของแจ้งเตือน LabHub (ดู supabase/migrations/20261012110000_web_push.sql)
 //   GET  → { publicKey } ให้แอปเว็บใช้สมัครรับ push (public key เปิดเผยได้)
 //   POST { id } ← trigger notifications_push (pg_net) → ส่งไปทุกเครื่องของผู้รับ
+//   POST { request_id, source: "borrow" | "pickup" } ← trigger borrow_requests_push / pickup_requests_push
+//        → ส่งถึงผู้ดูแล (admin + TA) ทุกคนยกเว้นคนขอเอง (คำขอไม่มีแถวใน notifications — ดู migration 20261013090000)
 // secrets ที่ต้องตั้ง: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (เช่น mailto:you@example.com) — ดู docs/DEPLOY_PWA.md
 // deploy แบบไม่เช็ก JWT (--no-verify-jwt): trigger ไม่มี token / กันคนนอกด้วย id แจ้งเตือน (uuid เห็นเฉพาะผู้รับ) + ต้องเพิ่งสร้างไม่เกิน 2 นาที
 
@@ -36,28 +38,13 @@ async function rest(path: string, init: RequestInit = {}) {
 // แตะแจ้งเตือนแล้วไปหน้าไหน: งานผู้ดูแล → กล่องแจ้งเตือนผู้ดูแล / เรื่องของตัวเอง → แจ้งเตือนโหมดนักศึกษา
 const targetUrl = (n: { for_staff: boolean }) => (n.for_staff ? "/admin/notifications" : "/notifications?tab=1");
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
-  if (req.method === "GET") {
-    if (!VAPID.publicKey) return json({ error: "not_configured" }, 503);
-    return json({ publicKey: VAPID.publicKey });
-  }
-  if (req.method !== "POST") return json({ error: "method" }, 405);
-  if (!VAPID.publicKey || !VAPID.privateKey) return json({ error: "not_configured" }, 503);
+type Sub = { id: string; endpoint: string; p256dh: string; auth: string };
+type Payload = { title: string; body: string; url: string; tag: string };
+const UUID = /^[0-9a-f-]{36}$/i;
+const recent = () => encodeURIComponent(new Date(Date.now() - 2 * 60 * 1000).toISOString());
 
-  let id = "";
-  try { id = String((await req.json()).id || ""); } catch { /* ไม่ใช่ JSON */ }
-  if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ error: "bad_id" }, 400);
-
-  const since = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-  const nRes = await rest(`notifications?id=eq.${id}&created_at=gte.${encodeURIComponent(since)}&select=id,user_id,title,body,for_staff`);
-  const [n] = nRes.ok ? await nRes.json() : [];
-  if (!n) return json({ sent: 0 });
-
-  const sRes = await rest(`push_subscriptions?user_id=eq.${n.user_id}&select=id,endpoint,p256dh,auth`);
-  const subs: { id: string; endpoint: string; p256dh: string; auth: string }[] = sRes.ok ? await sRes.json() : [];
-
-  const payload = { title: n.title || "LabHub", body: n.body || "", url: targetUrl(n), tag: n.id };
+// ส่งไปทุกเครื่อง + ลบเครื่องที่เลิกรับแล้ว (404/410)
+async function deliver(subs: Sub[], payload: Payload) {
   const gone: string[] = [];
   let sent = 0;
   await Promise.all(subs.map(async (s) => {
@@ -70,9 +57,74 @@ Deno.serve(async (req) => {
       console.warn("push error", String(e));
     }
   }));
-
-  // เครื่องที่เลิกรับ/ถอนแอปแล้ว → ลบทิ้ง (ไม่ต้องส่งซ้ำครั้งหน้า)
   if (gone.length) await rest(`push_subscriptions?id=in.(${gone.join(",")})`, { method: "DELETE" });
-
   return json({ sent, removed: gone.length });
+}
+
+// แถวใหม่ใน notifications → เครื่องของผู้รับ
+async function pushNotification(id: string) {
+  const nRes = await rest(`notifications?id=eq.${id}&created_at=gte.${recent()}&select=id,user_id,title,body,for_staff`);
+  const [n] = nRes.ok ? await nRes.json() : [];
+  if (!n) return json({ sent: 0 });
+  const sRes = await rest(`push_subscriptions?user_id=eq.${n.user_id}&select=id,endpoint,p256dh,auth`);
+  const subs: Sub[] = sRes.ok ? await sRes.json() : [];
+  return deliver(subs, { title: n.title || "LabHub", body: n.body || "", url: targetUrl(n), tag: n.id });
+}
+
+const KIND_TEXT: Record<string, [string, string]> = {
+  borrow: ["คำขอยืมใหม่", "ขอยืม"],
+  return: ["คำขอคืนใหม่", "ส่งคืน"],
+  renew: ["คำขอยืมต่อ", "ขอยืมต่อ"],
+  pickup: ["คำขอนัดรับใหม่", "ขอนัดรับ"],
+};
+
+// คำขอใหม่ (ยืม/คืน/ยืมต่อ/นัดรับ) → เครื่องของผู้ดูแลทุกคน ยกเว้นคนขอเอง
+async function pushStaffRequest(id: string, source: string) {
+  const isPickup = source === "pickup";
+  const rRes = await rest(
+    isPickup
+      ? `pickup_requests?id=eq.${id}&status=eq.pending&created_at=gte.${recent()}&select=id,user_id,item_prefix`
+      : `borrow_requests?id=eq.${id}&status=eq.pending&created_at=gte.${recent()}&select=id,user_id,kind,item:items(name,item_code)`,
+  );
+  const [r] = rRes.ok ? await rRes.json() : [];
+  if (!r) return json({ sent: 0 });
+
+  const pRes = await rest(`profiles?id=eq.${r.user_id}&select=full_name,email,student_id`);
+  const [p] = pRes.ok ? await pRes.json() : [];
+  const who = p?.full_name || p?.email || "นักศึกษา";
+  const what = isPickup ? `รุ่น ${r.item_prefix}` : r.item ? `"${r.item.name}" (${r.item.item_code})` : "อุปกรณ์";
+  const [title, verb] = KIND_TEXT[isPickup ? "pickup" : r.kind] || KIND_TEXT.borrow;
+
+  const staffRes = await rest(`profiles?role=in.(admin,ta)&id=neq.${r.user_id}&select=id`);
+  const staff: { id: string }[] = staffRes.ok ? await staffRes.json() : [];
+  if (!staff.length) return json({ sent: 0 });
+  const sRes = await rest(`push_subscriptions?user_id=in.(${staff.map((x) => x.id).join(",")})&select=id,endpoint,p256dh,auth`);
+  const subs: Sub[] = sRes.ok ? await sRes.json() : [];
+  return deliver(subs, {
+    title,
+    body: `${who} ${verb} ${what}`,
+    url: isPickup ? "/admin/requests" : `/admin/requests?id=${r.id}`,
+    tag: r.id,
+  });
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+  if (req.method === "GET") {
+    if (!VAPID.publicKey) return json({ error: "not_configured" }, 503);
+    return json({ publicKey: VAPID.publicKey });
+  }
+  if (req.method !== "POST") return json({ error: "method" }, 405);
+  if (!VAPID.publicKey || !VAPID.privateKey) return json({ error: "not_configured" }, 503);
+
+  let data: any = {};
+  try { data = await req.json(); } catch { /* ไม่ใช่ JSON */ }
+  if (data.request_id) {
+    const id = String(data.request_id);
+    if (!UUID.test(id)) return json({ error: "bad_id" }, 400);
+    return pushStaffRequest(id, String(data.source || "borrow"));
+  }
+  const id = String(data.id || "");
+  if (!UUID.test(id)) return json({ error: "bad_id" }, 400);
+  return pushNotification(id);
 });
