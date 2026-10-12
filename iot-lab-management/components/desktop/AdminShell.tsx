@@ -125,7 +125,9 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                 return (
                   <Pressable
                     key={item.route}
-                    onPress={() => { if (!active) router.navigate(item.route as any); }}
+                    // สลับหน้า (replace) ไม่ซ้อน: navigate/push ทำให้หน้าเก่าค้างทุกครั้งที่กดเมนู — แต่ละหน้ายังฟัง realtime/รีเฟรชอยู่ = กินฐานข้อมูล
+                    // (ไม่ใช่ปุ่มย้อนกลับ จึงไม่ขัดกติกา goBack) · หน้าที่มีของยังไม่บันทึกยังถามก่อนออก (usePreventRemove)
+                    onPress={() => { if (!active) router.replace(item.route as any); }}
                     style={({ hovered }: any) => [s.item, hovered && !active && s.itemHover, active && s.itemOn]}
                     accessibilityRole="link"
                     accessibilityLabel={item.label}
