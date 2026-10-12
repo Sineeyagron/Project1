@@ -5,6 +5,7 @@ import supabase from "../lib/supabase";
 import { DialogHost } from "../lib/notify";
 import { applyRememberLogin } from "../lib/session";
 import { dropPushOnSignOut, registerServiceWorker } from "../lib/webPush";
+import { installPullToRefresh } from "../lib/webPullRefresh";
 import { isAdminPath } from "../lib/roles";
 import { useFonts, NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from "@expo-google-fonts/noto-sans-thai";
 import { C } from "../lib/theme";
@@ -54,6 +55,8 @@ export default function Layout() {
     applyRememberLogin();
     // เว็บ/PWA: service worker (cache + Web Push) — แตะแจ้งเตือนตอนแอปเปิดอยู่ → ไปหน้านั้น (มือถือไม่ทำอะไร)
     registerServiceWorker((path) => router.push(path as any));
+    // เว็บ: ลากลงเพื่อรีเฟรช (RefreshControl ของ React Native ไม่ทำงานบนเว็บ)
+    installPullToRefresh();
 
     // ออกจากระบบ → หน้า login (ระบบลืมรหัสผ่าน/ลิงก์รีเซ็ตทางอีเมลถอดออกแล้ว 12 ต.ค. 2569)
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {

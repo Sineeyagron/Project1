@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { Animated, Platform, Pressable, PressableProps, StyleProp, ViewStyle } from "react-native";
+import { Animated, Platform, Pressable, PressableProps, StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import * as Haptics from "expo-haptics";
 
 // ลูกเล่นมือถือเบา ๆ ใช้ซ้ำได้ทุกหน้า — Animated แบบ native driver ไม่กระทบการโหลดข้อมูล
@@ -52,15 +52,43 @@ export function FadeIn({ delay = 0, style, children }: { delay?: number; style?:
   );
 }
 
+// CSS keyframes ของวงชีพจร (เว็บ) — สร้างครั้งเดียวต่อค่า grow
+const webPulseCache = new Map<number, ViewStyle>();
+function webPulse(grow: number): ViewStyle {
+  let s = webPulseCache.get(grow);
+  if (!s) {
+    s = StyleSheet.create({
+      a: {
+        animationDuration: "1600ms",
+        animationTimingFunction: "linear",
+        animationIterationCount: "infinite",
+        animationKeyframes: [{ "0%": { opacity: 0.55, transform: "scale(1)" }, "100%": { opacity: 0, transform: `scale(${grow})` } }],
+      } as any,
+    }).a as ViewStyle;
+    webPulseCache.set(grow, s);
+  }
+  return s;
+}
+
 // วงชีพจรรอบตัวเลข/ป้าย — ใช้เรียกสายตาเมื่อมีงานรอ (วนเรื่อย ๆ จนกว่าจะถอดออก)
 // grow = ขยายสุดกี่เท่าของ size (ค่าเดิม 1.9 — ป้ายคำขอใช้ค่านี้)
 export function Pulse({ color, size, grow = 1.9, style }: { color: string; size: number; grow?: number; style?: StyleProp<ViewStyle> }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    if (Platform.OS === "web") return;
     const loop = Animated.loop(Animated.timing(v, { toValue: 1, duration: 1600, useNativeDriver: true }));
     loop.start();
     return () => loop.stop();
   }, []);
+  // เว็บ: Animated.loop วนด้วย JS แล้วหยุด/ไม่ขยับบน iPhone (PWA) → ใช้ CSS animation ของเบราว์เซอร์แทน (ลื่นกว่า ไม่กิน JS)
+  if (Platform.OS === "web") {
+    return (
+      <View
+        pointerEvents="none"
+        style={[{ position: "absolute", width: size, height: size, borderRadius: size / 2, backgroundColor: color }, style, webPulse(grow)]}
+      />
+    );
+  }
   return (
     <Animated.View
       pointerEvents="none"

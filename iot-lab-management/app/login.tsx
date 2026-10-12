@@ -39,16 +39,19 @@ function Shine({ kku }: { kku?: boolean }) {
 }
 
 // กรอบการ์ดมีไฟวิ่ง: แผ่นไล่สีน้ำเงิน (โทนทางการ) หมุนช้าๆ อยู่หลังการ์ด โผล่ให้เห็นแค่ขอบ
-// หมุนด้วย native driver (ไม่กิน JS) · เครื่องเปิด "ลดภาพเคลื่อนไหว" = ขอบนิ่ง
+// หมุนด้วย native driver (ไม่กิน JS) / เว็บใช้ CSS animation · เครื่องเปิด "ลดภาพเคลื่อนไหว" = ขอบนิ่ง
 function GlowFrame({ children }: { children: React.ReactNode }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
   const spin = useRef(new Animated.Value(0)).current;
+  // เว็บ: หมุนด้วย CSS animation (Animated.loop บนเว็บวนด้วย JS แล้วหยุดบน iPhone PWA)
+  const [moving, setMoving] = useState(false);
 
   useEffect(() => {
     let loop: Animated.CompositeAnimation | null = null;
     let active = true;
     AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
       if (!active || reduce) return;
+      if (Platform.OS === "web") { setMoving(true); return; }
       loop = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 6500, easing: Easing.linear, useNativeDriver: true }));
       loop.start();
     });
@@ -59,9 +62,9 @@ function GlowFrame({ children }: { children: React.ReactNode }) {
   const d = Math.ceil(Math.hypot(box.w, box.h));
   // ความเร็วคงที่บนขอบ: หมุนมุมเท่ากันทุกช่วง = ตรงมุมการ์ด (ไกลจุดกลาง) แสงวิ่งเร็วขึ้น
   // → แบ่งเส้นรอบเป็นช่วงเท่าๆ กัน แล้วแปลงแต่ละจุดเป็นมุมที่ต้องหมุน (หัวลิ่มชี้ไปที่จุดนั้น)
-  const rotate = useMemo(() => {
+  const stops = useMemo(() => {
     const { w, h } = box;
-    if (!w || !h) return spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
+    if (!w || !h) return { input: [0, 1], output: ["0deg", "360deg"] };
     const per = 2 * (w + h);
     const N = 96;
     const input: number[] = [];
@@ -83,15 +86,28 @@ function GlowFrame({ children }: { children: React.ReactNode }) {
       input.push(i / N);
       output.push(`${deg - 90}deg`); // หัวลิ่มอยู่ที่ +90° จากแนวตั้งของแผ่น
     }
-    return spin.interpolate({ inputRange: input, outputRange: output });
+    return { input, output };
   }, [box.w, box.h]);
+  const rotate = useMemo(() => spin.interpolate({ inputRange: stops.input, outputRange: stops.output }), [stops]);
+  // เว็บ: จุดหมุนชุดเดียวกัน แปลงเป็น CSS keyframes (เส้นตรงระหว่างจุด = ความเร็วบนขอบคงที่เหมือนมือถือ)
+  const webSpin = useMemo(() => {
+    if (Platform.OS !== "web" || !moving) return null;
+    const frames: Record<string, { transform: string }> = {};
+    stops.input.forEach((t, i) => { frames[`${(t * 100).toFixed(3)}%`] = { transform: `rotate(${stops.output[i]})` }; });
+    return StyleSheet.create({
+      a: { animationDuration: "6500ms", animationTimingFunction: "linear", animationIterationCount: "infinite", animationKeyframes: [frames] } as any,
+    }).a;
+  }, [stops, moving]);
   return (
     <View style={styles.glowShadow}>
       <View style={styles.glowClip} onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
         {d > 0 && (
           <Animated.View
             pointerEvents="none"
-            style={{ position: "absolute", width: d, height: d, left: (box.w - d) / 2, top: (box.h - d) / 2, transform: [{ rotate }] }}
+            style={[
+              { position: "absolute", width: d, height: d, left: (box.w - d) / 2, top: (box.h - d) / 2 },
+              Platform.OS === "web" ? webSpin : { transform: [{ rotate }] },
+            ]}
           >
             {/* ลิ่มแสง = ควอดแรนต์ขวาบน (มุมอยู่กลางการ์ด) → หมุนแล้วแตะขอบตลอด ไม่กระโดดตอนผ่านด้านแคบ
                 ไล่สีตามแนวทแยง ≈ ตามมุม: หางจาง → หัวสว่างด้านที่หมุนไป (ตามเข็มนาฬิกา) */}

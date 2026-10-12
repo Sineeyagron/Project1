@@ -9,7 +9,8 @@ export default function Root({ children }: PropsWithChildren) {
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+        {/* maximum-scale=1: iPhone ไม่ซูมหน้าเองตอนแตะช่องพิมพ์ (ตัวอักษรเล็กกว่า 16px) — ยังถ่างนิ้วซูมได้ */}
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" />
         {/* PWA: ติดตั้งเป็นแอปได้ (public/manifest.webmanifest + public/sw.js — ลงทะเบียน SW ที่ lib/webPush) */}
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="theme-color" content="#2563EB" />
@@ -31,8 +32,10 @@ export default function Root({ children }: PropsWithChildren) {
 
 // ให้รู้สึกเหมือนแอป ไม่ใช่หน้าเว็บ:
 //   เคอร์เซอร์ข้อความขึ้นเฉพาะในช่องพิมพ์ (เบราว์เซอร์ที่เปิด caret browsing วางเคอร์เซอร์ได้ทุกจุด) +
-//   แตะแล้วไม่มีกรอบสีฟ้าแวบบนมือถือ
+//   แตะแล้วไม่มีกรอบสีฟ้าแวบบนมือถือ +
+//   แตะสองทีไม่ซูม (touch-action) / หมุนจอแล้วตัวหนังสือไม่ขยายเอง
 const webAppCss = `
+html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { caret-color: transparent; -webkit-tap-highlight-color: transparent; }
 input, textarea, [contenteditable="true"] { caret-color: auto; }
 `;
