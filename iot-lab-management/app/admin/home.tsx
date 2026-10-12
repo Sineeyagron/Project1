@@ -375,9 +375,10 @@ export default function AdminHome() {
     >
       <View style={s.hero}>
         <View style={s.heroTop}>
-          <View>
+          {/* กว้างเต็มที่ว่างเหลือ + ชื่อบรรทัดเดียว — เดิมกล่องกว้างตามตัวหนังสือ บน Safari ตอนชื่อเปลี่ยน Admin→TA บางทีคำนวณขาดช่องว่าง → "Dashboard" ตกบรรทัด */}
+          <View style={s.heroLeft}>
             <GreetingLine roleLabel={role ? ROLE_LABEL[role] : undefined} dot={checkedIn ? "green" : "red"} />
-            <Text style={s.heroTitle}>
+            <Text style={s.heroTitle} numberOfLines={1}>
               {role === "ta" ? "TA" : "Admin"} <Text style={s.heroTitleAccent}>Dashboard</Text>
             </Text>
           </View>
@@ -758,6 +759,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  heroLeft: { flex: 1, minWidth: 0, marginRight: 10 },
   heroTitle: {
     color: "#172033",
     fontSize: 26,

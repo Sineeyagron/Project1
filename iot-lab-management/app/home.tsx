@@ -136,10 +136,11 @@ export default function Home() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.primary} />}
       >
         <View style={s.headerTop}>
-          <View>
+          {/* กว้างเต็มที่ว่างเหลือ + ชื่อบรรทัดเดียว (Safari เคยตัด "IoT" ตกบรรทัดเมื่อกล่องกว้างตามตัวหนังสือ) */}
+          <View style={{ flex: 1, minWidth: 0, marginRight: 10 }}>
             {/* เหมือนหัวแดชบอร์ด Admin: ทักทาย + อากาศ + บทบาท / staff ที่มายืมของ = โหมดนักศึกษา */}
             <GreetingLine roleLabel={isStaff ? "โหมดนักศึกษา" : "นักศึกษา"} />
-            <Text style={s.headerTitle}>
+            <Text style={s.headerTitle} numberOfLines={1}>
               ห้องเรียน <Text style={s.headerTitleAccent}>IoT</Text>
             </Text>
           </View>
