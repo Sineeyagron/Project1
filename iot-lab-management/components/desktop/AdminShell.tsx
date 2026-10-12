@@ -6,6 +6,7 @@ import { Text } from "../AppText";
 import supabase from "../../lib/supabase";
 import { useRealtime } from "../../lib/realtime";
 import { useRoomLive } from "../../lib/roomRealtime";
+import { onUnreadRefresh } from "../../lib/unread";
 import { canAccess, ROLE_LABEL, useRole } from "../../lib/roles";
 import { confirmAction, notify } from "../../lib/notify";
 import { ADMIN_COLUMN_WIDTH, isDesktopReady } from "../../lib/layout";
@@ -15,12 +16,13 @@ import { C } from "../../lib/theme";
 //   ฟีเจอร์/สิทธิ์เหมือนมือถือทุกอย่าง: เมนูกรองด้วย canAccess (TA เห็นเท่าที่มีสิทธิ์) · ด่านจริงยังอยู่ที่ RLS
 //   หน้าที่ยังไม่มีแบบจอใหญ่ (ADMIN_DESKTOP_READY) → แสดงแบบมือถือกลางพื้นที่เนื้อหา
 
-type NavItem = { icon: keyof typeof Ionicons.glyphMap; label: string; route: string; badge?: "requests" | "roomreports" };
+type NavItem = { icon: keyof typeof Ionicons.glyphMap; label: string; route: string; badge?: "requests" | "roomreports" | "unread" };
 const NAV: { title?: string; items: NavItem[] }[] = [
   {
     items: [
       { icon: "grid-outline", label: "แดชบอร์ด", route: "/admin/home" },
       { icon: "file-tray-full-outline", label: "กล่องคำขอ", route: "/admin/requests", badge: "requests" },
+      { icon: "notifications-outline", label: "แจ้งเตือน", route: "/admin/notifications", badge: "unread" },
     ],
   },
   {
@@ -71,6 +73,13 @@ async function countRequests() {
   ]);
   return (req.count || 0) + (pickup.count || 0);
 }
+// แจ้งเตือนงานผู้ดูแลที่ยังไม่อ่าน (เหมือนเลขกระดิ่งแดชบอร์ด: for_staff + สิทธิ์ TA)
+async function countUnread(userId: string | null) {
+  if (!userId) return 0;
+  const { count } = await supabase.from("notifications").select("id", { count: "exact", head: true })
+    .eq("user_id", userId).or("for_staff.eq.true,type.eq.role_changed").eq("read", false);
+  return count || 0;
+}
 async function countRoomReports() {
   const { count } = await supabase.from("room_reports").select("id", { count: "exact", head: true }).eq("status", "pending");
   return count || 0;
@@ -81,14 +90,16 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const pathname = usePathname();
   const { role, userId } = useRole();
   const [name, setName] = useState("");
-  const [badges, setBadges] = useState({ requests: 0, roomreports: 0 });
+  const [badges, setBadges] = useState({ requests: 0, roomreports: 0, unread: 0 });
 
   const loadBadges = useCallback(async () => {
-    const [requests, roomreports] = await Promise.all([countRequests(), countRoomReports()]);
-    setBadges({ requests, roomreports });
-  }, []);
-  useEffect(() => { loadBadges(); }, [pathname]); // เปลี่ยนหน้า (เช่น ตัดสินคำขอแล้วกลับมา) = นับใหม่
+    const [requests, roomreports, unread] = await Promise.all([countRequests(), countRoomReports(), countUnread(userId)]);
+    setBadges({ requests, roomreports, unread });
+  }, [userId]);
+  useEffect(() => { loadBadges(); }, [pathname, loadBadges]); // เปลี่ยนหน้า (เช่น ตัดสินคำขอแล้วกลับมา) = นับใหม่
   useRealtime("staff", "request", () => { loadBadges(); });
+  useRealtime("user", "notification", () => { loadBadges(); });
+  useEffect(() => onUnreadRefresh(() => { loadBadges(); }), [loadBadges]); // กดอ่านแล้วเลขลดทันที
   useRoomLive(() => { loadBadges(); });
 
   useEffect(() => {

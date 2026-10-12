@@ -10,6 +10,11 @@ const listeners = new Set<() => void>();
 export function refreshUnreadCount() {
   listeners.forEach((fn) => fn());
 }
+// ตัวนับอื่น (เช่น เลขแจ้งเตือนในเมนูซ้ายจอใหญ่) ขอรับสัญญาณเดียวกัน → คืนฟังก์ชันเลิกฟัง
+export function onUnreadRefresh(fn: () => void) {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
+}
 
 // จำนวนแจ้งเตือนที่ยังไม่อ่านของผู้ใช้ปัจจุบัน (นับอย่างเดียว ไม่ดึงข้อมูลแถว = เบามาก)
 // ใช้ที่แถบเมนูล่าง = โหมดนักศึกษา → นับเฉพาะเรื่องของตัวเอง (for_staff = งานผู้ดูแล นับที่กระดิ่งแดชบอร์ด)

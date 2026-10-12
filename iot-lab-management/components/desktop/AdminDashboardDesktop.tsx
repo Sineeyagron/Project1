@@ -114,7 +114,7 @@ export default function AdminDashboardDesktop(p: Props) {
           <Text style={s.title}>แดชบอร์ด</Text>
         </View>
         <HeadButton icon="refresh" label="รีเฟรช" onPress={() => { p.onRefresh(); loadExtra(); }} />
-        <HeadButton icon="notifications-outline" label="แจ้งเตือน" badge={p.unread} onPress={() => router.push("/notifications")} />
+        <HeadButton icon="notifications-outline" label="แจ้งเตือน" badge={p.unread} onPress={() => router.push("/admin/notifications" as any)} />
       </View>
 
       {/* ตัวเลขวันนี้ */}
