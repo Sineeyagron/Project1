@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,15 +12,18 @@ import SearchBar from "../../components/SearchBar";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useIsDesktop } from "../../lib/layout";
 import supabase from "../../lib/supabase";
 import { ITEM_STATUS, RECORD_STATUS } from "../../lib/status";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
-import { addYears, isValidDate, thaiDate } from "../../lib/itemInfo";
+import { parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
+import WarrantyDateField, { warrantyBlocked } from "../../components/WarrantyDateField";
 import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import BottomSheet from "../../components/BottomSheet";
 
 const C = {
   bg: "#EAF1FC",
@@ -159,6 +161,7 @@ function ItemCard({
 
 export default function AdminItems() {
   const router = useRouter();
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → ตาราง
 
   const [items, setItems] = useState<any[]>([]);
   const [borrowMap, setBorrowMap] = useState<Record<string, string>>({});
@@ -352,19 +355,20 @@ export default function AdminItems() {
   // แก้วันหมดประกัน / Serial (ชื่อ-รหัสแก้ไม่ได้ เพราะติดป้ายไปแล้ว)
   const openEdit = (item: any) => {
     setSheet(null);
-    setEditWarranty(item.warranty_expires_at || "");
+    setEditWarranty(toThaiDateInput(item.warranty_expires_at));
     setEditSerial(item.manufacturer_serial || "");
     setEditTarget(item);
   };
 
-  const editWarrantyInvalid = !!editWarranty.trim() && !isValidDate(editWarranty.trim());
+  // ช่องพิมพ์ วว/ดด/ปปปป (พ.ศ.) → บันทึกเป็น ปปปป-ดด-วว (ค.ศ.)
+  const editWarrantyInvalid = warrantyBlocked(editWarranty);
 
   const saveEdit = async () => {
     if (editWarrantyInvalid) return;
     const ok = await run(
       () => supabase.from("items")
         .update({
-          warranty_expires_at: editWarranty.trim() || null,
+          warranty_expires_at: parseThaiDate(editWarranty),
           manufacturer_serial: editSerial.trim() || null,
         })
         .eq("id", editTarget.id),
@@ -453,108 +457,192 @@ export default function AdminItems() {
 
   return (
     <View style={s.container}>
-      <View style={s.header}>
-        <ScreenHeader
-          title={"อุปกรณ์ IoT"}
-          subtitle={"ระบบจัดการอุปกรณ์ IoT"}
-          onBack={() => goBack()}
-          right={<HeaderButton ref={headerSortRef} icon="options-outline" label="เรียงลำดับ" onPress={() => openSort(headerSortRef)} />}
-          bleed={16}
-          style={{ marginBottom: 14 }}
-        />
+      {isDesktop ? (
+        // จอใหญ่: ตาราง (ตัวกรอง/ค้นหา/เรียง/เมนูจัดการ ชุดเดียวกับมือถือ)
+        <View style={d.page}>
+          <View style={d.head}>
+            <View style={{ flex: 1 }}>
+              <Text style={d.title}>อุปกรณ์ IoT</Text>
+              <Text style={d.sub}>ทั้งหมด {activeItems.length} · พร้อมใช้ {availableCount} · ถูกยืม/ซ่อม {borrowedCount + repairCount}</Text>
+            </View>
+            <View style={d.search}>
+              <Ionicons name="search" size={16} color="#94A3B8" />
+              <TextInput style={d.searchInput} value={search} onChangeText={setSearch} placeholder="ค้นหาชื่อ รหัส หรือรหัสสแกน" placeholderTextColor="#94A3B8" />
+              {search ? (
+                <Pressable onPress={() => setSearch("")} accessibilityLabel="ล้างคำค้น"><Ionicons name="close-circle" size={16} color="#94A3B8" /></Pressable>
+              ) : null}
+            </View>
+            <Pressable ref={sortBtnRef} onPress={() => openSort(sortBtnRef)} style={({ hovered }: any) => [d.btn, hovered && d.hover]}>
+              <Ionicons name="swap-vertical" size={16} color={C.purple} />
+              <Text style={d.btnText}>{SORTS.find((o) => o.key === sortKey)?.short}</Text>
+            </Pressable>
+            <Pressable onPress={() => router.push("/admin/scan" as any)} style={({ hovered }: any) => [d.btnPrimary, hovered && { opacity: 0.9 }]}>
+              <Ionicons name="add" size={17} color="#fff" />
+              <Text style={d.btnPrimaryText}>เพิ่มอุปกรณ์</Text>
+            </Pressable>
+          </View>
 
-        <View style={s.statRow}>
-          <StatWidget tone="blue" icon="cube-outline" label="ทั้งหมด" value={activeItems.length} />
-          <StatWidget tone="green" icon="checkmark" label="พร้อมใช้" value={availableCount} />
-          <StatWidget tone="amber" icon="swap-horizontal" label="ถูกยืม/ซ่อม" value={borrowedCount + repairCount} />
-        </View>
-
-        <SearchBar
-          value={search}
-          onChangeText={setSearch}
-          placeholder="พิมพ์ชื่อ รหัส หรือรหัสสแกน"
-          onFocusChange={setSearchFocused}
-          accessory={
-            <TouchableOpacity style={s.scanBtn} onPress={() => router.push("/admin/scan" as any)} activeOpacity={0.82} accessibilityLabel="เพิ่มอุปกรณ์">
-              <Ionicons name="add" size={22} color={C.purple} />
-            </TouchableOpacity>
-          }
-        />
-      </View>
-
-      {loading ? (
-        <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
-      ) : (
-        <ScrollView
-          contentContainerStyle={s.list}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
-          showsVerticalScrollIndicator
-          keyboardDismissMode="on-drag"
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* ชิปซ่อนระหว่างพิมพ์ค้นหา */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow} style={searchFocused && { display: "none" }}>
+          <View style={d.chips}>
             {chips.map((chip) => {
               const active = filter === chip.key;
               return (
-                <TouchableOpacity
-                  key={chip.key}
-                  style={[s.chip, active && s.chipActive]}
-                  activeOpacity={0.82}
-                  onPress={() => setFilter(chip.key)}
-                >
-                  <Ionicons name={chip.icon as any} size={13} color={active ? "#fff" : "#64748b"} />
-                  <Text style={[s.chipText, active && s.chipTextActive]}>{chip.label}</Text>
-                  <Text style={[s.chipCount, active && s.chipCountActive]}>{chip.count}</Text>
-                </TouchableOpacity>
+                <Pressable key={chip.key} onPress={() => setFilter(chip.key)} style={({ hovered }: any) => [d.chip, active && d.chipOn, hovered && !active && d.hover]}>
+                  <Text style={[d.chipText, active && { color: "#fff" }]}>{chip.label}</Text>
+                  <Text style={[d.chipCount, active && { color: "rgba(255,255,255,0.85)" }]}>{chip.count}</Text>
+                </Pressable>
               );
             })}
-            <TouchableOpacity
-              style={[s.chip, s.chipManage]}
-              activeOpacity={0.82}
-              onPress={() => router.push("/admin/categories" as any)}
-            >
+            <Pressable onPress={() => router.push("/admin/categories" as any)} style={({ hovered }: any) => [d.chip, hovered && d.hover]}>
               <Ionicons name="settings-outline" size={13} color={C.purple} />
-              <Text style={[s.chipText, { color: C.purple }]}>จัดการหมวด</Text>
-            </TouchableOpacity>
-          </ScrollView>
-
-          <View style={s.listHeader}>
-            <Text style={s.listTitle}>
-              {search.trim() ? `ผลการค้นหา "${search.trim()}" · ${filtered.length} รายการ` : "รายการอุปกรณ์"}
-            </Text>
-            <TouchableOpacity ref={sortBtnRef} style={s.sortBtn} onPress={() => openSort(sortBtnRef)} activeOpacity={0.75}>
-              <Text style={s.sortMuted}>เรียงตาม</Text>
-              <Text style={s.sortText}>{SORTS.find((o) => o.key === sortKey)?.short}</Text>
-              <Ionicons name="chevron-down" size={13} color={C.purple} />
-            </TouchableOpacity>
+              <Text style={[d.chipText, { color: C.purple }]}>จัดการหมวด</Text>
+            </Pressable>
           </View>
 
-          {filtered.length === 0 ? (
-            <View style={s.empty}>
-              <Ionicons name="cube-outline" size={46} color="#cbd5e1" />
-              <Text style={s.emptyTxt}>ไม่พบอุปกรณ์</Text>
+          <View style={d.table}>
+            <View style={[d.tr, d.trHead]}>
+              <View style={{ width: 32, marginRight: 12 }} />
+              <Text style={[d.th, { flex: 1.2 }]}>รหัส</Text>
+              <Text style={[d.th, { flex: 1.6 }]}>ชื่อ</Text>
+              <Text style={[d.th, { flex: 1 }]}>หมวด</Text>
+              <Text style={[d.th, { width: 120 }]}>สถานะ</Text>
+              <Text style={[d.th, { flex: 1.2 }]}>กำหนดคืน / ประกัน</Text>
+              <Text style={[d.th, { width: 70 }]}>สแกน</Text>
+              <View style={{ width: 36 }} />
             </View>
-          ) : (
-            filtered.map((item) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                dueDate={borrowMap[item.id]}
-                onPress={openManage}
-              />
-            ))
-          )}
-          <View style={{ height: 28 }} />
-        </ScrollView>
+            {loading ? (
+              <ActivityIndicator size="large" color={C.purple} style={{ marginVertical: 40 }} />
+            ) : filtered.length === 0 ? (
+              <View style={d.empty}><Ionicons name="cube-outline" size={40} color="#CBD5E1" /><Text style={d.emptyText}>ไม่พบอุปกรณ์</Text></View>
+            ) : (
+              <ScrollView style={{ flex: 1 }}>
+                {filtered.map((item) => {
+                  const st = STATUS_CFG[item.status] || STATUS_CFG.available;
+                  const tc = getTypeConfig(item.category === OTHER ? item.type || item.name : item.category);
+                  const foot = item.status === "borrowed" && borrowMap[item.id]
+                    ? `คืน ${formatDue(borrowMap[item.id])}`
+                    : item.status === "retired" ? item.retire_reason || "" : warrantyText(item.warranty_expires_at);
+                  return (
+                    <Pressable key={item.id} onPress={() => openManage(item)} style={({ hovered }: any) => [d.tr, hovered && d.hover, item.status === "retired" && { opacity: 0.6 }]} accessibilityLabel={`จัดการ ${label(item)}`}>
+                      <View style={[d.icon, { backgroundColor: tc.bg }]}><Ionicons name={tc.icon} size={17} color={tc.color} /></View>
+                      <Text style={[d.td, d.code, { flex: 1.2 }]} numberOfLines={1}>{item.item_code || "-"}</Text>
+                      <Text style={[d.td, { flex: 1.6 }]} numberOfLines={1}>{item.name}</Text>
+                      <Text style={[d.td, d.muted, { flex: 1 }]} numberOfLines={1}>{item.category}</Text>
+                      <View style={{ width: 120 }}>
+                        <View style={[d.pill, { backgroundColor: st.bg }]}><Text style={[d.pillText, { color: st.color }]}>{st.label}</Text></View>
+                      </View>
+                      <Text style={[d.td, d.muted, { flex: 1.2 }]} numberOfLines={1}>{foot || "-"}</Text>
+                      <Text style={[d.td, d.muted, { width: 70 }]}>{item.barcode || "-"}</Text>
+                      <View style={{ width: 36, alignItems: "center" }}><Ionicons name="ellipsis-horizontal" size={18} color="#94A3B8" /></View>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      ) : (
+        <>
+        <View style={s.header}>
+          <ScreenHeader
+            title={"อุปกรณ์ IoT"}
+            subtitle={"ระบบจัดการอุปกรณ์ IoT"}
+            onBack={() => goBack()}
+            right={<HeaderButton ref={headerSortRef} icon="options-outline" label="เรียงลำดับ" onPress={() => openSort(headerSortRef)} />}
+            bleed={16}
+            style={{ marginBottom: 14 }}
+          />
+
+          <View style={s.statRow}>
+            <StatWidget tone="blue" icon="cube-outline" label="ทั้งหมด" value={activeItems.length} />
+            <StatWidget tone="green" icon="checkmark" label="พร้อมใช้" value={availableCount} />
+            <StatWidget tone="amber" icon="swap-horizontal" label="ถูกยืม/ซ่อม" value={borrowedCount + repairCount} />
+          </View>
+
+          <SearchBar
+            value={search}
+            onChangeText={setSearch}
+            placeholder="พิมพ์ชื่อ รหัส หรือรหัสสแกน"
+            onFocusChange={setSearchFocused}
+            accessory={
+              <TouchableOpacity style={s.scanBtn} onPress={() => router.push("/admin/scan" as any)} activeOpacity={0.82} accessibilityLabel="เพิ่มอุปกรณ์">
+                <Ionicons name="add" size={22} color={C.purple} />
+              </TouchableOpacity>
+            }
+          />
+        </View>
+
+        {loading ? (
+          <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
+        ) : (
+          <ScrollView
+            contentContainerStyle={s.list}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
+            showsVerticalScrollIndicator
+            keyboardDismissMode="on-drag"
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* ชิปซ่อนระหว่างพิมพ์ค้นหา */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chipRow} style={searchFocused && { display: "none" }}>
+              {chips.map((chip) => {
+                const active = filter === chip.key;
+                return (
+                  <TouchableOpacity
+                    key={chip.key}
+                    style={[s.chip, active && s.chipActive]}
+                    activeOpacity={0.82}
+                    onPress={() => setFilter(chip.key)}
+                  >
+                    <Ionicons name={chip.icon as any} size={13} color={active ? "#fff" : "#64748b"} />
+                    <Text style={[s.chipText, active && s.chipTextActive]}>{chip.label}</Text>
+                    <Text style={[s.chipCount, active && s.chipCountActive]}>{chip.count}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity
+                style={[s.chip, s.chipManage]}
+                activeOpacity={0.82}
+                onPress={() => router.push("/admin/categories" as any)}
+              >
+                <Ionicons name="settings-outline" size={13} color={C.purple} />
+                <Text style={[s.chipText, { color: C.purple }]}>จัดการหมวด</Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <View style={s.listHeader}>
+              <Text style={s.listTitle}>
+                {search.trim() ? `ผลการค้นหา "${search.trim()}" · ${filtered.length} รายการ` : "รายการอุปกรณ์"}
+              </Text>
+              <TouchableOpacity ref={sortBtnRef} style={s.sortBtn} onPress={() => openSort(sortBtnRef)} activeOpacity={0.75}>
+                <Text style={s.sortMuted}>เรียงตาม</Text>
+                <Text style={s.sortText}>{SORTS.find((o) => o.key === sortKey)?.short}</Text>
+                <Ionicons name="chevron-down" size={13} color={C.purple} />
+              </TouchableOpacity>
+            </View>
+
+            {filtered.length === 0 ? (
+              <View style={s.empty}>
+                <Ionicons name="cube-outline" size={46} color="#cbd5e1" />
+                <Text style={s.emptyTxt}>ไม่พบอุปกรณ์</Text>
+              </View>
+            ) : (
+              filtered.map((item) => (
+                <ItemCard
+                  key={item.id}
+                  item={item}
+                  dueDate={borrowMap[item.id]}
+                  onPress={openManage}
+                />
+              ))
+            )}
+            <View style={{ height: 28 }} />
+          </ScrollView>
+        )}
+
+        </>
       )}
 
-      {/* เมนูจัดการ (ใช้แทน Alert ที่ไม่ทำงานบนเว็บ) */}
-      {/* ไม่ซ้อนปุ่มในปุ่ม: พื้นหลังกดปิดเป็นชั้นแยก อยู่ "ข้าง" แผ่นเมนู (บนมือถือปุ่มชั้นนอกแย่งการกด) */}
-      <Modal visible={!!sheet} transparent animationType="fade" onRequestClose={() => setSheet(null)}>
-        <View style={s.backdrop}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSheet(null)} accessibilityLabel="ปิดเมนู" />
-          <View style={s.sheet}>
+      {/* เมนูจัดการ = แผ่น iOS แท้ (components/BottomSheet) · เนื้อหาเปลี่ยนในแผ่นเดิมได้ (เช่น เมนู → รายการหมวด) */}
+      <BottomSheet visible={!!sheet} onClose={() => setSheet(null)} style={s.sheet}>
             <Text style={s.sheetTitle}>{sheet?.title}</Text>
             {!!sheet?.message && <Text style={s.sheetMessage}>{sheet.message}</Text>}
             {sheet?.actions.map((a) => (
@@ -570,14 +658,10 @@ export default function AdminItems() {
             <Pressable style={s.sheetCancel} onPress={() => setSheet(null)}>
               <Text style={s.sheetCancelText}>ปิด</Text>
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
 
       {/* จำหน่ายออก: ต้องใส่เหตุผล */}
-      <Modal visible={!!retireTarget} transparent animationType="fade" onRequestClose={() => setRetireTarget(null)}>
-        <View style={s.backdrop}>
-          <View style={s.sheet}>
+      <BottomSheet visible={!!retireTarget} onClose={() => { if (!busy) setRetireTarget(null); }} style={s.sheet}>
             <Text style={s.sheetTitle}>จำหน่ายออก {retireTarget && label(retireTarget)}</Text>
             <Text style={s.sheetMessage}>
               ของจะหายจากสต็อกและหน้ายืม แต่ยังอยู่ในประวัติ/รายงาน รหัสเดิมไม่ถูกนำกลับมาใช้
@@ -601,43 +685,17 @@ export default function AdminItems() {
             <TouchableOpacity style={s.sheetCancel} onPress={() => setRetireTarget(null)} activeOpacity={0.8}>
               <Text style={s.sheetCancelText}>ยกเลิก</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
 
       {/* แก้ประกัน / Serial */}
-      <Modal visible={!!editTarget} transparent animationType="fade" onRequestClose={() => setEditTarget(null)}>
-        <View style={s.backdrop}>
-          <View style={s.sheet}>
+      <BottomSheet visible={!!editTarget} onClose={() => { if (!busy) setEditTarget(null); }} style={s.sheet}>
             <Text style={s.sheetTitle}>แก้ข้อมูล {editTarget && label(editTarget)}</Text>
             <Text style={s.sheetMessage}>
               ตอนนี้: {editTarget?.warranty_expires_at ? `ประกันถึง ${thaiDate(editTarget.warranty_expires_at)}` : "ไม่มีประกัน"}
             </Text>
 
             <Text style={s.editLabel}>วันหมดประกัน (เว้นว่าง = ไม่มีประกัน)</Text>
-            <TextInput
-              style={[s.reasonInput, editWarrantyInvalid && s.inputError]}
-              value={editWarranty}
-              onChangeText={setEditWarranty}
-              placeholder="ปปปป-ดด-วว เช่น 2027-10-02"
-              placeholderTextColor={C.faint}
-              keyboardType="numbers-and-punctuation"
-            />
-            {editWarrantyInvalid && (
-              <Text style={s.editError}>วันที่ไม่ถูกต้อง ใช้รูปแบบ ปปปป-ดด-วว (ค.ศ.)</Text>
-            )}
-            <View style={s.editChips}>
-              {[1, 2, 3].map((y) => (
-                <TouchableOpacity key={y} style={s.editChip} onPress={() => setEditWarranty(addYears(y))} activeOpacity={0.8}>
-                  <Text style={s.editChipText}>+{y} ปีจากวันนี้</Text>
-                </TouchableOpacity>
-              ))}
-              {!!editWarranty && (
-                <TouchableOpacity style={s.editChip} onPress={() => setEditWarranty("")} activeOpacity={0.8}>
-                  <Text style={s.editChipText}>ไม่มีประกัน</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            <WarrantyDateField value={editWarranty} onChange={setEditWarranty} inputStyle={s.reasonInput} />
 
             <Text style={s.editLabel}>Serial ผู้ผลิต</Text>
             <TextInput
@@ -660,9 +718,7 @@ export default function AdminItems() {
             <TouchableOpacity style={s.sheetCancel} onPress={() => setEditTarget(null)} activeOpacity={0.8}>
               <Text style={s.sheetCancelText}>ยกเลิก</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
 
       {busy && !retireTarget && !editTarget && (
         <View style={s.busyOverlay} pointerEvents="none">
@@ -772,19 +828,6 @@ const s = StyleSheet.create({
     borderColor: "#DCE6F5",
   },
   editLabel: { fontSize: 13, fontWeight: "800", color: C.ink, marginTop: 4 },
-  editError: { fontSize: 12.5, color: C.red, fontWeight: "700" },
-  inputError: { ...NG, borderColor: C.red, backgroundColor: "#fef2f2" },
-  editChips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  editChip: {
-    minHeight: 36,
-    justifyContent: "center",
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: C.purpleSoft,
-    backgroundColor: "#EEF5FF",
-  },
-  editChipText: { fontSize: 13, fontWeight: "700", color: C.purple },
   chipManage: { borderStyle: "dashed", borderColor: C.purpleSoft, backgroundColor: "#EEF5FF" },
   chipActive: {
     ...NG,
@@ -1013,4 +1056,36 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
   },
+});
+
+// จอใหญ่ (เว็บบนคอม)
+const d = StyleSheet.create({
+  page: { flex: 1, padding: 28, gap: 16, maxWidth: 1280, width: "100%", alignSelf: "center" },
+  head: { flexDirection: "row", alignItems: "center", gap: 10 },
+  title: { fontSize: 26, fontWeight: "900", color: C.ink },
+  sub: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  search: { flexDirection: "row", alignItems: "center", gap: 8, width: 320, height: 40, borderRadius: 12, borderWidth: 1, borderColor: "#DCE6F5", backgroundColor: "#fff", paddingHorizontal: 12 },
+  searchInput: { flex: 1, fontSize: 14, color: C.ink, height: 38 },
+  btn: { flexDirection: "row", alignItems: "center", gap: 6, height: 40, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: "#DCE6F5", backgroundColor: "#fff" },
+  btnText: { fontSize: 13, fontWeight: "700", color: C.purple },
+  btnPrimary: { flexDirection: "row", alignItems: "center", gap: 6, height: 40, paddingHorizontal: 14, borderRadius: 12, backgroundColor: C.purple },
+  btnPrimaryText: { fontSize: 13.5, fontWeight: "800", color: "#fff" },
+  hover: { backgroundColor: "#F3F7FD" },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1, borderColor: "#DCE6F5", backgroundColor: "#fff" },
+  chipOn: { backgroundColor: C.purple, borderColor: C.purple },
+  chipText: { fontSize: 12.5, fontWeight: "700", color: "#475569" },
+  chipCount: { fontSize: 12, fontWeight: "700", color: "#94A3B8" },
+  table: { flex: 1, backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: "#DCE6F5", overflow: "hidden" },
+  tr: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
+  trHead: { backgroundColor: "#FAFCFF", paddingVertical: 9 },
+  th: { fontSize: 11.5, fontWeight: "700", color: "#94A3B8" },
+  td: { fontSize: 13.5, color: C.ink },
+  code: { fontWeight: "800" },
+  muted: { color: "#64748B", fontSize: 12.5 },
+  icon: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  pill: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
+  pillText: { fontSize: 11.5, fontWeight: "800" },
+  empty: { alignItems: "center", paddingVertical: 50, gap: 8 },
+  emptyText: { fontSize: 13.5, color: "#64748B", fontWeight: "600" },
 });

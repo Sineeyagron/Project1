@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Modal,
 } from "react-native";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,12 +21,15 @@ import { useRoomLive } from "../../lib/roomRealtime";
 import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import { desktopBody, useIsDesktop } from "../../lib/layout";
+import BottomSheet from "../../components/BottomSheet";
 
 // กด port = เปลี่ยนสถานะวนตามลำดับนี้
 const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
 const MAX_PORT = 12; // Server 1 เครื่องมี LAN 12 ช่อง
 
 export default function AdminLanPorts() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → port แถวละ 6
   // TA เปลี่ยนสถานะได้อย่างเดียว — เพิ่ม/ลบ port = admin (ฐานข้อมูลกันจริง)
   const isAdmin = useRole().role === "admin";
   const { room_id: roomParam } = useLocalSearchParams<{ room_id?: string }>(); // เปิดจากการ์ดห้อง → เลือกห้องนั้น
@@ -44,7 +46,7 @@ export default function AdminLanPorts() {
   // ห้อง/กลุ่มล่าสุดที่เลือก — กันผลโหลดเก่า (ตอบช้า) มาทับตอนสลับเร็วๆ
   const viewRef = useRef("");
 
-  // Modal เพิ่ม port
+  // แผ่นเพิ่ม port
   const [addModal, setAddModal]   = useState(false);
   const [newPortNo, setNewPortNo] = useState("");
   const [newLabel, setNewLabel]   = useState("");
@@ -211,7 +213,7 @@ export default function AdminLanPorts() {
       {loading ? (
         <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
       ) : (
-        <ScrollView contentContainerStyle={styles.scroll}
+        <ScrollView contentContainerStyle={[styles.scroll, isDesktop && desktopBody.wide]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D4ED8" />}>
 
           {!!loadError && <LoadError message={loadError} onRetry={retry} />}
@@ -243,7 +245,7 @@ export default function AdminLanPorts() {
                 return (
                   <TouchableOpacity
                     key={port.id}
-                    style={[styles.portCell, { backgroundColor: cfg.bg, borderColor: cfg.color + "50" }]}
+                    style={[styles.portCell, { backgroundColor: cfg.bg, borderColor: cfg.color + "50" }, isDesktop && { width: "15.5%" }]}
                     onPress={() => !isSaving && toggleStatus(port)}
                     onLongPress={isAdmin ? () => deletePort(port) : undefined}
                     disabled={isSaving}
@@ -271,9 +273,7 @@ export default function AdminLanPorts() {
       )}
 
       {/* ADD MODAL */}
-      <Modal visible={addModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalBox}>
+      <BottomSheet visible={addModal} onClose={() => setAddModal(false)} style={styles.modalBox}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>เพิ่ม Port ใหม่</Text>
               <TouchableOpacity onPress={() => setAddModal(false)}>
@@ -307,9 +307,7 @@ export default function AdminLanPorts() {
                 : <Text style={styles.addBtnTxt}>เพิ่ม Port</Text>
               }
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
 
     </View>
   );

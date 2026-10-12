@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import {
   ActivityIndicator,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,12 +10,15 @@ import {
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
+import { fetchRoomPeople } from "../../lib/roomPeople";
 import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRealtime } from "../../lib/realtime";
 import LoadError from "../../components/LoadError";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import BottomSheet from "../../components/BottomSheet";
+import { desktopGrid, useIsDesktop } from "../../lib/layout";
 
 // คิวคำแจ้งปัญหาจากนักศึกษา (ระบบห้อง R3) — Admin/TA รับเป็นงานซ่อม หรือปิดพร้อมเหตุผล
 // ตัดสินผ่าน RPC decide_room_report (รับเครื่อง = สร้างงานซ่อม + เครื่องเป็น "กำลังซ่อม" / รับ LAN = port เป็น "กำลังซ่อม")
@@ -55,6 +57,7 @@ function timeText(d: string) {
 }
 
 export default function RoomReports() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → การ์ด 2 คอลัมน์
   const [reports, setReports] = useState<Report[]>([]);
   const [names, setNames] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<FilterKey>("open");
@@ -82,13 +85,10 @@ export default function RoomReports() {
     setLoadError("");
     const list = (data as Report[]) || [];
     setReports(list);
-    // ชื่อผู้แจ้ง/ผู้จัดการ (ส่วนหน้า @ ของอีเมล)
+    // ชื่อผู้แจ้ง/ผู้จัดการ ("ชื่อ · รหัส นศ." — lib/roomPeople ของระบบห้อง)
     const ids = [...new Set(list.flatMap((r) => [r.reported_by, r.handled_by]).filter(Boolean))] as string[];
     if (ids.length) {
-      const { data: people } = await supabase.from("profiles").select("id, email").in("id", ids);
-      const map: Record<string, string> = {};
-      (people || []).forEach((p: any) => { map[p.id] = (p.email || "").split("@")[0]; });
-      setNames(map);
+      setNames(await fetchRoomPeople(ids));
     }
   };
 
@@ -141,6 +141,11 @@ export default function RoomReports() {
     load();
   };
 
+  // แผ่นค่อยๆ เลื่อนลงหลังกดยกเลิก/บันทึก (decision = null แล้ว) → แสดงค่าล่าสุดต่อ ไม่ให้ข้อความเปลี่ยนแวบ
+  const lastDecision = useRef(decision);
+  if (decision) lastDecision.current = decision;
+  const shownDecision = decision ?? lastDecision.current;
+
   return (
     <View style={s.container}>
       <ScreenHeader
@@ -164,12 +169,12 @@ export default function RoomReports() {
         <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />
       ) : (
         <ScrollView
-          contentContainerStyle={s.list}
+          contentContainerStyle={[s.list, isDesktop && desktopGrid.list]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor="#2563EB" />}
         >
-          {!!loadError && <LoadError message={loadError} onRetry={load} />}
+          {!!loadError && <View style={desktopGrid.full}><LoadError message={loadError} onRetry={load} /></View>}
           {!loadError && shown.length === 0 ? (
-            <View style={s.empty}>
+            <View style={[s.empty, desktopGrid.full]}>
               <Ionicons name="checkmark-done-outline" size={44} color="#cbd5e1" />
               <Text style={s.emptyText}>{filter === "open" ? "ไม่มีคำแจ้งรอตรวจ" : "ไม่มีรายการ"}</Text>
             </View>
@@ -178,7 +183,7 @@ export default function RoomReports() {
           {shown.map((r) => {
             const cfg = STATUS_CFG[r.status];
             return (
-              <View key={r.id} style={s.card}>
+              <View key={r.id} style={[s.card, isDesktop && desktopGrid.item]}>
                 <View style={s.cardTop}>
                   <View style={[s.kindIcon, { backgroundColor: r.kind === "lan" ? "#DBEAFE" : "#dbeafe" }]}>
                     <Ionicons name={r.kind === "lan" ? "git-network-outline" : "desktop-outline"} size={18} color={r.kind === "lan" ? "#2563EB" : "#1d4ed8"} />
@@ -217,19 +222,17 @@ export default function RoomReports() {
         </ScrollView>
       )}
 
-      <Modal visible={!!decision} transparent animationType="slide">
-        <View style={s.overlay}>
-          <View style={s.modalBox}>
+      <BottomSheet visible={!!decision} onClose={() => { if (!saving) setDecision(null); }} style={s.modalBox}>
             <Text style={s.modalTitle}>
-              {decision?.accept ? "รับเป็นงานซ่อม" : "ปิดคำแจ้ง"} · {decision?.report.room_id} {decision?.report.label}
+              {shownDecision?.accept ? "รับเป็นงานซ่อม" : "ปิดคำแจ้ง"} · {shownDecision?.report.room_id} {shownDecision?.report.label}
             </Text>
-            <Text style={s.modalDesc}>"{decision?.report.description}"</Text>
-            <Text style={s.fieldLabel}>{decision?.accept ? "หมายเหตุ (ไม่บังคับ)" : "เหตุผล * (ผู้แจ้งจะเห็น)"}</Text>
+            <Text style={s.modalDesc}>"{shownDecision?.report.description}"</Text>
+            <Text style={s.fieldLabel}>{shownDecision?.accept ? "หมายเหตุ (ไม่บังคับ)" : "เหตุผล * (ผู้แจ้งจะเห็น)"}</Text>
             <TextInput
               style={s.input}
               value={note}
               onChangeText={setNote}
-              placeholder={decision?.accept ? "เช่น จะเข้าไปดูพรุ่งนี้" : "เช่น เครื่องปกติ ลองรีสตาร์ทแล้วใช้ได้"}
+              placeholder={shownDecision?.accept ? "เช่น จะเข้าไปดูพรุ่งนี้" : "เช่น เครื่องปกติ ลองรีสตาร์ทแล้วใช้ได้"}
               placeholderTextColor="#94a3b8"
               multiline
               maxLength={300}
@@ -239,18 +242,16 @@ export default function RoomReports() {
                 <Text style={s.closeBtnText}>ยกเลิก</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[decision?.accept ? s.acceptBtn : s.rejectBtn, saving && { opacity: 0.6 }]}
+                style={[shownDecision?.accept ? s.acceptBtn : s.rejectBtn, saving && { opacity: 0.6 }]}
                 onPress={submitDecision}
                 disabled={saving}
               >
                 {saving ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={s.acceptBtnText}>{decision?.accept ? "ยืนยันรับเรื่อง" : "ยืนยันปิด"}</Text>
+                  <Text style={s.acceptBtnText}>{shownDecision?.accept ? "ยืนยันรับเรื่อง" : "ยืนยันปิด"}</Text>
                 )}
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }

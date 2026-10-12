@@ -32,6 +32,7 @@ const TA_ROUTES = new Set([
   "/admin/inspection",
   "/admin/repairs",
   "/admin/roomreports", // คิวคำแจ้งปัญหาจากนักศึกษา (R3)
+  "/admin/notifications", // แจ้งเตือนผู้ดูแลบนเว็บจอใหญ่ (หน้าเดียวกับ /notifications)
 ]);
 
 // ตรวจเฉพาะหน้าใน /admin — หน้าอื่น (แจ้งเตือน, หน้านักศึกษา) เป็นของทุกคน ไม่ใช่เรื่องของด่านนี้

@@ -11,6 +11,7 @@ import { Text } from "../components/AppText";
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
+import { fetchRoomPeople } from "../lib/roomPeople";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { EQUIP_STATUS, LAN_STATUS, STATION_STATUS, naturalNo, roomStatus } from "../lib/roomStatus";
 import LoadError from "../components/LoadError";
@@ -32,7 +33,8 @@ const EQUIP_LABELS: Record<string, string> = {
 };
 
 export default function RoomMap() {
-  const { room_id } = useLocalSearchParams<{ room_id: string }>();
+  // from=admin = เปิดจากหน้าผู้ดูแล (admin/room) → มีเครื่องมือแก้ / ไม่มี = โหมดนักศึกษา (ดูอย่างเดียว แม้เป็น TA/Admin)
+  const { room_id, from } = useLocalSearchParams<{ room_id: string; from?: string }>();
   // ไม่ได้ส่งห้องมา → ใช้ห้องแรกจากตาราง rooms (เดิมฟิก "CP9524")
   const [roomName, setRoomName] = useState(room_id ? String(room_id) : "");
   const [roomInfo, setRoomInfo] = useState<Room | null>(null);
@@ -61,15 +63,17 @@ export default function RoomMap() {
   const [compModal, setCompModal] = useState(false);
   const [selectedStation, setSelectedStation] = useState<any>(null);
 
-  // Admin/TA: แก้เช็กลิสต์ตรงได้ + เห็นประวัติการเปลี่ยนสถานะ (RLS: staff เท่านั้น)
-  const [isStaff, setIsStaff] = useState(false);
+  // Admin/TA ที่เปิดจากหน้าผู้ดูแล: แก้เช็กลิสต์ตรงได้ + เห็นประวัติการเปลี่ยนสถานะ (RLS: staff เท่านั้น)
+  const [isStaffRole, setIsStaffRole] = useState(false);
+  const isStaff = isStaffRole && from === "admin";
   const [stationLog, setStationLog] = useState<any[]>([]);
   const [equipSaving, setEquipSaving] = useState<string | null>(null);
   // เป้าหมายที่กำลังกรอกคำแจ้งปัญหา (เครื่อง หรือ LAN port)
   const [reportTarget, setReportTarget] = useState<{ kind: "station" | "lan"; id: string; label: string } | null>(null);
   useEffect(() => {
-    supabase.rpc("is_staff").then(({ data }) => setIsStaff(!!data));
-  }, []);
+    if (from !== "admin") return; // โหมดนักศึกษา ไม่ต้องถาม
+    supabase.rpc("is_staff").then(({ data }) => setIsStaffRole(!!data));
+  }, [from]);
 
   // Modal: Server LAN ports
   const [serverModal, setServerModal] = useState(false);
@@ -159,13 +163,9 @@ export default function RoomMap() {
         .from("room_status_log").select("*").eq("station_id", station.id)
         .order("changed_at", { ascending: false }).limit(5);
       const rows = data || [];
-      // ชื่อผู้เปลี่ยน (อีเมลส่วนหน้า @)
-      const ids = [...new Set(rows.map((row: any) => row.changed_by).filter(Boolean))];
-      const names: Record<string, string> = {};
-      if (ids.length) {
-        const { data: people } = await supabase.from("profiles").select("id, email").in("id", ids);
-        (people || []).forEach((p: any) => { names[p.id] = (p.email || "").split("@")[0]; });
-      }
+      // ชื่อผู้เปลี่ยน ("ชื่อ · รหัส นศ." — lib/roomPeople ของระบบห้อง)
+      const ids = [...new Set(rows.map((row: any) => row.changed_by).filter(Boolean))] as string[];
+      const names = await fetchRoomPeople(ids);
       setStationLog(rows.map((row: any) => ({ ...row, who: names[row.changed_by] || "ระบบ" })));
     }
   };
@@ -454,7 +454,7 @@ export default function RoomMap() {
       </BottomSheet>
 
       {/* ── MODAL: LAN Ports ── */}
-      <BottomSheet visible={serverModal} onClose={() => { setServerModal(false); setReportTarget(null); }} style={[s.modalBox, { maxHeight: "80%" }]}>
+      <BottomSheet visible={serverModal} onClose={() => { setServerModal(false); setReportTarget(null); }} style={s.modalBox}>
             <View style={s.modalHeader}>
               <View>
                 <Text style={s.modalTitle}>Server กลุ่ม {serverGroup}</Text>
@@ -465,7 +465,8 @@ export default function RoomMap() {
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            {/* รากแผ่น iOS เลื่อนได้อยู่แล้ว → ไม่ซ้อน ScrollView */}
+            <View>
               <View style={s.portGrid}>
                 {serverGroupPorts.map(port => {
                   const cfg = roomStatus(LAN_STATUS, port.status);
@@ -500,7 +501,7 @@ export default function RoomMap() {
                 ))}
               </View>
               <View style={{ height: 20 }} />
-            </ScrollView>
+            </View>
 
             <TouchableOpacity style={s.closeBtn} onPress={() => { setServerModal(false); setReportTarget(null); }}>
               <Text style={s.closeBtnTxt}>ปิด</Text>

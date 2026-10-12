@@ -18,7 +18,8 @@ function getGreeting(date = new Date()) {
   return { text: "สวัสดีตอนดึก", icon: "moon-outline", color: "#1D4ED8" };
 }
 
-export default function GreetingLine({ roleLabel }: { roleLabel?: string }) {
+// dot = สีจุด: "green" (ค่าเริ่มต้น) / "red" — แดชบอร์ดผู้ดูแลใช้บอกสถานะเช็กอิน (F4: ยังไม่เช็กอิน = แดง)
+export default function GreetingLine({ roleLabel, dot = "green" }: { roleLabel?: string; dot?: "green" | "red" }) {
   const greeting = useMemo(() => getGreeting(), []);
   const weather = useWeather();
   return (
@@ -32,7 +33,7 @@ export default function GreetingLine({ roleLabel }: { roleLabel?: string }) {
         </View>
       ) : null}
       {roleLabel ? <Text style={s.greet}>· {roleLabel}</Text> : null}
-      <OnlineDot />
+      <OnlineDot tone={dot} />
     </View>
   );
 }
@@ -54,7 +55,14 @@ function useConnected() {
 }
 
 // จุดเขียวกระพริบ = ออนไลน์ (วงแสงขยายแล้วจางหาย วนไปเรื่อย ๆ) / จุดเทานิ่ง = ขาดการเชื่อมต่อ
-function OnlineDot() {
+// แดงตัดกับพื้นขาวชัดกว่าเขียว → ลดความเข้มวงแสง/เงาของสีแดง ให้ดูขนาดเท่ากัน (ขนาดจริงเท่ากันอยู่แล้ว)
+const DOT_COLOR = {
+  green: { fill: "#22C55E", glow: "0 0 6px rgba(34,197,94,0.7)", ring: 0.6 },
+  red: { fill: "#EF4444", glow: "0 0 3px rgba(239,68,68,0.45)", ring: 0.3 },
+};
+
+function OnlineDot({ tone }: { tone: "green" | "red" }) {
+  const c = DOT_COLOR[tone];
   const online = useConnected();
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -81,13 +89,14 @@ function OnlineDot() {
       <Animated.View
         style={[
           s.onlineRing,
+          { backgroundColor: c.fill },
           {
-            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] }),
+            opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [c.ring, 0] }),
             transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1.5] }) }],
           },
         ]}
       />
-      <Animated.View style={[s.onlineDot, { opacity: pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.35, 1] }) }]} />
+      <Animated.View style={[s.onlineDot, { backgroundColor: c.fill, boxShadow: c.glow }, { opacity: pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.35, 1] }) }]} />
     </View>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -64,8 +65,8 @@ export default function StudentIdScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+    <View style={s.container}>
+      <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
         <View style={s.hero}>
           <View style={iconDot(C.primary, 64)}>
             <Ionicons name="id-card-outline" size={30} color="#FFFFFF" />
@@ -117,8 +118,8 @@ export default function StudentIdScreen() {
         <TouchableOpacity onPress={logout} style={s.logout} activeOpacity={0.8}>
           <Text style={s.logoutText}>ไม่ใช่บัญชีของคุณ? ออกจากระบบ</Text>
         </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

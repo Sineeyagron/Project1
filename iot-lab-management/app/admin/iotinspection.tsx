@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -18,6 +17,8 @@ import { notify } from "../../lib/notify";
 import { goBack } from "../../lib/nav";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import { desktopBody, desktopGrid, useIsDesktop } from "../../lib/layout";
+import BottomSheet from "../../components/BottomSheet";
 
 const C = {
   bg: "#f4f4f7",
@@ -115,6 +116,7 @@ function relativeInspection(value?: string) {
 }
 
 export default function IotInspectionPage() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → การ์ด 2 คอลัมน์
   const router = useRouter();
 
   const [term, setTerm] = useState(currentTerm());
@@ -256,7 +258,7 @@ export default function IotInspectionPage() {
       </View>
 
       <ScrollView
-        contentContainerStyle={s.body}
+        contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
@@ -289,11 +291,11 @@ export default function IotInspectionPage() {
                 <Text style={s.emptyText}>ไม่พบอุปกรณ์ในสถานะนี้</Text>
               </View>
             ) : (
-              <View style={s.list}>
+              <View style={[s.list, isDesktop && desktopGrid.list]}>
                 {filteredItems.map(({ item, inspection, condition, cfg }) => (
                   <TouchableOpacity
                     key={item.id}
-                    style={s.itemCard}
+                    style={[s.itemCard, isDesktop && desktopGrid.item]}
                     onPress={() => openForm(item, condition, inspection)}
                     activeOpacity={0.86}
                   >
@@ -331,9 +333,7 @@ export default function IotInspectionPage() {
         )}
       </ScrollView>
 
-      <Modal visible={formModal} transparent animationType="slide">
-        <View style={s.modalOverlay}>
-          <View style={s.modalBox}>
+      <BottomSheet visible={formModal} onClose={() => setFormModal(false)} style={s.modalBox}>
             <View style={s.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={s.modalTitle}>{formItem?.name || "อุปกรณ์"}</Text>
@@ -381,9 +381,7 @@ export default function IotInspectionPage() {
                 </>
               )}
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }

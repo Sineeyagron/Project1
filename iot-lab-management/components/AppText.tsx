@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text as RNText, TextInput as RNTextInput, TextInputProps, TextProps, TextStyle } from "react-native";
+import { Platform, StyleSheet, Text as RNText, TextInput as RNTextInput, TextInputProps, TextProps, TextStyle } from "react-native";
 
 // ฟอนต์เดียวทั้งแอป: Noto Sans Thai (มีทั้งอักษรไทยและอังกฤษในชุดเดียว)
 // ฟอนต์ที่โหลดเองแยกไฟล์ตามความหนา → แปลง fontWeight เป็นชื่อไฟล์ฟอนต์ให้อัตโนมัติ
@@ -43,12 +43,21 @@ function hasThai(children: React.ReactNode): boolean {
 
 const InsideText = React.createContext(false);
 
+// เว็บ: ข้อความเลือก/วางเคอร์เซอร์ไม่ได้ เหมือนแอปมือถือ (เดิมคลิกตรงไหนก็มีเคอร์เซอร์กะพริบ) — ใส่ selectable เพื่อให้เลือกได้
+const WEB_STATIC = Platform.OS === "web" ? ({ userSelect: "none" } as any) : null;
+
 export function Text(props: TextProps) {
   const inside = React.useContext(InsideText);
-  const text = <RNText {...props} style={withFont(props.style, inside, hasThai(props.children))} />;
+  const style = withFont(props.style, inside, hasThai(props.children));
+  const text = <RNText {...props} style={WEB_STATIC && !props.selectable && !inside ? [WEB_STATIC, style] : style} />;
   return inside ? text : <InsideText.Provider value>{text}</InsideText.Provider>;
 }
 
-export function TextInput(props: TextInputProps) {
-  return <RNTextInput {...props} style={withFont(props.style, false)} />;
-}
+// เว็บ: ปิดกรอบโฟกัสดำของเบราว์เซอร์ — ช่องพิมพ์ในแอปมีขอบฟ้าตอนโฟกัสของตัวเองอยู่แล้ว (ซ้อนกันดูเป็นกรอบดำ)
+const NO_WEB_OUTLINE = Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null;
+
+// forwardRef: หน้าที่ต้องสั่งโฟกัสเอง (ref.current.focus()) ใช้ได้
+export const TextInput = React.forwardRef<RNTextInput, TextInputProps>((props, ref) => (
+  <RNTextInput ref={ref} {...props} style={[withFont(props.style, false), NO_WEB_OUTLINE]} />
+));
+TextInput.displayName = "TextInput";

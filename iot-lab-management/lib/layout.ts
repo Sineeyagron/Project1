@@ -1,0 +1,41 @@
+import { Platform, StyleSheet, useWindowDimensions } from "react-native";
+
+// แบบจอใหญ่ (คอม) สำหรับหน้า admin/TA — เจ้าของโปรเจกต์เลือก 12 ต.ค. 2569
+//   แอปมือถือคือหลัก: มือถือทุกแบบ (แอป + PWA) ใช้หน้าตาเดิมเสมอ / จอใหญ่ = ของเสริมเฉพาะหน้า admin
+//   ตัดสินจาก "ความกว้างจอบนเว็บ" ที่นี่ที่เดียว — ห้ามเช็กเองในแต่ละหน้า
+export const DESKTOP_MIN_WIDTH = 1024;
+// ความกว้างแอปแบบมือถือเมื่อเปิดบนจอกว้าง (หน้า นศ. + หน้า admin ที่ยังไม่มีแบบจอใหญ่)
+export const PHONE_COLUMN_WIDTH = 480;
+// หน้า admin ที่ยังไม่มีแบบจอใหญ่ของตัวเอง: แสดงแบบมือถือแต่กว้างขึ้นให้อ่านสบายบนคอม
+export const ADMIN_COLUMN_WIDTH = 760;
+
+export function useIsDesktop() {
+  const { width } = useWindowDimensions();
+  return Platform.OS === "web" && width >= DESKTOP_MIN_WIDTH;
+}
+
+// หน้า admin ที่ทำแบบจอใหญ่แล้ว (ใช้เต็มพื้นที่ขวาของเมนู) — หน้าอื่นแสดงแบบมือถือกลางพื้นที่ไปก่อน
+export const ADMIN_DESKTOP_READY = new Set(["/admin", "/admin/home", "/admin/requests", "/admin/items", "/admin/users", "/admin/repairs", "/admin/roomreports", "/admin/history", "/admin/stock", "/admin/report", "/admin/categories", "/admin/settings", "/admin/room", "/admin/stations", "/admin/inspection", "/admin/iotinspection", "/admin/qrgen", "/admin/lanports", "/admin/lookup", "/admin/scan", "/admin/import"]);
+export const isDesktopReady = (path: string) => ADMIN_DESKTOP_READY.has(path.replace(/\/+$/, "") || "/");
+
+// หน้ารายการการ์ดบนจอใหญ่: การ์ดเรียง 2 คอลัมน์ (มือถือไม่ใช้)
+//   ใช้: contentContainerStyle={[s.list, isDesktop && desktopGrid.list]} · การ์ด [s.card, isDesktop && desktopGrid.item]
+//   ของอื่นในรายการ (แถบโหลดพัง/ว่าง/ช่องว่างท้าย) ใส่ desktopGrid.full ให้เต็มแถว
+// หน้าจอใหญ่ทั่วไป: เนื้อหากว้างไม่เกิน 1180 กลางพื้นที่ (ใส่ที่ contentContainerStyle ของหน้า)
+export const desktopBody = StyleSheet.create({
+  wide: { width: "100%", maxWidth: 1180, alignSelf: "center", paddingHorizontal: 28 },
+});
+
+// 2 คอลัมน์ (side = แคบ / main = กว้าง / half = ครึ่ง)
+export const desktopCols = StyleSheet.create({
+  row: { flexDirection: "row", gap: 18, alignItems: "flex-start" },
+  side: { flex: 1, minWidth: 0, gap: 10 },
+  main: { flex: 1.6, minWidth: 0, gap: 10 },
+  half: { flex: 1, minWidth: 0, gap: 10 },
+});
+
+export const desktopGrid = StyleSheet.create({
+  list: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-start", width: "100%", maxWidth: 1180, alignSelf: "center" },
+  item: { width: "49.2%" },
+  full: { width: "100%" },
+});

@@ -23,6 +23,7 @@ import { W } from "../lib/theme";
 import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 import { haptic } from "../components/Motion";
 import TabBar from "../components/TabBar";
+import WebPushCard from "../components/WebPushCard";
 import { refreshUnreadCount } from "../lib/unread";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
@@ -53,6 +54,12 @@ const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; d
   room_report:          { icon: "megaphone-outline",        iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
   room_report_accepted: { icon: "construct-outline",        iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
   room_report_closed:   { icon: "chatbox-ellipses-outline", iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
+  // F2 ขอยืมแบบนัดรับ (ถึงผู้ขอ) → เปิดหน้าการยืมของฉัน
+  pickup_scheduled: { icon: "calendar-outline",       iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
+  pickup_declined:  { icon: "close-circle-outline",   iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+  pickup_expired:   { icon: "time-outline",           iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
+  pickup_cancelled: { icon: "ban-outline",            iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
+  pickup_no_show:   { icon: "alert-circle-outline",   iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
 };
 
 // แจ้งเตือนประกัน/อายุ → เปิดรายงานสต็อก ตรงกลุ่ม "ต้องดูแล" นั้น
@@ -65,6 +72,10 @@ const STOCK_WATCH: Record<string, string> = {
 
 // ประเภทที่ผู้ดูแลต้องไปจัดการในกล่องคำขอ
 const STAFF_TYPES = new Set(["request_borrow", "request_return", "request_renew", "auto_returned", "overdue"]);
+
+// งานผู้ดูแล = for_staff (+ แจ้งสิทธิ์ TA) / โหมดนักศึกษา = เรื่องของตัวเอง — คอลัมน์ for_staff คำนวณในฐานข้อมูล
+const modeFilter = <Q extends { or: (f: string) => Q; eq: (c: string, v: any) => Q }>(q: Q, staffMode: boolean | null) =>
+  staffMode ? q.or("for_staff.eq.true,type.eq.role_changed") : q.eq("for_staff", false);
 
 const formatDateTime = (d: string) => {
   if (!d) return "";
@@ -97,19 +108,28 @@ export default function Notifications() {
   const showTabBar = tab === "1" || isStaff === false;
   const prevNewestRef = useRef("");
   const isFirstLoad = useRef(true);
+  // TA/Admin มีสองโหมดใช้กล่องเดียวกัน → แยกรายการ (เดิมซ้ำกันทั้งสองโหมด)
+  //   มาจากแถบเมนูล่าง (?tab=1) = โหมดนักศึกษา: เรื่องของตัวเอง / มาจากกระดิ่งแดชบอร์ด = งานผู้ดูแล + สิทธิ์ TA
+  const staffModeRef = useRef<boolean | null>(null);
 
   const fetchNotifications = useCallback(async (silent = false) => {
     const user = await currentUser();
     if (!user) { setLoading(false); return; }
-    if (isFirstLoad.current) {
-      const { data: staff } = await supabase.rpc("is_staff");
-      setIsStaff(!!staff);
+    // ครั้งแรก: รู้โหมดก่อนค่อยโหลด (โหมดนักศึกษารู้จาก ?tab=1 เลย ไม่ต้องรอ)
+    if (staffModeRef.current === null) {
+      if (tab === "1") {
+        staffModeRef.current = false;
+        supabase.rpc("is_staff").then(({ data: staff }) => setIsStaff(!!staff));
+      } else {
+        const { data: staff } = await supabase.rpc("is_staff");
+        setIsStaff(!!staff);
+        staffModeRef.current = !!staff;
+      }
     }
-
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", user.id)
+    const { data } = await modeFilter(
+      supabase.from("notifications").select("*").eq("user_id", user.id),
+      staffModeRef.current,
+    )
       .order("created_at", { ascending: false })
       .limit(50);
 
@@ -127,7 +147,7 @@ export default function Notifications() {
     setNotifications(list);
     if (!silent) { setLoading(false); setRefreshing(false); }
     else setLoading(false);
-  }, []);
+  }, [tab]);
 
   // อัปเดตจอทันที (ไฮไลต์ยังไม่อ่านค่อย ๆ จางหาย + สั่นเบา ๆ) แล้วค่อยบันทึกลงฐานข้อมูลเบื้องหลัง — พลาดก็โหลดใหม่
   const markAllRead = async () => {
@@ -137,8 +157,11 @@ export default function Notifications() {
     haptic("success");
     const user = await currentUser();
     if (!user) return;
-    const { error } = await supabase.from("notifications").update({ read: true })
-      .eq("user_id", user.id).eq("read", false);
+    // อ่านแล้วเฉพาะรายการของโหมดนี้ (อีกโหมดยังนับค้างไว้)
+    const { error } = await modeFilter(
+      supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false),
+      !!staffModeRef.current,
+    );
     if (error) fetchNotifications(true);
     refreshUnreadCount(); // เลขบนกระดิ่งแถบล่าง
   };
@@ -191,6 +214,8 @@ export default function Notifications() {
 
   // กดแจ้งเตือน → อ่านแล้ว + ไปหน้าที่เกี่ยวข้อง
   const openNotification = async (n: any) => {
+    // โหมดนักศึกษา = ทำตัวเป็นนักศึกษา ไม่พาเข้าหน้าผู้ดูแล
+    const staffMode = !!staffModeRef.current;
     if (!n.read) {
       // ไม่ต้องรอฐานข้อมูลก่อนเปิดหน้าถัดไป
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
@@ -198,16 +223,16 @@ export default function Notifications() {
     }
     // ระบบห้องคอม: ผู้ดูแล → คิวคำแจ้ง / ผู้แจ้ง → อ่านผลในข้อความพอ ไม่พาไปหน้าการยืม
     if (n.type === "room_report") {
-      if (isStaff) router.push("/admin/roomreports" as any);
+      if (staffMode) router.push("/admin/roomreports" as any);
       return;
     }
     if (n.type === "room_report_accepted" || n.type === "room_report_closed") return;
     if (n.type === "role_changed") {
       // ด่านหน้า admin เช็กสิทธิ์ล่าสุดเอง: ได้ TA → เข้าได้ / ถูกถอด → พากลับหน้านักศึกษา
       router.replace("/admin/home");
-    } else if (isStaff && STOCK_WATCH[n.type]) {
+    } else if (staffMode && STOCK_WATCH[n.type]) {
       router.push(`/admin/stock?watch=${STOCK_WATCH[n.type]}` as any);
-    } else if (isStaff && STAFF_TYPES.has(n.type) && !(await isMyLoan(n))) {
+    } else if (staffMode && STAFF_TYPES.has(n.type) && !(await isMyLoan(n))) {
       router.push((n.request_id ? `/admin/requests?id=${n.request_id}` : "/admin/requests") as any);
     } else if (n.type !== "borrow" && n.type !== "return") {
       router.push("/borrow");
@@ -226,6 +251,9 @@ export default function Notifications() {
         onBack={() => goBack(isStaff ? "/admin/home" : "/home")}
         right={unreadCount > 0 ? <HeaderButton icon="checkmark-done-outline" label="อ่านทั้งหมด" onPress={markAllRead} /> : null}
       />
+
+      {/* เว็บ/PWA: เปิด-ปิด Web Push บนเครื่องนี้ (แอปมือถือไม่แสดง) */}
+      <WebPushCard />
 
       {/* new banner */}
       {newCount > 0 && (

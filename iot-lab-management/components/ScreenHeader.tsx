@@ -2,7 +2,10 @@ import React, { forwardRef } from "react";
 import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./AppText";
+import { usePathname } from "expo-router";
 import { BADGE_TEXT, C, W } from "../lib/theme";
+import { useIsDesktop } from "../lib/layout";
+import { isAdminPath } from "../lib/roles";
 
 // หัวหน้าแบบเดียวกันทุกหน้า (หน้าที่มีปุ่มย้อนกลับ): แถบหัวบางเต็มความกว้าง
 // [ปุ่ม ←] [ชื่อหน้า + บรรทัดรอง อยู่กลาง] [ปุ่มขวา 1 ปุ่ม หรือช่องว่าง]
@@ -23,6 +26,9 @@ export default function ScreenHeader({
   bleed?: number;
   style?: StyleProp<ViewStyle>;
 }) {
+  // จอใหญ่หน้า admin มีเมนูซ้ายถาวร (components/desktop/AdminShell) → ไม่ต้องมีปุ่ม ←
+  const desktopAdmin = useIsDesktop() && isAdminPath(usePathname());
+  if (desktopAdmin) onBack = undefined;
   return (
     <View style={[s.wrap, bleed ? { marginHorizontal: -bleed } : null, style]}>
       <View style={s.side}>

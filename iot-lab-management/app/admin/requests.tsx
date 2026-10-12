@@ -5,11 +5,11 @@ import {
   Image,
   Modal,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -17,12 +17,16 @@ import supabase from "../../lib/supabase";
 import { isMissingColumn, who } from "../../lib/people";
 import { useRealtime } from "../../lib/realtime";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
-import { notify } from "../../lib/notify";
+import { notify, DialogHost } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import Countdown from "../../components/Countdown";
 import { useRole } from "../../lib/roles";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
+import PickupInbox from "../../components/PickupInbox";
+import BottomSheet from "../../components/BottomSheet";
+import RequestsDesktop from "../../components/desktop/RequestsDesktop";
+import { useIsDesktop } from "../../lib/layout";
 
 // กล่องคำขอของผู้ดูแล: อนุมัติ / ปฏิเสธ คำขอยืม-คืน-ยืมต่อ (แผน 2.4, 2.6)
 // การตัดสินทั้งหมดผ่าน RPC decide_request (ตรวจสิทธิ์ + ล็อกแถวในฐานข้อมูล)
@@ -61,7 +65,7 @@ const SELECT = `
   borrow_locations(name),
   requester:profiles!borrow_requests_user_id_fkey(email, full_name, student_id),
   decider:profiles!borrow_requests_decided_by_fkey(email),
-  record:borrow_records!borrow_requests_borrow_record_id_fkey(due_date, renew_count, borrow_photo_path)
+  record:borrow_records!borrow_requests_borrow_record_id_fkey(due_date, renew_count, borrow_photo_path, borrow_date)
 `;
 // ยังไม่ได้รัน migration profile_student_id → ไม่มี full_name/student_id: ใช้ชุดเดิม (อีเมล) ให้กล่องคำขอยังใช้ได้
 const SELECT_LEGACY = SELECT.replace("(email, full_name, student_id)", "(email)");
@@ -83,8 +87,11 @@ export default function AdminRequests() {
   const router = useRouter();
   const { role, userId } = useRole();
   const { id: focusId } = useLocalSearchParams<{ id?: string }>();
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → รายการซ้าย + รายละเอียดขวา (components/desktop/RequestsDesktop)
 
-  const [tab, setTab] = useState<"pending" | "history">("pending");
+  const [tab, setTab] = useState<"pending" | "pickup" | "history">("pending");
+  // F2 คำขอนัดรับที่รอนัดเวลา (เลขบนแท็บ)
+  const [pickupCount, setPickupCount] = useState(0);
   const [pending, setPending] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
@@ -98,14 +105,17 @@ export default function AdminRequests() {
   const signedAtRef = useRef(0);
 
   const load = useCallback(async () => {
-    // ปล่อยคำขอที่หมดเวลาก่อน จะได้ไม่เห็นรายการที่ตัดสินไม่ได้แล้ว
-    await supabase.rpc("expire_requests");
+    // ปล่อยคำขอที่หมดเวลาไปพร้อมกับโหลดรายการ (ไม่ต้องรอกันเป็นทอด) — รายการที่หมดเวลาแล้วกรองทิ้งฝั่งแอปด้านล่าง
+    const expiring = supabase.rpc("expire_requests");
     const query = (sel: string) => Promise.all([
       supabase.from("borrow_requests").select(sel).eq("status", "pending").order("created_at", { ascending: true }),
       supabase.from("borrow_requests").select(sel).neq("status", "pending").order("decided_at", { ascending: false }).limit(40),
     ]);
-    let [{ data: p, error }, { data: h }] = await query(SELECT);
+    supabase.from("pickup_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+      .then(({ count }) => setPickupCount(count || 0));
+    let [[{ data: p, error }, { data: h }]] = await Promise.all([query(SELECT), expiring]);
     if (error && isMissingColumn(error)) [{ data: p, error }, { data: h }] = await query(SELECT_LEGACY);
+    p = (p || []).filter((r: any) => !r.expires_at || Date.parse(r.expires_at) > Date.now());
     if (error) notify("โหลดคำขอไม่สำเร็จ", error.message);
 
     const all = [...(p || []), ...(h || [])];
@@ -250,7 +260,7 @@ export default function AdminRequests() {
         {r.kind === "return" && r.record?.borrow_photo_path && (
           <View style={s.compare}>
             <Text style={s.compareLabel}>เทียบรูปตอนยืม</Text>
-            <PhotoThumb path={r.record.borrow_photo_path} code={code} />
+            <PhotoThumb path={r.record.borrow_photo_path} code={code} at={r.record.borrow_date} />
           </View>
         )}
 
@@ -280,17 +290,64 @@ export default function AdminRequests() {
 
   const list = tab === "pending" ? pending : history;
 
+  const zoomModal = (
+    <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={() => setZoom(null)}>
+      <TouchableOpacity style={s.zoomBackdrop} activeOpacity={1} onPress={() => setZoom(null)}>
+        {zoom && (
+          <View style={s.zoomWrap}>
+            <Image source={{ uri: zoom.url }} style={s.zoomImg} resizeMode="contain" />
+            <Text style={s.zoomStamp}>{zoom.stamp}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      <DialogHost />
+    </Modal>
+  );
+
+  if (isDesktop) {
+    return (
+      <View style={{ flex: 1 }}>
+        <RequestsDesktop
+          tab={tab}
+          setTab={setTab}
+          pending={pending}
+          history={history}
+          pickupCount={pickupCount}
+          setPickupCount={setPickupCount}
+          loading={loading}
+          focusId={focusId}
+          role={role}
+          userId={userId}
+          photoUrls={photoUrls}
+          onZoom={setZoom}
+          decision={decision}
+          setDecision={setDecision}
+          decisionReady={decisionReady}
+          saving={saving}
+          onSubmit={submitDecision}
+          onReload={load}
+          KIND={KIND}
+          RESULT={RESULT}
+        />
+        {zoomModal}
+      </View>
+    );
+  }
+
   return (
     <View style={s.container}>
       <ScreenHeader
         title={"กล่องคำขอ"}
-        subtitle={"ยืม · คืน · ยืมต่อ ที่นักศึกษาส่งมา"}
+        subtitle={"ยืม · คืน · ยืมต่อ · นัดรับ ที่นักศึกษาส่งมา"}
         onBack={() => goBack("/admin/home")}
       />
 
       <View style={s.tabs}>
         <TouchableOpacity style={[s.tab, tab === "pending" && s.tabActive]} onPress={() => setTab("pending")} activeOpacity={0.85}>
           <Text style={[s.tabText, tab === "pending" && s.tabTextActive]}>รอดำเนินการ ({pending.length})</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[s.tab, tab === "pickup" && s.tabActive]} onPress={() => setTab("pickup")} activeOpacity={0.85}>
+          <Text style={[s.tabText, tab === "pickup" && s.tabTextActive]}>นัดรับ ({pickupCount})</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[s.tab, tab === "history" && s.tabActive]} onPress={() => setTab("history")} activeOpacity={0.85}>
           <Text style={[s.tabText, tab === "history" && s.tabTextActive]}>ประวัติ</Text>
@@ -300,11 +357,13 @@ export default function AdminRequests() {
       {loading ? (
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 50 }} />
       ) : (
-        <ScrollView
+        <KeyboardAwareScrollView bottomOffset={24}
           contentContainerStyle={s.list}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}
         >
-          {list.length === 0 ? (
+          {tab === "pickup" ? (
+            <PickupInbox role={role} userId={userId} onCount={setPickupCount} />
+          ) : list.length === 0 ? (
             <View style={s.empty}>
               <Ionicons name={tab === "pending" ? "checkmark-done-circle-outline" : "file-tray-outline"} size={50} color="#cbd5e1" />
               <Text style={s.emptyText}>{tab === "pending" ? "ไม่มีคำขอที่รออยู่" : "ยังไม่มีประวัติ"}</Text>
@@ -313,26 +372,15 @@ export default function AdminRequests() {
             list.map((r) => <RequestCard key={r.id} r={r} />)
           )}
           <View style={{ height: 30 }} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
       )}
 
-      {/* ขยายรูป */}
-      <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={() => setZoom(null)}>
-        <TouchableOpacity style={s.zoomBackdrop} activeOpacity={1} onPress={() => setZoom(null)}>
-          {zoom && (
-            <View style={s.zoomWrap}>
-              <Image source={{ uri: zoom.url }} style={s.zoomImg} resizeMode="contain" />
-              <Text style={s.zoomStamp}>{zoom.stamp}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </Modal>
+      {zoomModal}
 
-      {/* อนุมัติ / ปฏิเสธ */}
-      <Modal visible={!!decision} transparent animationType="fade" onRequestClose={() => setDecision(null)}>
-        <View style={s.backdrop}>
+      {/* อนุมัติ / ปฏิเสธ = แผ่น iOS แท้ (components/BottomSheet) */}
+      <BottomSheet visible={!!decision} onClose={() => { if (!saving) setDecision(null); }} style={s.sheet}>
           {decision && (
-            <View style={s.sheet}>
+            <View style={s.sheetBody}>
               <Text style={s.sheetTitle}>
                 {decision.approve
                   ? decision.req.kind === "return" ? "ตรวจสภาพตอนคืน" : `อนุมัติ${KIND[decision.req.kind].label}`
@@ -396,8 +444,7 @@ export default function AdminRequests() {
               </TouchableOpacity>
             </View>
           )}
-        </View>
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }
@@ -476,7 +523,8 @@ const s = StyleSheet.create({
   zoomStamp: { color: "#fff", fontSize: 14, fontWeight: "800" },
 
   backdrop: { flex: 1, backgroundColor: "rgba(15,23,42,0.45)", justifyContent: "flex-end" },
-  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 28, gap: 10 },
+  sheet: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 28 },
+  sheetBody: { gap: 10 },
   sheetTitle: { fontSize: 18, fontWeight: "900", color: C.ink },
   label: { fontSize: 12, fontWeight: "800", color: C.muted },
   chipRow: { flexDirection: "row", gap: 8 },

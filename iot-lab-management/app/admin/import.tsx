@@ -1,14 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -32,6 +31,7 @@ import {
   summary,
 } from "../../lib/importItems";
 import { W, NG } from "../../lib/theme";
+import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 
 // นำเข้าอุปกรณ์จาก CSV (แผนเฟส 2 ข้อ 3) — ตรรกะตรวจทั้งหมดอยู่ใน lib/importItems.ts
@@ -52,13 +52,14 @@ const C = {
 
 const TEMPLATE = [
   ["ชื่อ", "หมวด", "จำนวน", "วันหมดประกัน", "ชื่อย่อ"],
-  ["NodeMCU ESP8266", "Module", "5", "2027-10-31", "NodeMCU"],
+  ["NodeMCU ESP8266", "Module", "5", "31/10/2570", "NodeMCU"],
   ["DHT22 Temperature Sensor", "Sensor", "10", "", "DHT22"],
 ];
 
 type Imported = { id: string; item_code: string; barcode: string };
 
 export default function ImportItems() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
   const router = useRouter();
   const isWeb = Platform.OS === "web";
 
@@ -299,14 +300,14 @@ export default function ImportItems() {
     : [];
 
   return (
-    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <View style={s.container}>
       <ScreenHeader
         title={"นำเข้าจาก CSV"}
         subtitle={"เพิ่มอุปกรณ์ทีละหลายรายการ"}
         onBack={() => goBack("/admin/home")}
       />
 
-      <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
+      <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={[s.body, isDesktop && desktopBody.wide]} keyboardShouldPersistTaps="handled">
         {result ? (
           <View style={s.card}>
             <View style={s.rowCenter}>
@@ -338,6 +339,10 @@ export default function ImportItems() {
           </View>
         ) : (
           <>
+            {isDesktop ? (
+              // จอใหญ่: ซ้าย = เตรียม/เลือกไฟล์ + แก้หมวด · ขวา = ตรวจก่อนบันทึก
+              <View style={desktopCols.row}>
+                <View style={desktopCols.half}>
             {/* 1. เตรียมไฟล์ */}
             <View style={s.card}>
               <Text style={s.stepTitle}>1. เตรียมไฟล์</Text>
@@ -345,7 +350,183 @@ export default function ImportItems() {
                 คอลัมน์: <Text style={s.bold}>ชื่อ</Text> (บังคับ), หมวด, จำนวน, วันหมดประกัน, ชื่อย่อ{"\n"}
                 • หมวดต้องมีในระบบ (สะกดผิดเลือกแก้ในหน้านี้ได้) เว้นว่าง = "{OTHER}"{"\n"}
                 • จำนวน 1–{MAX_PER_ROW} ต่อแถว เว้นว่าง = 1 · รวมไม่เกิน {MAX_TOTAL} ชิ้นต่อครั้ง{"\n"}
-                • วันหมดประกัน ปปปป-ดด-วว หรือ วว/ดด/ปปปป (ปี พ.ศ. แปลงให้) เว้นว่าง = ไม่มีประกัน{"\n"}
+                • วันหมดประกัน วว/ดด/ปปปป ปี พ.ศ. เช่น 31/10/2570 (ปี ค.ศ. / ปปปป-ดด-วว ก็ได้) เว้นว่าง = ไม่มีประกัน{"\n"}
+                • Excel: "บันทึกเป็น" → "CSV UTF-8" · หรือก๊อปเซลล์จาก Excel/Google Sheets มาวาง
+              </Text>
+              <TouchableOpacity style={s.outlineBtn} onPress={shareTemplate} activeOpacity={0.85}>
+                <Ionicons name={isWeb ? "download-outline" : "share-outline"} size={18} color={C.purple} />
+                <Text style={s.outlineText}>{isWeb ? "ดาวน์โหลดไฟล์แม่แบบ" : "ส่งไฟล์แม่แบบ (บันทึก/แชร์)"}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 2. เลือกไฟล์ / วางข้อความ */}
+            <View style={s.card}>
+              <Text style={s.stepTitle}>2. เลือกไฟล์ หรือวางข้อความ</Text>
+              <TouchableOpacity
+                style={[s.primaryBtn, !ready && { opacity: 0.4 }]}
+                onPress={pickFile}
+                disabled={!ready}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="document-attach-outline" size={18} color="#fff" />
+                <Text style={s.primaryText} numberOfLines={1}>
+                  {sourceLabel && sourceLabel !== "ข้อความที่วาง" ? `เปลี่ยนไฟล์ (${sourceLabel})` : "เลือกไฟล์ CSV"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={s.linkBtn} onPress={() => setShowPaste((v) => !v)}>
+                <Text style={s.linkText}>{showPaste ? "ซ่อนช่องวางข้อความ" : "หรือวางข้อความแทน"}</Text>
+              </TouchableOpacity>
+              {showPaste && (
+                <>
+                  <TextInput
+                    style={s.pasteBox}
+                    value={pasted}
+                    onChangeText={setPasted}
+                    placeholder={"วางข้อมูลที่ก๊อปจาก Excel / Google Sheets / ไฟล์ CSV (รวมแถวหัวคอลัมน์)\n\n" + toCsv(TEMPLATE.slice(0, 2))}
+                    placeholderTextColor={C.faint}
+                    multiline
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    spellCheck={false}
+                  />
+                  <TouchableOpacity
+                    style={[s.outlineBtn, (!pasted.trim() || !ready) && { opacity: 0.4 }]}
+                    onPress={() => applySource(pasted, "ข้อความที่วาง")}
+                    disabled={!pasted.trim() || !ready}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name="checkmark-done-outline" size={18} color={C.purple} />
+                    <Text style={s.outlineText}>ตรวจข้อความที่วาง</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              {!!loadError && <Text style={s.errorText}>{loadError}</Text>}
+              {!!check?.fileError && <Text style={s.errorText}>{check.fileError}</Text>}
+              {check?.fileNotes.map((n) => (
+                <Text key={n} style={s.noteText}>ⓘ {n}</Text>
+              ))}
+            </View>
+
+            {/* แก้หมวดที่ไม่มีในระบบ / ปิดอยู่ */}
+            {!!check?.unknownCategories.length && (
+              <View style={[s.card, check.unknownCategories.some((u) => !u.fixed) && s.cardWarn]}>
+                <Text style={s.stepTitle}>
+                  {check.unknownCategories.every((u) => u.fixed) ? "✓ แก้หมวดแล้ว (เปลี่ยนได้)" : "แก้หมวดให้ตรงกับระบบ"}
+                </Text>
+                <Text style={s.help}>
+                  เลือกหมวดที่ถูกต้องแทนได้เลย ไม่ต้องกลับไปแก้ไฟล์ (หรือเพิ่มหมวดใหม่ที่หน้า "หมวดหมู่" แล้วเลือกไฟล์ใหม่)
+                </Text>
+                {check.unknownCategories.map((u) => {
+                  const chosen = fixes[keyOf(u.raw)];
+                  return (
+                    <View key={u.raw} style={s.fixBlock}>
+                      <Text style={s.fixTitle}>
+                        "{u.raw}" · แถว {u.lines.slice(0, 8).join(", ")}
+                        {u.lines.length > 8 ? ` และอีก ${u.lines.length - 8}` : ""}
+                      </Text>
+                      <View style={s.chips}>
+                        {[...activeCats]
+                          .sort((a, b) => (a.name === u.suggestion ? -1 : b.name === u.suggestion ? 1 : 0))
+                          .map((c) => {
+                            const on = chosen === c.name;
+                            const suggested = c.name === u.suggestion;
+                            return (
+                              <TouchableOpacity
+                                key={c.id}
+                                style={[s.chip, suggested && s.chipSuggest, on && s.chipOn]}
+                                onPress={() => setFix(u.raw, on ? null : c.name)}
+                                activeOpacity={0.8}
+                              >
+                                {suggested && !on && <Ionicons name="sparkles-outline" size={13} color={C.purple} />}
+                                <Text style={[s.chipText, on && { color: "#fff" }]}>{c.name}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+
+                </View>
+                <View style={desktopCols.half}>
+            {/* 3. ตรวจก่อนบันทึก */}
+            {check && sum && check.rows.length > 0 && (
+              <View style={s.card}>
+                <Text style={s.stepTitle}>3. ตรวจก่อนบันทึก</Text>
+                <View style={s.sumRow}>
+                  <SumPill color={C.green} icon="checkmark-circle" label={`ถูก ${sum.ok}`} />
+                  <SumPill color={C.amber} icon="alert-circle" label={`เตือน ${sum.warn}`} />
+                  <SumPill color={C.red} icon="close-circle" label={`ผิด ${sum.bad}`} />
+                </View>
+                <Text style={[s.summary, { color: sum.bad ? C.red : C.ink }]}>
+                  {sum.bad
+                    ? `แก้แถวที่ผิด ${sum.bad} แถวก่อน (แก้ไฟล์แล้วเลือกใหม่ หรือแก้หมวดด้านบน) — ยังไม่มีอะไรถูกบันทึก`
+                    : `${check.rows.length} รายการ · จะเพิ่ม ${sum.total} ชิ้น`}
+                </Text>
+                {tooMany && <Text style={s.errorText}>รวม {sum.total} ชิ้น เกินครั้งละ {MAX_TOTAL} ชิ้น — แบ่งไฟล์</Text>}
+
+                {(sum.bad > 0 || sum.warn > 0) && (
+                  <TouchableOpacity style={s.toggleRow} onPress={() => setProblemsOnly((v) => !v)} activeOpacity={0.8}>
+                    <Ionicons name={problemsOnly ? "checkbox" : "square-outline"} size={20} color={C.purple} />
+                    <Text style={s.toggleText}>แสดงเฉพาะแถวที่มีปัญหา</Text>
+                  </TouchableOpacity>
+                )}
+
+                {shownRows.map((r) => {
+                  const tone = r.errors.length ? "bad" : r.warnings.length ? "warn" : "ok";
+                  return (
+                    <View key={r.line} style={[s.row, tone === "bad" && s.rowBad, tone === "warn" && s.rowWarn]}>
+                      <Text style={s.rowLine}>แถว {r.line}</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={s.rowName}>{r.name || "(ไม่มีชื่อ)"} × {r.qty || "?"}</Text>
+                        <Text style={s.rowMeta}>
+                          {r.category} · รหัส {r.prefix} xxx ·{" "}
+                          {r.warranty ? `ประกันถึง ${thaiDate(r.warranty)}` : "ไม่มีประกัน"}
+                        </Text>
+                        {r.errors.map((e) => <Text key={e} style={s.rowError}>✕ {e}</Text>)}
+                        {r.warnings.map((w) => <Text key={w} style={s.rowWarnText}>⚠ {w}</Text>)}
+                        {r.notes.map((n) => <Text key={n} style={s.rowNote}>ⓘ {n}</Text>)}
+                      </View>
+                    </View>
+                  );
+                })}
+
+                {sum.warn > 0 && sum.bad === 0 && (
+                  <Pressable style={s.ackRow} onPress={() => setAck((v) => !v)}>
+                    <Ionicons name={ack ? "checkbox" : "square-outline"} size={22} color={C.amber} />
+                    <Text style={s.ackText}>ตรวจคำเตือน {sum.warn} แถวแล้ว ยืนยันว่าถูกต้อง</Text>
+                  </Pressable>
+                )}
+
+                <TouchableOpacity
+                  style={[s.primaryBtn, !canImport && { opacity: 0.4 }]}
+                  disabled={!canImport}
+                  onPress={doImport}
+                  activeOpacity={0.85}
+                >
+                  {saving ? <ActivityIndicator color="#fff" /> : <Ionicons name="cloud-upload-outline" size={18} color="#fff" />}
+                  <Text style={s.primaryText}>{saving ? "กำลังตรวจ/บันทึก..." : sum.bad ? `แก้แถวที่ผิด ${sum.bad} แถวก่อน` : sum.warn && !ack ? "ติ๊กยืนยันคำเตือนก่อน" : `เพิ่ม ${sum.total} ชิ้น`}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.linkBtn} onPress={() => applySource("", "")}>
+                  <Text style={[s.linkText, { color: C.muted }]}>ล้าง เริ่มใหม่</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+                </View>
+              </View>
+            ) : (
+              <>
+            {/* 1. เตรียมไฟล์ */}
+            <View style={s.card}>
+              <Text style={s.stepTitle}>1. เตรียมไฟล์</Text>
+              <Text style={s.help}>
+                คอลัมน์: <Text style={s.bold}>ชื่อ</Text> (บังคับ), หมวด, จำนวน, วันหมดประกัน, ชื่อย่อ{"\n"}
+                • หมวดต้องมีในระบบ (สะกดผิดเลือกแก้ในหน้านี้ได้) เว้นว่าง = "{OTHER}"{"\n"}
+                • จำนวน 1–{MAX_PER_ROW} ต่อแถว เว้นว่าง = 1 · รวมไม่เกิน {MAX_TOTAL} ชิ้นต่อครั้ง{"\n"}
+                • วันหมดประกัน วว/ดด/ปปปป ปี พ.ศ. เช่น 31/10/2570 (ปี ค.ศ. / ปปปป-ดด-วว ก็ได้) เว้นว่าง = ไม่มีประกัน{"\n"}
                 • Excel: "บันทึกเป็น" → "CSV UTF-8" · หรือก๊อปเซลล์จาก Excel/Google Sheets มาวาง
               </Text>
               <TouchableOpacity style={s.outlineBtn} onPress={shareTemplate} activeOpacity={0.85}>
@@ -508,10 +689,12 @@ export default function ImportItems() {
                 </TouchableOpacity>
               </View>
             )}
+              </>
+            )}
           </>
         )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

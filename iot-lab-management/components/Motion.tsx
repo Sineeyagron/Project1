@@ -53,7 +53,8 @@ export function FadeIn({ delay = 0, style, children }: { delay?: number; style?:
 }
 
 // วงชีพจรรอบตัวเลข/ป้าย — ใช้เรียกสายตาเมื่อมีงานรอ (วนเรื่อย ๆ จนกว่าจะถอดออก)
-export function Pulse({ color, size, style }: { color: string; size: number; style?: StyleProp<ViewStyle> }) {
+// grow = ขยายสุดกี่เท่าของ size (ค่าเดิม 1.9 — ป้ายคำขอใช้ค่านี้)
+export function Pulse({ color, size, grow = 1.9, style }: { color: string; size: number; grow?: number; style?: StyleProp<ViewStyle> }) {
   const v = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(Animated.timing(v, { toValue: 1, duration: 1600, useNativeDriver: true }));
@@ -66,7 +67,7 @@ export function Pulse({ color, size, style }: { color: string; size: number; sty
       style={[
         { position: "absolute", width: size, height: size, borderRadius: size / 2, backgroundColor: color },
         style,
-        { opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }), transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, 1.9] }) }] },
+        { opacity: v.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }), transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [1, grow] }) }] },
       ]}
     />
   );

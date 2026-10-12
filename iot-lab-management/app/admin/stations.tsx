@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -21,6 +20,8 @@ import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { useRoomLive } from "../../lib/roomRealtime";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import { desktopGrid, useIsDesktop } from "../../lib/layout";
+import BottomSheet from "../../components/BottomSheet";
 
 const C = {
   bg: "#EAF1FC",
@@ -51,6 +52,7 @@ type Station = {
 };
 
 export default function AdminStations() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → กลุ่ม 2 คอลัมน์
   // TA เปลี่ยนสถานะได้อย่างเดียว — เพิ่ม/แก้/ลบ/ปิดใช้งานเครื่อง = admin (ฐานข้อมูลกันจริง)
   const isAdmin = useRole().role === "admin";
   const { room_id: roomParam } = useLocalSearchParams<{ room_id?: string }>(); // เปิดจากการ์ดห้อง → เลือกห้องนั้น
@@ -358,18 +360,18 @@ export default function AdminStations() {
         <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 54 }} />
       ) : (
         <ScrollView
-          contentContainerStyle={s.body}
+          contentContainerStyle={[s.body, isDesktop && desktopGrid.list]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
           showsVerticalScrollIndicator
         >
-          {!!loadError && <LoadError message={loadError} onRetry={retry} />}
+          {!!loadError && <View style={desktopGrid.full}><LoadError message={loadError} onRetry={retry} /></View>}
 
-          <View style={s.legendRow}>
+          <View style={[s.legendRow, isDesktop && desktopGrid.full]}>
             {Object.values(STATION_STATUS).map((cfg) => <Legend key={cfg.label} color={cfg.color} label={cfg.label} />)}
           </View>
 
           {loadError && stations.length === 0 ? null : grouped.length === 0 ? (
-            <View style={s.empty}>
+            <View style={[s.empty, desktopGrid.full]}>
               <Ionicons name="desktop-outline" size={46} color="#cbd5e1" />
               <Text style={s.emptyText}>ยังไม่มีเครื่องในห้องนี้</Text>
             </View>
@@ -379,7 +381,7 @@ export default function AdminStations() {
               const ready = activeRows.filter((station) => station.status === "available").length;
               const problems = activeRows.length - ready;
               return (
-                <View key={group} style={s.groupCard}>
+                <View key={group} style={[s.groupCard, isDesktop && desktopGrid.item]}>
                   <View style={s.groupHeader}>
                     <View style={s.groupTitleRow}>
                       <View style={s.groupIcon}>
@@ -423,7 +425,7 @@ export default function AdminStations() {
             })
           )}
 
-          <View style={s.roomSummary}>
+          <View style={[s.roomSummary, isDesktop && desktopGrid.full]}>
             <Text style={s.summaryText}>
               รวม {activeStations.length} เครื่อง · {roomReady} ใช้งานได้ · {roomProblems} ปัญหา
               {stations.length > activeStations.length ? ` · ปิดใช้งาน ${stations.length - activeStations.length}` : ""}
@@ -435,9 +437,7 @@ export default function AdminStations() {
         </ScrollView>
       )}
 
-      <Modal visible={editModal} transparent animationType="slide">
-        <View style={s.overlay}>
-          <View style={s.modalBox}>
+      <BottomSheet visible={editModal} onClose={() => setEditModal(false)} style={s.modalBox}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>แก้ไขเครื่องคอม</Text>
               <TouchableOpacity onPress={() => setEditModal(false)}>
@@ -487,13 +487,9 @@ export default function AdminStations() {
                 <Text style={s.deleteBtnText}>ลบ / ปิดใช้งาน</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
 
-      <Modal visible={addModal} transparent animationType="slide">
-        <View style={s.overlay}>
-          <View style={s.modalBox}>
+      <BottomSheet visible={addModal} onClose={() => setAddModal(false)} style={s.modalBox}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>เพิ่มเครื่องคอม · ห้อง {selectedRoom}</Text>
               <TouchableOpacity onPress={() => setAddModal(false)}>
@@ -525,9 +521,7 @@ export default function AdminStations() {
                 {editSaving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>เพิ่มเครื่อง</Text>}
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }

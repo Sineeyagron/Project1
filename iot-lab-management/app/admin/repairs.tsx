@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -11,6 +10,7 @@ import {
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
+import { fetchRoomPeople } from "../../lib/roomPeople";
 import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { REPAIR_STATUS, roomStatus } from "../../lib/roomStatus";
@@ -19,6 +19,8 @@ import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { naturalNo } from "../../lib/roomStatus";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
+import BottomSheet from "../../components/BottomSheet";
+import { desktopGrid, useIsDesktop } from "../../lib/layout";
 
 const C = {
   bg: "#EAF1FC",
@@ -53,13 +55,14 @@ function stationTitle(record: any) {
 
 function stationSub(record: any) {
   if (record.stationRoom) {
-    const reporter = record.reporterEmail ? `แจ้งโดย ${record.reporterEmail.split("@")[0]}` : "แจ้งโดย admin";
+    const reporter = record.reporterName ? `แจ้งโดย ${record.reporterName}` : "แจ้งโดย admin";
     return `${record.stationRoom} · ${reporter}`;
   }
-  return record.reporterEmail ? `แจ้งโดย ${record.reporterEmail}` : "ไม่ระบุเครื่อง";
+  return record.reporterName ? `แจ้งโดย ${record.reporterName}` : "ไม่ระบุเครื่อง";
 }
 
 export default function RepairsPage() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → การ์ด 2 คอลัมน์
   const [records, setRecords] = useState<any[]>([]);
   const [loadError, setLoadError] = useState("");
   const [stations, setStations] = useState<any[]>([]);
@@ -107,20 +110,14 @@ export default function RepairsPage() {
 
     const safeStations = stationRows || [];
     const userIds = [...new Set((recs || []).map((r: any) => r.reported_by).filter(Boolean))];
-    const emailMap: Record<string, string> = {};
-
-    if (userIds.length > 0) {
-      const { data: profiles } = await supabase.from("profiles").select("id, email").in("id", userIds);
-      (profiles || []).forEach((profile: any) => {
-        emailMap[profile.id] = profile.email || "";
-      });
-    }
+    // ชื่อ · รหัส นศ. ของผู้แจ้ง (lib/roomPeople ของระบบห้อง)
+    const nameMap = await fetchRoomPeople(userIds as string[]);
 
     const enriched = (recs || []).map((record: any) => {
       const station = safeStations.find((row: any) => row.id === record.station_id);
       return {
         ...record,
-        reporterEmail: emailMap[record.reported_by] || "",
+        reporterName: nameMap[record.reported_by] || "",
         stationShort: station?.name || "",
         stationRoom: station ? `ห้อง ${station.room_id} · กลุ่ม ${station.group_no}` : "",
       };
@@ -279,13 +276,13 @@ export default function RepairsPage() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={s.list}
+          contentContainerStyle={[s.list, isDesktop && desktopGrid.list]}
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.purple} />}
         >
-          {!!loadError && <LoadError message={loadError} onRetry={() => fetchAll()} />}
+          {!!loadError && <View style={desktopGrid.full}><LoadError message={loadError} onRetry={() => fetchAll()} /></View>}
           {loadError && records.length === 0 ? null : filtered.length === 0 ? (
-            <View style={s.empty}>
+            <View style={[s.empty, desktopGrid.full]}>
               <Ionicons name="construct-outline" size={45} color="#cbd5e1" />
               <Text style={s.emptyTitle}>ไม่มีรายการซ่อม</Text>
               <Text style={s.emptyText}>กดปุ่มเพิ่มเพื่อแจ้งซ่อมใหม่</Text>
@@ -296,7 +293,7 @@ export default function RepairsPage() {
               return (
                 <TouchableOpacity
                   key={record.id}
-                  style={s.card}
+                  style={[s.card, isDesktop && desktopGrid.item]}
                   activeOpacity={0.88}
                   onPress={() => record.status !== "done" && openUpdate(record)}
                 >
@@ -321,7 +318,7 @@ export default function RepairsPage() {
               );
             })
           )}
-          <View style={{ height: 92 }} />
+          <View style={{ height: 92, width: "100%" }} />
         </ScrollView>
       )}
 
@@ -330,14 +327,11 @@ export default function RepairsPage() {
           <Ionicons name="add" size={18} color="#FFFFFF" />
           <Text style={s.bottomAddText}>แจ้งซ่อมใหม่</Text>
         </TouchableOpacity>
-        <View style={s.downFab}>
-          <Ionicons name="arrow-down" size={18} color="#64748b" />
-        </View>
       </View>
 
-      <Modal visible={addModal} transparent animationType="slide">
-        <View style={s.overlay}>
-          <ScrollView contentContainerStyle={s.modalBox} keyboardShouldPersistTaps="handled">
+      {/* แผ่น iOS แท้ (components/BottomSheet) — รากแผ่นเลื่อนได้อยู่แล้ว ห้ามมี ScrollView แนวตั้งซ้อน */}
+      <BottomSheet visible={addModal} onClose={() => setAddModal(false)} style={s.modalBox}>
+          <View>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>แจ้งซ่อมใหม่</Text>
               <TouchableOpacity style={s.closeBtn} onPress={() => setAddModal(false)}>
@@ -399,13 +393,10 @@ export default function RepairsPage() {
                 </>
               )}
             </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </Modal>
+          </View>
+      </BottomSheet>
 
-      <Modal visible={updateModal} transparent animationType="slide">
-        <View style={s.overlay}>
-          <View style={s.modalBox}>
+      <BottomSheet visible={updateModal} onClose={() => setUpdateModal(false)} style={s.modalBox}>
             <View style={s.modalHeader}>
               <Text style={s.modalTitle}>อัปเดตสถานะ</Text>
               <TouchableOpacity style={s.closeBtn} onPress={() => setUpdateModal(false)}>
@@ -452,9 +443,7 @@ export default function RepairsPage() {
                 </>
               )}
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
     </View>
   );
 }
@@ -595,23 +584,7 @@ const s = StyleSheet.create({
     gap: 8,
   },
   bottomAddText: { color: "#FFFFFF", fontSize: 15, fontWeight: "600" },
-  downFab: {
-    position: "absolute",
-    alignSelf: "center",
-    bottom: -10,
-    width: 35,
-    height: 35,
-    borderRadius: 18,
-    backgroundColor: "#ffffff",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.16,
-    shadowRadius: 9,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 8,
-  },
-  overlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.42)", justifyContent: "flex-end" },
+
   modalBox: {
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 24,

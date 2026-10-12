@@ -18,3 +18,14 @@ export const RECORD_STATUS: Record<string, StatusStyle> = {
   pending_return: { label: "รอยืนยันคืน", color: "#c2410c", bg: "#ffedd5", border: "#fb923c" },
   returned: { label: "คืนแล้ว", color: "#16a34a", bg: "#dcfce7", border: "#22c55e" },
 };
+
+// สถานะคำขอนัดรับ (pickup_requests.status — F2)
+export const PICKUP_STATUS: Record<string, StatusStyle> = {
+  pending: { label: "รอผู้ดูแลนัดเวลา", color: "#b45309", bg: "#fef3c7", border: "#f59e0b" },
+  scheduled: { label: "นัดแล้ว", color: "#047857", bg: "#dcfce7", border: "#22c55e" },
+  picked_up: { label: "รับของแล้ว", color: "#1D4ED8", bg: "#DBEAFE", border: "#3B82F6" },
+  declined: { label: "ถูกปฏิเสธ", color: "#dc2626", bg: "#fee2e2", border: "#ef4444" },
+  expired: { label: "หมดอายุ", color: "#64748b", bg: "#e2e8f0", border: "#94a3b8" },
+  cancelled: { label: "ยกเลิกแล้ว", color: "#64748b", bg: "#e2e8f0", border: "#94a3b8" },
+  no_show: { label: "ไม่มาตามนัด", color: "#dc2626", bg: "#fee2e2", border: "#ef4444" },
+};

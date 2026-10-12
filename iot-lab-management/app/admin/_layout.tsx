@@ -4,6 +4,8 @@ import { ActivityIndicator, View } from "react-native";
 import supabase from "../../lib/supabase";
 import { notify } from "../../lib/notify";
 import { canAccess, isAdminPath, isStaffRole, Role, RoleContext } from "../../lib/roles";
+import { useIsDesktop } from "../../lib/layout";
+import AdminShell from "../../components/desktop/AdminShell";
 
 // ด่านตรวจทุกหน้าใน app/admin/ — admin เข้าได้ทุกหน้า / TA เข้าได้เฉพาะหน้าที่อนุญาต (lib/roles.ts) / อื่นๆ กลับหน้าผู้ใช้
 // (กันแค่ฝั่งแอปเพื่อ UX สิทธิ์จริงอยู่ที่ RLS ในฐานข้อมูล)
@@ -12,35 +14,55 @@ export default function AdminLayout() {
   const pathname = usePathname();
   const [role, setRole] = useState<Role | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const isDesktop = useIsDesktop();
 
   useEffect(() => {
     let active = true;
+    let loadedFor: string | null = null;
 
-    (async () => {
+    const load = async (first = false) => {
       const { data: { session } } = await supabase.auth.getSession();
+      if (!active) return;
       if (!session) {
+        loadedFor = null;
+        setRole(null);
+        setUserId(null);
+        // ออกจากระบบ = ปุ่มออกพาไป login เองแล้ว / เปิดมาไม่มี session = พาไปเอง
         // ห้าม navigate ก่อน Root Layout mount (ดู CLAUDE.md) → setTimeout 0
-        setTimeout(() => router.replace("/login"), 0);
+        if (first) setTimeout(() => router.replace("/login"), 0);
         return;
       }
+      loadedFor = session.user.id;
 
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", session.user.id)
         .maybeSingle();
+      if (!active || loadedFor !== session.user.id) return;
 
       if (!isStaffRole(profile?.role)) {
+        setRole(null);
         setTimeout(() => router.replace("/home"), 0);
         return;
       }
-      if (active) {
-        setUserId(session.user.id);
-        setRole(profile.role);
-      }
-    })();
+      setUserId(session.user.id);
+      setRole(profile.role);
+    };
 
-    return () => { active = false; };
+    load(true);
+
+    // layout นี้ค้างอยู่ตอนออกจากระบบ → เปลี่ยนบัญชี (เช่น TA → admin) ต้องโหลดบทบาทใหม่ ไม่งั้นใช้บทบาทเก่า
+    // ห้าม await supabase ใน callback นี้ (ค้าง) → setTimeout 0
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION") return; // load(true) ข้างบนทำแล้ว
+      if ((session?.user.id ?? null) !== loadedFor) setTimeout(() => load(), 0);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // TA เปิดหน้า admin ที่ไม่มีสิทธิ์ (เช่น ลิงก์เก่า / พิมพ์ URL เอง) → กลับหน้าแรก
@@ -64,7 +86,14 @@ export default function AdminLayout() {
 
   return (
     <RoleContext.Provider value={{ role, userId }}>
-      <Stack screenOptions={{ headerShown: false }} />
+      {/* เว็บจอใหญ่ = เมนูซ้ายถาวร (components/desktop/AdminShell) / มือถือ = เหมือนเดิม */}
+      {isDesktop ? (
+        <AdminShell>
+          <Stack screenOptions={{ headerShown: false }} />
+        </AdminShell>
+      ) : (
+        <Stack screenOptions={{ headerShown: false }} />
+      )}
     </RoleContext.Provider>
   );
 }
