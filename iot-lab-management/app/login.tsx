@@ -20,7 +20,8 @@ import { setRememberLogin } from "../lib/session";
 import { notify } from "../lib/notify";
 import { getAllowedDomain, isAllowedEmail, signInWithGoogle, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
 import { W, NG, TOP_INSET } from "../lib/theme";
-import InstallAppCard from "../components/InstallAppCard";
+import InstallBanner, { INSTALL_BANNER_SPACE } from "../components/InstallBanner";
+import { useInstallMode } from "../lib/installApp";
 
 const KKU = { brick: "#A8341C", orange: "#D97A1E", shadow: "#7A2412" };
 
@@ -139,6 +140,7 @@ export default function Login() {
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
 
   const [googleLoading, setGoogleLoading] = useState(false);
+  const installMode = useInstallMode();
   // อีเมล @kkumail.com = บัญชี Google ของมหาวิทยาลัย → ซ่อนช่องรหัส ปุ่มหลักพาไปหน้า Google (แอปไม่รับรหัส มข.)
   const isUniEmail = email.trim().toLowerCase().endsWith("@" + ALLOWED_DOMAIN) && email.trim().indexOf("@") > 0;
   const canSubmit = email.trim().length > 0 && (isUniEmail || password.length > 0) && !isLoading && !googleLoading;
@@ -476,15 +478,18 @@ export default function Login() {
         </View>
         </GlowFrame>
 
-        {/* เว็บมือถือที่ยังไม่ได้ติดตั้ง: ชวนเพิ่มลงหน้าจอโฮม (iPhone = บอกวิธี / Android = ปุ่มติดตั้ง) */}
-        <InstallAppCard />
-
         {/* ไม่มีสมัครสมาชิกในแอป (ถอดออก 12 ต.ค. 2569) — นศ. เข้าด้วย Google @kkumail.com ครั้งแรก = สร้างบัญชีให้เอง */}
         <View style={styles.sslPill}>
           <Ionicons name="shield-checkmark" size={14} color="#047857" />
           <Text style={styles.sslText}>ปลอดภัย เข้ารหัส SSL</Text>
         </View>
+
+        {/* มีแถบติดตั้งลอยล่างจอ → เว้นที่ให้เลื่อนขึ้นมาเห็นปุ่มล่างสุดได้ */}
+        {installMode ? <View style={{ height: INSTALL_BANNER_SPACE }} /> : null}
       </KeyboardAwareScrollView>
+
+      {/* เว็บมือถือที่ยังไม่ได้ติดตั้ง: แถบชวนเพิ่มลงหน้าจอโฮม ลอยติดล่างจอ (iPhone = บอกวิธี / Android = ปุ่มติดตั้ง) */}
+      <InstallBanner />
     </View>
   );
 }
