@@ -22,6 +22,7 @@ import WarrantyDateField, { warrantyBlocked } from "../../components/WarrantyDat
 import { notify } from "../../lib/notify";
 import { C, W, NG, gradient } from "../../lib/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 
 const FS = FileSystem as any;
@@ -42,6 +43,7 @@ const formatThaiDate = (value: string) =>
   });
 
 export default function Scan() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
   const router = useRouter();
 
   const [step, setStep] = useState<Step>("details");
@@ -316,7 +318,158 @@ export default function Scan() {
         <ScreenHeader title={"เพิ่มอุปกรณ์"} onBack={() => goBack()} />
         <StepBar />
 
-        <KeyboardAwareScrollView ref={scrollRef} bottomOffset={24} contentContainerStyle={styles.form}>
+        <KeyboardAwareScrollView ref={scrollRef} bottomOffset={24} contentContainerStyle={[styles.form, isDesktop && desktopBody.wide]}>
+          {isDesktop ? (
+            // จอใหญ่: ซ้าย = รูป · ขวา = ข้อมูลหลัก/จำนวน/ข้อมูลเพิ่มเติม
+            <View style={desktopCols.row}>
+              <View style={desktopCols.side}>
+          {/* รูป — แตะกรอบ = ถ่ายรูป / ลิงก์ล่าง = เลือกจากคลังรูป */}
+          {photoUri ? (
+            <View style={styles.photoPreview}>
+              <Image source={{ uri: photoUri }} style={styles.photoImage} />
+              <View style={styles.photoTools}>
+                <TouchableOpacity style={styles.photoTool} onPress={handleTakePhoto} activeOpacity={0.85}>
+                  <Ionicons name="camera-outline" size={15} color="#fff" />
+                  <Text style={styles.photoToolText}>ถ่ายใหม่</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.photoTool} onPress={handlePickPhoto} activeOpacity={0.85}>
+                  <Ionicons name="images-outline" size={15} color="#fff" />
+                  <Text style={styles.photoToolText}>เลือกรูปอื่น</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.photoEmpty}>
+              <TouchableOpacity style={styles.photoTap} onPress={handleTakePhoto} activeOpacity={0.85} accessibilityLabel="ถ่ายรูปอุปกรณ์">
+                <View style={styles.photoIcon}>
+                  <Ionicons name="camera" size={24} color="#fff" />
+                </View>
+                <Text style={styles.photoTitle}>ถ่ายรูปอุปกรณ์จริง</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handlePickPhoto} hitSlop={8} activeOpacity={0.7}>
+                <Text style={styles.photoLink}>หรือเลือกจากคลังรูป</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+              </View>
+              <View style={desktopCols.main}>
+          {/* 1 ข้อมูลหลัก */}
+          <View style={styles.card}>
+            <SectionTitle no="1" title="ข้อมูลหลัก" />
+            <Text style={styles.fieldLabel}>ชื่ออุปกรณ์ *</Text>
+            <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="เช่น เซนเซอร์อุณหภูมิ DHT22" placeholderTextColor="#94A3B8" />
+
+            <Text style={styles.fieldLabel}>ชื่อย่อสำหรับรหัส</Text>
+            <TextInput
+              style={styles.input}
+              value={shortName}
+              onChangeText={setShortName}
+              placeholder="ไม่บังคับ — ใช้เมื่อชื่อยาว เช่น DHT22"
+              placeholderTextColor="#94A3B8"
+            />
+            {!!name.trim() && (
+              <View style={styles.codeHint}>
+                <Ionicons name="pricetag-outline" size={13} color="#1D4ED8" />
+                <Text style={styles.codeHintText}>
+                  รหัสที่จะได้: {nextNo == null ? `${prefix} 001, 002, …` : codeRange} (นับต่อจากของเดิมให้เอง)
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.fieldLabel}>หมวดหมู่</Text>
+            <View style={styles.chipWrap}>
+              {categories.map((c) => {
+                const active = c.id === categoryId;
+                return (
+                  <TouchableOpacity
+                    key={c.id}
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => setCategoryId(active ? "" : c.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.name}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* 2 จำนวน */}
+          <View style={[styles.card, styles.qtyCard]}>
+            <SectionTitle no="2" title="จำนวนที่เพิ่ม" />
+            <View style={styles.qtyRow}>
+              <TouchableOpacity
+                style={styles.qtyBtn}
+                onPress={() => setQuantity((q) => String(Math.max(1, (parseInt(q, 10) || 1) - 1)))}
+                accessibilityLabel="ลดจำนวน"
+              >
+                <Ionicons name="remove" size={20} color="#1D4ED8" />
+              </TouchableOpacity>
+              <TextInput style={styles.qtyInput} value={quantity} onChangeText={setQuantity} keyboardType="numeric" textAlign="center" />
+              <TouchableOpacity
+                style={styles.qtyBtn}
+                onPress={() => setQuantity((q) => String(Math.min(200, (parseInt(q, 10) || 0) + 1)))}
+                accessibilityLabel="เพิ่มจำนวน"
+              >
+                <Ionicons name="add" size={20} color="#1D4ED8" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ข้อมูลเพิ่มเติม (ไม่บังคับ) — พับเก็บ / เปิดเองถ้าวันที่ผิด */}
+          <View style={styles.card} onLayout={(e) => (moreY.current = e.nativeEvent.layout.y)}>
+            <TouchableOpacity
+              style={styles.moreHead}
+              onPress={() => {
+                if (moreOpen) return setShowMore(false);
+                setShowMore(true);
+                setTimeout(focusMore, 80); // รอให้ช่องกรอกโผล่ก่อนค่อยเลื่อน
+              }}
+              activeOpacity={0.8}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.moreTitle}>
+                  ข้อมูลเพิ่มเติม <Text style={styles.moreOptional}>· ไม่บังคับ</Text>
+                </Text>
+                {!moreOpen && <Text style={styles.moreSub}>{moreSummary}</Text>}
+              </View>
+              <Ionicons name={moreOpen ? "chevron-up" : "chevron-down"} size={18} color="#1D4ED8" />
+            </TouchableOpacity>
+
+            {moreOpen && (
+              <>
+                <Text style={styles.fieldLabel}>Serial ผู้ผลิต</Text>
+                <TextInput
+                  style={styles.input}
+                  value={serial}
+                  onChangeText={setSerial}
+                  onFocus={focusMore}
+                  placeholder="เลขที่พิมพ์บนตัวอุปกรณ์"
+                  placeholderTextColor="#94A3B8"
+                  autoCapitalize="characters"
+                />
+
+                <Text style={styles.fieldLabel}>วันหมดประกัน</Text>
+                <WarrantyDateField value={warranty} onChange={setWarranty} inputStyle={styles.input} onFocus={focusMore} />
+
+                <Text style={styles.fieldLabel}>รายละเอียด</Text>
+                <TextInput
+                  style={[styles.input, styles.inputMulti]}
+                  value={description}
+                  onChangeText={setDescription}
+                  multiline
+                  numberOfLines={2}
+                  placeholder="คุณสมบัติ, รุ่น, หมายเหตุ..."
+                  placeholderTextColor="#94A3B8"
+                />
+              </>
+            )}
+          </View>
+              </View>
+            </View>
+          ) : (
+            <>
           {/* รูป — แตะกรอบ = ถ่ายรูป / ลิงก์ล่าง = เลือกจากคลังรูป */}
           {photoUri ? (
             <View style={styles.photoPreview}>
@@ -458,6 +611,8 @@ export default function Scan() {
               </>
             )}
           </View>
+            </>
+          )}
         </KeyboardAwareScrollView>
 
         {/* ปุ่มหลักติดขอบล่างเสมอ */}

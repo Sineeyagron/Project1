@@ -22,6 +22,7 @@ import { notify, DialogHost } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import { ageText, thaiDate, warrantyInfo } from "../../lib/itemInfo";
 import { W, NG } from "../../lib/theme";
+import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 
 // Admin สแกน = ดูสถานะอย่างเดียว (แผน 2.6): ชื่อ รหัส สถานะ ผู้ยืม กำหนดคืน อายุ ประกัน ประวัติ
@@ -86,6 +87,7 @@ async function findItem(code: string) {
 }
 
 export default function AdminLookup() {
+  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
   const router = useRouter();
   const windowHeight = useWindowDimensions().height;
   const scanLock = useRef(false);
@@ -210,9 +212,85 @@ export default function AdminLookup() {
         onBack={() => goBack("/admin/home")}
       />
 
-      <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={s.body}>
+      <KeyboardAwareScrollView bottomOffset={24} contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}>
         {!item && (
           <>
+            {isDesktop ? (
+              // จอใหญ่: ซ้าย = กล้องสแกน · ขวา = ค้นหาด้วยรหัส + สแกนล่าสุด
+              <View style={desktopCols.row}>
+                <View style={desktopCols.half}>
+            {/* แบบ ก (11 ต.ค. 2569): กล้องใหญ่ + กรอบเล็ง + ไฟฉาย — components/ScanCamera */}
+            <ScanCamera
+              height={Math.round(Math.min(380, windowHeight * 0.42))}
+              onScanned={(data) => onBarcode({ data })}
+              barcodeTypes={["qr", "code128", "code39", "ean13"]}
+              tip="สแกน QR หรือบาร์โค้ดบนอุปกรณ์"
+              busy={loading}
+            />
+                </View>
+                <View style={desktopCols.half}>
+            <View style={s.panel}>
+              <View style={s.panelLabelRow}>
+                <Ionicons name="search-outline" size={15} color={C.muted} />
+                <Text style={s.panelLabel}>ค้นหาด้วยรหัส</Text>
+              </View>
+              <View style={s.manualRow}>
+                <TextInput
+                  style={s.manualInput}
+                  value={code}
+                  onChangeText={setCode}
+                  placeholder="รหัส 4 ตัว หรือ NodeMCU 001"
+                  placeholderTextColor={C.faint}
+                  autoCapitalize="characters"
+                  onSubmitEditing={() => lookup(code)}
+                />
+                <TouchableOpacity
+                  style={[s.manualBtn, !code.trim() && { opacity: 0.45 }]}
+                  disabled={!code.trim()}
+                  onPress={() => lookup(code)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={s.manualBtnText}>ค้นหา</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {notFound && <Text style={s.notFound}>ไม่พบอุปกรณ์นี้ในระบบ</Text>}
+            {recent.length > 0 && (
+              <View style={s.panel}>
+                <View style={s.panelLabelRow}>
+                  <Ionicons name="time-outline" size={15} color={C.muted} />
+                  <Text style={s.panelLabel}>สแกนล่าสุด</Text>
+                </View>
+                {recent.map((r, i) => {
+                  const st = STATUS[r.status] || STATUS.available;
+                  return (
+                    <TouchableOpacity
+                      key={r.id}
+                      style={[s.recentRow, i > 0 && s.recentDivider]}
+                      onPress={() => lookup(r.code)}
+                      activeOpacity={0.7}
+                      accessibilityLabel={`ดู ${r.code} อีกครั้ง`}
+                    >
+                      <View style={s.recentIcon}>
+                        <Ionicons name="cube-outline" size={16} color={C.purple} />
+                      </View>
+                      <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={s.recentCode} numberOfLines={1}>{r.code}</Text>
+                        <Text style={s.recentMeta} numberOfLines={1}>{r.name} · {agoText(r.at)}</Text>
+                      </View>
+                      {/* สถานะตอนที่สแกน — กดแล้วโหลดสถานะล่าสุดใหม่ */}
+                      <View style={[s.pill, { backgroundColor: st.bg, alignSelf: "center" }]}>
+                        <Text style={[s.pillText, { color: st.color }]}>{st.label}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+                </View>
+              </View>
+            ) : (
+              <>
             {/* แบบ ก (11 ต.ค. 2569): กล้องใหญ่ + กรอบเล็ง + ไฟฉาย — components/ScanCamera */}
             <ScanCamera
               height={Math.round(Math.min(380, windowHeight * 0.42))}
@@ -278,6 +356,8 @@ export default function AdminLookup() {
                   );
                 })}
               </View>
+            )}
+              </>
             )}
           </>
         )}

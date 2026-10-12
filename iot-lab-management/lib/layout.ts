@@ -15,7 +15,7 @@ export function useIsDesktop() {
 }
 
 // หน้า admin ที่ทำแบบจอใหญ่แล้ว (ใช้เต็มพื้นที่ขวาของเมนู) — หน้าอื่นแสดงแบบมือถือกลางพื้นที่ไปก่อน
-export const ADMIN_DESKTOP_READY = new Set(["/admin", "/admin/home", "/admin/requests", "/admin/items", "/admin/users", "/admin/repairs", "/admin/roomreports", "/admin/history", "/admin/stock", "/admin/report", "/admin/categories", "/admin/settings", "/admin/room", "/admin/stations", "/admin/inspection", "/admin/iotinspection", "/admin/qrgen", "/admin/lanports"]);
+export const ADMIN_DESKTOP_READY = new Set(["/admin", "/admin/home", "/admin/requests", "/admin/items", "/admin/users", "/admin/repairs", "/admin/roomreports", "/admin/history", "/admin/stock", "/admin/report", "/admin/categories", "/admin/settings", "/admin/room", "/admin/stations", "/admin/inspection", "/admin/iotinspection", "/admin/qrgen", "/admin/lanports", "/admin/lookup", "/admin/scan", "/admin/import"]);
 export const isDesktopReady = (path: string) => ADMIN_DESKTOP_READY.has(path.replace(/\/+$/, "") || "/");
 
 // หน้ารายการการ์ดบนจอใหญ่: การ์ดเรียง 2 คอลัมน์ (มือถือไม่ใช้)
