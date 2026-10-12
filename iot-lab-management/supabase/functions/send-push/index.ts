@@ -2,7 +2,7 @@
 //   GET  → { publicKey } ให้แอปเว็บใช้สมัครรับ push (public key เปิดเผยได้)
 //   POST { id } ← trigger notifications_push (pg_net) → ส่งไปทุกเครื่องของผู้รับ
 //   POST { request_id, source: "borrow" | "pickup" } ← trigger borrow_requests_push / pickup_requests_push
-//   POST { request_id, source: "pickup_cancel" } ← cancel_pickup (นักศึกษายกเลิกคำขอนัดรับเอง — migration 20261013120000)
+//   POST { request_id, source: "pickup_cancel" | "borrow_cancel" } ← cancel_pickup / cancel_request (นักศึกษายกเลิกเอง — migration 20261013120000, 20261013130000)
 //        → ส่งถึงผู้ดูแล (admin + TA) ทุกคนยกเว้นคนขอเอง (คำขอไม่มีแถวใน notifications — ดู migration 20261013090000)
 // secrets ที่ต้องตั้ง: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (เช่น mailto:you@example.com) — ดู docs/DEPLOY_PWA.md
 // deploy แบบไม่เช็ก JWT (--no-verify-jwt): trigger ไม่มี token / กันคนนอกด้วย id แจ้งเตือน (uuid เห็นเฉพาะผู้รับ) + ต้องเพิ่งสร้างไม่เกิน 2 นาที
@@ -116,9 +116,27 @@ async function pushPickupCancel(id: string) {
   });
 }
 
+const KIND_NAME: Record<string, string> = { borrow: "คำขอยืม", return: "คำขอคืน", renew: "คำขอยืมต่อ" };
+
+// นักศึกษายกเลิกคำขอยืม/คืน/ยืมต่อเอง → ผู้ดูแล
+async function pushBorrowCancel(id: string) {
+  const rRes = await rest(`borrow_requests?id=eq.${id}&status=eq.cancelled&decided_at=gte.${recent()}&select=id,user_id,kind,item:items(name,item_code)`);
+  const [r] = rRes.ok ? await rRes.json() : [];
+  if (!r) return json({ sent: 0 });
+  const who = await ownerName(r.user_id);
+  const what = r.item ? ` "${r.item.name}" (${r.item.item_code})` : "";
+  return deliverToStaff(r.user_id, {
+    title: "นักศึกษายกเลิกคำขอ",
+    body: `${who} ยกเลิก${KIND_NAME[r.kind] || "คำขอ"}${what}`,
+    url: "/admin/requests",
+    tag: r.id,
+  });
+}
+
 // คำขอใหม่ (ยืม/คืน/ยืมต่อ/นัดรับ) → เครื่องของผู้ดูแลทุกคน ยกเว้นคนขอเอง
 async function pushStaffRequest(id: string, source: string) {
   if (source === "pickup_cancel") return pushPickupCancel(id);
+  if (source === "borrow_cancel") return pushBorrowCancel(id);
   const isPickup = source === "pickup";
   const rRes = await rest(
     isPickup
