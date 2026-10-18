@@ -6,6 +6,7 @@ import { DialogHost } from "../lib/notify";
 import { applyRememberLogin } from "../lib/session";
 import { dropPushOnSignOut, registerServiceWorker, rememberMode } from "../lib/webPush";
 import { installPullToRefresh } from "../lib/webPullRefresh";
+import { installPageTransitions } from "../lib/webTransitions";
 import { captureInstallPrompt } from "../lib/installApp";
 import { isAdminPath } from "../lib/roles";
 import { useFonts, NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from "@expo-google-fonts/noto-sans-thai";
@@ -66,6 +67,8 @@ export default function Layout() {
     registerServiceWorker((path) => router.push(path as any));
     // เว็บ: ลากลงเพื่อรีเฟรช (RefreshControl ของ React Native ไม่ทำงานบนเว็บ)
     installPullToRefresh();
+    // เว็บ: เลื่อนเปลี่ยนหน้าแบบ iPhone (ไป-กลับ) ด้วย View Transitions — ไม่รองรับ = เปลี่ยนทันทีเหมือนเดิม
+    installPageTransitions();
     // เว็บ Android: เก็บสิทธิ์เปิดหน้าต่างติดตั้งไว้ให้ปุ่ม "ติดตั้งแอป" หน้า login
     captureInstallPrompt();
 

@@ -67,7 +67,8 @@ async function share(uri: string, mimeType: string, UTI: string, dialogTitle: st
 }
 
 // เว็บ: หน้าพิมพ์ (HTML ที่เรียก window.print เอง) — คอม = แท็บใหม่ / มือถือ, แอปที่ติดตั้ง = เปิดซ้อนในแอป
-export function openPrintView(html: string, title: string) {
+// note = คำแนะนำในกล่องสีฟ้าเหนือปุ่มพิมพ์ (เฉพาะหน้าซ้อนบนมือถือ)
+export function openPrintView(html: string, title: string, note?: string) {
   if (!isMobileWeb()) {
     const win = window.open("", "_blank");
     if (!win) throw new Error("เบราว์เซอร์บล็อกหน้าต่างใหม่ อนุญาต pop-up ให้เว็บนี้แล้วลองอีกครั้ง");
@@ -75,45 +76,78 @@ export function openPrintView(html: string, title: string) {
     win.document.close();
     return;
   }
-  showPrintOverlay(html, title);
+  showPrintOverlay(html, title, note);
 }
 
-// หน้าต่างซ้อนเต็มจอ: แถบบน (← กลับ · ชื่อ · พิมพ์) + เนื้อหาใน iframe — กลับได้เสมอ
-function showPrintOverlay(html: string, title: string) {
+const svgIcon = (d: string, size: number) =>
+  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ` +
+  `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICON_BACK = '<path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/>';
+const ICON_PRINT = '<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/>';
+const ICON_INFO = '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/>';
+
+// หน้าต่างซ้อนเต็มจอ: แถบบน (← · ชื่อ) + ตัวอย่างใน iframe (เนื้อหาไม่เด้งพิมพ์เองเมื่ออยู่ใน iframe)
+// + แถบล่างติดจอ (คำแนะนำ · ปุ่มพิมพ์) — ของเยอะแค่ไหนก็ไม่ต้องเลื่อนหาปุ่ม, กลับได้เสมอ
+function showPrintOverlay(html: string, title: string, note?: string) {
   document.getElementById("labhub-print")?.remove();
   const font = "NotoSansThai_600SemiBold, system-ui, sans-serif";
   const wrap = document.createElement("div");
   wrap.id = "labhub-print";
-  wrap.style.cssText = "position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;background:#EAF1FC;";
+  wrap.style.cssText =
+    "position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;background:#EEF2F7;font-family:" + font + ";";
 
-  const bar = document.createElement("div");
-  bar.style.cssText =
-    "display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top, 0px) + 10px) 12px 10px;" +
-    "background:#fff;box-shadow:0 2px 10px rgba(23,32,51,.12);font-family:" + font + ";";
-
-  const btn = (label: string, primary: boolean) => {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.textContent = label;
-    b.style.cssText =
-      "flex:none;height:40px;padding:0 14px;border-radius:12px;font:inherit;font-size:15px;cursor:pointer;" +
-      (primary ? "border:0;background:#2563EB;color:#fff;" : "border:1px solid #D3E0F5;background:#fff;color:#1D4ED8;");
-    return b;
-  };
-  const back = btn("← กลับ", false);
+  const top = document.createElement("div");
+  top.style.cssText =
+    "display:flex;align-items:center;gap:10px;padding:calc(env(safe-area-inset-top, 0px) + 10px) 14px 10px;" +
+    "background:#fff;border-bottom:1px solid #E3EAF5;";
+  const back = document.createElement("button");
+  back.type = "button";
+  back.setAttribute("aria-label", "กลับ");
+  back.innerHTML = svgIcon(ICON_BACK, 20);
+  back.style.cssText =
+    "flex:none;width:40px;height:40px;border-radius:12px;border:1px solid #D3E0F5;background:#fff;color:#1D4ED8;" +
+    "display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;";
+  const head = document.createElement("div");
+  head.style.cssText = "flex:1;min-width:0;";
   const name = document.createElement("div");
   name.textContent = title;
-  name.style.cssText = "flex:1;min-width:0;font-size:14px;color:#172033;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
-  const print = btn("พิมพ์ / บันทึก PDF", true);
-  bar.append(back, name, print);
+  name.style.cssText = "font-size:16px;color:#172033;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+  const sub = document.createElement("div");
+  sub.textContent = "ตัวอย่างก่อนพิมพ์ · กระดาษ A4";
+  sub.style.cssText = "font-size:12px;color:#5B6B85;";
+  head.append(name, sub);
+  top.append(back, head);
 
   const frame = document.createElement("iframe");
   frame.title = title;
-  frame.style.cssText = "flex:1;width:100%;border:0;background:#fff;";
-  frame.srcdoc = html; // ในเนื้อหามีสคริปต์เด้งกล่องพิมพ์เอง (autoPrint)
+  frame.style.cssText = "flex:1;width:100%;border:0;background:#EEF2F7;";
+  frame.srcdoc = html;
+
+  const bottom = document.createElement("div");
+  bottom.style.cssText =
+    "padding:10px 14px calc(env(safe-area-inset-bottom, 0px) + 12px);background:#fff;" +
+    "border-top:1px solid #E3EAF5;box-shadow:0 -4px 14px rgba(23,32,51,.08);";
+  if (note) {
+    const info = document.createElement("div");
+    info.style.cssText =
+      "display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;padding:8px 10px;border-radius:12px;" +
+      "background:#E8F0FE;color:#1D4ED8;font-size:12px;line-height:1.5;";
+    info.innerHTML = `<span style="flex:none;margin-top:1px">${svgIcon(ICON_INFO, 16)}</span>`;
+    const text = document.createElement("span");
+    text.textContent = note;
+    info.append(text);
+    bottom.append(info);
+  }
+  const print = document.createElement("button");
+  print.type = "button";
+  print.innerHTML = svgIcon(ICON_PRINT, 20) + "<span>พิมพ์ / บันทึก PDF</span>";
+  print.style.cssText =
+    "width:100%;height:48px;border:0;border-radius:14px;background:#2563EB;color:#fff;font:inherit;font-size:16px;" +
+    "display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;";
+  bottom.append(print);
 
   back.onclick = () => wrap.remove();
   print.onclick = () => frame.contentWindow?.print();
-  wrap.append(bar, frame);
+  wrap.append(top, frame, bottom);
   document.body.appendChild(wrap);
 }

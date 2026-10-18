@@ -333,6 +333,6 @@ table.detail .nt { white-space: normal; } .nt.bad { color: #B91C1C; font-weight:
 </div>
 
 <div class="tablesec"><h2>รายการยืม-คืนทั้งหมด (${total} รายการ)</h2><div class="foot">นับตามวันที่ยืม เวลาไทย · ข้อมูลครบทุกช่อง (รหัส นศ. ผู้ตรวจรับ ฯลฯ) ดูได้ในไฟล์ CSV</div>${monthHtml}</div>
-${opts.autoPrint ? "<script>window.onload=()=>setTimeout(()=>window.print(),400)</script>" : ""}
+${opts.autoPrint ? "<script>if(window.self===window.top)window.onload=()=>setTimeout(()=>window.print(),400)</script>" : ""}
 </body></html>`;
 }
