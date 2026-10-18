@@ -17,6 +17,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import Svg, { Path } from "react-native-svg";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import supabase from "../../lib/supabase";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRole } from "../../lib/roles";
@@ -83,6 +84,7 @@ export default function QRGen() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → รายการ 3 คอลัมน์
   const { role } = useRole();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [items, setItems] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -177,9 +179,16 @@ export default function QRGen() {
     });
   };
 
-  const selectAllShown = () => {
+  // เลือกครบทุกชิ้นที่แสดงอยู่แล้ว → กดอีกที = ยกเลิกเฉพาะชิ้นที่แสดง (ชิ้นที่เลือกไว้จากการค้นหาอื่นยังอยู่)
+  const allShownSelected = mode === "batch" && filtered.length > 0 && filtered.every((item) => selectedIds.includes(item.id));
+  const toggleAllShown = () => {
+    if (allShownSelected) {
+      const shown = new Set(filtered.map((item) => item.id));
+      setSelectedIds((current) => current.filter((id) => !shown.has(id)));
+      return;
+    }
     setMode("batch");
-    setSelectedIds(filtered.map((item) => item.id));
+    setSelectedIds((current) => [...current, ...filtered.map((item) => item.id).filter((id) => !current.includes(id))]);
     if (filtered[0]) setSelectedId(filtered[0].id);
   };
 
@@ -241,7 +250,11 @@ export default function QRGen() {
     }
     // คอม = แท็บใหม่ / มือถือ, แอปที่ติดตั้ง = เปิดซ้อนในแอป มีปุ่มกลับ (เดิมเปิดหน้าต่างใหม่แล้วออกไม่ได้)
     try {
-      openPrintView(buildLabelSheetHtml(printTargets, startAt), `ป้าย QR ${printTargets.length} ชิ้น`);
+      openPrintView(
+        buildLabelSheetHtml(printTargets, startAt),
+        `ป้าย QR ${printTargets.length} ชิ้น`,
+        "ตั้งขนาด 100% (ไม่ย่อให้พอดีหน้า) ป้ายจะได้ขนาด 6 × 2.8 ซม. พอดีสติกเกอร์",
+      );
     } catch (e: any) {
       notify("เปิดหน้าพิมพ์ไม่ได้", e.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     }
@@ -292,8 +305,10 @@ export default function QRGen() {
           <View style={s.sectionWithAction}>
             <Section index={1} title="เลือกอุปกรณ์" right={`เลือก ${printTargets.length} รายการ`} />
             {filtered.length > 1 && (
-              <TouchableOpacity onPress={selectAllShown} activeOpacity={0.8}>
-                <Text style={s.selectAllText}>เลือกทั้งหมดที่แสดง ({filtered.length})</Text>
+              <TouchableOpacity onPress={toggleAllShown} activeOpacity={0.8}>
+                <Text style={s.selectAllText}>
+                  {allShownSelected ? `ยกเลิกเลือกทั้งหมด (${filtered.length})` : `เลือกทั้งหมดที่แสดง (${filtered.length})`}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -365,40 +380,56 @@ export default function QRGen() {
 
           <Section index={3} title="Preview ก่อนพิมพ์" />
           <View style={s.previewList}>
-            {printTargets.length > 0 ? (
-              printTargets.map((target) => <LabelPreview key={target.id} item={target} />)
+            {/* แสดงแค่ชิ้นแรก — ดูครบทุกชิ้นทั้งแผ่นได้ตอนกดพิมพ์ (เดิมเรียงทุกชิ้น เลือกเยอะแล้วต้องเลื่อนไกล) */}
+            {previewItem ? (
+              <>
+                <LabelPreview item={previewItem} />
+                {printTargets.length > 1 && (
+                  <Text style={s.previewMore}>
+                    + อีก {printTargets.length - 1} ชิ้น · {Platform.OS === "web" ? "ดูครบทั้งแผ่นตอนกดพิมพ์" : "ดูครบใน PDF"}
+                  </Text>
+                )}
+              </>
             ) : (
               <View style={s.previewCard}>
                 <Text style={s.emptyText}>เลือกอุปกรณ์เพื่อสร้าง QR</Text>
               </View>
             )}
           </View>
-
-          <View style={s.actionRow}>
-            {Platform.OS !== "web" && (
-              <TouchableOpacity style={s.downloadBtn} onPress={handleDownload} disabled={!previewItem || saving} activeOpacity={0.84}>
-                {saving ? <ActivityIndicator color={C.muted} /> : <Ionicons name="download-outline" size={22} color={C.muted} />}
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[s.printBtn, (printTargets.length === 0 || saving) && s.disabledBtn]}
-              onPress={handlePrint}
-              disabled={printTargets.length === 0 || saving}
-              activeOpacity={0.9}
-            >
-              <Ionicons name={Platform.OS === "web" ? "print-outline" : "share-outline"} size={18} color="#fff" />
-              <Text style={s.printText}>
-                {Platform.OS === "web" ? "พิมพ์ป้าย" : "บันทึก / แชร์ PDF"}
-                {printTargets.length > 0 ? ` ${printTargets.length} ชิ้น` : ""}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={s.noteText}>
-            {Platform.OS === "web"
-              ? "เลือก Save as PDF ในหน้าพิมพ์ได้ · พิมพ์ที่ 100% บน A4"
-              : "ส่ง PDF ไป LINE / อีเมล / Drive แล้วพิมพ์ที่ 100% บน A4"}
-          </Text>
         </ScrollView>
+      )}
+
+      {/* แถบพิมพ์ติดล่างจอ — เลือกกี่ชิ้นก็กดได้ทันที ไม่ต้องเลื่อนลงไปหา */}
+      {!loading && (
+        <View style={[s.bottomBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <View style={[s.bottomInner, isDesktop && desktopBody.wide]}>
+            <View style={s.bottomInfo}>
+              <Text style={s.bottomInfoText}>
+                {printTargets.length > 0 ? `เลือก ${printTargets.length} ชิ้น · ใช้ ${sheetCount} แผ่น A4` : "ยังไม่ได้เลือกอุปกรณ์"}
+              </Text>
+              <Text style={s.bottomInfoAccent}>เริ่มช่องที่ {startAt}</Text>
+            </View>
+            <View style={s.actionRow}>
+              {Platform.OS !== "web" && (
+                <TouchableOpacity style={s.downloadBtn} onPress={handleDownload} disabled={!previewItem || saving} activeOpacity={0.84}>
+                  {saving ? <ActivityIndicator color={C.muted} /> : <Ionicons name="download-outline" size={22} color={C.muted} />}
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[s.printBtn, (printTargets.length === 0 || saving) && s.disabledBtn]}
+                onPress={handlePrint}
+                disabled={printTargets.length === 0 || saving}
+                activeOpacity={0.9}
+              >
+                <Ionicons name={Platform.OS === "web" ? "print-outline" : "share-outline"} size={18} color="#fff" />
+                <Text style={s.printText}>
+                  {Platform.OS === "web" ? "ดูตัวอย่างและพิมพ์" : "บันทึก / แชร์ PDF"}
+                  {printTargets.length > 0 ? ` ${printTargets.length} ชิ้น` : ""}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -631,10 +662,18 @@ const s = StyleSheet.create({
   locationText: { color: C.muted, fontSize: 12, fontWeight: "800" },
   previewFooter: { borderTopWidth: 1, borderStyle: "dashed", borderTopColor: C.line, marginTop: 12, paddingTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   previewFooterText: { color: C.faint, fontSize: 12, fontWeight: "900" },
-  actionRow: { flexDirection: "row", gap: 10, marginBottom: 11 },
+  previewMore: { color: C.faint, fontSize: 12, fontWeight: "800", textAlign: "center" },
+  bottomBar: {
+    backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#E3EAF5",
+    paddingTop: 10, paddingHorizontal: 16, boxShadow: "0 -4px 14px rgba(23,32,51,0.08)",
+  },
+  bottomInner: { width: "100%", alignSelf: "center" },
+  bottomInfo: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
+  bottomInfoText: { color: C.muted, fontSize: 12, fontWeight: "700" },
+  bottomInfoAccent: { color: C.purple, fontSize: 12, fontWeight: "700" },
+  actionRow: { flexDirection: "row", gap: 10 },
   downloadBtn: { width: 47, height: 47, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: C.line, alignItems: "center", justifyContent: "center" },
   printBtn: { flex: 1, minHeight: 47, borderRadius: 12, backgroundColor: C.purpleDeep, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   disabledBtn: { opacity: 0.55 },
   printText: { color: "#fff", fontSize: 14, fontWeight: "900" },
-  noteText: { color: C.faint, fontSize: 12, fontWeight: "800", textAlign: "center" },
 });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Href, router, useFocusEffect } from "expo-router";
+import { withoutTransition } from "./webTransitions";
 
 // การนำทางที่ใช้ร่วมกันทั้งแอป
 
@@ -14,9 +15,12 @@ export function goBack(fallback: Href) {
 export type StudentTab = "/home" | "/equipment" | "/notifications" | "/profile";
 export function goTab(target: StudentTab, current: StudentTab) {
   if (target === current) return;
-  router.dismissTo("/home"); // มีหน้าแรกอยู่ใน stack → ถอยกลับไป / ไม่มี → แทนที่หน้านี้ด้วยหน้าแรก
-  // ?tab=1 = มาจากแถบเมนูล่าง (หน้าแจ้งเตือนใช้ตัดสินว่าจะโชว์แถบไหม — staff ที่มาจากกระดิ่งแดชบอร์ดไม่มีแถบ)
-  if (target !== "/home") router.push({ pathname: target, params: { tab: "1" } } as any);
+  // สลับแท็บ = ไม่เลื่อนหน้า (เหมือน iPhone) — เว็บมีเอฟเฟกต์เลื่อนตอน push (lib/webTransitions)
+  withoutTransition(() => {
+    router.dismissTo("/home"); // มีหน้าแรกอยู่ใน stack → ถอยกลับไป / ไม่มี → แทนที่หน้านี้ด้วยหน้าแรก
+    // ?tab=1 = มาจากแถบเมนูล่าง (หน้าแจ้งเตือนใช้ตัดสินว่าจะโชว์แถบไหม — staff ที่มาจากกระดิ่งแดชบอร์ดไม่มีแถบ)
+    if (target !== "/home") router.push({ pathname: target, params: { tab: "1" } } as any);
+  });
 }
 
 // โหลดข้อมูลใหม่ตอนกลับมาที่หน้านี้ (ข้ามครั้งแรก เพราะหน้าโหลดเองตอนเปิดอยู่แล้ว)

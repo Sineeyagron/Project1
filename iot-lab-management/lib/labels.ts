@@ -49,17 +49,25 @@ function labelHtml(item: LabelItem) {
 }
 
 // startAt = ช่องแรกที่จะเริ่มพิมพ์ (1-27) ใช้กับแผ่นสติกเกอร์ที่ใช้ไปแล้วบางส่วน
-// autoPrint = เปิดกล่องพิมพ์ทันที (เว็บ) / false = สำหรับแปลงเป็น PDF (มือถือ)
+// autoPrint = เว็บ: บนจอแสดงเป็นแผ่น A4 ย่อพอดีจอ (ช่องว่าง = เส้นประจาง) + เด้งกล่องพิมพ์เองเมื่อเปิดในแท็บของตัวเอง
+//   (เปิดซ้อนในแอปบนมือถือ = ไม่เด้ง ให้กดปุ่มพิมพ์เอง) / false = สำหรับแปลงเป็น PDF (มือถือ)
 export function buildLabelSheetHtml(items: LabelItem[], startAt = 1, autoPrint = true) {
-  const blanks = Array.from({ length: Math.max(0, Math.min(startAt, LABELS_PER_SHEET) - 1) }, () => `<div></div>`);
-  const cells = [...blanks, ...items.map(labelHtml)].join("");
+  const blanks = Array.from({ length: Math.max(0, Math.min(startAt, LABELS_PER_SHEET) - 1) }, () => `<div class="e"></div>`);
+  const cells = [...blanks, ...items.map(labelHtml)];
+  const pageCount = Math.max(1, Math.ceil(cells.length / LABELS_PER_SHEET));
+  while (cells.length < pageCount * LABELS_PER_SHEET) cells.push(`<div class="e"></div>`);
+  const pages = Array.from({ length: pageCount }, (_, i) =>
+    `<div class="p"><div class="g">${cells.slice(i * LABELS_PER_SHEET, (i + 1) * LABELS_PER_SHEET).join("")}</div></div>`
+  ).join("");
 
-  return `<!doctype html><html><head><meta charset="utf-8"><title>ป้าย QR อุปกรณ์</title>
+  return `<!doctype html><html${autoPrint ? ` class="pv"` : ""}><head><meta charset="utf-8"><title>ป้าย QR อุปกรณ์</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <style>
 @page{size:A4;margin:8mm 10mm}
-body{font-family:'Sarabun',sans-serif;margin:0;width:190mm;color:#000}
+body{font-family:'Sarabun',sans-serif;margin:0;color:#000}
+.p{width:190mm;break-after:page}.p:last-child{break-after:auto}
 .g{display:grid;grid-template-columns:repeat(3,60mm);grid-auto-rows:28mm;gap:2mm 3mm}
 .l{border:.25mm dashed #aaa;display:flex;align-items:center;box-sizing:border-box;padding:1.5mm;gap:2mm;overflow:hidden;break-inside:avoid}
 .q{flex:none;width:24mm;height:24mm}.q svg{width:100%;height:100%;display:block}.t{min-width:0}
@@ -67,13 +75,21 @@ body{font-family:'Sarabun',sans-serif;margin:0;width:190mm;color:#000}
 .no{font-size:18pt;font-weight:600;line-height:1}
 .n{font-size:7.5pt;margin-top:.8mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .s{font-size:7pt;color:#444;margin-top:.6mm}
-.hint{font-size:9pt;color:#666;margin:0 0 3mm}
-@media print{.hint{display:none}}
+@media screen{
+.pv{background:#EEF2F7}.pv body{padding:14px 0 10px}
+.pv .p{box-sizing:border-box;width:210mm;height:297mm;padding:8mm 10mm;margin:0 auto 14px;background:#fff;box-shadow:0 2px 10px rgba(23,32,51,.14)}
+.pv .e{border:.25mm dashed #E1E7F0}
+.hint{width:210mm;margin:0 auto 12px;font-size:14px;color:#1D4ED8}
+}
+@media print{body{zoom:1!important}.hint{display:none}}
 </style></head><body>
-${autoPrint ? `<p class="hint">พิมพ์ที่ขนาด 100% (ห้ามย่อ/Fit to page) บนกระดาษ A4</p>` : ""}
-<div class="g">${cells}</div>
+${autoPrint ? `<p class="hint" id="hint">พิมพ์ที่ขนาด 100% (ไม่ย่อให้พอดีหน้า) บนกระดาษ A4</p>` : ""}
+${pages}
 ${autoPrint ? `<script>
-(document.fonts ? document.fonts.ready : Promise.resolve()).then(function(){ setTimeout(function(){ window.print(); }, 150); });
+function fit(){ document.body.style.zoom = String(Math.min(1, (document.documentElement.clientWidth - 24) / 794)); }
+fit(); addEventListener("resize", fit);
+if (window.self !== window.top) document.getElementById("hint").remove();
+else (document.fonts ? document.fonts.ready : Promise.resolve()).then(function(){ setTimeout(function(){ window.print(); }, 150); });
 </script>` : ""}
 </body></html>`;
 }
