@@ -22,6 +22,7 @@ import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRole } from "../../lib/roles";
 import { notify } from "../../lib/notify";
 import { LABELS_PER_SHEET, buildLabelSheetHtml, formatItemNo, qrMatrix } from "../../lib/labels";
+import { openPrintView } from "../../lib/fileExport";
 import { W, NG, TOP_INSET } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
@@ -238,13 +239,12 @@ export default function QRGen() {
       handleSharePdf();
       return;
     }
-    const win = window.open("", "_blank");
-    if (!win) {
-      notify("เปิดหน้าพิมพ์ไม่ได้", "เบราว์เซอร์บล็อกหน้าต่างใหม่ อนุญาต pop-up ให้เว็บนี้แล้วลองอีกครั้ง");
-      return;
+    // คอม = แท็บใหม่ / มือถือ, แอปที่ติดตั้ง = เปิดซ้อนในแอป มีปุ่มกลับ (เดิมเปิดหน้าต่างใหม่แล้วออกไม่ได้)
+    try {
+      openPrintView(buildLabelSheetHtml(printTargets, startAt), `ป้าย QR ${printTargets.length} ชิ้น`);
+    } catch (e: any) {
+      notify("เปิดหน้าพิมพ์ไม่ได้", e.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     }
-    win.document.write(buildLabelSheetHtml(printTargets, startAt));
-    win.document.close();
   };
 
   return (
