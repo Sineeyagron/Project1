@@ -7,6 +7,7 @@ import { applyRememberLogin } from "../lib/session";
 import { dropPushOnSignOut, registerServiceWorker, rememberMode } from "../lib/webPush";
 import { installPullToRefresh } from "../lib/webPullRefresh";
 import { installPageTransitions } from "../lib/webTransitions";
+import { installErrorReporting } from "../lib/errorReport";
 import { captureInstallPrompt } from "../lib/installApp";
 import { isAdminPath } from "../lib/roles";
 import { useFonts, NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from "@expo-google-fonts/noto-sans-thai";
@@ -69,6 +70,8 @@ export default function Layout() {
     installPullToRefresh();
     // เว็บ: เลื่อนเปลี่ยนหน้าแบบ iPhone (ไป-กลับ) ด้วย View Transitions — ไม่รองรับ = เปลี่ยนทันทีเหมือนเดิม
     installPageTransitions();
+    // error ที่ไม่มีใครจับบนเครื่องผู้ใช้ → ตาราง client_errors (ดูได้เฉพาะ admin)
+    installErrorReporting();
     // เว็บ Android: เก็บสิทธิ์เปิดหน้าต่างติดตั้งไว้ให้ปุ่ม "ติดตั้งแอป" หน้า login
     captureInstallPrompt();
 
