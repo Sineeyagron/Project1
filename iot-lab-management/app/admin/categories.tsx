@@ -16,6 +16,7 @@ import { confirmAction, notify } from "../../lib/notify";
 import { W, NG, TOP_INSET } from "../../lib/theme";
 import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
+import LoadingState from "../../components/LoadingState";
 
 // จัดการหมวดหมู่อุปกรณ์ (แผน 2.2.1): เพิ่ม / แก้ชื่อ / เลื่อนลำดับ / ปิด-เปิด / ลบ
 // ลบหมวดที่มีของ (รวมของที่จำหน่ายแล้ว) ต้องเลือกหมวดปลายทางก่อน → ย้ายของทั้งหมดไป แล้วค่อยลบ ไม่มีของหลุดหมวด
@@ -183,7 +184,7 @@ export default function AdminCategories() {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
+        <LoadingState style={{ marginTop: 44 }} />
       ) : (
         <KeyboardAwareScrollView bottomOffset={24}
           contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}

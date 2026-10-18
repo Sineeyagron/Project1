@@ -22,6 +22,7 @@ import { W, NG, TOP_INSET } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
+import LoadingState from "../../components/LoadingState";
 
 const C = {
   bg: "#EAF1FC",
@@ -357,7 +358,7 @@ export default function AdminStations() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 54 }} />
+        <LoadingState style={{ marginTop: 54 }} />
       ) : (
         <ScrollView
           contentContainerStyle={[s.body, isDesktop && desktopGrid.list]}

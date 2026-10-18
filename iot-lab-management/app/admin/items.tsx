@@ -24,6 +24,8 @@ import { W, NG, TOP_INSET } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
+import LoadingState from "../../components/LoadingState";
+import { useProgressiveList } from "../../lib/progressiveList";
 
 const C = {
   bg: "#EAF1FC",
@@ -283,6 +285,8 @@ export default function AdminItems() {
     }
     return sorted;
   })();
+  // ของเยอะ: วาดชุดแรกทันทีแล้วทยอยที่เหลือ (จำนวน/ค้นหา/ว่าง ยังดูจาก filtered เต็ม)
+  const shownItems = useProgressiveList(filtered);
 
   const sortBtnRef = useRef<any>(null);
   const headerSortRef = useRef<any>(null);
@@ -510,12 +514,12 @@ export default function AdminItems() {
               <View style={{ width: 36 }} />
             </View>
             {loading ? (
-              <ActivityIndicator size="large" color={C.purple} style={{ marginVertical: 40 }} />
+              <LoadingState style={{ marginVertical: 40 }} />
             ) : filtered.length === 0 ? (
               <View style={d.empty}><Ionicons name="cube-outline" size={40} color="#CBD5E1" /><Text style={d.emptyText}>ไม่พบอุปกรณ์</Text></View>
             ) : (
               <ScrollView style={{ flex: 1 }}>
-                {filtered.map((item) => {
+                {shownItems.map((item) => {
                   const st = STATUS_CFG[item.status] || STATUS_CFG.available;
                   const tc = getTypeConfig(item.category === OTHER ? item.type || item.name : item.category);
                   const foot = item.status === "borrowed" && borrowMap[item.id]
@@ -572,7 +576,7 @@ export default function AdminItems() {
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
+          <LoadingState style={{ marginTop: 44 }} />
         ) : (
           <ScrollView
             contentContainerStyle={s.list}
@@ -625,7 +629,7 @@ export default function AdminItems() {
                 <Text style={s.emptyTxt}>ไม่พบอุปกรณ์</Text>
               </View>
             ) : (
-              filtered.map((item) => (
+              shownItems.map((item) => (
                 <ItemCard
                   key={item.id}
                   item={item}

@@ -10,6 +10,7 @@ import { useRefreshOnFocus } from "../lib/nav";
 import { confirmAction, notify } from "../lib/notify";
 import { bkkDayKey, bkkTime, thaiDay } from "../lib/timeline";
 import { W, NG } from "../lib/theme";
+import LoadingState from "./LoadingState";
 
 // F2 แท็บ "นัดรับ" ในกล่องคำขอผู้ดูแล (ระบบยืม-คืน)
 //   รอนัดเวลา: ปุ่มลัด ตอนนี้ / อีก 10 นาที / อีก 30 นาที / เลือกเวลา → schedule_pickup · ปฏิเสธต้องมีเหตุผล → decline_pickup
@@ -82,7 +83,7 @@ export default function PickupInbox({ role, userId, onCount }: { role: string | 
   useRefreshOnFocus(() => { load(); });
   useRealtime("staff", "request", () => { load(); });
 
-  if (loading) return <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 50 }} />;
+  if (loading) return <LoadingState style={{ marginTop: 50 }} />;
 
   return (
     <View style={{ gap: 12 }}>

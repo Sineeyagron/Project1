@@ -25,6 +25,7 @@ import Svg, { Circle } from "react-native-svg";
 import { FadeIn, PressScale } from "../components/Motion";
 import BottomSheet from "../components/BottomSheet";
 import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
+import LoadingState from "../components/LoadingState";
 
 const EQUIP_LABELS: Record<string, string> = {
   mouse:    "🖱️ เมาส์",
@@ -206,7 +207,7 @@ export default function RoomMap() {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
+        <LoadingState style={{ marginTop: 40 }} />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false}
           contentContainerStyle={s.scrollContent}

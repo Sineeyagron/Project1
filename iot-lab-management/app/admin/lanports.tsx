@@ -23,6 +23,7 @@ import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
+import LoadingState from "../../components/LoadingState";
 
 // กด port = เปลี่ยนสถานะวนตามลำดับนี้
 const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
@@ -211,7 +212,7 @@ export default function AdminLanPorts() {
       </ScrollView>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
+        <LoadingState style={{ marginTop: 40 }} />
       ) : (
         <ScrollView contentContainerStyle={[styles.scroll, isDesktop && desktopBody.wide]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D4ED8" />}>

@@ -27,6 +27,7 @@ import PickupInbox from "../../components/PickupInbox";
 import BottomSheet from "../../components/BottomSheet";
 import RequestsDesktop from "../../components/desktop/RequestsDesktop";
 import { useIsDesktop } from "../../lib/layout";
+import LoadingState from "../../components/LoadingState";
 
 // กล่องคำขอของผู้ดูแล: อนุมัติ / ปฏิเสธ คำขอยืม-คืน-ยืมต่อ (แผน 2.4, 2.6)
 // การตัดสินทั้งหมดผ่าน RPC decide_request (ตรวจสิทธิ์ + ล็อกแถวในฐานข้อมูล)
@@ -355,7 +356,7 @@ export default function AdminRequests() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 50 }} />
+        <LoadingState style={{ marginTop: 50 }} />
       ) : (
         <KeyboardAwareScrollView bottomOffset={24}
           contentContainerStyle={s.list}

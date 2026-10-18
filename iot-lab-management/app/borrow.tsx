@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   RefreshControl,
 } from "react-native";
 import { Text } from "../components/AppText";
@@ -22,6 +21,7 @@ import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 import TimelineDays from "../components/TimelineDays";
 import { TimelineFilter, bkkDayKey, bkkTime, buildEvents, filterEvents, groupByDay, thaiDay } from "../lib/timeline";
 import { PICKUP_STATUS } from "../lib/status";
+import LoadingState from "../components/LoadingState";
 
 const KIND_TH: Record<string, string> = { borrow: "ขอยืม", return: "ขอคืน", renew: "ขอยืมต่อ" };
 
@@ -155,7 +155,7 @@ export default function Borrow() {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 60 }} />
+        <LoadingState style={{ marginTop: 60 }} />
       ) : (
         <ScrollView
           contentContainerStyle={s.body}

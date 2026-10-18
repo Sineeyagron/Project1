@@ -4,7 +4,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   RefreshControl,
   AppState,
   Animated,
@@ -25,6 +24,7 @@ import { haptic } from "../components/Motion";
 import TabBar from "../components/TabBar";
 import WebPushCard from "../components/WebPushCard";
 import { refreshUnreadCount } from "../lib/unread";
+import LoadingState from "../components/LoadingState";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
   borrow:         { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
@@ -95,16 +95,29 @@ const timeAgo = (d: string) => {
   return formatDateTime(d);
 };
 
+// ข้อมูลชุดล่าสุด (หน่วยความจำ) แยกตามโหมด — เปิดซ้ำเห็นรายการทันที แล้วค่อยโหลดใหม่เบื้องหลัง / ล้างเมื่อออกจากระบบ
+//   "student" = มาจากแถบเมนูล่าง (?tab=1) · "bell" = กระดิ่งผู้ดูแล — โหมดยังตัดสินใหม่ทุกครั้ง (staffModeRef) เหมือนเดิม
+const cache: Record<string, { list: any[]; isStaff: boolean | null }> = {};
+supabase.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_OUT") for (const k of Object.keys(cache)) delete cache[k];
+});
+
 export default function Notifications() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // แถบเมนูล่าง: มาจากแถบเมนู (ทุกบทบาท รวม TA/Admin ที่อยู่โหมดนักศึกษา) หรือเป็นนักศึกษา
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const cacheKey = tab === "1" ? "student" : "bell";
+  const cached = cache[cacheKey];
+  const [notifications, setNotifications] = useState<any[]>(cached?.list ?? []);
+  const [loading, setLoading] = useState(!cached);
   const [refreshing, setRefreshing] = useState(false);
   const [newCount, setNewCount] = useState(0);
   // null = ยังไม่รู้ (กันแถบเมนูนักศึกษาโผล่แวบให้ staff เห็น)
-  const [isStaff, setIsStaff] = useState<boolean | null>(null);
-  // แถบเมนูล่าง: มาจากแถบเมนู (ทุกบทบาท รวม TA/Admin ที่อยู่โหมดนักศึกษา) หรือเป็นนักศึกษา
-  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const [isStaff, setIsStaff] = useState<boolean | null>(cached?.isStaff ?? null);
+  // จำรายการล่าสุด (รวมที่กด "อ่านทั้งหมด") ไว้ให้ครั้งหน้า
+  useEffect(() => {
+    if (!loading) cache[cacheKey] = { list: notifications, isStaff };
+  }, [notifications, isStaff, loading, cacheKey]);
   const showTabBar = tab === "1" || isStaff === false;
   const prevNewestRef = useRef("");
   const isFirstLoad = useRef(true);
@@ -264,7 +277,7 @@ export default function Notifications() {
       )}
 
       {loading ? (
-        <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 60 }} />
+        <LoadingState style={{ marginTop: 60 }} />
       ) : notifications.length === 0 ? (
         <View style={s.empty}>
           <Ionicons name="notifications-off-outline" size={52} color="#cbd5e1" />

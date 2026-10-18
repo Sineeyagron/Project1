@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,7 @@ import { W, gradient } from "../lib/theme";
 import { FadeIn, PressScale } from "../components/Motion";
 import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 import Svg, { Circle, Path } from "react-native-svg";
+import LoadingState from "../components/LoadingState";
 
 // สถานะ LAN Port (หน้านักศึกษา) — หน้าตาตระกูลเดียวกับผังห้อง (roommap) แต่การ์ดสรุปโทนม่วงคราม + ตู้แร็กชั้นละกลุ่ม
 // (เจ้าของโปรเจกต์เลือก 12 ต.ค. 2569)
@@ -143,7 +143,7 @@ export default function LanStatus() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#4338CA" style={{ marginTop: 64 }} />
+        <LoadingState style={{ marginTop: 64 }} />
       ) : (
         <ScrollView
           contentContainerStyle={s.body}

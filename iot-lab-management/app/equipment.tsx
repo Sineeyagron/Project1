@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -19,6 +18,7 @@ import TabBar from "../components/TabBar";
 import ScreenHeader from "../components/ScreenHeader";
 import { FadeIn, PressScale } from "../components/Motion";
 import { Group, OTHER, Thumb, availTone, formatDue, iconFor, setSelectedGroup, takePendingAction, toneOf } from "../components/EquipmentParts";
+import LoadingState from "../components/LoadingState";
 
 // หน้าอุปกรณ์ของนักศึกษา (ดูอย่างเดียว — ยืม/คืนทางเดียวคือสแกน QR ที่ตัวของ แผน 2.6)
 // รวมเป็น "การ์ดละรุ่น" (item_prefix / ชื่อ) บอกว่าว่างกี่ชิ้น — นักศึกษาอยากรู้ว่า "DHT22 มีว่างไหม" ไม่ใช่ทีละชิ้น
@@ -210,7 +210,7 @@ export default function Equipment() {
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 40 }} />
+        <LoadingState style={{ marginTop: 40 }} />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}

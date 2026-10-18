@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Image, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
+import { Image, RefreshControl, ScrollView, StyleSheet, View } from "react-native";
 import { Text } from "../components/AppText";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -13,6 +13,7 @@ import { C, W, iconDot, TOP_INSET } from "../lib/theme";
 import TabBar from "../components/TabBar";
 import { FadeIn, PressScale } from "../components/Motion";
 import { RULE_KEYS, fillRule, rulesFromRows, varsFromRows } from "../lib/borrowRules";
+import LoadingState from "../components/LoadingState";
 
 // โปรไฟล์นักศึกษา (ล็อกอินด้วย Google @kkumail.com):
 //   ตัวตน = ชื่อ/รูป/อีเมลจาก Google + รหัส นศ. (แก้เองไม่ได้)
@@ -130,7 +131,7 @@ export default function Profile() {
   if (!data) {
     return (
       <View style={[s.container, s.centered]}>
-        <ActivityIndicator size="large" color={C.primary} />
+        <LoadingState />
       </View>
     );
   }

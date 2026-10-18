@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   Platform,
@@ -28,6 +27,7 @@ import { canAccess, ROLE_LABEL, useRole } from "../../lib/roles";
 import { W, NG, gradient, iconDot, BADGE_TEXT, TOP_INSET } from "../../lib/theme";
 import { useIsDesktop } from "../../lib/layout";
 import AdminDashboardDesktop from "../../components/desktop/AdminDashboardDesktop";
+import LoadingState from "../../components/LoadingState";
 
 const C = {
   bg: "#EAF1FC",
@@ -146,6 +146,17 @@ async function countPending() {
   return (req.count || 0) + (pickup.count || 0);
 }
 
+// ข้อมูลแดชบอร์ดชุดล่าสุด (หน่วยความจำ) — กลับมาแดชบอร์ด (เช่น เมนูซ้ายจอคอม) เห็นตัวเลขทันที แล้วค่อยโหลดใหม่เบื้องหลัง
+// ล้างเมื่อออกจากระบบ
+type DashSeries = { total: number[]; available: number[]; borrowed: number[]; repair: number[] };
+type DashCache = {
+  total: number; available: number; borrowed: number; repair: number; series: DashSeries;
+  statusBorrowed: number; statusReturned: number; statusRepair: number;
+  activities: ActivityItem[]; pendingRequests: number;
+};
+let cache: DashCache | null = null;
+supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") cache = null; });
+
 export default function AdminHome() {
   const router = useRouter();
   const { role, userId } = useRole();
@@ -166,19 +177,19 @@ export default function AdminHome() {
     ...g,
     items: (g.items as Tile[]).filter((t) => canAccess(role, t.route) && !primary.some((p) => p.route === t.route)),
   })).filter((g) => g.items.length > 0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cache);
   const [refreshing, setRefreshing] = useState(false);
-  const [total, setTotal] = useState(0);
-  const [available, setAvailable] = useState(0);
-  const [borrowed, setBorrowed] = useState(0);
-  const [repair, setRepair] = useState(0);
+  const [total, setTotal] = useState(cache?.total ?? 0);
+  const [available, setAvailable] = useState(cache?.available ?? 0);
+  const [borrowed, setBorrowed] = useState(cache?.borrowed ?? 0);
+  const [repair, setRepair] = useState(cache?.repair ?? 0);
   // ข้อมูลกราฟย้อนหลัง 7 วัน (จุดสุดท้าย = ตัวเลขปัจจุบัน)
-  const [series, setSeries] = useState<{ total: number[]; available: number[]; borrowed: number[]; repair: number[] }>({ total: [], available: [], borrowed: [], repair: [] });
-  const [statusBorrowed, setStatusBorrowed] = useState(0);
-  const [statusReturned, setStatusReturned] = useState(0);
-  const [statusRepair, setStatusRepair] = useState(0);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [pendingRequests, setPendingRequests] = useState(0);
+  const [series, setSeries] = useState<DashSeries>(cache?.series ?? { total: [], available: [], borrowed: [], repair: [] });
+  const [statusBorrowed, setStatusBorrowed] = useState(cache?.statusBorrowed ?? 0);
+  const [statusReturned, setStatusReturned] = useState(cache?.statusReturned ?? 0);
+  const [statusRepair, setStatusRepair] = useState(cache?.statusRepair ?? 0);
+  const [activities, setActivities] = useState<ActivityItem[]>(cache?.activities ?? []);
+  const [pendingRequests, setPendingRequests] = useState(cache?.pendingRequests ?? 0);
   const [unread, setUnread] = useState(0);
 
   // ด่านสิทธิ์อยู่ที่ app/admin/_layout.tsx แล้ว (ไม่ต้องอ่าน role ซ้ำ) → โหลดแดชบอร์ดเลย
@@ -263,15 +274,26 @@ export default function AdminHome() {
     const safeBorrows = borrowRecords || [];
     const safeRepairs = repairRecords || [];
 
-    setTotal(stockItems.length);
-    setAvailable(stockItems.filter((i: any) => i.status === "available").length);
-    setBorrowed(stockItems.filter((i: any) => i.status === "borrowed").length);
-    setRepair(stockItems.filter((i: any) => i.status === "repair").length);
-    setSeries(buildSeries(safeItems, loanHistory || []));
-    setStatusBorrowed(activeBorrowCount.count || 0);
-    setStatusReturned(returnedCount.count || 0);
-    setStatusRepair(activeRepairCount.count || 0);
-    setPendingRequests(await pendingTask);
+    const next = {
+      total: stockItems.length,
+      available: stockItems.filter((i: any) => i.status === "available").length,
+      borrowed: stockItems.filter((i: any) => i.status === "borrowed").length,
+      repair: stockItems.filter((i: any) => i.status === "repair").length,
+      series: buildSeries(safeItems, loanHistory || []),
+      statusBorrowed: activeBorrowCount.count || 0,
+      statusReturned: returnedCount.count || 0,
+      statusRepair: activeRepairCount.count || 0,
+    };
+    setTotal(next.total);
+    setAvailable(next.available);
+    setBorrowed(next.borrowed);
+    setRepair(next.repair);
+    setSeries(next.series);
+    setStatusBorrowed(next.statusBorrowed);
+    setStatusReturned(next.statusReturned);
+    setStatusRepair(next.statusRepair);
+    const pending = await pendingTask;
+    setPendingRequests(pending);
 
     const itemMap = new Map(safeItems.map((item: any) => [item.id, item.item_code || item.name || "อุปกรณ์"]));
     const userIds = [...new Set(safeBorrows.map((r: any) => r.user_id).filter(Boolean))];
@@ -318,6 +340,7 @@ export default function AdminHome() {
       .slice(0, 3);
 
     setActivities(merged);
+    cache = { ...next, activities: merged, pendingRequests: pending };
     setLoading(false);
     setRefreshing(false);
   };
@@ -419,10 +442,7 @@ export default function AdminHome() {
 
       <View style={s.body}>
         {loading ? (
-          <View style={s.loadingCard}>
-            <ActivityIndicator size="large" color={C.blueDark} />
-            <Text style={s.loadingText}>กำลังโหลดข้อมูล...</Text>
-          </View>
+          <LoadingState style={{ marginTop: 40 }} />
         ) : (
           <>
             {/* ลูกเล่น: แต่ละส่วนค่อย ๆ ลอยขึ้นทีละส่วนตอนเปิดหน้า + ปุ่มกดแล้วยุบ/สั่นเบา ๆ (components/Motion) */}
@@ -833,17 +853,6 @@ const s = StyleSheet.create({
   body: {
     paddingHorizontal: 16,
     paddingTop: 14,
-  },
-  loadingCard: {
-    ...W.card,
-    padding: 28,
-    alignItems: "center",
-  },
-  loadingText: {
-    color: C.muted,
-    marginTop: 10,
-    fontSize: 13,
-    fontWeight: "700",
   },
   primaryGrid: {
     flexDirection: "row",
