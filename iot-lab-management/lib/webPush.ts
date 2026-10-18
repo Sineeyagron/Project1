@@ -25,14 +25,40 @@ export const isStandalone = () =>
 const hasPush = () =>
   isWeb && typeof navigator !== "undefined" && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 
+// โหมดที่ใช้อยู่ล่าสุด (TA/Admin มี 2 โหมด: ผู้ดูแล / นักศึกษา) — app/_layout จดทุกครั้งที่เปลี่ยนหน้า
+//   แตะแจ้งเตือนตอนอยู่โหมดนักศึกษา = ไปหน้าแจ้งเตือนนักศึกษาเสมอ (ไม่ดึงไปหน้าผู้ดูแล — เจ้าของโปรเจกต์ขอ 19 ต.ค. 2569)
+const MODE_KEY = "labhub.mode";
+export type AppMode = "staff" | "student";
+
+export function rememberMode(mode: AppMode) {
+  if (!isWeb) return;
+  // หน้าที่เพิ่งเปิดจากแจ้งเตือน (?from=push) ยังไม่ใช่โหมดที่ผู้ใช้เลือก — อย่าจดทับก่อน registerServiceWorker อ่านไปตัดสิน
+  if (typeof location !== "undefined" && new URLSearchParams(location.search).get("from") === "push") return;
+  try { localStorage.setItem(MODE_KEY, mode); } catch {}
+}
+
+function pushTarget(path: string) {
+  let mode: string | null = null;
+  try { mode = localStorage.getItem(MODE_KEY); } catch {}
+  return mode === "student" && path.startsWith("/admin") ? "/notifications?tab=1" : path;
+}
+
 // เรียกครั้งเดียวตอนเปิดแอป (app/_layout) — onOpen = แตะแจ้งเตือนตอนแอปเปิดอยู่ → เปลี่ยนหน้าแทนโหลดใหม่
 export function registerServiceWorker(onOpen: (path: string) => void) {
   if (!isWeb || typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  // แอปถูกเปิดจากการแตะแจ้งเตือน (sw.js ใส่ ?from=push) → เลือกหน้าตามโหมดที่ใช้อยู่ล่าสุด
+  const here = new URL(location.href);
+  if (here.searchParams.get("from") === "push") {
+    here.searchParams.delete("from");
+    const path = here.pathname + here.search;
+    const target = pushTarget(path);
+    if (target !== path) location.replace(target);
+  }
   navigator.serviceWorker.register("/sw.js").catch(() => {});
   navigator.serviceWorker.addEventListener("message", (e: MessageEvent) => {
     if (e.data?.type !== "labhub-open" || typeof e.data.url !== "string") return;
     const url = new URL(e.data.url, location.origin);
-    if (url.origin === location.origin) onOpen(url.pathname + url.search);
+    if (url.origin === location.origin) onOpen(pushTarget(url.pathname + url.search));
   });
 }
 

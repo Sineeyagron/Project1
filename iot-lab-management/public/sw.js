@@ -4,7 +4,7 @@
 //   2) รับ Web Push จาก Edge Function send-push → แสดงแจ้งเตือน / แตะแล้วเปิดหรือโฟกัสแอปไปหน้าที่ระบุ
 // แก้ไฟล์นี้แล้วเปลี่ยน VERSION → cache เก่าถูกล้างตอนเปิดครั้งถัดไป
 
-const VERSION = "labhub-v3";
+const VERSION = "labhub-v4";
 const SHELL = ["/", "/manifest.webmanifest", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
@@ -93,7 +93,10 @@ self.addEventListener("notificationclick", (event) => {
           return;
         } catch {}
       }
-      return self.clients.openWindow(target);
+      // แอปยังไม่เปิด → เปิดหน้านั้นพร้อม ?from=push ให้แอปเลือกหน้าตามโหมดที่ใช้ล่าสุด (lib/webPush registerServiceWorker)
+      const cold = new URL(target);
+      cold.searchParams.set("from", "push");
+      return self.clients.openWindow(cold.href);
     }),
   );
 });
