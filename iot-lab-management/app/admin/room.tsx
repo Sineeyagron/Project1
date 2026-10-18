@@ -22,6 +22,7 @@ import { W, NG, TOP_INSET } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
+import LoadingState from "../../components/LoadingState";
 
 const C = {
   bg: "#EAF1FC",
@@ -232,10 +233,7 @@ export default function AdminRoom() {
       </View>
 
       {loading ? (
-        <View style={s.loadingBox}>
-          <ActivityIndicator size="large" color={C.purple} />
-          <Text style={s.loadingText}>กำลังโหลดข้อมูลห้อง...</Text>
-        </View>
+        <LoadingState style={{ marginTop: 40 }} text="กำลังโหลดข้อมูลห้อง..." />
       ) : (
         <ScrollView
           contentContainerStyle={[s.scroll, isDesktop && desktopGrid.list]}
@@ -438,8 +436,6 @@ const s = StyleSheet.create({
     marginTop: 2,
     textAlign: "center",
   },
-  loadingBox: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
-  loadingText: { color: C.faint, fontSize: 13, fontWeight: "700" },
   scroll: { paddingHorizontal: 23, paddingTop: 14 },
   roomCard: {
     ...W.card,

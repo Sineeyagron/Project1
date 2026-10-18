@@ -22,6 +22,7 @@ import ScreenHeader from "../../components/ScreenHeader";
 import {
   DEFAULT_RULES, VAR_LABEL, RuleVar, fillRule, fromThaiVars, hasBadVar, ruleParts, rulesFromRows, toThaiVars, varsFromRows,
 } from "../../lib/borrowRules";
+import LoadingState from "../../components/LoadingState";
 
 const VAR_KEYS = Object.keys(VAR_LABEL) as RuleVar[];
 
@@ -298,7 +299,7 @@ export default function AdminSettings() {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
+        <LoadingState style={{ marginTop: 44 }} />
       ) : loadError ? (
         // แถบลองใหม่ของหน้านี้เอง (components/LoadError เป็นของระบบห้อง ระบบยืมห้าม import)
         <View style={s.errorBox}>

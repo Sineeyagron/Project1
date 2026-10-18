@@ -19,6 +19,7 @@ import { W, TOP_INSET } from "../../lib/theme";
 import { useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import { isMissingColumn } from "../../lib/people";
+import LoadingState from "../../components/LoadingState";
 
 // จัดการผู้ใช้: รหัสนักศึกษา (admin แก้ให้ได้ ตอน นศ. กรอกผิด — นศ. ตั้งเองได้ครั้งเดียว) + แต่งตั้ง TA
 // จัดการ TA (เฟส 4.1) — admin เท่านั้น (ด่านใน _layout + RPC set_user_role ตรวจซ้ำในฐานข้อมูล)
@@ -250,7 +251,7 @@ export default function ManageTA() {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
+        <LoadingState style={{ marginTop: 44 }} />
       ) : (
         <KeyboardAwareScrollView bottomOffset={24}
           contentContainerStyle={s.body}

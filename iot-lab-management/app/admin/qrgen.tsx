@@ -27,6 +27,8 @@ import { openPrintView } from "../../lib/fileExport";
 import { W, NG, TOP_INSET } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
+import LoadingState from "../../components/LoadingState";
+import { useProgressiveList } from "../../lib/progressiveList";
 
 const FS = FileSystem as any;
 
@@ -151,6 +153,8 @@ export default function QRGen() {
       normalize(item.barcode).includes(q)
     );
   }, [items, search]);
+  // ของเยอะ: วาดชุดแรกทันทีแล้วทยอยที่เหลือ (เลือกทั้งหมด/จำนวน ยังใช้ filtered เต็ม)
+  const shownItems = useProgressiveList(filtered);
 
   const sheetCount = Math.ceil((startAt - 1 + printTargets.length) / LABELS_PER_SHEET);
 
@@ -293,7 +297,7 @@ export default function QRGen() {
       </View>
 
       {loading ? (
-        <View style={s.loading}><ActivityIndicator size="large" color={C.purple} /></View>
+        <LoadingState style={{ marginTop: 40 }} />
       ) : (
         <ScrollView
           contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}
@@ -320,7 +324,7 @@ export default function QRGen() {
               <View style={s.emptyCard}>
                 <Text style={s.emptyText}>ไม่พบอุปกรณ์ในระบบ</Text>
               </View>
-            ) : filtered.map((item) => {
+            ) : shownItems.map((item) => {
               const active = mode === "batch" ? selectedIds.includes(item.id) : item.id === selectedItem?.id;
               return (
                 <TouchableOpacity
@@ -549,7 +553,6 @@ const s = StyleSheet.create({
   modeTabText: { color: "#172033", fontSize: 13, fontWeight: "600" },
   newPill: { backgroundColor: "#fde047", borderRadius: 999, paddingHorizontal: 6, paddingVertical: 1 },
   newPillText: { color: "#854d0e", fontSize: 9, fontWeight: "900" },
-  loading: { flex: 1, alignItems: "center", justifyContent: "center" },
   body: { paddingHorizontal: 31, paddingTop: 15, paddingBottom: 28 },
   sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   sectionLeft: { flexDirection: "row", alignItems: "center", gap: 9 },

@@ -1,11 +1,12 @@
 import { Stack, usePathname, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
 import supabase from "../../lib/supabase";
 import { notify } from "../../lib/notify";
 import { canAccess, isAdminPath, isStaffRole, Role, RoleContext } from "../../lib/roles";
 import { useIsDesktop } from "../../lib/layout";
 import AdminShell from "../../components/desktop/AdminShell";
+import LoadingState from "../../components/LoadingState";
 
 // ด่านตรวจทุกหน้าใน app/admin/ — admin เข้าได้ทุกหน้า / TA เข้าได้เฉพาะหน้าที่อนุญาต (lib/roles.ts) / อื่นๆ กลับหน้าผู้ใช้
 // (กันแค่ฝั่งแอปเพื่อ UX สิทธิ์จริงอยู่ที่ RLS ในฐานข้อมูล)
@@ -79,7 +80,7 @@ export default function AdminLayout() {
   if (!role || blocked) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#EAF1FC" }}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <LoadingState />
       </View>
     );
   }

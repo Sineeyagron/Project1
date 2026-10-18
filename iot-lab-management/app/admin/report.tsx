@@ -34,6 +34,7 @@ import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import RangeCalendarSheet from "../../components/RangeCalendarSheet";
 import { thaiShort } from "../../lib/calendar";
+import LoadingState from "../../components/LoadingState";
 
 // รายงานการยืม-คืน (เฟส 5.1) — admin + TA / ส่งออก CSV (Excel) และ PDF
 // ตรรกะคำนวณอยู่ใน lib/report.ts
@@ -280,7 +281,7 @@ export default function BorrowReport() {
         </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 30 }} />
+          <LoadingState style={{ marginTop: 30 }} />
         ) : customError ? null : (
           <>
             <View style={st.statGrid}>

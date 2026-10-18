@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -26,6 +25,7 @@ import StaffPresenceBanner from "../components/StaffPresenceBanner";
 import StatWidget from "../components/StatWidget";
 import { currentUser } from "../lib/session";
 import { C, W, gradient, iconDot, TOP_INSET } from "../lib/theme";
+import LoadingState from "../components/LoadingState";
 
 type Station = {
   id: string;
@@ -37,29 +37,37 @@ type Station = {
 
 
 
+// ข้อมูลชุดล่าสุด (หน่วยความจำ) — สลับแท็บกลับมาหน้าแรกเห็นการ์ดห้องทันที แล้วค่อยโหลดใหม่เบื้องหลัง / ล้างเมื่อออกจากระบบ
+let cache: { stations: Station[]; rooms: Room[] } | null = null;
+let cachedIsStaff: boolean | null = null;
+supabase.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_OUT") { cache = null; cachedIsStaff = null; }
+});
+
 export default function Home() {
   const router = useRouter();
   // TA/admin ที่มาหน้านักศึกษา (เช่น มายืมของเอง) → มีปุ่มกลับแดชบอร์ด
-  const [isStaff, setIsStaff] = useState(false);
+  const [isStaff, setIsStaff] = useState(cachedIsStaff ?? false);
   useEffect(() => {
     // นักศึกษาที่ยังไม่มีรหัส นศ. → ไปกรอกก่อน (staff ข้าม) / อ่านไม่ได้ (เช่น ยังไม่ได้รัน migration) = ปล่อยผ่าน
     // บทบาทอ่านจากแถวเดียวกัน (เดิมยิง RPC is_staff แยกอีกรอบ)
     currentUser().then((user) => {
       if (!user) return;
       supabase.from("profiles").select("role, student_id").eq("id", user.id).maybeSingle().then(({ data, error }) => {
-        setIsStaff(data?.role === "ta" || data?.role === "admin");
+        cachedIsStaff = data?.role === "ta" || data?.role === "admin";
+        setIsStaff(cachedIsStaff);
         if (!error && data && data.role === "user" && !data.student_id) router.replace("/student-id" as any);
       });
     });
   }, []);
-  const [stations, setStations] = useState<Station[]>([]);
+  const [stations, setStations] = useState<Station[]>(cache?.stations ?? []);
   const [search, setSearch] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cache);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [loadError, setLoadError] = useState("");
-  const [rooms, setRooms] = useState<Room[]>([]);
+  const [rooms, setRooms] = useState<Room[]>(cache?.rooms ?? []);
 
   useEffect(() => {
     fetchRooms();
@@ -85,7 +93,9 @@ export default function Home() {
       setRooms(roomList);
       // เฉพาะเครื่องในห้องที่เปิดอยู่
       const openIds = new Set(roomList.map((room) => room.id));
-      setStations(((data as Station[]) || []).filter((station) => openIds.has(station.room_id)));
+      const nextStations = ((data as Station[]) || []).filter((station) => openIds.has(station.room_id));
+      setStations(nextStations);
+      cache = { stations: nextStations, rooms: roomList };
     }
     setLoading(false);
     setRefreshing(false);
@@ -200,7 +210,7 @@ export default function Home() {
 
         {!!loadError && <LoadError message={loadError} onRetry={onRefresh} />}
         {loading ? (
-          <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 40 }} />
+          <LoadingState style={{ marginTop: 40 }} />
         ) : (
           <>
             <FadeIn delay={80} style={viewMode === "grid" ? s.roomGrid : s.roomList}>

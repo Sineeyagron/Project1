@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -18,6 +17,7 @@ import { ageMonths, ageText, warrantyInfo } from "../../lib/itemInfo";
 import { W, gradient, tint, TOP_INSET } from "../../lib/theme";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
+import LoadingState from "../../components/LoadingState";
 
 // Stock Report (แผนเฟส 2 ข้อ 1): นับจำนวนชิ้นตามสถานะ แยกตามหมวด + อายุ + ประกันรายชิ้น
 // กลุ่ม "ต้องดูแล" ใช้เกณฑ์ปีจาก app_settings (age_warn_years / age_replace_years) ที่ Admin ตั้งเอง
@@ -149,7 +149,7 @@ export default function StockReport() {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 44 }} />
+        <LoadingState style={{ marginTop: 44 }} />
       ) : (
         <ScrollView
           contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}

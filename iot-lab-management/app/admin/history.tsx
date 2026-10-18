@@ -19,6 +19,7 @@ import TimelineDays from "../../components/TimelineDays";
 import TimelineTable from "../../components/desktop/TimelineTable";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import { PAGE_DAYS, TimelineFilter, buildEvents, filterEvents, groupByDay, sinceIso } from "../../lib/timeline";
+import LoadingState from "../../components/LoadingState";
 
 // ประวัติยืม-คืน (Admin/TA) — F3 แบบแอปธนาคาร: จัดกลุ่มตามวัน แต่ละแถว = เวลา · ชนิด · ของ · ใคร · รายละเอียด
 // ดึงทีละช่วง (60 วันล่าสุด + โหลดเพิ่ม) ไม่ดึงทั้งตาราง
@@ -44,15 +45,23 @@ const FILTERS: { key: TimelineFilter; label: string; color: string }[] = [
   { key: "other", label: "อื่น ๆ", color: C.violet },
 ];
 
+// ข้อมูลชุดล่าสุด (หน่วยความจำ) — เปิดซ้ำเห็นประวัติทันที (ช่วงวันเท่าที่โหลดไว้) แล้วค่อยโหลดใหม่เบื้องหลัง / ล้างเมื่อออกจากระบบ
+type HistoryCache = {
+  records: any[]; requests: any[]; pickups: any[];
+  names: Record<string, string>; people: Record<string, string>; days: number;
+};
+let cache: HistoryCache | null = null;
+supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") cache = null; });
+
 export default function AdminHistory() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → ตาราง
-  const [records, setRecords] = useState<any[]>([]);
-  const [requests, setRequests] = useState<any[]>([]);
-  const [pickups, setPickups] = useState<any[]>([]);
-  const [names, setNames] = useState<Record<string, string>>({});
-  const [people, setPeople] = useState<Record<string, string>>({});
-  const [days, setDays] = useState(PAGE_DAYS);
-  const [loading, setLoading] = useState(true);
+  const [records, setRecords] = useState<any[]>(cache?.records ?? []);
+  const [requests, setRequests] = useState<any[]>(cache?.requests ?? []);
+  const [pickups, setPickups] = useState<any[]>(cache?.pickups ?? []);
+  const [names, setNames] = useState<Record<string, string>>(cache?.names ?? {});
+  const [people, setPeople] = useState<Record<string, string>>(cache?.people ?? {});
+  const [days, setDays] = useState(cache?.days ?? PAGE_DAYS);
+  const [loading, setLoading] = useState(!cache);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
@@ -115,6 +124,7 @@ export default function AdminHistory() {
     setPickups(pks);
     setNames(itemMap);
     setPeople(peopleMap);
+    cache = { records: recs, requests: reqs, pickups: pks, names: itemMap, people: peopleMap, days: range };
     setLoading(false);
     setRefreshing(false);
     setLoadingMore(false);
@@ -161,7 +171,7 @@ export default function AdminHistory() {
       />
 
       {loading ? (
-        <ActivityIndicator size="large" color={C.purple} style={{ marginTop: 60 }} />
+        <LoadingState style={{ marginTop: 60 }} />
       ) : (
         <ScrollView
           contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}

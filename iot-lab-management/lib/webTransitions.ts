@@ -8,7 +8,7 @@ import { router } from "expo-router";
 //   ปุ่มย้อนของเครื่อง (Android) / ปุ่ม back เบราว์เซอร์ = เลื่อนกลับ ยกเว้นเบราว์เซอร์ทำเอฟเฟกต์ของมันเองแล้ว (ปัดขอบจอใน Safari)
 // ติดตั้งครั้งเดียวที่ app/_layout
 
-const DURATION = 380;
+const DURATION = 450;
 const MAX_WAIT = 400; // รอหน้าใหม่ขึ้นนานสุด (ระหว่างรอ จอค้างภาพเดิม) — เกินนี้ปล่อยเลย
 
 let suppressed = 0;

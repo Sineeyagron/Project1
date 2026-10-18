@@ -8,6 +8,7 @@ import { who } from "../../lib/people";
 import { photoStamp } from "../../lib/borrowPhotos";
 import { Role } from "../../lib/roles";
 import { C } from "../../lib/theme";
+import LoadingState from "../LoadingState";
 
 // กล่องคำขอแบบจอใหญ่ (เว็บบนคอม): รายการซ้าย + รายละเอียด/ฟอร์มตัดสินขวา
 //   ข้อมูล/การตัดสินมาจาก app/admin/requests.tsx ทั้งหมด (decide_request ตัวเดิม กติกาเดิม) — ไฟล์นี้แค่จัดหน้า
@@ -132,7 +133,7 @@ export default function RequestsDesktop(p: Props) {
           </View>
         </ScrollView>
       ) : p.loading ? (
-        <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 60 }} />
+        <LoadingState style={{ marginTop: 60 }} />
       ) : (
         <View style={s.split}>
           {/* ซ้าย: รายการ */}
