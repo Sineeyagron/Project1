@@ -1,10 +1,10 @@
-import { Stack, usePathname, useRouter } from "expo-router";
+import { Stack, useGlobalSearchParams, usePathname, useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
 import { Platform, StyleSheet, View } from "react-native";
 import supabase from "../lib/supabase";
 import { DialogHost } from "../lib/notify";
 import { applyRememberLogin } from "../lib/session";
-import { dropPushOnSignOut, registerServiceWorker } from "../lib/webPush";
+import { dropPushOnSignOut, registerServiceWorker, rememberMode } from "../lib/webPush";
 import { installPullToRefresh } from "../lib/webPullRefresh";
 import { captureInstallPrompt } from "../lib/installApp";
 import { isAdminPath } from "../lib/roles";
@@ -37,6 +37,14 @@ export default function Layout() {
   const lastPage = useRef(pathname);
   if (pathname !== "/sheet-host") lastPage.current = pathname;
   const wide = isDesktop && isAdminPath(lastPage.current);
+  // เว็บ: จดโหมดที่ใช้อยู่ (ผู้ดูแล / นักศึกษา) → แตะแจ้งเตือนแล้วพาไปหน้าแจ้งเตือนของโหมดนั้น (lib/webPush)
+  //   หน้าแจ้งเตือน: มาจากแถบล่าง (?tab=1) = นักศึกษา / จากกระดิ่งแดชบอร์ด = ผู้ดูแล
+  const { tab } = useGlobalSearchParams<{ tab?: string }>();
+  useEffect(() => {
+    if (["/", "/login", "/sheet-host", "/reset-password", "/student-id"].includes(pathname)) return;
+    const staff = isAdminPath(pathname) || (pathname === "/notifications" && tab !== "1");
+    rememberMode(staff ? "staff" : "student");
+  }, [pathname, tab]);
   // ฟอนต์เดียวทั้งแอป (ไทย + อังกฤษ) — ดู components/AppText.tsx
   const [fontsLoaded, fontError] = useFonts({ NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold });
 
