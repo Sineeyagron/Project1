@@ -34,6 +34,10 @@ export function gradient(css: string): ViewStyle {
 }
 
 const CARD_SHADOW = "inset 0 1px 0 #FFFFFF, inset 0 -2px 0 rgba(37,99,235,0.04), 0 2px 4px rgba(15,23,42,0.06), 0 9px 18px rgba(37,99,235,0.115)";
+// หน้า admin บนคอม (AdminShell ตั้งตัวแปร CSS ใน app/+html) เปลี่ยนพื้นหน้า/เงาการ์ดได้ — ตัวแปรไม่มี = ค่าเดิม
+//   เว็บเท่านั้น: มือถือ (แอป) ได้ค่าเดิมตรงตัว · เว็บมือถือไม่มีตัวแปร → ค่าเดิมเหมือนกัน
+const PAGE_GRADIENT = "linear-gradient(180deg, #C7DBFF 0%, #DDE9FF 30%, #EAF1FC 62%)";
+const webVar = (name: string, fallback: string) => (Platform.OS === "web" ? `var(${name}, ${fallback})` : fallback);
 const SMALL_SHADOW = "inset 0 1px 0 #FFFFFF, 0 1px 2px rgba(15,23,42,0.05), 0 6px 14px rgba(37,99,235,0.13)";
 
 // ระยะหัวหน้าจอจากขอบบน (paddingTop ของแถบหัวทุกหน้า) — แก้ที่นี่ที่เดียว
@@ -45,7 +49,7 @@ export const W = {
   page: {
     flex: 1,
     backgroundColor: C.bg,
-    ...gradient("linear-gradient(180deg, #C7DBFF 0%, #DDE9FF 30%, #EAF1FC 62%)"),
+    ...gradient(webVar("--lh-page-bg", PAGE_GRADIENT)),
   } as ViewStyle,
   // การ์ด widget (ใช้ทุกหน้า): มุมโค้ง 22 พื้นไล่ขาว→ฟ้าที่ขอบล่าง ขอบขาวบาง ไฮไลต์ขอบบน + เงาสองชั้นแบบพอดี
   card: {
@@ -54,7 +58,7 @@ export const W = {
     ...gradient("linear-gradient(165deg, #FFFFFF 0%, #F3F7FF 55%, #E7EFFC 100%)"),
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.9)",
-    boxShadow: CARD_SHADOW,
+    boxShadow: webVar("--lh-card-shadow", CARD_SHADOW),
   } as ViewStyle,
   // ปุ่มเล็ก / ช่องเล็ก (← รีเฟรช กระดิ่ง แท็บ) แบบ widget
   small: {

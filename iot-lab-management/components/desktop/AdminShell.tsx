@@ -17,21 +17,11 @@ import { C } from "../../lib/theme";
 //   หน้าที่ยังไม่มีแบบจอใหญ่ (ADMIN_DESKTOP_READY) → แสดงแบบมือถือกลางพื้นที่เนื้อหา
 
 type NavItem = { icon: keyof typeof Ionicons.glyphMap; label: string; route: string; badge?: "requests" | "roomreports" | "unread" };
-// เมนูซ้ายพื้นน้ำเงินเข้ม (ตัดกับเนื้อหาสีอ่อน) · สีประจำกลุ่ม: tile = กล่องไอคอนสีสด / label = หัวกลุ่มสีสว่างอ่านบนพื้นเข้ม
-//   หน้าที่เปิดอยู่ = แถบขาว + ตัวหนังสือน้ำเงินเข้ม + แถบสีกลุ่มชิดขอบซ้าย
-type Tone = { tile: string; label: string };
-const TONE = {
-  main: { tile: "#3B82F6", label: "#93C5FD" },
-  borrow: { tile: "#14B8A6", label: "#5EEAD4" },
-  room: { tile: "#8B5CF6", label: "#C4B5FD" },
-  check: { tile: "#F97316", label: "#FDBA74" },
-  system: { tile: "#64748B", label: "#CBD5E1" },
-  student: { tile: "#10B981", label: "#6EE7B7" },
-} satisfies Record<string, Tone>;
-const SIDE = { ink: "#FFFFFF", text: "rgba(255,255,255,0.80)", dim: "rgba(255,255,255,0.55)", hover: "rgba(255,255,255,0.10)", line: "rgba(255,255,255,0.12)", activeInk: "#1E3A8A" };
-const NAV: { title?: string; tone: Tone; items: NavItem[] }[] = [
+// เมนูซ้ายโทนฟ้า-ขาว (แบบ 1A ที่เจ้าของโปรเจกต์เลือก): พื้นฟ้าเข้ม · ไอคอนขาวในกล่องขาวโปร่ง
+//   หน้าที่เปิดอยู่ = แถบขาว + ตัวหนังสือฟ้า + กล่องไอคอนฟ้าทึบ
+const SIDE = { ink: "#FFFFFF", text: "rgba(255,255,255,0.88)", dim: "rgba(255,255,255,0.62)", hover: "rgba(255,255,255,0.10)", line: "rgba(255,255,255,0.16)", activeInk: "#1D4ED8" };
+const NAV: { title?: string; items: NavItem[] }[] = [
   {
-    tone: TONE.main,
     items: [
       { icon: "grid-outline", label: "แดชบอร์ด", route: "/admin/home" },
       { icon: "file-tray-full-outline", label: "กล่องคำขอ", route: "/admin/requests", badge: "requests" },
@@ -40,7 +30,6 @@ const NAV: { title?: string; tone: Tone; items: NavItem[] }[] = [
   },
   {
     title: "ยืม-คืน",
-    tone: TONE.borrow,
     items: [
       { icon: "cube-outline", label: "อุปกรณ์ IoT", route: "/admin/items" },
       { icon: "add-circle-outline", label: "เพิ่มอุปกรณ์", route: "/admin/scan" },
@@ -53,7 +42,6 @@ const NAV: { title?: string; tone: Tone; items: NavItem[] }[] = [
   },
   {
     title: "ห้องคอม",
-    tone: TONE.room,
     items: [
       { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room" },
       { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations" },
@@ -64,7 +52,6 @@ const NAV: { title?: string; tone: Tone; items: NavItem[] }[] = [
   },
   {
     title: "ตรวจสภาพ & รายงาน",
-    tone: TONE.check,
     items: [
       { icon: "clipboard-outline", label: "ตรวจเครื่องคอม", route: "/admin/inspection" },
       { icon: "hardware-chip-outline", label: "ตรวจสภาพ IoT", route: "/admin/iotinspection" },
@@ -74,7 +61,6 @@ const NAV: { title?: string; tone: Tone; items: NavItem[] }[] = [
   },
   {
     title: "ระบบ",
-    tone: TONE.system,
     items: [
       { icon: "people-outline", label: "จัดการผู้ใช้", route: "/admin/users" },
       { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings" },
@@ -102,19 +88,19 @@ async function countRoomReports() {
   return count || 0;
 }
 
-function GroupHead({ title, tone }: { title: string; tone: Tone }) {
+function GroupHead({ title }: { title: string }) {
   return (
     <View style={s.groupHead}>
-      <View style={[s.groupDot, { backgroundColor: tone.tile }]} />
-      <Text style={[s.groupTitle, { color: tone.label }]}>{title}</Text>
+      <View style={s.groupDot} />
+      <Text style={s.groupTitle}>{title}</Text>
     </View>
   );
 }
 
-// แถวเมนู: ปกติ = กล่องไอคอนสีสดของกลุ่ม + ตัวหนังสือขาวจาง · ชี้ = พื้นขาวโปร่ง + ตัวหนังสือขาว + กล่องขยับนิด
-//   หน้าที่เปิดอยู่ = แถบขาวมีเงา + ตัวหนังสือน้ำเงินเข้มตัวหนา + แถบสีกลุ่มชิดขอบซ้าย · โฟกัสคีย์บอร์ด = วงฟ้า
-function NavRow({ icon, label, tone, active = false, count = 0, onPress }: {
-  icon: keyof typeof Ionicons.glyphMap; label: string; tone: Tone; active?: boolean; count?: number; onPress: () => void;
+// แถวเมนู: ปกติ = ไอคอนขาวในกล่องขาวโปร่ง + ตัวหนังสือขาว · ชี้ = พื้นขาวโปร่ง + กล่องขยายนิด
+//   หน้าที่เปิดอยู่ = แถบขาวมีเงา + ตัวหนังสือฟ้าตัวหนา + กล่องไอคอนฟ้าทึบ · โฟกัสคีย์บอร์ด = วงฟ้าอ่อน
+function NavRow({ icon, label, active = false, count = 0, onPress }: {
+  icon: keyof typeof Ionicons.glyphMap; label: string; active?: boolean; count?: number; onPress: () => void;
 }) {
   return (
     <Pressable
@@ -132,8 +118,7 @@ function NavRow({ icon, label, tone, active = false, count = 0, onPress }: {
     >
       {({ hovered }: any) => (
         <>
-          {active ? <View style={[s.activeBar, { backgroundColor: tone.tile }]} /> : null}
-          <View style={[s.iconBox, { backgroundColor: tone.tile }, (hovered || active) && s.iconBoxLift]}>
+          <View style={[s.iconBox, active && s.iconBoxOn, (hovered || active) && s.iconBoxLift]}>
             <Ionicons name={icon} size={16} color="#FFFFFF" />
           </View>
           <Text style={[s.itemText, hovered && { color: SIDE.ink }, active && s.itemTextOn]} numberOfLines={1}>{label}</Text>
@@ -197,7 +182,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 12, paddingHorizontal: 12 }} showsVerticalScrollIndicator={false}>
           {groups.map((g, gi) => (
             <View key={gi} style={{ marginTop: g.title ? 10 : 0 }}>
-              {g.title ? <GroupHead title={g.title} tone={g.tone} /> : null}
+              {g.title ? <GroupHead title={g.title} /> : null}
               {g.items.map((item) => {
                 const active = current === item.route;
                 return (
@@ -205,7 +190,6 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
                     key={item.route}
                     icon={item.icon}
                     label={item.label}
-                    tone={g.tone}
                     active={active}
                     count={item.badge ? badges[item.badge] : 0}
                     // สลับหน้า (replace) ไม่ซ้อน: navigate/push ทำให้หน้าเก่าค้างทุกครั้งที่กดเมนู — แต่ละหน้ายังฟัง realtime/รีเฟรชอยู่ = กินฐานข้อมูล
@@ -218,8 +202,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           ))}
           {/* TA/Admin ยืมของเอง = หน้านักศึกษา (เหมือนการ์ด "ยืมของ" ในแดชบอร์ดมือถือ) */}
           <View style={{ marginTop: 10 }}>
-            <GroupHead title="โหมดนักศึกษา" tone={TONE.student} />
-            <NavRow icon="bag-handle-outline" label="ยืมของ" tone={TONE.student} onPress={() => router.navigate("/home")} />
+            <GroupHead title="โหมดนักศึกษา" />
+            <NavRow icon="bag-handle-outline" label="ยืมของ" onPress={() => router.navigate("/home")} />
           </View>
         </ScrollView>
         <View style={s.me}>
@@ -247,22 +231,23 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 const s = StyleSheet.create({
   root: { flex: 1, flexDirection: "row", backgroundColor: "#E4ECF9" },
   // ขอบซ้าย-ขวาอยู่ในแต่ละส่วน (ไม่ใช่ที่ sidebar) — แถบสีหน้าปัจจุบันชิดขอบจอได้ ไม่โดน ScrollView ตัด
-  sidebar: { width: 232, backgroundColor: "#1E3A8A", backgroundImage: "linear-gradient(180deg, #1E40AF 0%, #1E3A8A 45%, #172554 100%)", paddingTop: 18, paddingBottom: 12 } as any,
+  // ฟ้า #2563EB→#1D4ED8→#1E40AF ผสมกรมท่า 15% (ค่าที่เลือกจาก mockup) + แสงฟ้าอ่อนมุมซ้ายบน
+  sidebar: { width: 232, backgroundColor: "#1A46C3", backgroundImage: "radial-gradient(260px 200px at 0% 0%, rgba(147,197,253,0.35), transparent 70%), linear-gradient(180deg, #2158D3 0%, #1A46C3 45%, #1B3AA0 100%)", paddingTop: 18, paddingBottom: 12 } as any,
   brand: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 20, paddingBottom: 16 },
-  brandIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(2,6,23,0.25)" } as any,
+  brandIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(15,23,42,0.20)" } as any,
   brandText: { fontSize: 18, fontWeight: "900", color: SIDE.ink, lineHeight: 22 },
   brandSub: { fontSize: 10.5, fontWeight: "600", color: SIDE.dim },
   groupHead: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingTop: 4, paddingBottom: 5 },
-  groupDot: { width: 6, height: 6, borderRadius: 3 },
-  groupTitle: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
+  groupDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.7)" },
+  groupTitle: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3, color: SIDE.dim },
   item: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 8, paddingVertical: 4, marginVertical: 1, borderRadius: 10, transitionProperty: "background-color, box-shadow", transitionDuration: "150ms" } as any,
   itemHover: { backgroundColor: SIDE.hover },
   itemPressed: { backgroundColor: "rgba(255,255,255,0.16)" },
-  itemOn: { backgroundColor: "#FFFFFF", boxShadow: "0 4px 14px rgba(2,6,23,0.28)" } as any,
+  itemOn: { backgroundColor: "#FFFFFF", boxShadow: "0 6px 16px rgba(15,23,42,0.22)" } as any,
   itemFocus: { boxShadow: "0 0 0 2px #93C5FD" } as any,
-  activeBar: { position: "absolute", left: -12, top: 6, bottom: 6, width: 4, borderTopRightRadius: 4, borderBottomRightRadius: 4 },
-  iconBox: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center", transitionProperty: "transform", transitionDuration: "150ms" } as any,
-  iconBoxLift: { transform: [{ scale: 1.08 }], boxShadow: "0 3px 8px rgba(2,6,23,0.30)" } as any,
+  iconBox: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", transitionProperty: "transform", transitionDuration: "150ms" } as any,
+  iconBoxOn: { backgroundColor: C.primary, borderColor: C.primary },
+  iconBoxLift: { transform: [{ scale: 1.08 }], boxShadow: "0 3px 8px rgba(15,23,42,0.25)" } as any,
   itemText: { flex: 1, fontSize: 13.5, fontWeight: "600", color: SIDE.text },
   itemTextOn: { color: SIDE.activeInk, fontWeight: "800" },
   badge: { minWidth: 20, height: 18, borderRadius: 9, backgroundColor: "#EF4444", paddingHorizontal: 5, alignItems: "center", justifyContent: "center" },

@@ -281,7 +281,8 @@ function CardHead({ icon, title, action, onAction }: { icon: keyof typeof Ionico
 }
 
 const s = StyleSheet.create({
-  fill: { flex: 1 },
+  // พื้นหน้าเหมือนหน้า admin อื่นบนคอม (ตัวแปร CSS ใน app/+html)
+  fill: { flex: 1, backgroundImage: "var(--lh-page-bg)" } as any,
   page: { paddingHorizontal: DESKTOP_GUTTER, paddingTop: 28, paddingBottom: 28, maxWidth: DESKTOP_MAX, width: "100%", alignSelf: "center", gap: 18 },
   head: { flexDirection: "row", alignItems: "center", gap: 10 },
   title: { fontSize: 26, fontWeight: "900", color: C.ink, marginTop: 2 },
@@ -289,14 +290,14 @@ const s = StyleSheet.create({
   headBadge: { position: "absolute", top: -5, right: -5, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: "#EF4444", paddingHorizontal: 4, alignItems: "center", justifyContent: "center" },
   headBadgeText: { color: "#fff", fontSize: 10, fontWeight: "800" },
   stats: { flexDirection: "row", gap: 14 },
-  stat: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: "#DCE6F5", padding: 16 },
+  stat: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: "#DCE6F5", padding: 16, boxShadow: "var(--lh-card-shadow)" } as any,
   statIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   statNum: { fontSize: 26, fontWeight: "900", lineHeight: 30 },
   statLabel: { fontSize: 12.5, color: "#64748B", fontWeight: "600" },
   cols: { flexDirection: "row", gap: 18, alignItems: "flex-start" },
   colMain: { flex: 1.65, gap: 18, minWidth: 0 },
   colSide: { flex: 1, gap: 18, minWidth: 0 },
-  card: { backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: "#DCE6F5", padding: 18 },
+  card: { backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: "#DCE6F5", padding: 18, boxShadow: "var(--lh-card-shadow)" } as any,
   cardHead: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   cardTitle: { flex: 1, fontSize: 15, fontWeight: "800", color: C.ink },
   cardAction: { fontSize: 12.5, fontWeight: "700", color: C.primary },
