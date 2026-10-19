@@ -1080,7 +1080,7 @@ const d = StyleSheet.create({
   chipOn: { backgroundColor: C.purple, borderColor: C.purple },
   chipText: { fontSize: 12.5, fontWeight: "700", color: "#475569" },
   chipCount: { fontSize: 12, fontWeight: "700", color: "#94A3B8" },
-  table: { flex: 1, backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: "#DCE6F5", overflow: "hidden" },
+  table: { flex: 1, backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: "#DCE6F5", overflow: "hidden", boxShadow: "var(--lh-card-shadow)" } as any,
   tr: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
   trHead: { backgroundColor: "#FAFCFF", paddingVertical: 9 },
   th: { fontSize: 11.5, fontWeight: "700", color: "#94A3B8" },

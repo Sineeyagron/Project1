@@ -308,7 +308,7 @@ const s = StyleSheet.create({
   iconBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5", alignItems: "center", justifyContent: "center", marginLeft: 4 },
   hover: { backgroundColor: "#F3F7FD" },
   split: { flex: 1, flexDirection: "row", gap: 18, minHeight: 0 },
-  card: { backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: "#DCE6F5", overflow: "hidden" },
+  card: { backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: "#DCE6F5", overflow: "hidden", boxShadow: "var(--lh-card-shadow)" } as any,
   listCard: { flex: 1.05 },
   detailCard: { flex: 1, padding: 22 },
   row: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },

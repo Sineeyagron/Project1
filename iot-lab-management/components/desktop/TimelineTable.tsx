@@ -54,7 +54,7 @@ export default function TimelineTable({ groups, person }: { groups: DayGroup[]; 
 }
 
 const s = StyleSheet.create({
-  table: { backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: "#DCE6F5", overflow: "hidden", marginBottom: 14 },
+  table: { backgroundColor: "#fff", borderRadius: 18, borderWidth: 1, borderColor: "#DCE6F5", overflow: "hidden", marginBottom: 14, boxShadow: "var(--lh-card-shadow)" } as any,
   tr: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 18, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
   trHead: { backgroundColor: "#FAFCFF", paddingVertical: 9 },
   th: { fontSize: 11.5, fontWeight: "700", color: "#94A3B8" },
