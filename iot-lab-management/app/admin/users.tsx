@@ -38,6 +38,19 @@ const C = {
 
 type Profile = { id: string; email: string | null; role: string; full_name: string | null; student_id: string | null };
 
+// เรียงตามชื่อที่ตั้ง: อังกฤษ A-Z ก่อน แล้วไทย ก-ฮ (ตัวเรียงภาษาไทยปกติเอาไทยขึ้นก่อน → แยกกลุ่มเอง)
+//   ยังไม่ตั้งชื่อ → ไว้ท้ายสุด เรียงตามอีเมล
+const nameCollator = new Intl.Collator("th", { sensitivity: "base", numeric: true });
+const nameGroup = (name: string) => (!name ? 2 : /^[A-Za-z]/.test(name) ? 0 : 1);
+const sortByName = (list: Profile[]) =>
+  list.slice().sort((a, b) => {
+    const na = (a.full_name || "").trim();
+    const nb = (b.full_name || "").trim();
+    return nameGroup(na) - nameGroup(nb)
+      || nameCollator.compare(na, nb)
+      || nameCollator.compare(a.email || "", b.email || "");
+  });
+
 // พิมพ์ตัวเลขล้วน → ใส่ขีดให้เองหลังหลักที่ 9 (รูปแบบ มข. 633021098-9)
 const formatId = (raw: string) => {
   const d = raw.replace(/\D/g, "").slice(0, 10);
@@ -64,7 +77,7 @@ export default function ManageTA() {
     // ยังไม่ได้รัน migration profile_student_id → ไม่มีคอลัมน์ชื่อ/รหัส: ดึงแบบเดิมให้หน้ายังใช้ได้
     if (error && isMissingColumn(error)) ({ data, error } = await supabase.from("profiles").select("id, email, role").order("email") as any);
     if (error) notify("โหลดรายชื่อไม่สำเร็จ", error.message);
-    setPeople((data || []) as Profile[]);
+    setPeople(sortByName((data || []) as Profile[]));
     setLoading(false);
     setRefreshing(false);
   };
