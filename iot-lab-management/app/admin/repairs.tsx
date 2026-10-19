@@ -21,6 +21,7 @@ import { W, NG, TOP_INSET } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
+import DesktopBox from "../../components/desktop/DesktopBox";
 
 const C = {
   bg: "#EAF1FC",
@@ -240,14 +241,17 @@ export default function RepairsPage() {
           style={{ marginBottom: 0 }}
         />
 
+        <DesktopBox bleed={16}>
         <View style={s.statsRow}>
           <RepairStat value={counts.pending} label="รอซ่อม" dotColor={C.red} />
           <RepairStat value={counts.inRepair} label="กำลังซ่อม" dotColor={C.yellow} />
           <RepairStat value={counts.done} label="ซ่อมเสร็จ" dotColor={C.green} />
         </View>
+        </DesktopBox>
       </View>
 
-      <View style={s.filterShell}>
+      <DesktopBox>
+      <View style={[s.filterShell, isDesktop && { paddingHorizontal: 0 }]}>
         <ScrollView horizontal showsHorizontalScrollIndicator contentContainerStyle={s.filterRow}>
           {filters.map((filter) => {
             const active = filterStatus === filter.key;
@@ -265,9 +269,10 @@ export default function RepairsPage() {
         </ScrollView>
       </View>
 
-      <View style={s.listTitleRow}>
+      <View style={[s.listTitleRow, isDesktop && { paddingHorizontal: 0 }]}>
         <Text style={s.listTitle}>{filterStatus === "all" ? "รายการซ่อมทั้งหมด" : `รายการ${roomStatus(REPAIR_STATUS, filterStatus).label}`}</Text>
       </View>
+      </DesktopBox>
 
       {loading ? (
         <View style={s.loadingBox}>
@@ -318,16 +323,19 @@ export default function RepairsPage() {
               );
             })
           )}
-          <View style={{ height: 92, width: "100%" }} />
+          <View style={{ height: isDesktop ? 24 : 92, width: "100%" }} />
         </ScrollView>
       )}
 
-      <View style={s.bottomBar}>
-        <TouchableOpacity style={s.bottomAddBtn} onPress={openAdd} activeOpacity={0.86}>
-          <Ionicons name="add" size={18} color="#FFFFFF" />
-          <Text style={s.bottomAddText}>แจ้งซ่อมใหม่</Text>
-        </TouchableOpacity>
-      </View>
+      {/* จอใหญ่: ปุ่มเพิ่มงานซ่อมอยู่ที่หัวหน้าแล้ว ไม่ต้องมีปุ่มติดล่างซ้ำ */}
+      {!isDesktop && (
+        <View style={s.bottomBar}>
+          <TouchableOpacity style={s.bottomAddBtn} onPress={openAdd} activeOpacity={0.86}>
+            <Ionicons name="add" size={18} color="#FFFFFF" />
+            <Text style={s.bottomAddText}>แจ้งซ่อมใหม่</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* แผ่น iOS แท้ (components/BottomSheet) — รากแผ่นเลื่อนได้อยู่แล้ว ห้ามมี ScrollView แนวตั้งซ้อน */}
       <BottomSheet visible={addModal} onClose={() => setAddModal(false)} style={s.modalBox}>

@@ -19,6 +19,7 @@ import { W, NG, TOP_INSET } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import { desktopBody, desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
+import DesktopBox from "../../components/desktop/DesktopBox";
 
 const C = {
   bg: "#f4f4f7",
@@ -241,6 +242,7 @@ export default function IotInspectionPage() {
           style={{ marginBottom: 14 }}
         />
 
+        <DesktopBox bleed={16}>
         <View style={s.searchRow}>
           <TextInput
             style={s.termInput}
@@ -255,6 +257,7 @@ export default function IotInspectionPage() {
             <Ionicons name="search-outline" size={22} color="#172033" />
           </TouchableOpacity>
         </View>
+        </DesktopBox>
       </View>
 
       <ScrollView
@@ -291,7 +294,7 @@ export default function IotInspectionPage() {
                 <Text style={s.emptyText}>ไม่พบอุปกรณ์ในสถานะนี้</Text>
               </View>
             ) : (
-              <View style={[s.list, isDesktop && desktopGrid.list]}>
+              <View style={[s.list, isDesktop && desktopGrid.list, isDesktop && { paddingHorizontal: 0 }]}>
                 {filteredItems.map(({ item, inspection, condition, cfg }) => (
                   <TouchableOpacity
                     key={item.id}

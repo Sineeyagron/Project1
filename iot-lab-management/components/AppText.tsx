@@ -18,8 +18,22 @@ const FAMILY: Record<string, string> = {
   "900": "NotoSansThai_700Bold",
 };
 
-function withFont(style: TextProps["style"], inherit: boolean, thai = true) {
+// ขยายตัวหนังสือทั้งส่วน (ใช้เฉพาะหน้า admin บนคอมจอใหญ่ — components/desktop/AdminShell) · 1 = ขนาดเดิม (มือถือ/หน้านักศึกษา)
+export const TextScale = React.createContext(1);
+
+function scaled(style: TextProps["style"], flat: TextStyle, k: number) {
+  if (k === 1 || typeof flat.fontSize !== "number") return style;
+  const r = (n: number) => Math.round(n * k * 2) / 2;
+  return [style, { fontSize: r(flat.fontSize), ...(typeof flat.lineHeight === "number" ? { lineHeight: r(flat.lineHeight) } : null) }];
+}
+
+function withFont(style: TextProps["style"], inherit: boolean, thai = true, k = 1) {
   const flat = (StyleSheet.flatten(style) || {}) as TextStyle;
+  style = scaled(style, flat, k);
+  if (k !== 1 && typeof flat.fontSize === "number") {
+    flat.fontSize = Math.round(flat.fontSize * k * 2) / 2;
+    if (typeof flat.lineHeight === "number") flat.lineHeight = Math.round(flat.lineHeight * k * 2) / 2;
+  }
   // ตั้งฟอนต์อื่นไว้เจาะจง (เช่น monospace) → ไม่ยุ่ง
   if (flat.fontFamily) return style;
   // ข้อความซ้อนที่ไม่ได้กำหนดความหนา → ใช้ฟอนต์ของข้อความแม่
@@ -48,7 +62,8 @@ const WEB_STATIC = Platform.OS === "web" ? ({ userSelect: "none" } as any) : nul
 
 export function Text(props: TextProps) {
   const inside = React.useContext(InsideText);
-  const style = withFont(props.style, inside, hasThai(props.children));
+  const k = React.useContext(TextScale);
+  const style = withFont(props.style, inside, hasThai(props.children), k);
   const text = <RNText {...props} style={WEB_STATIC && !props.selectable && !inside ? [WEB_STATIC, style] : style} />;
   return inside ? text : <InsideText.Provider value>{text}</InsideText.Provider>;
 }
@@ -57,7 +72,8 @@ export function Text(props: TextProps) {
 const NO_WEB_OUTLINE = Platform.OS === "web" ? ({ outlineStyle: "none" } as any) : null;
 
 // forwardRef: หน้าที่ต้องสั่งโฟกัสเอง (ref.current.focus()) ใช้ได้
-export const TextInput = React.forwardRef<RNTextInput, TextInputProps>((props, ref) => (
-  <RNTextInput ref={ref} {...props} style={[withFont(props.style, false), NO_WEB_OUTLINE]} />
-));
+export const TextInput = React.forwardRef<RNTextInput, TextInputProps>((props, ref) => {
+  const k = React.useContext(TextScale);
+  return <RNTextInput ref={ref} {...props} style={[withFont(props.style, false, true, k), NO_WEB_OUTLINE]} />;
+});
 TextInput.displayName = "TextInput";

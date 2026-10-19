@@ -11,6 +11,7 @@ import { useRealtime } from "../../lib/realtime";
 import { ROLE_LABEL, Role } from "../../lib/roles";
 import { PresentStaff } from "../../lib/presence";
 import { C } from "../../lib/theme";
+import { DESKTOP_GUTTER, DESKTOP_MAX } from "../../lib/layout";
 
 // แดชบอร์ด admin แบบจอใหญ่ (เว็บบนคอม) — ข้อมูลชุดเดียวกับแดชบอร์ดมือถือ (app/admin/home.tsx ส่งมาให้)
 //   + ดึงเพิ่มเฉพาะที่จอใหญ่โชว์: รายการคำขอรออนุมัติ, เกินกำหนดคืน, สถานะห้องคอมรายกลุ่ม
@@ -281,7 +282,7 @@ function CardHead({ icon, title, action, onAction }: { icon: keyof typeof Ionico
 
 const s = StyleSheet.create({
   fill: { flex: 1 },
-  page: { padding: 28, gap: 18, maxWidth: 1280, width: "100%", alignSelf: "center" },
+  page: { paddingHorizontal: DESKTOP_GUTTER, paddingTop: 28, paddingBottom: 28, maxWidth: DESKTOP_MAX, width: "100%", alignSelf: "center", gap: 18 },
   head: { flexDirection: "row", alignItems: "center", gap: 10 },
   title: { fontSize: 26, fontWeight: "900", color: C.ink, marginTop: 2 },
   headBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5", alignItems: "center", justifyContent: "center" },

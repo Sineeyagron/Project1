@@ -24,6 +24,7 @@ import { C, W, NG, gradient } from "../../lib/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
+import DesktopBox from "../../components/desktop/DesktopBox";
 
 const FS = FileSystem as any;
 const SUPABASE_URL = "https://enupmlxmajjwskvzgcdq.supabase.co";
@@ -316,7 +317,7 @@ export default function Scan() {
     return (
       <View style={styles.container}>
         <ScreenHeader title={"เพิ่มอุปกรณ์"} onBack={() => goBack()} />
-        <StepBar />
+        <DesktopBox><StepBar /></DesktopBox>
 
         <KeyboardAwareScrollView ref={scrollRef} bottomOffset={24} contentContainerStyle={[styles.form, isDesktop && desktopBody.wide]}>
           {isDesktop ? (
@@ -617,6 +618,7 @@ export default function Scan() {
 
         {/* ปุ่มหลักติดขอบล่างเสมอ */}
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+          <DesktopBox bleed={16}>
           <TouchableOpacity
             style={[styles.nextBtn, !canContinue && styles.btnDisabled]}
             onPress={() => {
@@ -628,6 +630,7 @@ export default function Scan() {
             <Text style={styles.nextBtnText}>ดูสรุปก่อนบันทึก</Text>
             <Ionicons name="arrow-forward" size={18} color="#fff" />
           </TouchableOpacity>
+          </DesktopBox>
         </View>
       </View>
     );
@@ -637,10 +640,11 @@ export default function Scan() {
   return (
     <View style={styles.container}>
       <ScreenHeader title="ยืนยัน & บันทึก" onBack={() => setStep("details")} />
-      <StepBar />
+      <DesktopBox><StepBar /></DesktopBox>
 
-      <ScrollView contentContainerStyle={[styles.form, { paddingBottom: 150 + insets.bottom }]}>
-        <View style={styles.hero}>
+      <ScrollView contentContainerStyle={[styles.form, isDesktop && desktopBody.wide, { paddingBottom: 150 + insets.bottom }]}>
+        <View style={isDesktop ? desktopCols.row : { gap: 12 }}>
+        <View style={[styles.hero, isDesktop && desktopCols.side]}>
           {photoUri ? (
             <Image source={{ uri: photoUri }} style={styles.heroImg} />
           ) : (
@@ -660,6 +664,7 @@ export default function Scan() {
           </View>
         </View>
 
+        <View style={isDesktop ? desktopCols.main : { gap: 12 }}>
         <View style={styles.card}>
           {[
             { label: "Serial ผู้ผลิต", val: serial || "-" },
@@ -678,9 +683,12 @@ export default function Scan() {
           <Ionicons name="information-circle-outline" size={16} color="#1D4ED8" />
           <Text style={styles.infoNoteText}>ระบบออกรหัสเรียก + รหัสสแกนให้เองตอนบันทึก · พิมพ์ป้าย QR ได้ที่เมนู "สร้าง QR"</Text>
         </View>
+        </View>
+        </View>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+        <DesktopBox bleed={16}>
         <TouchableOpacity style={[styles.nextBtn, saving && styles.btnDisabled]} onPress={handleSave} disabled={saving} activeOpacity={0.85}>
           {saving ? (
             <ActivityIndicator color="#fff" />
@@ -694,6 +702,7 @@ export default function Scan() {
         <TouchableOpacity style={styles.cancelBtn} onPress={resetAll} disabled={saving}>
           <Text style={styles.cancelBtnText}>ล้างฟอร์ม เริ่มใหม่</Text>
         </TouchableOpacity>
+        </DesktopBox>
       </View>
     </View>
   );

@@ -307,7 +307,7 @@ export default function AdminRequests() {
 
   if (isDesktop) {
     return (
-      <View style={{ flex: 1 }}>
+      <View style={W.page}>
         <RequestsDesktop
           tab={tab}
           setTab={setTab}

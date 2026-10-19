@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { Text } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { useRealtime } from "../lib/realtime";
 import { currentUser } from "../lib/session";
@@ -25,6 +25,9 @@ import TabBar from "../components/TabBar";
 import WebPushCard from "../components/WebPushCard";
 import { refreshUnreadCount } from "../lib/unread";
 import LoadingState from "../components/LoadingState";
+import DesktopBox from "../components/desktop/DesktopBox";
+import { desktopBody, useIsDesktop } from "../lib/layout";
+import { isAdminPath } from "../lib/roles";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
   borrow:         { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
@@ -104,6 +107,8 @@ supabase.auth.onAuthStateChange((event) => {
 
 export default function Notifications() {
   const router = useRouter();
+  // เว็บจอใหญ่ใต้ /admin (มีเมนูซ้าย): เนื้อหาอยู่ในกรอบเดียวกับหน้าอื่นของผู้ดูแล · หน้านักศึกษา/มือถือเหมือนเดิม
+  const desktopAdmin = useIsDesktop() && isAdminPath(usePathname());
   // แถบเมนูล่าง: มาจากแถบเมนู (ทุกบทบาท รวม TA/Admin ที่อยู่โหมดนักศึกษา) หรือเป็นนักศึกษา
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const cacheKey = tab === "1" ? "student" : "bell";
@@ -266,6 +271,8 @@ export default function Notifications() {
       />
 
       {/* เว็บ/PWA: เปิด-ปิด Web Push บนเครื่องนี้ (แอปมือถือไม่แสดง) */}
+      {/* การ์ด/แถบมี marginHorizontal 16 ของตัวเอง → กรอบลด padding เหลือ 12 ให้ขอบตรงกับชื่อหน้า (28) */}
+      <DesktopBox style={{ paddingHorizontal: 12 }}>
       <WebPushCard />
 
       {/* new banner */}
@@ -275,6 +282,7 @@ export default function Notifications() {
           <Text style={s.newBannerTxt}>มีการแจ้งเตือนใหม่ {newCount} รายการ</Text>
         </TouchableOpacity>
       )}
+      </DesktopBox>
 
       {loading ? (
         <LoadingState style={{ marginTop: 60 }} />
@@ -286,7 +294,7 @@ export default function Notifications() {
         </View>
       ) : (
         <ScrollView
-          contentContainerStyle={s.list}
+          contentContainerStyle={[s.list, desktopAdmin && desktopBody.wide]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D4ED8" />}
         >
           <Text style={s.sectionLabel}>การแจ้งเตือนทั้งหมด ({notifications.length})</Text>

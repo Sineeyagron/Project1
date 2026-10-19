@@ -8,6 +8,7 @@ import { who } from "../../lib/people";
 import { photoStamp } from "../../lib/borrowPhotos";
 import { Role } from "../../lib/roles";
 import { C } from "../../lib/theme";
+import { DESKTOP_GUTTER, DESKTOP_MAX } from "../../lib/layout";
 import LoadingState from "../LoadingState";
 
 // กล่องคำขอแบบจอใหญ่ (เว็บบนคอม): รายการซ้าย + รายละเอียด/ฟอร์มตัดสินขวา
@@ -296,10 +297,10 @@ export default function RequestsDesktop(p: Props) {
 }
 
 const s = StyleSheet.create({
-  page: { flex: 1, padding: 28, gap: 18, maxWidth: 1280, width: "100%", alignSelf: "center" },
+  page: { flex: 1, paddingHorizontal: DESKTOP_GUTTER, paddingTop: 28, paddingBottom: 28, maxWidth: DESKTOP_MAX, width: "100%", alignSelf: "center", gap: 18 },
   head: { flexDirection: "row", alignItems: "center", gap: 8 },
   title: { fontSize: 26, fontWeight: "900", color: C.ink },
-  sub: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  sub: { fontSize: 14, color: C.text2, marginTop: 2 },
   tab: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, borderColor: "#DCE6F5", backgroundColor: "#fff" },
   tabOn: { backgroundColor: C.primary, borderColor: C.primary },
   tabText: { fontSize: 13, fontWeight: "700", color: "#475569" },
