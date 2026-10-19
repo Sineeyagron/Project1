@@ -50,7 +50,7 @@ export async function exportCsv(rows: string[][], fileName: string, asciiName: s
 // html สำหรับเว็บควรมี autoPrint (สคริปต์เรียก window.print เอง)
 export async function exportPdf(html: string, webHtml: string, title: string, landscape = false) {
   if (Platform.OS === "web") {
-    openPrintView(webHtml, title);
+    openPrintView(webHtml, title, undefined, landscape ? PAGE_LANDSCAPE : PAGE_PORTRAIT);
     return;
   }
   const { uri } = await Print.printToFileAsync({
@@ -68,7 +68,8 @@ async function share(uri: string, mimeType: string, UTI: string, dialogTitle: st
 
 // เว็บ: หน้าพิมพ์ (HTML ที่เรียก window.print เอง) — คอม = แท็บใหม่ / มือถือ, แอปที่ติดตั้ง = เปิดซ้อนในแอป
 // note = คำแนะนำในกล่องสีฟ้าเหนือปุ่มพิมพ์ (เฉพาะหน้าซ้อนบนมือถือ)
-export function openPrintView(html: string, title: string, note?: string) {
+// pageWidth = ความกว้าง (px) ที่ใช้จัดหน้าตัวอย่างบนมือถือ ก่อนย่อทั้งแผ่นให้พอดีจอ
+export function openPrintView(html: string, title: string, note?: string, pageWidth = PAGE_PORTRAIT) {
   if (!isMobileWeb()) {
     const win = window.open("", "_blank");
     if (!win) throw new Error("เบราว์เซอร์บล็อกหน้าต่างใหม่ อนุญาต pop-up ให้เว็บนี้แล้วลองอีกครั้ง");
@@ -76,8 +77,12 @@ export function openPrintView(html: string, title: string, note?: string) {
     win.document.close();
     return;
   }
-  showPrintOverlay(html, title, note);
+  showPrintOverlay(html, title, note, pageWidth);
 }
+
+// A4 ที่ 96dpi: แนวตั้ง 794px (+ขอบ 26px) / แนวนอน 1123px
+const PAGE_PORTRAIT = 820;
+const PAGE_LANDSCAPE = 1123;
 
 const svgIcon = (d: string, size: number) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" ` +
@@ -88,7 +93,7 @@ const ICON_INFO = '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M
 
 // หน้าต่างซ้อนเต็มจอ: แถบบน (← · ชื่อ) + ตัวอย่างใน iframe (เนื้อหาไม่เด้งพิมพ์เองเมื่ออยู่ใน iframe)
 // + แถบล่างติดจอ (คำแนะนำ · ปุ่มพิมพ์) — ของเยอะแค่ไหนก็ไม่ต้องเลื่อนหาปุ่ม, กลับได้เสมอ
-function showPrintOverlay(html: string, title: string, note?: string) {
+function showPrintOverlay(html: string, title: string, note: string | undefined, pageWidth: number) {
   document.getElementById("labhub-print")?.remove();
   const font = "NotoSansThai_600SemiBold, system-ui, sans-serif";
   const wrap = document.createElement("div");
@@ -118,10 +123,37 @@ function showPrintOverlay(html: string, title: string, note?: string) {
   head.append(name, sub);
   top.append(back, head);
 
+  // ตัวอย่าง: จัดหน้าที่ความกว้างกระดาษจริงแล้วย่อทั้ง iframe ด้วย transform
+  // (จัดที่ความกว้างจอ = ตารางบีบ ตัวหนังสือล้น / zoom ใน iPhone ไม่ย่อตัวหนังสือเล็ก ๆ ตาม → ป้ายล้นช่อง)
+  const scroller = document.createElement("div");
+  scroller.style.cssText = "flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;";
+  const sizer = document.createElement("div");
+  sizer.style.cssText = "position:relative;overflow:hidden;margin:0 auto;";
   const frame = document.createElement("iframe");
   frame.title = title;
-  frame.style.cssText = "flex:1;width:100%;border:0;background:#EEF2F7;";
+  frame.setAttribute("scrolling", "no");
+  frame.style.cssText =
+    `position:absolute;top:0;left:0;width:${pageWidth}px;height:100vh;border:0;background:#EEF2F7;transform-origin:0 0;`;
   frame.srcdoc = html;
+  sizer.append(frame);
+  scroller.append(sizer);
+  const layout = () => {
+    if (!wrap.isConnected) return;
+    const doc = frame.contentDocument;
+    const height = Math.max(doc?.documentElement.scrollHeight || 0, doc?.body?.scrollHeight || 0) || window.innerHeight;
+    const scale = Math.min(1, scroller.clientWidth / pageWidth);
+    frame.style.height = `${height}px`;
+    frame.style.transform = `scale(${scale})`;
+    sizer.style.width = `${pageWidth * scale}px`;
+    sizer.style.height = `${height * scale}px`;
+  };
+  frame.onload = () => {
+    layout();
+    // ฟอนต์ไทยโหลดเสร็จทีหลัง = ความสูงเปลี่ยน
+    (frame.contentDocument as any)?.fonts?.ready?.then(layout);
+    setTimeout(layout, 600);
+  };
+  window.addEventListener("resize", layout);
 
   const bottom = document.createElement("div");
   bottom.style.cssText =
@@ -146,8 +178,11 @@ function showPrintOverlay(html: string, title: string, note?: string) {
     "display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;";
   bottom.append(print);
 
-  back.onclick = () => wrap.remove();
+  back.onclick = () => {
+    window.removeEventListener("resize", layout);
+    wrap.remove();
+  };
   print.onclick = () => frame.contentWindow?.print();
-  wrap.append(top, frame, bottom);
+  wrap.append(top, scroller, bottom);
   document.body.appendChild(wrap);
 }
