@@ -17,16 +17,18 @@ import { C } from "../../lib/theme";
 //   หน้าที่ยังไม่มีแบบจอใหญ่ (ADMIN_DESKTOP_READY) → แสดงแบบมือถือกลางพื้นที่เนื้อหา
 
 type NavItem = { icon: keyof typeof Ionicons.glyphMap; label: string; route: string; badge?: "requests" | "roomreports" | "unread" };
-// สีประจำกลุ่มเมนู: ไอคอนอยู่ในกล่องสีอ่อน → ดูออกว่าเมนูไหนอยู่ระบบไหน · หน้าที่เปิดอยู่ = กล่องสีเข้ม + แถบซ้าย + พื้นสีอ่อน
-type Tone = { ink: string; soft: string };
+// เมนูซ้ายพื้นน้ำเงินเข้ม (ตัดกับเนื้อหาสีอ่อน) · สีประจำกลุ่ม: tile = กล่องไอคอนสีสด / label = หัวกลุ่มสีสว่างอ่านบนพื้นเข้ม
+//   หน้าที่เปิดอยู่ = แถบขาว + ตัวหนังสือน้ำเงินเข้ม + แถบสีกลุ่มชิดขอบซ้าย
+type Tone = { tile: string; label: string };
 const TONE = {
-  main: { ink: "#2563EB", soft: "#E8F0FF" },
-  borrow: { ink: "#0F766E", soft: "#E3F5F2" },
-  room: { ink: "#7C3AED", soft: "#F1EBFF" },
-  check: { ink: "#C2410C", soft: "#FFEFE3" },
-  system: { ink: "#475569", soft: "#EDF1F6" },
-  student: { ink: "#047857", soft: "#E3F7EE" },
+  main: { tile: "#3B82F6", label: "#93C5FD" },
+  borrow: { tile: "#14B8A6", label: "#5EEAD4" },
+  room: { tile: "#8B5CF6", label: "#C4B5FD" },
+  check: { tile: "#F97316", label: "#FDBA74" },
+  system: { tile: "#64748B", label: "#CBD5E1" },
+  student: { tile: "#10B981", label: "#6EE7B7" },
 } satisfies Record<string, Tone>;
+const SIDE = { ink: "#FFFFFF", text: "rgba(255,255,255,0.80)", dim: "rgba(255,255,255,0.55)", hover: "rgba(255,255,255,0.10)", line: "rgba(255,255,255,0.12)", activeInk: "#1E3A8A" };
 const NAV: { title?: string; tone: Tone; items: NavItem[] }[] = [
   {
     tone: TONE.main,
@@ -103,14 +105,14 @@ async function countRoomReports() {
 function GroupHead({ title, tone }: { title: string; tone: Tone }) {
   return (
     <View style={s.groupHead}>
-      <View style={[s.groupDot, { backgroundColor: tone.ink }]} />
-      <Text style={[s.groupTitle, { color: tone.ink }]}>{title}</Text>
+      <View style={[s.groupDot, { backgroundColor: tone.tile }]} />
+      <Text style={[s.groupTitle, { color: tone.label }]}>{title}</Text>
     </View>
   );
 }
 
-// แถวเมนู: ปกติ = ไอคอนในกล่องสีอ่อนของกลุ่ม · ชี้ = พื้นสีอ่อน + ตัวหนังสือสีกลุ่ม
-//   หน้าที่เปิดอยู่ = แถบสีซ้าย + กล่องไอคอนสีเข้ม (ไอคอนขาว) + ตัวหนา
+// แถวเมนู: ปกติ = กล่องไอคอนสีสดของกลุ่ม + ตัวหนังสือขาวจาง · ชี้ = พื้นขาวโปร่ง + ตัวหนังสือขาว + กล่องขยับนิด
+//   หน้าที่เปิดอยู่ = แถบขาวมีเงา + ตัวหนังสือน้ำเงินเข้มตัวหนา + แถบสีกลุ่มชิดขอบซ้าย · โฟกัสคีย์บอร์ด = วงฟ้า
 function NavRow({ icon, label, tone, active = false, count = 0, onPress }: {
   icon: keyof typeof Ionicons.glyphMap; label: string; tone: Tone; active?: boolean; count?: number; onPress: () => void;
 }) {
@@ -120,15 +122,21 @@ function NavRow({ icon, label, tone, active = false, count = 0, onPress }: {
       accessibilityRole="link"
       accessibilityLabel={label}
       {...({ "aria-current": active ? "page" : undefined } as any)}
-      style={({ hovered }: any) => [s.item, (hovered || active) && { backgroundColor: tone.soft }]}
+      style={({ hovered, pressed, focused }: any) => [
+        s.item,
+        hovered && !active && s.itemHover,
+        pressed && !active && s.itemPressed,
+        active && s.itemOn,
+        focused && s.itemFocus,
+      ]}
     >
       {({ hovered }: any) => (
         <>
-          {active ? <View style={[s.activeBar, { backgroundColor: tone.ink }]} /> : null}
-          <View style={[s.iconBox, { backgroundColor: active ? tone.ink : hovered ? "#FFFFFF" : tone.soft }, active && s.iconBoxOn]}>
-            <Ionicons name={icon} size={16} color={active ? "#FFFFFF" : tone.ink} />
+          {active ? <View style={[s.activeBar, { backgroundColor: tone.tile }]} /> : null}
+          <View style={[s.iconBox, { backgroundColor: tone.tile }, (hovered || active) && s.iconBoxLift]}>
+            <Ionicons name={icon} size={16} color="#FFFFFF" />
           </View>
-          <Text style={[s.itemText, (hovered || active) && { color: tone.ink }, active && s.itemTextOn]} numberOfLines={1}>{label}</Text>
+          <Text style={[s.itemText, hovered && { color: SIDE.ink }, active && s.itemTextOn]} numberOfLines={1}>{label}</Text>
           {count > 0 ? (
             <View style={s.badge}><Text style={s.badgeText}>{count > 99 ? "99+" : count}</Text></View>
           ) : null}
@@ -180,8 +188,11 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
     <View style={s.root}>
       <View style={s.sidebar}>
         <View style={s.brand}>
-          <View style={s.brandIcon}><Ionicons name="flask" size={17} color="#fff" /></View>
-          <Text style={s.brandText}>LabHub</Text>
+          <View style={s.brandIcon}><Ionicons name="flask" size={18} color={C.primary} /></View>
+          <View>
+            <Text style={s.brandText}>LabHub</Text>
+            <Text style={s.brandSub}>ระบบจัดการห้องแล็บ</Text>
+          </View>
         </View>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 12, paddingHorizontal: 12 }} showsVerticalScrollIndicator={false}>
           {groups.map((g, gi) => (
@@ -217,8 +228,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
             <Text style={s.meName} numberOfLines={1}>{name || "-"}</Text>
             <Text style={s.meRole}>{role ? ROLE_LABEL[role] : ""}</Text>
           </View>
-          <Pressable onPress={logout} style={({ hovered }: any) => [s.logout, hovered && s.itemHover]} accessibilityLabel="ออกจากระบบ">
-            <Ionicons name="log-out-outline" size={18} color="#64748B" />
+          <Pressable onPress={logout} style={({ hovered, focused }: any) => [s.logout, hovered && s.itemHover, focused && s.itemFocus]} accessibilityLabel="ออกจากระบบ">
+            <Ionicons name="log-out-outline" size={18} color={SIDE.text} />
           </Pressable>
         </View>
       </View>
@@ -236,27 +247,31 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 const s = StyleSheet.create({
   root: { flex: 1, flexDirection: "row", backgroundColor: "#E4ECF9" },
   // ขอบซ้าย-ขวาอยู่ในแต่ละส่วน (ไม่ใช่ที่ sidebar) — แถบสีหน้าปัจจุบันชิดขอบจอได้ ไม่โดน ScrollView ตัด
-  sidebar: { width: 232, backgroundColor: "#FFFFFF", borderRightWidth: 1, borderRightColor: "#DCE6F5", paddingTop: 18, paddingBottom: 12 },
-  brand: { flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 20, paddingBottom: 14 },
-  brandIcon: { width: 30, height: 30, borderRadius: 9, backgroundColor: C.primary, alignItems: "center", justifyContent: "center" },
-  brandText: { fontSize: 18, fontWeight: "900", color: C.ink },
-  groupHead: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingBottom: 4 },
+  sidebar: { width: 232, backgroundColor: "#1E3A8A", backgroundImage: "linear-gradient(180deg, #1E40AF 0%, #1E3A8A 45%, #172554 100%)", paddingTop: 18, paddingBottom: 12 } as any,
+  brand: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 20, paddingBottom: 16 },
+  brandIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 12px rgba(2,6,23,0.25)" } as any,
+  brandText: { fontSize: 18, fontWeight: "900", color: SIDE.ink, lineHeight: 22 },
+  brandSub: { fontSize: 10.5, fontWeight: "600", color: SIDE.dim },
+  groupHead: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingTop: 4, paddingBottom: 5 },
   groupDot: { width: 6, height: 6, borderRadius: 3 },
-  groupTitle: { fontSize: 11, fontWeight: "800" },
-  item: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 8, paddingVertical: 4, marginVertical: 1, borderRadius: 10, transitionProperty: "background-color", transitionDuration: "120ms" } as any,
-  itemHover: { backgroundColor: "#F3F7FD" },
-  activeBar: { position: "absolute", left: -12, top: 7, bottom: 7, width: 4, borderTopRightRadius: 4, borderBottomRightRadius: 4 },
-  iconBox: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center" },
-  iconBoxOn: { boxShadow: "0 3px 8px rgba(15,23,42,0.18)" } as any,
-  itemText: { flex: 1, fontSize: 13.5, fontWeight: "600", color: "#334155" },
-  itemTextOn: { fontWeight: "800" },
+  groupTitle: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
+  item: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 8, paddingVertical: 4, marginVertical: 1, borderRadius: 10, transitionProperty: "background-color, box-shadow", transitionDuration: "150ms" } as any,
+  itemHover: { backgroundColor: SIDE.hover },
+  itemPressed: { backgroundColor: "rgba(255,255,255,0.16)" },
+  itemOn: { backgroundColor: "#FFFFFF", boxShadow: "0 4px 14px rgba(2,6,23,0.28)" } as any,
+  itemFocus: { boxShadow: "0 0 0 2px #93C5FD" } as any,
+  activeBar: { position: "absolute", left: -12, top: 6, bottom: 6, width: 4, borderTopRightRadius: 4, borderBottomRightRadius: 4 },
+  iconBox: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center", transitionProperty: "transform", transitionDuration: "150ms" } as any,
+  iconBoxLift: { transform: [{ scale: 1.08 }], boxShadow: "0 3px 8px rgba(2,6,23,0.30)" } as any,
+  itemText: { flex: 1, fontSize: 13.5, fontWeight: "600", color: SIDE.text },
+  itemTextOn: { color: SIDE.activeInk, fontWeight: "800" },
   badge: { minWidth: 20, height: 18, borderRadius: 9, backgroundColor: "#EF4444", paddingHorizontal: 5, alignItems: "center", justifyContent: "center" },
   badgeText: { color: "#fff", fontSize: 10.5, fontWeight: "800" },
-  me: { flexDirection: "row", alignItems: "center", gap: 9, borderTopWidth: 1, borderTopColor: "#EEF2F8", paddingTop: 12, paddingHorizontal: 16 },
-  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#DBEAFE", alignItems: "center", justifyContent: "center" },
+  me: { flexDirection: "row", alignItems: "center", gap: 9, borderTopWidth: 1, borderTopColor: SIDE.line, paddingTop: 12, paddingHorizontal: 16 },
+  avatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
   avatarText: { color: C.primaryDark, fontWeight: "800" },
-  meName: { fontSize: 13, fontWeight: "700", color: C.ink },
-  meRole: { fontSize: 11, color: "#94A3B8" },
+  meName: { fontSize: 13, fontWeight: "700", color: SIDE.ink },
+  meRole: { fontSize: 11, color: SIDE.dim },
   logout: { width: 34, height: 34, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   content: { flex: 1, alignItems: "center" },
   page: { flex: 1, width: "100%" },
