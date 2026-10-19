@@ -23,6 +23,7 @@ import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
 import LoadingState from "../../components/LoadingState";
+import DesktopBox from "../../components/desktop/DesktopBox";
 
 const C = {
   bg: "#EAF1FC",
@@ -340,6 +341,7 @@ export default function AdminStations() {
           style={{ marginBottom: 0 }}
         />
 
+        <DesktopBox bleed={16}>
         <View style={s.roomTabs}>
           {rooms.map((room) => {
             const active = selectedRoom === room;
@@ -355,6 +357,7 @@ export default function AdminStations() {
             );
           })}
         </View>
+        </DesktopBox>
       </View>
 
       {loading ? (

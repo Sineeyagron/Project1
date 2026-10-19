@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname, useRouter } from "expo-router";
-import { Text } from "../AppText";
+import { Text, TextScale } from "../AppText";
 import supabase from "../../lib/supabase";
 import { useRealtime } from "../../lib/realtime";
 import { useRoomLive } from "../../lib/roomRealtime";
@@ -118,8 +118,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const current = pathname.replace(/\/+$/, "") === "/admin" ? "/admin/home" : pathname.replace(/\/+$/, "");
   const groups = NAV.map((g) => ({ ...g, items: g.items.filter((i) => canAccess(role, i.route)) })).filter((g) => g.items.length);
   const ready = isDesktopReady(pathname);
+  // จอกว้างมาก ตัวหนังสือแบบมือถือ (12–14) เล็กเกินอ่านสบาย → ขยายเฉพาะตัวหนังสือ (ไม่ขยายทั้งหน้า: เมนูลอยคำนวณตำแหน่งจากพิกัดจอ)
+  const { width } = useWindowDimensions();
+  const textScale = width >= 1800 ? 1.12 : width >= 1500 ? 1.07 : 1;
 
   return (
+    <TextScale.Provider value={textScale}>
     <View style={s.root}>
       <View style={s.sidebar}>
         <View style={s.brand}>
@@ -179,6 +183,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         <View style={[s.page, !ready && s.pagePhone]}>{children}</View>
       </View>
     </View>
+    </TextScale.Provider>
   );
 }
 

@@ -23,6 +23,7 @@ import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
 import LoadingState from "../../components/LoadingState";
+import DesktopBox from "../../components/desktop/DesktopBox";
 
 const C = {
   bg: "#EAF1FC",
@@ -225,11 +226,13 @@ export default function AdminRoom() {
           style={{ marginBottom: 14 }}
         />
 
+        <DesktopBox bleed={16}>
         <View style={s.summaryRow}>
           <HeaderStat value={totals.rooms} label="ห้องที่เปิดอยู่" />
           <HeaderStat value={totals.stations} label="เครื่องทั้งหมด" />
           <HeaderStat value={totals.warnings} label="แจ้งเตือน" />
         </View>
+        </DesktopBox>
       </View>
 
       {loading ? (

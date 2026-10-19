@@ -29,6 +29,7 @@ import ScreenHeader from "../../components/ScreenHeader";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import LoadingState from "../../components/LoadingState";
 import { useProgressiveList } from "../../lib/progressiveList";
+import DesktopBox from "../../components/desktop/DesktopBox";
 
 const FS = FileSystem as any;
 
@@ -275,6 +276,7 @@ export default function QRGen() {
           style={{ marginBottom: 0 }}
         />
 
+        <DesktopBox bleed={16}>
         <View style={s.modeTabs}>
           <TouchableOpacity
             style={[s.modeTab, mode === "single" && s.modeTabActive]}
@@ -294,6 +296,7 @@ export default function QRGen() {
             <View style={s.newPill}><Text style={s.newPillText}>ใหม่</Text></View>
           </TouchableOpacity>
         </View>
+        </DesktopBox>
       </View>
 
       {loading ? (

@@ -24,6 +24,7 @@ import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
 import LoadingState from "../../components/LoadingState";
+import DesktopBox from "../../components/desktop/DesktopBox";
 
 // กด port = เปลี่ยนสถานะวนตามลำดับนี้
 const NEXT_STATUS: Record<string, string> = { available: "repair", repair: "broken", broken: "available" };
@@ -185,9 +186,10 @@ export default function AdminLanPorts() {
         right={isAdmin ? <HeaderButton icon="add" label="เพิ่ม Port" onPress={() => selectedRoom ? setAddModal(true) : notify("ยังไม่มีห้อง", "ต้องมีห้องก่อนถึงจะเพิ่ม Port ได้")} /> : null}
       />
 
+      <DesktopBox>
       {/* ROOM SELECTOR */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        style={styles.selectorScroll} contentContainerStyle={styles.selectorRow}>
+        style={styles.selectorScroll} contentContainerStyle={[styles.selectorRow, isDesktop && { paddingHorizontal: 0 }]}>
         {rooms.map(r => (
           <TouchableOpacity key={r}
             style={[styles.selectorBtn, selectedRoom === r && styles.selectorBtnActive]}
@@ -199,7 +201,7 @@ export default function AdminLanPorts() {
 
       {/* GROUP SELECTOR */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        style={styles.selectorScroll} contentContainerStyle={styles.selectorRow}>
+        style={styles.selectorScroll} contentContainerStyle={[styles.selectorRow, isDesktop && { paddingHorizontal: 0 }]}>
         {groups.map(g => (
           <TouchableOpacity key={g}
             style={[styles.groupBtn, selectedGroup === g && styles.groupBtnActive]}
@@ -210,6 +212,7 @@ export default function AdminLanPorts() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+      </DesktopBox>
 
       {loading ? (
         <LoadingState style={{ marginTop: 40 }} />

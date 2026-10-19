@@ -12,7 +12,7 @@ import SearchBar from "../../components/SearchBar";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useIsDesktop } from "../../lib/layout";
+import { DESKTOP_GUTTER, DESKTOP_MAX, useIsDesktop } from "../../lib/layout";
 import supabase from "../../lib/supabase";
 import { ITEM_STATUS, RECORD_STATUS } from "../../lib/status";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
@@ -1064,10 +1064,10 @@ const s = StyleSheet.create({
 
 // จอใหญ่ (เว็บบนคอม)
 const d = StyleSheet.create({
-  page: { flex: 1, padding: 28, gap: 16, maxWidth: 1280, width: "100%", alignSelf: "center" },
+  page: { flex: 1, paddingHorizontal: DESKTOP_GUTTER, paddingTop: 28, paddingBottom: 28, maxWidth: DESKTOP_MAX, width: "100%", alignSelf: "center", gap: 16 },
   head: { flexDirection: "row", alignItems: "center", gap: 10 },
   title: { fontSize: 26, fontWeight: "900", color: C.ink },
-  sub: { fontSize: 13, color: "#64748B", marginTop: 2 },
+  sub: { fontSize: 14, color: "#475569", marginTop: 2 },
   search: { flexDirection: "row", alignItems: "center", gap: 8, width: 320, height: 40, borderRadius: 12, borderWidth: 1, borderColor: "#DCE6F5", backgroundColor: "#fff", paddingHorizontal: 12 },
   searchInput: { flex: 1, fontSize: 14, color: C.ink, height: 38 },
   btn: { flexDirection: "row", alignItems: "center", gap: 6, height: 40, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1, borderColor: "#DCE6F5", backgroundColor: "#fff" },

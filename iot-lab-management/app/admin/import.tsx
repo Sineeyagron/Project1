@@ -452,6 +452,16 @@ export default function ImportItems() {
 
                 </View>
                 <View style={desktopCols.half}>
+            {/* ยังไม่ได้เลือกไฟล์: บอกว่าผลตรวจจะขึ้นตรงนี้ (ไม่ปล่อยคอลัมน์ขวาว่าง) */}
+            {!(check && sum && check.rows.length > 0) && (
+              <View style={[s.card, s.emptyStep]}>
+                <Text style={s.stepTitle}>3. ตรวจก่อนบันทึก</Text>
+                <View style={s.emptyStepBody}>
+                  <Ionicons name="list-outline" size={30} color={C.faint} />
+                  <Text style={s.emptyStepText}>เลือกไฟล์หรือวางข้อความทางซ้าย{"\n"}รายการจะขึ้นตรงนี้ให้ตรวจก่อนบันทึก</Text>
+                </View>
+              </View>
+            )}
             {/* 3. ตรวจก่อนบันทึก */}
             {check && sum && check.rows.length > 0 && (
               <View style={s.card}>
@@ -730,6 +740,9 @@ const s = StyleSheet.create({
   cardWarn: { ...NG, borderColor: "#fcd34d", backgroundColor: "#fffbeb" },
   stepTitle: { fontSize: 15.5, fontWeight: "900", color: C.ink },
   help: { fontSize: 13, color: C.muted, lineHeight: 20 },
+  emptyStep: { minHeight: 240 },
+  emptyStepBody: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingVertical: 24 },
+  emptyStepText: { fontSize: 13, color: C.muted, lineHeight: 20, textAlign: "center" },
   bold: { fontWeight: "800", color: C.ink },
   rowCenter: { flexDirection: "row", alignItems: "center", gap: 8 },
   primaryBtn: {

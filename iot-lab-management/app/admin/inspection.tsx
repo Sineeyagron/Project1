@@ -20,6 +20,7 @@ import { W, NG, TOP_INSET } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
+import DesktopBox from "../../components/desktop/DesktopBox";
 
 const EQUIP_TYPES = ["mouse", "keyboard", "monitor"] as const;
 type EquipType = (typeof EQUIP_TYPES)[number];
@@ -351,6 +352,7 @@ export default function InspectionPage() {
           style={{ marginBottom: 14 }}
         />
 
+        <DesktopBox bleed={16}>
         <View style={st.termRow}>
           <TextInput
             style={st.termInput}
@@ -396,6 +398,7 @@ export default function InspectionPage() {
         <View style={st.progressTrack}>
           <View style={[st.progressFill, { width: `${Math.round(progress * 100)}%` }]} />
         </View>
+        </DesktopBox>
       </View>
 
       <ScrollView contentContainerStyle={[st.body, isDesktop && desktopGrid.list]} keyboardShouldPersistTaps="handled">
