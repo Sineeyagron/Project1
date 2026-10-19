@@ -180,7 +180,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
 
       {/* หน้าที่ยังไม่มีแบบจอใหญ่ = แท่งแบบมือถือกลางพื้นที่ (ใช้งานได้ครบ ไม่พัง) */}
       <View style={s.content}>
-        <View style={[s.page, !ready && s.pagePhone]}>{children}</View>
+        {/* data-admin-page: ให้ CSS ใน +html จองที่แถบเลื่อนสองข้าง เนื้อหาตรงกับหัวหน้าจอ */}
+        <View style={[s.page, !ready && s.pagePhone]} {...(ready ? ({ dataSet: { adminPage: "1" } } as any) : null)}>{children}</View>
       </View>
     </View>
     </TextScale.Provider>

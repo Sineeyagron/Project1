@@ -34,8 +34,12 @@ export default function Root({ children }: PropsWithChildren) {
 //   เคอร์เซอร์ข้อความขึ้นเฉพาะในช่องพิมพ์ (เบราว์เซอร์ที่เปิด caret browsing วางเคอร์เซอร์ได้ทุกจุด) +
 //   แตะแล้วไม่มีกรอบสีฟ้าแวบบนมือถือ +
 //   แตะสองทีไม่ซูม (touch-action) / หมุนจอแล้วตัวหนังสือไม่ขยายเอง
+// หน้า admin จอใหญ่: ScrollView แนวตั้ง (overflow-y auto + overflow-x hidden ของ react-native-web) จองที่แถบเลื่อนทั้งสองข้าง
+//   ไม่งั้นแถบเลื่อน 15px ดันเนื้อหาไปซ้าย 7px ไม่ตรงกับหัวหน้าจอ (หัวอยู่นอก ScrollView)
+//   เฉพาะชั้นในสุด — ScrollView ที่มี RefreshControl บนเว็บมีกล่องห่อคลาสเดียวกันอีกชั้น
 const webAppCss = `
 html, body { touch-action: manipulation; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { caret-color: transparent; -webkit-tap-highlight-color: transparent; }
 input, textarea, [contenteditable="true"] { caret-color: auto; }
+[data-admin-page] .r-1rnoaur.r-11yh6sk:not(:has(.r-1rnoaur.r-11yh6sk)) { scrollbar-gutter: stable both-edges; }
 `;

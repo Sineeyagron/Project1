@@ -16,7 +16,7 @@ import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
 import { useRole } from "../../lib/roles";
 import { W, TOP_INSET } from "../../lib/theme";
-import { useIsDesktop } from "../../lib/layout";
+import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import { isMissingColumn } from "../../lib/people";
 import LoadingState from "../../components/LoadingState";
@@ -254,7 +254,7 @@ export default function ManageTA() {
         <LoadingState style={{ marginTop: 44 }} />
       ) : (
         <KeyboardAwareScrollView bottomOffset={24}
-          contentContainerStyle={s.body}
+          contentContainerStyle={[s.body, isDesktop && desktopBody.wide]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={C.purple} />}

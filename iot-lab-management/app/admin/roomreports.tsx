@@ -20,6 +20,7 @@ import ScreenHeader from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import LoadingState from "../../components/LoadingState";
+import DesktopBox from "../../components/desktop/DesktopBox";
 
 // คิวคำแจ้งปัญหาจากนักศึกษา (ระบบห้อง R3) — Admin/TA รับเป็นงานซ่อม หรือปิดพร้อมเหตุผล
 // ตัดสินผ่าน RPC decide_room_report (รับเครื่อง = สร้างงานซ่อม + เครื่องเป็น "กำลังซ่อม" / รับ LAN = port เป็น "กำลังซ่อม")
@@ -155,7 +156,8 @@ export default function RoomReports() {
         onBack={() => goBack("/admin/room")}
       />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={s.filterRow}>
+      <DesktopBox>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filterScroll} contentContainerStyle={[s.filterRow, isDesktop && { paddingHorizontal: 0 }]}>
         {FILTERS.map((f) => {
           const active = filter === f.key;
           return (
@@ -165,6 +167,7 @@ export default function RoomReports() {
           );
         })}
       </ScrollView>
+      </DesktopBox>
 
       {loading ? (
         <LoadingState style={{ marginTop: 40 }} />
