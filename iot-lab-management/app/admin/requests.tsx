@@ -105,46 +105,51 @@ export default function AdminRequests() {
   const signedRef = useRef<Record<string, string>>({});
   const signedAtRef = useRef(0);
 
-  const load = useCallback(async () => {
-    // ปล่อยคำขอที่หมดเวลาไปพร้อมกับโหลดรายการ (ไม่ต้องรอกันเป็นทอด) — รายการที่หมดเวลาแล้วกรองทิ้งฝั่งแอปด้านล่าง
-    const expiring = supabase.rpc("expire_requests");
-    const query = (sel: string) => Promise.all([
-      supabase.from("borrow_requests").select(sel).eq("status", "pending").order("created_at", { ascending: true }),
-      supabase.from("borrow_requests").select(sel).neq("status", "pending").order("decided_at", { ascending: false }).limit(40),
-    ]);
-    supabase.from("pickup_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
-      .then(({ count }) => setPickupCount(count || 0));
-    let [[{ data: p, error }, { data: h }]] = await Promise.all([query(SELECT), expiring]);
-    if (error && isMissingColumn(error)) [{ data: p, error }, { data: h }] = await query(SELECT_LEGACY);
-    p = (p || []).filter((r: any) => !r.expires_at || Date.parse(r.expires_at) > Date.now());
-    if (error) notify("โหลดคำขอไม่สำเร็จ", error.message);
+  // ขอลิงก์รูปเฉพาะรูปใหม่ (ลิงก์อายุ 1 ชม. ใช้ซ้ำได้) — ลดงานฐานข้อมูลตอนรีเฟรชอัตโนมัติ · รูปขึ้นตามหลังรายการ (ไม่บล็อก)
+  const signPhotos = useCallback(async (rows: any[]) => {
+    const paths = [...new Set(rows.flatMap((r: any) => [r.photo_path, r.record?.borrow_photo_path]).filter(Boolean) as string[])];
+    const fresh = paths.filter((path) => !signedRef.current[path]);
+    if (fresh.length === 0) return;
+    const { data: signed } = await supabase.storage.from("borrow-photos").createSignedUrls(fresh, 60 * 60);
+    (signed || []).forEach((s: any) => { if (s.path && s.signedUrl) signedRef.current[s.path] = s.signedUrl; });
+    setPhotoUrls({ ...signedRef.current });
+  }, []);
 
-    const all = [...(p || []), ...(h || [])];
-    const paths = [
-      ...new Set(
-        all.flatMap((r: any) => [r.photo_path, r.record?.borrow_photo_path]).filter(Boolean) as string[]
-      ),
-    ];
-    // ขอลิงก์รูปเฉพาะรูปใหม่ (ลิงก์อายุ 1 ชม. ใช้ซ้ำได้) — ลดงานฐานข้อมูลตอนรีเฟรชอัตโนมัติ
-    // เปิดหน้าค้างไว้เกิน 50 นาที → ลิงก์เดิมใกล้หมดอายุ (รูปจะไม่ขึ้น) ล้างแล้วขอใหม่ทั้งหมด
+  // โหลดเร็ว: คำขอรออนุมัติขึ้นทันทีที่ได้ — ประวัติ / ลิงก์รูป / ล้างคำขอหมดเวลา วิ่งคู่กันเบื้องหลัง ไม่ต้องรอกันเป็นทอด
+  const load = useCallback(async () => {
+    // เปิดหน้าค้างไว้เกิน 50 นาที → ลิงก์รูปเดิมใกล้หมดอายุ (รูปจะไม่ขึ้น) ล้างแล้วขอใหม่ทั้งหมด
     if (Date.now() - signedAtRef.current > 50 * 60 * 1000) {
       signedRef.current = {};
       signedAtRef.current = Date.now();
     }
-    const fresh = paths.filter((path) => !signedRef.current[path]);
-    if (fresh.length > 0) {
-      const { data: signed } = await supabase.storage.from("borrow-photos").createSignedUrls(fresh, 60 * 60);
-      (signed || []).forEach((s: any) => { if (s.path && s.signedUrl) signedRef.current[s.path] = s.signedUrl; });
-      setPhotoUrls({ ...signedRef.current });
-    }
+    const pendingQuery = (sel: string) =>
+      supabase.from("borrow_requests").select(sel).eq("status", "pending").order("created_at", { ascending: true });
+    const historyQuery = (sel: string) =>
+      supabase.from("borrow_requests").select(sel).neq("status", "pending").order("decided_at", { ascending: false }).limit(40);
+
+    // ล้างคำขอหมดเวลา: แอปกรองตัวที่หมดเวลาทิ้งเองอยู่แล้ว (ด้านล่าง) → ไม่ต้องรอ · มีหมดอายุจริง = ประวัติเปลี่ยน → โหลดใหม่เงียบ ๆ
+    supabase.rpc("expire_requests").then(({ data }) => { if (typeof data === "number" && data > 0) load(); });
+    supabase.from("pickup_requests").select("id", { count: "exact", head: true }).eq("status", "pending")
+      .then(({ count }) => setPickupCount(count || 0));
+    historyQuery(SELECT).then(async ({ data, error }) => {
+      let h: any[] | null = data as any;
+      if (error && isMissingColumn(error)) h = (await historyQuery(SELECT_LEGACY)).data as any;
+      setHistory(h || []);
+      signPhotos(h || []);
+    });
+
+    let { data: p, error } = await pendingQuery(SELECT);
+    if (error && isMissingColumn(error)) ({ data: p, error } = await pendingQuery(SELECT_LEGACY));
+    if (error) notify("โหลดคำขอไม่สำเร็จ", error.message);
+    const live = ((p || []) as any[]).filter((r: any) => !r.expires_at || Date.parse(r.expires_at) > Date.now());
 
     // คำขอที่เปิดมาจากแจ้งเตือนขึ้นก่อน
-    const list = (p || []).slice().sort((a: any, b: any) => (a.id === focusId ? -1 : b.id === focusId ? 1 : 0));
+    const list = live.slice().sort((a: any, b: any) => (a.id === focusId ? -1 : b.id === focusId ? 1 : 0));
     setPending(list);
-    setHistory(h || []);
     setLoading(false);
     setRefreshing(false);
-  }, [focusId]);
+    signPhotos(list);
+  }, [focusId, signPhotos]);
 
   useEffect(() => { load(); }, [load]);
   // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
