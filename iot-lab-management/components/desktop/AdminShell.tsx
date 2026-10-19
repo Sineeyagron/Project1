@@ -17,11 +17,23 @@ import { C } from "../../lib/theme";
 //   หน้าที่ยังไม่มีแบบจอใหญ่ (ADMIN_DESKTOP_READY) → แสดงแบบมือถือกลางพื้นที่เนื้อหา
 
 type NavItem = { icon: keyof typeof Ionicons.glyphMap; label: string; route: string; badge?: "requests" | "roomreports" | "unread" };
-// เมนูซ้ายโทนฟ้า-ขาว (แบบ 1A ที่เจ้าของโปรเจกต์เลือก): พื้นฟ้าเข้ม · ไอคอนขาวในกล่องขาวโปร่ง
-//   หน้าที่เปิดอยู่ = แถบขาว + ตัวหนังสือฟ้า + กล่องไอคอนฟ้าทึบ
+// เมนูซ้ายโทนฟ้า-ขาว (แบบ 1A ที่เจ้าของโปรเจกต์เลือก): พื้นฟ้าเข้ม · ไอคอนขาวในกล่องสีประจำกลุ่ม
+//   หน้าที่เปิดอยู่ = แถบขาว + ตัวหนังสือฟ้า
 const SIDE = { ink: "#FFFFFF", text: "rgba(255,255,255,0.88)", dim: "rgba(255,255,255,0.62)", hover: "rgba(255,255,255,0.10)", line: "rgba(255,255,255,0.16)", activeInk: "#1D4ED8" };
-const NAV: { title?: string; items: NavItem[] }[] = [
+// สีประจำกลุ่ม (แบบ ก): tile = กล่องไอคอนสีสด (ไอคอนขาว) / label = หัวกลุ่มสีสว่างอ่านบนพื้นฟ้า
+//   กลุ่มหลักใช้ฟ้าน้ำทะเล ไม่ใช่ฟ้าแบรนด์ — ไม่งั้นกล่องกลืนกับพื้นเมนู
+type Tone = { tile: string; label: string };
+const TONE = {
+  main: { tile: "#38BDF8", label: "#BAE6FD" },
+  borrow: { tile: "#14B8A6", label: "#5EEAD4" },
+  room: { tile: "#8B5CF6", label: "#DDD6FE" },
+  check: { tile: "#F97316", label: "#FED7AA" },
+  system: { tile: "#64748B", label: "#E2E8F0" },
+  student: { tile: "#10B981", label: "#A7F3D0" },
+} satisfies Record<string, Tone>;
+const NAV: { title?: string; tone: Tone; items: NavItem[] }[] = [
   {
+    tone: TONE.main,
     items: [
       { icon: "grid-outline", label: "แดชบอร์ด", route: "/admin/home" },
       { icon: "file-tray-full-outline", label: "กล่องคำขอ", route: "/admin/requests", badge: "requests" },
@@ -30,6 +42,7 @@ const NAV: { title?: string; items: NavItem[] }[] = [
   },
   {
     title: "ยืม-คืน",
+    tone: TONE.borrow,
     items: [
       { icon: "cube-outline", label: "อุปกรณ์ IoT", route: "/admin/items" },
       { icon: "add-circle-outline", label: "เพิ่มอุปกรณ์", route: "/admin/scan" },
@@ -42,6 +55,7 @@ const NAV: { title?: string; items: NavItem[] }[] = [
   },
   {
     title: "ห้องคอม",
+    tone: TONE.room,
     items: [
       { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room" },
       { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations" },
@@ -52,6 +66,7 @@ const NAV: { title?: string; items: NavItem[] }[] = [
   },
   {
     title: "ตรวจสภาพ & รายงาน",
+    tone: TONE.check,
     items: [
       { icon: "clipboard-outline", label: "ตรวจเครื่องคอม", route: "/admin/inspection" },
       { icon: "hardware-chip-outline", label: "ตรวจสภาพ IoT", route: "/admin/iotinspection" },
@@ -61,6 +76,7 @@ const NAV: { title?: string; items: NavItem[] }[] = [
   },
   {
     title: "ระบบ",
+    tone: TONE.system,
     items: [
       { icon: "people-outline", label: "จัดการผู้ใช้", route: "/admin/users" },
       { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings" },
@@ -88,19 +104,19 @@ async function countRoomReports() {
   return count || 0;
 }
 
-function GroupHead({ title }: { title: string }) {
+function GroupHead({ title, tone }: { title: string; tone: Tone }) {
   return (
     <View style={s.groupHead}>
-      <View style={s.groupDot} />
-      <Text style={s.groupTitle}>{title}</Text>
+      <View style={[s.groupDot, { backgroundColor: tone.label }]} />
+      <Text style={[s.groupTitle, { color: tone.label }]}>{title}</Text>
     </View>
   );
 }
 
-// แถวเมนู: ปกติ = ไอคอนขาวในกล่องขาวโปร่ง + ตัวหนังสือขาว · ชี้ = พื้นขาวโปร่ง + กล่องขยายนิด
-//   หน้าที่เปิดอยู่ = แถบขาวมีเงา + ตัวหนังสือฟ้าตัวหนา + กล่องไอคอนฟ้าทึบ · โฟกัสคีย์บอร์ด = วงฟ้าอ่อน
-function NavRow({ icon, label, active = false, count = 0, onPress }: {
-  icon: keyof typeof Ionicons.glyphMap; label: string; active?: boolean; count?: number; onPress: () => void;
+// แถวเมนู: ปกติ = ไอคอนขาวในกล่องสีกลุ่ม + ตัวหนังสือขาว · ชี้ = พื้นขาวโปร่ง + กล่องขยายนิด
+//   หน้าที่เปิดอยู่ = แถบขาวมีเงา + ตัวหนังสือฟ้าตัวหนา · โฟกัสคีย์บอร์ด = วงฟ้าอ่อน
+function NavRow({ icon, label, tone, active = false, count = 0, onPress }: {
+  icon: keyof typeof Ionicons.glyphMap; label: string; tone: Tone; active?: boolean; count?: number; onPress: () => void;
 }) {
   return (
     <Pressable
@@ -118,7 +134,7 @@ function NavRow({ icon, label, active = false, count = 0, onPress }: {
     >
       {({ hovered }: any) => (
         <>
-          <View style={[s.iconBox, active && s.iconBoxOn, (hovered || active) && s.iconBoxLift]}>
+          <View style={[s.iconBox, { backgroundColor: tone.tile }, (hovered || active) && s.iconBoxLift]}>
             <Ionicons name={icon} size={16} color="#FFFFFF" />
           </View>
           <Text style={[s.itemText, hovered && { color: SIDE.ink }, active && s.itemTextOn]} numberOfLines={1}>{label}</Text>
@@ -182,11 +198,12 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 12, paddingHorizontal: 12 }} showsVerticalScrollIndicator={false}>
           {groups.map((g, gi) => (
             <View key={gi} style={{ marginTop: g.title ? 10 : 0 }}>
-              {g.title ? <GroupHead title={g.title} /> : null}
+              {g.title ? <GroupHead title={g.title} tone={g.tone} /> : null}
               {g.items.map((item) => {
                 const active = current === item.route;
                 return (
                   <NavRow
+                    tone={g.tone}
                     key={item.route}
                     icon={item.icon}
                     label={item.label}
@@ -202,8 +219,8 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           ))}
           {/* TA/Admin ยืมของเอง = หน้านักศึกษา (เหมือนการ์ด "ยืมของ" ในแดชบอร์ดมือถือ) */}
           <View style={{ marginTop: 10 }}>
-            <GroupHead title="โหมดนักศึกษา" />
-            <NavRow icon="bag-handle-outline" label="ยืมของ" onPress={() => router.navigate("/home")} />
+            <GroupHead title="โหมดนักศึกษา" tone={TONE.student} />
+            <NavRow icon="bag-handle-outline" label="ยืมของ" tone={TONE.student} onPress={() => router.navigate("/home")} />
           </View>
         </ScrollView>
         <View style={s.me}>
@@ -238,15 +255,14 @@ const s = StyleSheet.create({
   brandText: { fontSize: 18, fontWeight: "900", color: SIDE.ink, lineHeight: 22 },
   brandSub: { fontSize: 10.5, fontWeight: "600", color: SIDE.dim },
   groupHead: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingTop: 4, paddingBottom: 5 },
-  groupDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.7)" },
-  groupTitle: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3, color: SIDE.dim },
+  groupDot: { width: 6, height: 6, borderRadius: 3 },
+  groupTitle: { fontSize: 11, fontWeight: "800", letterSpacing: 0.3 },
   item: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 8, paddingVertical: 4, marginVertical: 1, borderRadius: 10, transitionProperty: "background-color, box-shadow", transitionDuration: "150ms" } as any,
   itemHover: { backgroundColor: SIDE.hover },
   itemPressed: { backgroundColor: "rgba(255,255,255,0.16)" },
   itemOn: { backgroundColor: "#FFFFFF", boxShadow: "0 6px 16px rgba(15,23,42,0.22)" } as any,
   itemFocus: { boxShadow: "0 0 0 2px #93C5FD" } as any,
-  iconBox: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", transitionProperty: "transform", transitionDuration: "150ms" } as any,
-  iconBoxOn: { backgroundColor: C.primary, borderColor: C.primary },
+  iconBox: { width: 28, height: 28, borderRadius: 8, alignItems: "center", justifyContent: "center", boxShadow: "0 2px 6px rgba(15,23,42,0.18)", transitionProperty: "transform", transitionDuration: "150ms" } as any,
   iconBoxLift: { transform: [{ scale: 1.08 }], boxShadow: "0 3px 8px rgba(15,23,42,0.25)" } as any,
   itemText: { flex: 1, fontSize: 13.5, fontWeight: "600", color: SIDE.text },
   itemTextOn: { color: SIDE.activeInk, fontWeight: "800" },
