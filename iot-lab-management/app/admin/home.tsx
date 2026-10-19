@@ -154,8 +154,21 @@ type DashCache = {
   statusBorrowed: number; statusReturned: number; statusRepair: number;
   activities: ActivityItem[]; pendingRequests: number;
 };
-let cache: DashCache | null = null;
-supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") cache = null; });
+// เว็บ: เก็บลง localStorage ด้วย → เปิดเว็บใหม่ (รีเฟรช/เปิดแท็บใหม่) เห็นแดชบอร์ดรอบก่อนทันที ไม่ต้องรอฐานข้อมูล ~2 วิ
+//   ตัวเลขเป็นข้อมูลรวมของห้องแล็บ (ผู้ดูแลทุกคนเห็นชุดเดียวกัน) · มือถือ (แอป) ใช้หน่วยความจำอย่างเดียวเหมือนเดิม
+const STORE_KEY = "labhub.adminHome.v1";
+const webStore = Platform.OS === "web" && typeof localStorage !== "undefined";
+function readStored(): DashCache | null {
+  if (!webStore) return null;
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch { return null; }
+}
+function saveCache(next: DashCache | null) {
+  cache = next;
+  if (!webStore) return;
+  try { next ? localStorage.setItem(STORE_KEY, JSON.stringify(next)) : localStorage.removeItem(STORE_KEY); } catch {}
+}
+let cache: DashCache | null = readStored();
+supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") saveCache(null); });
 
 export default function AdminHome() {
   const router = useRouter();
@@ -240,8 +253,10 @@ export default function AdminHome() {
   }, []);
 
   const fetchDashboard = async () => {
-    // เลขกล่องคำขอ: ปล่อยคำขอหมดเวลาก่อนแล้วค่อยนับ — วิ่งคู่กับคำสั่งอื่น ไม่ต้องรอกันเป็นทอด ๆ
-    const pendingTask = supabase.rpc("expire_requests").then(() => countPending());
+    // เลขกล่องคำขอ: นับเลยพร้อมคำสั่งอื่น · ล้างคำขอหมดเวลาวิ่งเบื้องหลัง (งานเขียน ไม่ให้แย่งคิวตอนโหลด)
+    //   มีหมดอายุจริง → นับใหม่ (cron expire-borrow-requests ล้างให้ทุก 5 นาทีอยู่แล้ว)
+    const pendingTask = countPending();
+    supabase.rpc("expire_requests").then(({ data }) => { if (typeof data === "number" && data > 0) refreshPending(); });
 
     const [
       { data: items },
@@ -255,8 +270,9 @@ export default function AdminHome() {
     ] = await Promise.all([
       // ของที่จำหน่ายแล้วไม่นับในสต็อก แต่ยังต้องใช้ชื่อในกิจกรรมล่าสุด
       supabase.from("items").select("id, name, item_code, status, created_at, retired_at"),
-      supabase.from("borrow_records").select("*").order("borrow_date", { ascending: false }).limit(12),
-      supabase.from("repair_records").select("*").order("reported_at", { ascending: false }).limit(6),
+      // กิจกรรมล่าสุด: ดึงเฉพาะช่องที่ใช้ (ไม่ใช่ทุกช่อง)
+      supabase.from("borrow_records").select("id, item_id, user_id, status, borrow_date, return_date").order("borrow_date", { ascending: false }).limit(12),
+      supabase.from("repair_records").select("id, station_id, status, description, reported_at, repaired_at").order("reported_at", { ascending: false }).limit(6),
       supabase.from("computer_stations").select("id, room_id, group_no, name"),
       // การ์ด "วันนี้": ยืม/คืน ที่เกิดขึ้นวันนี้จริง (เดิมเป็นยอดสะสมทั้งหมด อยู่ข้างวันที่แล้วชวนเข้าใจผิด)
       supabase.from("borrow_records").select("id", { count: "exact", head: true }).gte("borrow_date", startOfTodayBkk()),
@@ -340,7 +356,7 @@ export default function AdminHome() {
       .slice(0, 3);
 
     setActivities(merged);
-    cache = { ...next, activities: merged, pendingRequests: pending };
+    saveCache({ ...next, activities: merged, pendingRequests: pending });
     setLoading(false);
     setRefreshing(false);
   };
