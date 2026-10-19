@@ -66,15 +66,16 @@ export function buildLabelSheetHtml(items: LabelItem[], startAt = 1, autoPrint =
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
 <style>
 @page{size:A4;margin:8mm 10mm}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{font-family:'Sarabun',sans-serif;margin:0;color:#000}
 .p{width:190mm;break-after:page}.p:last-child{break-after:auto}
 .g{display:grid;grid-template-columns:repeat(3,60mm);grid-auto-rows:28mm;gap:2mm 3mm}
 .l{border:.25mm dashed #aaa;display:flex;align-items:center;box-sizing:border-box;padding:1.5mm;gap:2mm;overflow:hidden;break-inside:avoid}
 .q{flex:none;width:24mm;height:24mm}.q svg{width:100%;height:100%;display:block}.t{min-width:0}
-.c{font-size:12pt;font-weight:600;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.c{font-size:12pt;font-weight:600;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .no{font-size:18pt;font-weight:600;line-height:1}
 .n{font-size:7.5pt;margin-top:.8mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.s{font-size:7pt;color:#444;margin-top:.6mm}
+.s{font-size:7pt;color:#444;margin-top:.6mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media screen{
 .pv{background:#EEF2F7}.pv body{padding:14px 0 10px}
 .pv .p{box-sizing:border-box;width:210mm;height:297mm;padding:8mm 10mm;margin:0 auto 14px;background:#fff;box-shadow:0 2px 10px rgba(23,32,51,.14)}

@@ -304,6 +304,11 @@ table.detail .b { font-weight: 700; }
 table.detail .st { font-weight: 700; } .st.ok { color: #15803D; } .st.out { color: #B45309; } .st.late { color: #B91C1C; } .st.auto { color: #C2410C; }
 table.detail .nt { white-space: normal; } .nt.bad { color: #B91C1C; font-weight: 700; } .nt.warn { color: #B45309; font-weight: 700; }
 .foot { color: #475569; font-size: 9.5pt; margin: -2mm 0 2mm; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+@media screen {
+  html { background: #EEF2F7; }
+  body { max-width: 297mm; margin: 16px auto; padding: 12mm 14mm; background: #fff; box-shadow: 0 2px 10px rgba(23,32,51,.14); }
+}
 </style></head><body>
 
 <div class="top">
