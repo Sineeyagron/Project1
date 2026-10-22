@@ -9,6 +9,7 @@ import { installPullToRefresh } from "../lib/webPullRefresh";
 import { installPageTransitions } from "../lib/webTransitions";
 import { installErrorReporting } from "../lib/errorReport";
 import { captureInstallPrompt } from "../lib/installApp";
+import { showConsoleWarning } from "../lib/consoleWarning";
 import { isAdminPath } from "../lib/roles";
 import { useFonts, NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from "@expo-google-fonts/noto-sans-thai";
 import { C } from "../lib/theme";
@@ -74,6 +75,8 @@ export default function Layout() {
     installErrorReporting();
     // เว็บ Android: เก็บสิทธิ์เปิดหน้าต่างติดตั้งไว้ให้ปุ่ม "ติดตั้งแอป" หน้า login
     captureInstallPrompt();
+    // เว็บ: ป้าย "หยุด!" ในช่อง Console กันโดนหลอกให้วางโค้ด (Self-XSS)
+    showConsoleWarning();
 
     // ออกจากระบบ → หน้า login (ระบบลืมรหัสผ่าน/ลิงก์รีเซ็ตทางอีเมลถอดออกแล้ว 12 ต.ค. 2569)
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
