@@ -24,6 +24,7 @@ import LoanQuickCard from "../components/LoanSummary";
 import StaffPresenceBanner from "../components/StaffPresenceBanner";
 import StatWidget from "../components/StatWidget";
 import { currentUser } from "../lib/session";
+import { isStaffEmail } from "../lib/googleAuth";
 import { C, W, gradient, iconDot, TOP_INSET } from "../lib/theme";
 import LoadingState from "../components/LoadingState";
 
@@ -49,14 +50,14 @@ export default function Home() {
   // TA/admin ที่มาหน้านักศึกษา (เช่น มายืมของเอง) → มีปุ่มกลับแดชบอร์ด
   const [isStaff, setIsStaff] = useState(cachedIsStaff ?? false);
   useEffect(() => {
-    // นักศึกษาที่ยังไม่มีรหัส นศ. → ไปกรอกก่อน (staff ข้าม) / อ่านไม่ได้ (เช่น ยังไม่ได้รัน migration) = ปล่อยผ่าน
+    // นักศึกษาที่ยังไม่มีรหัส นศ. → ไปกรอกก่อน (staff + บุคลากร @kku.ac.th ข้าม) / อ่านไม่ได้ (เช่น ยังไม่ได้รัน migration) = ปล่อยผ่าน
     // บทบาทอ่านจากแถวเดียวกัน (เดิมยิง RPC is_staff แยกอีกรอบ)
     currentUser().then((user) => {
       if (!user) return;
       supabase.from("profiles").select("role, student_id").eq("id", user.id).maybeSingle().then(({ data, error }) => {
         cachedIsStaff = data?.role === "ta" || data?.role === "admin";
         setIsStaff(cachedIsStaff);
-        if (!error && data && data.role === "user" && !data.student_id) router.replace("/student-id" as any);
+        if (!error && data && data.role === "user" && !data.student_id && !isStaffEmail(user.email)) router.replace("/student-id" as any);
       });
     });
   }, []);

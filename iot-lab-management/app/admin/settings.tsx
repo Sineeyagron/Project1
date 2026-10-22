@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
-import { ALLOWED_DOMAIN } from "../../lib/googleAuth";
+import { UNI_DOMAINS } from "../../lib/googleAuth";
 import { W, NG } from "../../lib/theme";
 import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
@@ -80,7 +80,7 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
-  // สวิตช์ "รับเฉพาะ @kkumail.com" (app_settings.allowed_email_domain) — ช่วงพัฒนาปิดไว้ เปิดตอน Final Project
+  // สวิตช์ "รับเฉพาะอีเมล มข." (app_settings.allowed_email_domain = "kkumail.com,kku.ac.th") — ช่วงพัฒนาปิดไว้ เปิดตอน Final Project
   const [restrictDomain, setRestrictDomain] = useState(false);
   const [domainBusy, setDomainBusy] = useState(false);
   // F1 กฎการยืม-คืน (app_settings.borrow_rules) — แสดงในป๊อปอัปยืนยันของ นศ. + หน้าโปรไฟล์
@@ -248,9 +248,9 @@ export default function AdminSettings() {
 
   const toggleDomain = (on: boolean) => {
     confirmAction(
-      on ? `รับเฉพาะอีเมล @${ALLOWED_DOMAIN}?` : "เปิดให้ทุกอีเมลใช้ได้?",
+      on ? "รับเฉพาะอีเมล มข.?" : "เปิดให้ทุกอีเมลใช้ได้?",
       on
-        ? `ล็อกอินด้วย Google ได้เฉพาะ @${ALLOWED_DOMAIN} และสมัครบัญชีใหม่ได้เฉพาะ @${ALLOWED_DOMAIN} (บัญชีเดิมทั้งหมดยังใช้ได้)
+        ? `ล็อกอินด้วย Google และสมัครบัญชีใหม่ได้เฉพาะ @kkumail.com (นักศึกษา) และ @kku.ac.th (บุคลากร) — บัญชีเดิมทั้งหมดยังใช้ได้
 
 อย่าลืมเปิด Auth Hook "Before User Created" ใน Supabase ด้วย ไม่งั้นด่านฝั่งเซิร์ฟเวอร์ยังไม่ทำงาน`
         : "ทุกอีเมลล็อกอินด้วย Google และสมัครบัญชีใหม่ได้ (ใช้ช่วงพัฒนา/ทดสอบ)",
@@ -259,7 +259,7 @@ export default function AdminSettings() {
         setDomainBusy(true);
         const { error } = await supabase
           .from("app_settings")
-          .upsert({ key: "allowed_email_domain", value: on ? ALLOWED_DOMAIN : "", updated_at: new Date().toISOString() });
+          .upsert({ key: "allowed_email_domain", value: on ? UNI_DOMAINS.join(",") : "", updated_at: new Date().toISOString() });
         setDomainBusy(false);
         if (error) {
           notify("บันทึกไม่สำเร็จ", error.message);
@@ -513,10 +513,10 @@ export default function AdminSettings() {
             <View style={s.card}>
               <View style={s.field}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>รับเฉพาะอีเมล @{ALLOWED_DOMAIN}</Text>
+                  <Text style={s.label}>รับเฉพาะอีเมล มข.</Text>
                   <Text style={s.hint}>
                     {restrictDomain
-                      ? "เปิดอยู่ — ล็อกอิน Google / สมัครใหม่ได้เฉพาะอีเมลมหาวิทยาลัย"
+                      ? "เปิดอยู่ — ล็อกอิน Google / สมัครใหม่ได้เฉพาะ @kkumail.com (นักศึกษา) และ @kku.ac.th (บุคลากร)"
                       : "ปิดอยู่ (ช่วงพัฒนา) — ทุกอีเมลใช้ได้ · เปิดตอน Final Project"}
                   </Text>
                 </View>
@@ -725,10 +725,10 @@ export default function AdminSettings() {
             <View style={s.card}>
               <View style={s.field}>
                 <View style={{ flex: 1 }}>
-                  <Text style={s.label}>รับเฉพาะอีเมล @{ALLOWED_DOMAIN}</Text>
+                  <Text style={s.label}>รับเฉพาะอีเมล มข.</Text>
                   <Text style={s.hint}>
                     {restrictDomain
-                      ? "เปิดอยู่ — ล็อกอิน Google / สมัครใหม่ได้เฉพาะอีเมลมหาวิทยาลัย"
+                      ? "เปิดอยู่ — ล็อกอิน Google / สมัครใหม่ได้เฉพาะ @kkumail.com (นักศึกษา) และ @kku.ac.th (บุคลากร)"
                       : "ปิดอยู่ (ช่วงพัฒนา) — ทุกอีเมลใช้ได้ · เปิดตอน Final Project"}
                   </Text>
                 </View>

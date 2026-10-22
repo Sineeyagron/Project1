@@ -30,7 +30,7 @@
 - Storage: `item-images` (admin อัปโหลด — มือถือส่ง `session.access_token`), `borrow-photos/<user_id>/` (หลักฐานยืม-คืน)
 - Realtime Broadcast (`realtime.send`): ช่อง `user:<id>` (notification), `staff` (request), `lab` (presence), `room` (room_status) · ระบบยืมฟังด้วย `useRealtime()` (lib/realtime) ระบบห้องใช้ `useRoomLive()` (lib/roomRealtime) — ตาราง `realtime.messages` แบ่งพาร์ทิชันรายวัน ไม่มีพาร์ทิชัน = ส่งล้มเงียบ (แอปมีรีเฟรชสำรอง 5 นาที)
 - cron (แพ็กเกจฟรี ระวัง Disk IO): `expire-borrow-requests` ทุก 5 นาที (+ `expire_pickups`), `send_due_reminders` + `item-health-alerts` 08:00 ไทย, `staff-auto-checkout` 17:00 ไทย, `cleanup-cron-history` (เก็บ 7 วัน)
-- ล็อกอิน Google (`lib/googleAuth.ts`): Auth Hook `hook_restrict_signup_domain` อ่าน `app_settings.allowed_email_domain` — **ช่วงพัฒนาว่างไว้** / ตอน Final เปิดสวิตช์ "รับเฉพาะ @kkumail.com" ที่ `admin/settings` + เปิด Hook ใน Dashboard
+- ล็อกอิน Google (`lib/googleAuth.ts`): อีเมล มข. = `@kkumail.com` (นศ.) + `@kku.ac.th` (อาจารย์/บุคลากร ทุกคณะ — เข้าครั้งแรกเป็น user ไม่ถามรหัส นศ. admin ตั้งสิทธิ์ให้เองใน `admin/users` ห้ามให้สิทธิ์ตามโดเมนอัตโนมัติ) · Auth Hook `hook_restrict_signup_domain` อ่าน `app_settings.allowed_email_domain` (คั่นด้วย `,`) — **ช่วงพัฒนาว่างไว้** / ตอน Final เปิดสวิตช์ "รับเฉพาะอีเมล มข." ที่ `admin/settings` + เปิด Hook ใน Dashboard
 - จำการล็อกอิน: มือถือ AsyncStorage / เว็บ localStorage · ไม่ติ๊ก "จดจำ" = เปิดแอปครั้งหน้าออกจากระบบ (`applyRememberLogin`)
 
 ## ระบบยืม-คืน
@@ -47,7 +47,7 @@
   - แอป: `app/pickup-sheet.tsx` + `PickupRequestForm`, ส่วนนัดรับใน `borrow.tsx`, `PickupInbox` ใน `admin/requests`, ปุ่ม "ยืนยันรับของตามนัด" ใน `scan.tsx`
 - **F3 ประวัติแบบแอปธนาคาร**: `lib/timeline.ts` + `TimelineDays` (`borrow.tsx`, `admin/history.tsx`)
 - **F4 ผู้ดูแลอยู่ห้อง**: `staff_presence` ผ่าน `staff_check_in/out`, อ่าน `lab_presence()` · `StaffPresenceBanner` (หน้าแรก นศ.), `StaffCheckInCard` (แดชบอร์ด)
-- **TA**: `lib/roles.ts` (`canAccess`, `TA_ROUTES`) · `set_user_role` (admin, user↔ta) · TA อนุมัติคำขอของตัวเองไม่ได้
+- **TA**: `lib/roles.ts` (`canAccess`, `TA_ROUTES`) · `set_user_role` (admin ตั้ง user/ta/admin ได้ — เปลี่ยนของตัวเองไม่ได้, ต้องเหลือ admin ≥ 1) · TA อนุมัติคำขอของตัวเองไม่ได้
 - หน้า admin อื่น: `categories` (หมวด "อื่นๆ" ห้ามแก้), `stock` (`?watch=soon|expired|ageWarn|ageReplace`), `settings`, `import` (CSV — ตรรกะใน `lib/importItems.ts`), `report` (CSV/PDF — `lib/report.ts`, `lib/fileExport.ts`), `items` (กดการ์ด → แก้ประกัน/Serial), `users`
 - นศ. ไม่มีรหัส นศ. → บังคับไป `/student-id`
 

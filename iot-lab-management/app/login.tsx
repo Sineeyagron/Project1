@@ -18,7 +18,7 @@ import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { setRememberLogin } from "../lib/session";
 import { notify } from "../lib/notify";
-import { getAllowedDomain, isAllowedEmail, oauthReturned, signInWithGoogle, uniEmailTypoFix, webRedirectError, ALLOWED_DOMAIN } from "../lib/googleAuth";
+import { getAllowedDomains, isAllowedEmail, isStaffEmail, isUniEmail as isUniAddress, oauthReturned, signInWithGoogle, uniEmailTypoFix, webRedirectError } from "../lib/googleAuth";
 import { W, NG, TOP_INSET } from "../lib/theme";
 import InstallBanner, { INSTALL_BANNER_SPACE } from "../components/InstallBanner";
 import { useInstallMode } from "../lib/installApp";
@@ -141,8 +141,8 @@ export default function Login() {
 
   const [googleLoading, setGoogleLoading] = useState(false);
   const installMode = useInstallMode();
-  // อีเมล @kkumail.com = บัญชี Google ของมหาวิทยาลัย → ซ่อนช่องรหัส ปุ่มหลักพาไปหน้า Google (แอปไม่รับรหัส มข.)
-  const isUniEmail = email.trim().toLowerCase().endsWith("@" + ALLOWED_DOMAIN) && email.trim().indexOf("@") > 0;
+  // อีเมล มข. (@kkumail.com นศ. / @kku.ac.th บุคลากร) = บัญชี Google ของมหาวิทยาลัย → ซ่อนช่องรหัส ปุ่มหลักพาไปหน้า Google (แอปไม่รับรหัส มข.)
+  const isUniEmail = isUniAddress(email);
   const canSubmit = email.trim().length > 0 && (isUniEmail || password.length > 0) && !isLoading && !googleLoading;
   // พิมพ์โดเมนผิดนิดหน่อย (เช่น @kkmail.com) → เสนอแก้เป็น @kkumail.com + ปุ่ม KKU Mail ส่งอีเมลที่แก้แล้วให้ Google
   const kkuFix = uniEmailTypoFix(email);
@@ -154,10 +154,10 @@ export default function Login() {
     // สวิตช์ปิดอยู่ (ช่วงพัฒนา) = ทุกบัญชีผ่าน / เปิดตอน Final Project = เฉพาะโดเมนที่ตั้ง
     //   เช็กเฉพาะบัญชีที่เข้าด้วย Google — เจ้าหน้าที่ที่ใช้อีเมล/รหัสผ่าน (session ค้างแล้วเปิดหน้านี้) ไม่โดนออก
     const viaGoogle = user.app_metadata?.provider === "google" || (user.identities || []).some((i) => i.provider === "google");
-    const domain = viaGoogle ? await getAllowedDomain() : "";
-    if (!isAllowedEmail(user.email, domain)) {
+    const domains = viaGoogle ? await getAllowedDomains() : [];
+    if (!isAllowedEmail(user.email, domains)) {
       await supabase.auth.signOut();
-      showPopup("ใช้อีเมลนี้ไม่ได้", `ตอนนี้ระบบรับเฉพาะอีเมล @${domain} (มหาวิทยาลัยขอนแก่น)`);
+      showPopup("ใช้อีเมลนี้ไม่ได้", `ตอนนี้ระบบรับเฉพาะอีเมล ${domains.map((d) => "@" + d).join(", ")} (มหาวิทยาลัยขอนแก่น)`);
       return;
     }
     setIsLoading(true);
@@ -361,7 +361,7 @@ export default function Login() {
         <GlowFrame>
         <View style={styles.card}>
           <Text style={styles.title}>เข้าสู่ระบบ</Text>
-          <Text style={styles.description}>นักศึกษาเข้าด้วย KKU Mail · เจ้าหน้าที่ใช้อีเมลและรหัสผ่าน</Text>
+          <Text style={styles.description}>นักศึกษา/บุคลากร มข. เข้าด้วย Google · บัญชีอื่นใช้รหัสผ่าน</Text>
 
           <Text style={styles.label}>อีเมล</Text>
           <View style={[styles.inputBox, fieldErrors.email && styles.inputBoxError, focusedField === "email" && styles.inputBoxFocused]}>
@@ -401,7 +401,7 @@ export default function Login() {
             <View style={styles.uniBox}>
               <Ionicons name="school-outline" size={18} color="#1D4ED8" />
               <View style={{ flex: 1 }}>
-                <Text style={styles.uniTitle}>บัญชี KKU Mail</Text>
+                <Text style={styles.uniTitle}>{isStaffEmail(email) ? "บัญชีบุคลากร มข." : "บัญชี KKU Mail"}</Text>
                 <Text style={styles.uniText}>ใส่รหัสผ่านที่หน้า Google</Text>
               </View>
             </View>
@@ -472,7 +472,7 @@ export default function Login() {
             )}
           </TouchableOpacity>
 
-          {/* อีเมล kkumail → ปุ่มหลักเป็น Google แล้ว ซ่อนปุ่มซ้ำ */}
+          {/* อีเมล มข. → ปุ่มหลักเป็น Google แล้ว ซ่อนปุ่มซ้ำ */}
           {!isUniEmail && (
           <>
           <View style={styles.dividerRow}>
@@ -493,7 +493,7 @@ export default function Login() {
               <>
                 <Shine kku />
                 <Ionicons name="logo-google" size={18} color="#ffffff" />
-                <Text style={styles.googleText}>เข้าสู่ระบบด้วย KKU Mail</Text>
+                <Text style={styles.googleText}>เข้าสู่ระบบด้วยบัญชี มข.</Text>
               </>
             )}
           </TouchableOpacity>
