@@ -52,6 +52,12 @@ const sortByName = (list: Profile[]) =>
       || nameCollator.compare(a.email || "", b.email || "");
   });
 
+// ตัวอักษรในวงกลม: ตัวแรกของชื่อ (ไม่มีชื่อ = ตัวแรกของอีเมล) · ไทยขึ้นต้นสระหน้า (เ แ โ ใ ไ) เอาพยัญชนะตามมาด้วย เช่น "เอ"
+const initial = (p: Profile) => {
+  const src = (p.full_name || "").trim() || p.email || "?";
+  return (/^[เแโใไ]/.test(src) ? src.slice(0, 2) : src.charAt(0)).toUpperCase();
+};
+
 // พิมพ์ตัวเลขล้วน → ใส่ขีดให้เองหลังหลักที่ 9 (รูปแบบ มข. 633021098-9)
 const formatId = (raw: string) => {
   const d = raw.replace(/\D/g, "").slice(0, 10);
@@ -178,7 +184,7 @@ export default function ManageTA() {
   const Person = ({ p, action }: { p: Profile; action?: React.ReactNode }) => (
     <View style={s.person}>
       <View style={[s.avatar, p.role === "ta" && s.avatarTa, p.role === "admin" && s.avatarAdmin]}>
-        <Text style={s.avatarText}>{(p.email || "?").charAt(0).toUpperCase()}</Text>
+        <Text style={s.avatarText}>{initial(p)}</Text>
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <View style={s.nameRow}>
