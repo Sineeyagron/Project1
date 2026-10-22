@@ -8,6 +8,7 @@ import { currentUser } from "../lib/session";
 import { useRefreshOnFocus } from "../lib/nav";
 import { isMissingColumn } from "../lib/people";
 import { Role, ROLE_LABEL } from "../lib/roles";
+import { isStaffEmail } from "../lib/googleAuth";
 import { confirmAction } from "../lib/notify";
 import { C, W, iconDot, TOP_INSET } from "../lib/theme";
 import TabBar from "../components/TabBar";
@@ -169,15 +170,18 @@ export default function Profile() {
               <Text style={s.name} numberOfLines={2}>{name}</Text>
               <View style={s.rolePill}>
                 <Ionicons name="school-outline" size={11} color={C.primaryDark} />
-                <Text style={s.roleText}>{ROLE_LABEL[data.role as Role] || ROLE_LABEL.user}</Text>
+                <Text style={s.roleText}>{data.role === "user" && isStaffEmail(data.email) ? "บุคลากร มข." : ROLE_LABEL[data.role as Role] || ROLE_LABEL.user}</Text>
               </View>
             </View>
           </View>
           <View style={s.idRows}>
-            <InfoRow icon="id-card-outline" label="รหัสนักศึกษา" value={data.studentId || "ยังไม่ได้กรอก"} strong={!!data.studentId} />
+            {/* บุคลากร @kku.ac.th ไม่มีรหัส นศ. */}
+            {!(isStaffEmail(data.email) && !data.studentId) && (
+              <InfoRow icon="id-card-outline" label="รหัสนักศึกษา" value={data.studentId || "ยังไม่ได้กรอก"} strong={!!data.studentId} />
+            )}
             <InfoRow icon="mail-outline" label="อีเมล" value={data.email} />
           </View>
-          {!data.studentId && data.role === "user" ? (
+          {!data.studentId && data.role === "user" && !isStaffEmail(data.email) ? (
             <PressScale style={s.fillBtn} onPress={() => router.push("/student-id" as any)}>
               <Text style={s.fillBtnText}>กรอกรหัสนักศึกษา</Text>
             </PressScale>

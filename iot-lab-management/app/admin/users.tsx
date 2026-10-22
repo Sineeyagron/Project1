@@ -13,7 +13,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
-import { confirmAction, notify } from "../../lib/notify";
+import { confirmAction, notify, pickOption } from "../../lib/notify";
+import { isStaffEmail } from "../../lib/googleAuth";
 import { useRole } from "../../lib/roles";
 import { W, TOP_INSET } from "../../lib/theme";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
@@ -21,9 +22,9 @@ import ScreenHeader from "../../components/ScreenHeader";
 import { isMissingColumn } from "../../lib/people";
 import LoadingState from "../../components/LoadingState";
 
-// จัดการผู้ใช้: รหัสนักศึกษา (admin แก้ให้ได้ ตอน นศ. กรอกผิด — นศ. ตั้งเองได้ครั้งเดียว) + แต่งตั้ง TA
-// จัดการ TA (เฟส 4.1) — admin เท่านั้น (ด่านใน _layout + RPC set_user_role ตรวจซ้ำในฐานข้อมูล)
-// แต่งตั้ง/ถอดได้แค่ ผู้ใช้ ↔ TA / ตั้ง admin หรือแตะบัญชี admin ในแอปไม่ได้ / เปลี่ยนสิทธิ์ตัวเองไม่ได้
+// จัดการผู้ใช้: รหัสนักศึกษา (admin แก้ให้ได้ ตอน นศ. กรอกผิด — นศ. ตั้งเองได้ครั้งเดียว) + ตั้งสิทธิ์ ผู้ใช้ / TA / admin
+// admin เท่านั้น (ด่านใน _layout + RPC set_user_role ตรวจซ้ำในฐานข้อมูล: เปลี่ยนสิทธิ์ตัวเองไม่ได้ / ต้องเหลือ admin ≥ 1 คน)
+// บุคลากร มข. (@kku.ac.th — ทุกคณะ) เข้าครั้งแรกเป็นผู้ใช้ทั่วไป ไม่มีรหัส นศ. → admin ตั้งสิทธิ์ให้เองทีละคน
 
 const C = {
   bg: "#EAF1FC",
@@ -57,6 +58,10 @@ const formatId = (raw: string) => {
   return d.length > 9 ? `${d.slice(0, 9)}-${d.slice(9)}` : d;
 };
 
+type Role = "user" | "ta" | "admin";
+const ROLES: Role[] = ["user", "ta", "admin"];
+const ROLE_NAME: Record<Role, string> = { user: "ผู้ใช้ทั่วไป", ta: "TA (ผู้ช่วย)", admin: "ผู้ดูแลระบบ (admin)" };
+
 const CAN = ["อนุมัติ / ปฏิเสธคำขอยืม คืน ยืมต่อ", "ตรวจสภาพตอนคืน + ตรวจประจำเทอม", "สแกนดูสถานะ ประวัติ รายงานสต็อก", "พิมพ์ป้าย QR"];
 const CANNOT = ["เพิ่ม / แก้ / จำหน่ายอุปกรณ์ แก้ประกัน", "หมวดหมู่ ตั้งค่าระบบ แต่งตั้ง TA", "อนุมัติคำขอของตัวเอง"];
 
@@ -86,14 +91,35 @@ export default function ManageTA() {
     load();
   }, []);
 
-  const setRole = (p: Profile, role: "ta" | "user") => {
+  const setRole = (p: Profile, role: Role) => {
     const email = p.email || "(ไม่มีอีเมล)";
+    const from = p.role as Role;
+    const ask =
+      role === "admin"
+        ? {
+            title: "ตั้งเป็นผู้ดูแลระบบ?",
+            body: `${email}\n\nจะทำได้ทุกอย่างเหมือนคุณ: แก้อุปกรณ์ ตั้งค่าระบบ ระบบห้องคอม และตั้ง/ถอดสิทธิ์คนอื่น (เจ้าตัวได้แจ้งเตือนในแอป)` +
+              (isStaffEmail(p.email) ? "\n\n⚠ @kku.ac.th เป็นอีเมลของบุคลากร มข. ทุกคณะ ตรวจให้แน่ใจว่าเป็นอาจารย์/เจ้าหน้าที่ของแล็บจริง" : ""),
+            ok: "ตั้งเป็นผู้ดูแล",
+          }
+        : role === "ta"
+        ? {
+            title: from === "admin" ? "ลดเป็น TA?" : "แต่งตั้งเป็น TA?",
+            body: `${email}\n\nจะอนุมัติคำขอ ตรวจสภาพ ดูรายงาน และพิมพ์ป้าย QR ได้` +
+              (from === "admin" ? " แต่แก้อุปกรณ์ ตั้งค่าระบบ และสิทธิ์ผู้ใช้ไม่ได้อีก" : " (เจ้าตัวได้แจ้งเตือน กดแล้วเข้าเมนู TA ได้เลย)"),
+            ok: from === "admin" ? "ลดเป็น TA" : "แต่งตั้ง",
+          }
+        : {
+            title: from === "admin" ? "ถอดสิทธิ์ผู้ดูแลระบบ?" : "ถอดสิทธิ์ TA?",
+            body: `${email}\n\nจะกลับเป็นผู้ใช้ทั่วไป ใช้เมนูผู้ดูแลไม่ได้อีก`,
+            ok: "ถอดสิทธิ์",
+          };
+    // ลดสิทธิ์ / ให้สิทธิ์สูงสุด = ปุ่มยืนยันสีแดง
+    const danger = role === "admin" || ROLES.indexOf(role) < ROLES.indexOf(from);
     confirmAction(
-      role === "ta" ? "แต่งตั้งเป็น TA?" : "ถอดสิทธิ์ TA?",
-      role === "ta"
-        ? `${email}\n\nจะอนุมัติคำขอ ตรวจสภาพ ดูรายงาน และพิมพ์ป้าย QR ได้ (เจ้าตัวได้แจ้งเตือน กดแล้วเข้าเมนู TA ได้เลย)`
-        : `${email}\n\nจะกลับเป็นผู้ใช้ทั่วไป ใช้เมนู TA ไม่ได้อีก`,
-      role === "ta" ? "แต่งตั้ง" : "ถอดสิทธิ์",
+      ask.title,
+      ask.body,
+      ask.ok,
       async () => {
         setBusyId(p.id);
         const { error } = await supabase.rpc("set_user_role", { p_user: p.id, p_role: role });
@@ -102,10 +128,21 @@ export default function ManageTA() {
           notify("เปลี่ยนสิทธิ์ไม่สำเร็จ", error.message);
           return;
         }
-        notify(role === "ta" ? "แต่งตั้งแล้ว" : "ถอดสิทธิ์แล้ว", `${email} ได้รับแจ้งเตือนในแอปแล้ว`);
+        notify("เปลี่ยนสิทธิ์แล้ว", `${email} เป็น${ROLE_NAME[role]} — ได้รับแจ้งเตือนในแอปแล้ว`);
         load();
       },
-      role === "user"
+      danger
+    );
+  };
+
+  // เลือกระดับสิทธิ์ (แผ่นล่างจอ) → ป๊อปอัปยืนยัน · ระดับปัจจุบันมี ✓ เลือกซ้ำ = ไม่ทำอะไร
+  const pickRole = (p: Profile) => {
+    const current = ROLES.indexOf(p.role as Role);
+    pickOption(
+      `ตั้งสิทธิ์ ${p.full_name || p.email || ""}`,
+      ROLES.map((r) => ROLE_NAME[r]),
+      (i) => { if (i !== current) setRole(p, ROLES[i]); },
+      current
     );
   };
 
@@ -144,9 +181,12 @@ export default function ManageTA() {
         <Text style={s.avatarText}>{(p.email || "?").charAt(0).toUpperCase()}</Text>
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={s.email} numberOfLines={1}>{p.full_name || p.email || "(ไม่มีอีเมล)"}</Text>
+        <View style={s.nameRow}>
+          <Text style={[s.email, { flexShrink: 1 }]} numberOfLines={1}>{p.full_name || p.email || "(ไม่มีอีเมล)"}</Text>
+          {isStaffEmail(p.email) && <Text style={s.staffBadge} numberOfLines={1}>บุคลากร มข.</Text>}
+        </View>
         <Text style={s.sub} numberOfLines={1}>
-          {[p.student_id || (p.role === "user" ? "ยังไม่กรอกรหัส" : null), p.full_name ? p.email : null].filter(Boolean).join(" · ")}
+          {[p.student_id || (p.role === "user" && !isStaffEmail(p.email) ? "ยังไม่กรอกรหัส" : null), p.full_name ? p.email : null].filter(Boolean).join(" · ")}
         </Text>
         {p.id === userId && <Text style={s.you}>บัญชีของคุณ</Text>}
       </View>
@@ -184,8 +224,9 @@ export default function ManageTA() {
               key={p.id}
               p={p}
               action={
-                <TouchableOpacity style={s.removeBtn} onPress={() => setRole(p, "user")} disabled={!!busyId} activeOpacity={0.8}>
-                  <Text style={s.removeText}>ถอดสิทธิ์</Text>
+                <TouchableOpacity style={s.roleBtn} onPress={() => pickRole(p)} disabled={!!busyId} activeOpacity={0.8}>
+                  <Text style={s.roleText}>ตั้งสิทธิ์</Text>
+                  <Ionicons name="chevron-down" size={14} color={C.purple} />
                 </TouchableOpacity>
               }
             />
@@ -195,7 +236,7 @@ export default function ManageTA() {
   );
   const studentBlock = (
     <>
-        <Text style={s.section}>นักศึกษา</Text>
+        <Text style={s.section}>นักศึกษา / บุคลากร</Text>
         <View style={s.card}>
           <SearchBar value={query} onChangeText={setQuery} placeholder="ค้นหาชื่อ อีเมล หรือรหัส นศ." style={{ marginBottom: 6 }} />
           {candidates.length === 0 && (
@@ -207,18 +248,21 @@ export default function ManageTA() {
                 p={p}
                 action={
                   <View style={{ flexDirection: "row", gap: 6 }}>
-                    <TouchableOpacity
-                      style={s.editBtn}
-                      onPress={() => { setEditId(editId === p.id ? null : p.id); setEditValue(p.student_id || ""); }}
-                      disabled={!!busyId}
-                      activeOpacity={0.8}
-                      accessibilityLabel="แก้รหัสนักศึกษา"
-                    >
-                      <Ionicons name="create-outline" size={16} color={C.purple} />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={s.addBtn} onPress={() => setRole(p, "ta")} disabled={!!busyId} activeOpacity={0.8}>
+                    {/* บุคลากร มข. ไม่มีรหัส นศ. → ไม่มีปุ่มแก้รหัส */}
+                    {!isStaffEmail(p.email) && (
+                      <TouchableOpacity
+                        style={s.editBtn}
+                        onPress={() => { setEditId(editId === p.id ? null : p.id); setEditValue(p.student_id || ""); }}
+                        disabled={!!busyId}
+                        activeOpacity={0.8}
+                        accessibilityLabel="แก้รหัสนักศึกษา"
+                      >
+                        <Ionicons name="create-outline" size={16} color={C.purple} />
+                      </TouchableOpacity>
+                    )}
+                    <TouchableOpacity style={s.addBtn} onPress={() => pickRole(p)} disabled={!!busyId} activeOpacity={0.8}>
                       <Ionicons name="person-add-outline" size={15} color="#fff" />
-                      <Text style={s.addText}>TA</Text>
+                      <Text style={s.addText}>ตั้งสิทธิ์</Text>
                     </TouchableOpacity>
                   </View>
                 }
@@ -249,8 +293,21 @@ export default function ManageTA() {
     <>
         <Text style={s.section}>ผู้ดูแลระบบ ({admins.length})</Text>
         <View style={s.card}>
-          {admins.map((p) => <Person key={p.id} p={p} />)}
-          <Text style={s.hint}>เพิ่ม/ถอดผู้ดูแลระบบ (admin) ทำในแอปไม่ได้ เพื่อความปลอดภัย</Text>
+          {admins.map((p) => (
+            <Person
+              key={p.id}
+              p={p}
+              action={
+                p.id === userId ? undefined : (
+                <TouchableOpacity style={s.roleBtn} onPress={() => pickRole(p)} disabled={!!busyId} activeOpacity={0.8}>
+                  <Text style={s.roleText}>ตั้งสิทธิ์</Text>
+                  <Ionicons name="chevron-down" size={14} color={C.purple} />
+                </TouchableOpacity>
+                )
+              }
+            />
+          ))}
+          <Text style={s.hint}>เปลี่ยนสิทธิ์ตัวเองไม่ได้ · ต้องมีผู้ดูแลระบบอย่างน้อย 1 คนเสมอ</Text>
         </View>
     </>
   );
@@ -259,7 +316,7 @@ export default function ManageTA() {
     <View style={s.container}>
       <ScreenHeader
         title={"จัดการผู้ใช้"}
-        subtitle={"รหัสนักศึกษา · แต่งตั้ง TA"}
+        subtitle={"รหัสนักศึกษา · ตั้งสิทธิ์ TA / ผู้ดูแล"}
         onBack={() => goBack("/admin/home")}
       />
 
@@ -337,16 +394,20 @@ const s = StyleSheet.create({
     minHeight: 40,
   },
   addText: { color: "#fff", fontSize: 13.5, fontWeight: "800" },
-  removeBtn: {
+  roleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     borderWidth: 1,
-    borderColor: "#fca5a5",
-    backgroundColor: "#fef2f2",
+    borderColor: C.line,
+    backgroundColor: "#FFFFFF",
     borderRadius: 10,
     paddingHorizontal: 12,
     minHeight: 40,
-    justifyContent: "center",
   },
-  removeText: { color: C.red, fontSize: 13.5, fontWeight: "800" },
+  roleText: { color: C.purple, fontSize: 13.5, fontWeight: "800" },
+  nameRow: { flexDirection: "row", alignItems: "center", gap: 6, minWidth: 0 },
+  staffBadge: { flexShrink: 0, fontSize: 11, fontWeight: "800", color: "#7C3AED", backgroundColor: "#F3E8FF", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, overflow: "hidden" },
   searchWrap: {
     flexDirection: "row",
     alignItems: "center",
