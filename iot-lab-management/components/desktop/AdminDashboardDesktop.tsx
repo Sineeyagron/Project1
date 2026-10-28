@@ -8,7 +8,7 @@ import StaffCheckInCard from "../StaffCheckInCard";
 import supabase from "../../lib/supabase";
 import { fetchPeople, who } from "../../lib/people";
 import { useRealtime } from "../../lib/realtime";
-import { ROLE_LABEL, Role } from "../../lib/roles";
+import { Role, useRoleLabel } from "../../lib/roles";
 import { PresentStaff } from "../../lib/presence";
 import { C } from "../../lib/theme";
 import { DESKTOP_GUTTER, DESKTOP_MAX } from "../../lib/layout";
@@ -51,6 +51,7 @@ const timeLeft = (iso?: string | null) => {
 
 export default function AdminDashboardDesktop(p: Props) {
   const router = useRouter();
+  const roleLabel = useRoleLabel(p.role);
   const [rows, setRows] = useState<PendingRow[] | null>(null);
   const [overdue, setOverdue] = useState(0);
   const [roomGroups, setRoomGroups] = useState<RoomGroup[]>([]);
@@ -111,7 +112,7 @@ export default function AdminDashboardDesktop(p: Props) {
       {/* หัว */}
       <View style={s.head}>
         <View style={{ flex: 1 }}>
-          <GreetingLine roleLabel={p.role ? ROLE_LABEL[p.role] : undefined} dot={p.checkedIn ? "green" : "red"} />
+          <GreetingLine roleLabel={roleLabel} dot={p.checkedIn ? "green" : "red"} />
           <Text style={s.title}>แดชบอร์ด</Text>
         </View>
         <HeadButton icon="refresh" label="รีเฟรช" onPress={() => { p.onRefresh(); loadExtra(); }} />

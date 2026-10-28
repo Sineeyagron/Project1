@@ -41,19 +41,23 @@ type Station = {
 // ข้อมูลชุดล่าสุด (หน่วยความจำ) — สลับแท็บกลับมาหน้าแรกเห็นการ์ดห้องทันที แล้วค่อยโหลดใหม่เบื้องหลัง / ล้างเมื่อออกจากระบบ
 let cache: { stations: Station[]; rooms: Room[] } | null = null;
 let cachedIsStaff: boolean | null = null;
+let cachedIsKkuStaff: boolean | null = null; // อีเมล @kku.ac.th = บุคลากร มข. (คำทักบนหัว)
 supabase.auth.onAuthStateChange((event) => {
-  if (event === "SIGNED_OUT") { cache = null; cachedIsStaff = null; }
+  if (event === "SIGNED_OUT") { cache = null; cachedIsStaff = null; cachedIsKkuStaff = null; }
 });
 
 export default function Home() {
   const router = useRouter();
   // TA/admin ที่มาหน้านักศึกษา (เช่น มายืมของเอง) → มีปุ่มกลับแดชบอร์ด
   const [isStaff, setIsStaff] = useState(cachedIsStaff ?? false);
+  const [isKkuStaff, setIsKkuStaff] = useState(cachedIsKkuStaff ?? false);
   useEffect(() => {
     // นักศึกษาที่ยังไม่มีรหัส นศ. → ไปกรอกก่อน (staff + บุคลากร @kku.ac.th ข้าม) / อ่านไม่ได้ (เช่น ยังไม่ได้รัน migration) = ปล่อยผ่าน
     // บทบาทอ่านจากแถวเดียวกัน (เดิมยิง RPC is_staff แยกอีกรอบ)
     currentUser().then((user) => {
       if (!user) return;
+      cachedIsKkuStaff = isStaffEmail(user.email);
+      setIsKkuStaff(cachedIsKkuStaff);
       supabase.from("profiles").select("role, student_id").eq("id", user.id).maybeSingle().then(({ data, error }) => {
         cachedIsStaff = data?.role === "ta" || data?.role === "admin";
         setIsStaff(cachedIsStaff);
@@ -150,7 +154,7 @@ export default function Home() {
           {/* กว้างเต็มที่ว่างเหลือ + ชื่อบรรทัดเดียว (Safari เคยตัด "IoT" ตกบรรทัดเมื่อกล่องกว้างตามตัวหนังสือ) */}
           <View style={{ flex: 1, minWidth: 0, marginRight: 10 }}>
             {/* เหมือนหัวแดชบอร์ด Admin: ทักทาย + อากาศ + บทบาท / staff ที่มายืมของ = โหมดนักศึกษา */}
-            <GreetingLine roleLabel={isStaff ? "โหมดนักศึกษา" : "นักศึกษา"} />
+            <GreetingLine roleLabel={isStaff ? "โหมดนักศึกษา" : isKkuStaff ? "บุคลากร มข." : "นักศึกษา"} />
             <Text style={s.headerTitle} numberOfLines={1}>
               ห้องเรียน <Text style={s.headerTitleAccent}>IoT</Text>
             </Text>

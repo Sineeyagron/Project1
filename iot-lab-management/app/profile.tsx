@@ -170,7 +170,12 @@ export default function Profile() {
               <Text style={s.name} numberOfLines={2}>{name}</Text>
               <View style={s.rolePill}>
                 <Ionicons name="school-outline" size={11} color={C.primaryDark} />
-                <Text style={s.roleText}>{data.role === "user" && isStaffEmail(data.email) ? "บุคลากร มข." : ROLE_LABEL[data.role as Role] || ROLE_LABEL.user}</Text>
+                <Text style={s.roleText} numberOfLines={1}>
+                  {/* บุคลากร มข. (@kku.ac.th): ผู้ใช้ทั่วไป = "บุคลากร มข." / ได้สิทธิ์ = "บุคลากร มข. · TA" (เหมือนเมนูซ้ายบนคอม) */}
+                  {isStaffEmail(data.email)
+                    ? data.role === "ta" || data.role === "admin" ? `บุคลากร มข. · ${ROLE_LABEL[data.role as Role]}` : "บุคลากร มข."
+                    : ROLE_LABEL[data.role as Role] || ROLE_LABEL.user}
+                </Text>
               </View>
             </View>
           </View>
