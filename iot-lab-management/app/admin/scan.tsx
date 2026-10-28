@@ -275,31 +275,6 @@ export default function Scan() {
     navBack("/admin/home");
   };
 
-  // ── ตัวบอกขั้น 1 → 2 ──
-  const StepBar = () => {
-    const current = step === "details" ? 1 : 2;
-    return (
-      <View style={si.row}>
-        {["รายละเอียด", "ยืนยัน & บันทึก"].map((label, i) => {
-          const num = i + 1;
-          const done = num < current;
-          const active = num === current;
-          return (
-            <React.Fragment key={label}>
-              <View style={si.step}>
-                <View style={[si.circle, (active || done) && si.active]}>
-                  {done ? <Ionicons name="checkmark" size={12} color="#fff" /> : <Text style={[si.num, active && { color: "#fff" }]}>{num}</Text>}
-                </View>
-                <Text style={[si.label, (active || done) && si.labelActive]}>{label}</Text>
-              </View>
-              {i < 1 && <View style={[si.line, done && si.lineDone]} />}
-            </React.Fragment>
-          );
-        })}
-      </View>
-    );
-  };
-
   const prefix = codePrefixPreview(name, shortName);
   const qtyNum = Math.max(1, parseInt(quantity, 10) || 1);
   // ช่วงรหัสที่จะได้ (ประมาณจากเลขล่าสุดของรุ่นนี้ — ฐานข้อมูลออกเลขจริงตอนบันทึก)
@@ -315,7 +290,7 @@ export default function Scan() {
     return (
       <View style={styles.container}>
         <ScreenHeader title={"เพิ่มอุปกรณ์"} onBack={() => goBack()} />
-        <DesktopBox><StepBar /></DesktopBox>
+        <DesktopBox><StepBar step={step} /></DesktopBox>
 
         <KeyboardAwareScrollView ref={scrollRef} bottomOffset={24} contentContainerStyle={[styles.form, isDesktop && desktopBody.wide]}>
           {isDesktop ? (
@@ -638,7 +613,7 @@ export default function Scan() {
   return (
     <View style={styles.container}>
       <ScreenHeader title="ยืนยัน & บันทึก" onBack={() => setStep("details")} />
-      <DesktopBox><StepBar /></DesktopBox>
+      <DesktopBox><StepBar step={step} /></DesktopBox>
 
       <ScrollView contentContainerStyle={[styles.form, isDesktop && desktopBody.wide, { paddingBottom: 150 + insets.bottom }]}>
         <View style={isDesktop ? desktopCols.row : { gap: 12 }}>
@@ -707,6 +682,31 @@ export default function Scan() {
 }
 
 const pad3 = (n: number) => String(n).padStart(3, "0");
+
+// ── ตัวบอกขั้น 1 → 2 ──
+const StepBar = ({ step }: { step: Step }) => {
+  const current = step === "details" ? 1 : 2;
+  return (
+    <View style={si.row}>
+      {["รายละเอียด", "ยืนยัน & บันทึก"].map((label, i) => {
+        const num = i + 1;
+        const done = num < current;
+        const active = num === current;
+        return (
+          <React.Fragment key={label}>
+            <View style={si.step}>
+              <View style={[si.circle, (active || done) && si.active]}>
+                {done ? <Ionicons name="checkmark" size={12} color="#fff" /> : <Text style={[si.num, active && { color: "#fff" }]}>{num}</Text>}
+              </View>
+              <Text style={[si.label, (active || done) && si.labelActive]}>{label}</Text>
+            </View>
+            {i < 1 && <View style={[si.line, done && si.lineDone]} />}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
+};
 
 function SectionTitle({ no, title }: { no: string; title: string }) {
   return (

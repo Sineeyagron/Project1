@@ -190,19 +190,6 @@ export default function AdminLookup() {
     ? Math.floor((Date.now() - new Date(`${active.due_date}T23:59:59`).getTime()) / 86400000) + 1
     : 0;
 
-  // at = เวลาที่ถ่าย (เวลายืม/คืนฝั่งเซิร์ฟเวอร์) ประทับบนรูปตอนขยาย แบบเดียวกับกล่องคำขอ
-  const Thumb = ({ path, label, at }: { path?: string; label: string; at?: string | null }) => {
-    const url = path ? photos[path] : null;
-    if (!url) return null;
-    const stamp = photoStamp(item?.item_code, at);
-    return (
-      <TouchableOpacity onPress={() => setZoom({ url, stamp: `${label} · ${stamp}` })} activeOpacity={0.9} style={s.thumbWrap}>
-        <Image source={{ uri: url }} style={s.thumb} />
-        <Text style={s.thumbLabel}>{label}</Text>
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <View style={s.container}>
       <ScreenHeader
@@ -423,7 +410,7 @@ export default function AdminLookup() {
                 />
                 <InfoRow label="สถานะ" value={RECORD_STATUS[active.status] || active.status} />
                 <View style={s.thumbRow}>
-                  <Thumb path={active.borrow_photo_path} label="ตอนยืม" at={active.borrow_date} />
+                  <Thumb photos={photos} code={item?.item_code} onZoom={setZoom} path={active.borrow_photo_path} label="ตอนยืม" at={active.borrow_date} />
                 </View>
               </View>
             )}
@@ -449,8 +436,8 @@ export default function AdminLookup() {
                       )}
                     </View>
                     <View style={s.thumbRow}>
-                      <Thumb path={r.borrow_photo_path} label="ยืม" at={r.borrow_date} />
-                      <Thumb path={r.return_photo_path} label="คืน" at={r.return_date} />
+                      <Thumb photos={photos} code={item?.item_code} onZoom={setZoom} path={r.borrow_photo_path} label="ยืม" at={r.borrow_date} />
+                      <Thumb photos={photos} code={item?.item_code} onZoom={setZoom} path={r.return_photo_path} label="คืน" at={r.return_date} />
                     </View>
                   </View>
                 ))
@@ -479,6 +466,20 @@ export default function AdminLookup() {
     </View>
   );
 }
+
+// at = เวลาที่ถ่าย (เวลายืม/คืนฝั่งเซิร์ฟเวอร์) ประทับบนรูปตอนขยาย แบบเดียวกับกล่องคำขอ
+type Zoom = { url: string; stamp: string };
+const Thumb = ({ path, label, at, photos, code, onZoom }: { path?: string; label: string; at?: string | null; photos: Record<string, string>; code?: string | null; onZoom: (z: Zoom) => void }) => {
+  const url = path ? photos[path] : null;
+  if (!url) return null;
+  const stamp = photoStamp(code, at);
+  return (
+    <TouchableOpacity onPress={() => onZoom({ url, stamp: `${label} · ${stamp}` })} activeOpacity={0.9} style={s.thumbWrap}>
+      <Image source={{ uri: url }} style={s.thumb} />
+      <Text style={s.thumbLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+};
 
 function InfoRow({ label, value, color }: { label: string; value?: string | null; color?: string }) {
   return (

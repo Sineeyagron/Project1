@@ -2,10 +2,8 @@ import React, { forwardRef } from "react";
 import { StyleProp, StyleSheet, TouchableOpacity, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./AppText";
-import { usePathname } from "expo-router";
 import { BADGE_TEXT, C, W, TOP_INSET } from "../lib/theme";
-import { DESKTOP_GUTTER, DESKTOP_MAX, useIsDesktop } from "../lib/layout";
-import { isAdminPath } from "../lib/roles";
+import { DESKTOP_GUTTER, DESKTOP_MAX, useIsDesktopAdmin } from "../lib/layout";
 
 // หัวหน้าแบบเดียวกันทุกหน้า (หน้าที่มีปุ่มย้อนกลับ): แถบหัวบางเต็มความกว้าง
 // [ปุ่ม ←] [ชื่อหน้า + บรรทัดรอง อยู่กลาง] [ปุ่มขวา 1 ปุ่ม หรือช่องว่าง]
@@ -27,7 +25,7 @@ export default function ScreenHeader({
   style?: StyleProp<ViewStyle>;
 }) {
   // จอใหญ่หน้า admin มีเมนูซ้ายถาวร (components/desktop/AdminShell) → ไม่ต้องมีปุ่ม ←
-  const desktopAdmin = useIsDesktop() && isAdminPath(usePathname());
+  const desktopAdmin = useIsDesktopAdmin();
   if (desktopAdmin) {
     // จอใหญ่: ชื่อหน้าชิดซ้ายในกรอบเดียวกับเนื้อหา (DESKTOP_MAX) ขอบซ้ายจึงตรงกับการ์ดข้างล่างทุกหน้า · ปุ่มอยู่ขวา
     return (
@@ -87,7 +85,7 @@ export const HeaderButton = forwardRef<View, {
 }>(function HeaderButton({ icon, onPress, label, color = C.primaryDark, badge, count, disabled }, ref) {
   const n = count ?? 0;
   // จอใหญ่หน้า admin: ปุ่มมีชื่อกำกับ (ไอคอนเดี่ยวเดายากบนคอม) · ปุ่มเพิ่ม = ปุ่มหลักสีน้ำเงิน
-  const desktopAdmin = useIsDesktop() && isAdminPath(usePathname());
+  const desktopAdmin = useIsDesktopAdmin();
   if (desktopAdmin && label) {
     const main = icon === "add";
     return (

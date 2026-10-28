@@ -198,27 +198,6 @@ export default function BorrowReport() {
     }
   };
 
-  const Stat = ({ label, value, color }: { label: string; value: string | number; color?: string }) => (
-    <View style={[st.stat, gradient(`linear-gradient(160deg, #FFFFFF 0%, ${tint(color || "#2563EB")} 100%)`)]}>
-      <Text style={[st.statNum, color ? { color } : null]}>{value}</Text>
-      <Text style={st.statLabel}>{label}</Text>
-    </View>
-  );
-
-  const TopList = ({ title, items }: { title: string; items: [string, number][] }) => (
-    <View style={st.card}>
-      <Text style={st.cardTitle}>{title}</Text>
-      {items.length === 0 && <Text style={st.empty}>-</Text>}
-      {items.map(([name, n], i) => (
-        <View key={name} style={st.topRow}>
-          <Text style={st.topRank}>{i + 1}</Text>
-          <Text style={st.topName} numberOfLines={1}>{name}</Text>
-          <Text style={st.topCount}>{n}</Text>
-        </View>
-      ))}
-    </View>
-  );
-
   return (
     <KeyboardAvoidingView style={st.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <ScreenHeader
@@ -348,6 +327,27 @@ export default function BorrowReport() {
     </KeyboardAvoidingView>
   );
 }
+
+const Stat = ({ label, value, color }: { label: string; value: string | number; color?: string }) => (
+  <View style={[st.stat, gradient(`linear-gradient(160deg, #FFFFFF 0%, ${tint(color || "#2563EB")} 100%)`)]}>
+    <Text style={[st.statNum, color ? { color } : null]}>{value}</Text>
+    <Text style={st.statLabel}>{label}</Text>
+  </View>
+);
+
+const TopList = ({ title, items }: { title: string; items: [string, number][] }) => (
+  <View style={st.card}>
+    <Text style={st.cardTitle}>{title}</Text>
+    {items.length === 0 && <Text style={st.empty}>-</Text>}
+    {items.map(([name, n], i) => (
+      <View key={name} style={st.topRow}>
+        <Text style={st.topRank}>{i + 1}</Text>
+        <Text style={st.topName} numberOfLines={1}>{name}</Text>
+        <Text style={st.topCount}>{n}</Text>
+      </View>
+    ))}
+  </View>
+);
 
 const st = StyleSheet.create({
   container: { ...W.page, flex: 1 },

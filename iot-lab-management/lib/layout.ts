@@ -1,4 +1,6 @@
 import { Platform, StyleSheet, useWindowDimensions } from "react-native";
+import { usePathname } from "expo-router";
+import { isAdminPath } from "./roles";
 
 // แบบจอใหญ่ (คอม) สำหรับหน้า admin/TA — เจ้าของโปรเจกต์เลือก 12 ต.ค. 2569
 //   แอปมือถือคือหลัก: มือถือทุกแบบ (แอป + PWA) ใช้หน้าตาเดิมเสมอ / จอใหญ่ = ของเสริมเฉพาะหน้า admin
@@ -12,6 +14,14 @@ export const ADMIN_COLUMN_WIDTH = 760;
 export function useIsDesktop() {
   const { width } = useWindowDimensions();
   return Platform.OS === "web" && width >= DESKTOP_MIN_WIDTH;
+}
+
+// เว็บจอใหญ่ + หน้าใต้ /admin (มีเมนูซ้าย) — เรียก hook ครบทุกครั้งเสมอ
+//   ห้ามเขียน useIsDesktop() && isAdminPath(usePathname()) เอง: ย่อ/ขยายหน้าต่างข้าม 1024px แล้วจำนวน hook เปลี่ยน → React error
+export function useIsDesktopAdmin() {
+  const isDesktop = useIsDesktop();
+  const pathname = usePathname();
+  return isDesktop && isAdminPath(pathname);
 }
 
 // หน้า admin ที่ทำแบบจอใหญ่แล้ว (ใช้เต็มพื้นที่ขวาของเมนู) — หน้าอื่นแสดงแบบมือถือกลางพื้นที่ไปก่อน

@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Text } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { useRealtime } from "../lib/realtime";
 import { currentUser } from "../lib/session";
@@ -25,8 +25,7 @@ import WebPushCard from "../components/WebPushCard";
 import { refreshUnreadCount } from "../lib/unread";
 import LoadingState from "../components/LoadingState";
 import DesktopBox from "../components/desktop/DesktopBox";
-import { desktopBody, useIsDesktop } from "../lib/layout";
-import { isAdminPath } from "../lib/roles";
+import { desktopBody, useIsDesktopAdmin } from "../lib/layout";
 
 const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; dot: string }> = {
   borrow:         { icon: "cube-outline",             iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
@@ -107,7 +106,7 @@ supabase.auth.onAuthStateChange((event) => {
 export default function Notifications() {
   const router = useRouter();
   // เว็บจอใหญ่ใต้ /admin (มีเมนูซ้าย): เนื้อหาอยู่ในกรอบเดียวกับหน้าอื่นของผู้ดูแล · หน้านักศึกษา/มือถือเหมือนเดิม
-  const desktopAdmin = useIsDesktop() && isAdminPath(usePathname());
+  const desktopAdmin = useIsDesktopAdmin();
   // แถบเมนูล่าง: มาจากแถบเมนู (ทุกบทบาท รวม TA/Admin ที่อยู่โหมดนักศึกษา) หรือเป็นนักศึกษา
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const cacheKey = tab === "1" ? "student" : "bell";
