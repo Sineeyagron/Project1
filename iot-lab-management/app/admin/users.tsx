@@ -10,7 +10,6 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import SearchBar from "../../components/SearchBar";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
 import { confirmAction, notify, pickOption } from "../../lib/notify";
@@ -73,7 +72,6 @@ const CANNOT = ["เพิ่ม / แก้ / จำหน่ายอุปก
 
 export default function ManageTA() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
-  const router = useRouter();
   const { userId } = useRole();
   const [people, setPeople] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);

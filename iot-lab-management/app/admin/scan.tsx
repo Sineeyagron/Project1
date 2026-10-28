@@ -13,7 +13,6 @@ import { Text, TextInput } from "../../components/AppText";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import { ITEM_PHOTO_MAX, shrinkPhoto } from "../../lib/shrinkPhoto";
 import supabase from "../../lib/supabase";
 import { goBack as navBack } from "../../lib/nav";
@@ -45,7 +44,6 @@ const formatThaiDate = (value: string) =>
 
 export default function Scan() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
-  const router = useRouter();
 
   const [step, setStep] = useState<Step>("details");
 

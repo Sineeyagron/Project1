@@ -28,13 +28,6 @@ export const REPAIR_STATUS: Record<string, RoomStatusStyle> = {
   done: { label: "ซ่อมเสร็จแล้ว", color: "#16a34a", bg: "#dcfce7", border: "#34d399", icon: "checkmark-done-outline" },
 };
 
-// ผลตรวจประจำเทอม (equipment_inspections.condition)
-export const CONDITION_STATUS: Record<string, RoomStatusStyle> = {
-  good: { label: "ปกติ", color: "#10b981", bg: "#ecfdf5", border: "#d1fae5", icon: "checkmark" },
-  damaged: { label: "ชำรุด", color: "#ef4444", bg: "#fff1f2", border: "#fee2e2", icon: "warning-outline" },
-  missing: { label: "หาย", color: "#ef4444", bg: "#fff1f2", border: "#fee2e2", icon: "warning-outline" },
-};
-
 // อ่านสถานะแบบมีค่าสำรอง — ค่าแปลก/ค่าเก่าในฐานข้อมูลต้องไม่ทำให้หน้าพัง
 export function roomStatus(map: Record<string, RoomStatusStyle>, key: string | null | undefined): RoomStatusStyle {
   return (key && map[key]) || UNKNOWN;

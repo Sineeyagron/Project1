@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { fetchPeople, who } from "../../lib/people";
 import { currentUser } from "../../lib/session";
@@ -84,7 +83,6 @@ async function fetchAll(page: (from: number) => PromiseLike<{ data: any[] | null
 
 export default function BorrowReport() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → กว้าง + อันดับ 3 คอลัมน์
-  const router = useRouter();
   const [preset, setPreset] = useState<PresetKey>("30d");
   const [customFrom, setCustomFrom] = useState(addDays(todayBkk(), -29));
   const [customTo, setCustomTo] = useState(todayBkk());

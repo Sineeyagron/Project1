@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import SearchBar from "../components/SearchBar";
-import { Text, TextInput } from "../components/AppText";
+import { Text } from "../components/AppText";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";

@@ -9,9 +9,8 @@ import {
   View,
 } from "react-native";
 import SearchBar from "../../components/SearchBar";
-import { Text, TextInput } from "../../components/AppText";
+import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import * as MediaLibrary from "expo-media-library/legacy";
 import * as FileSystem from "expo-file-system/legacy";
 import * as Print from "expo-print";
@@ -20,7 +19,6 @@ import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import supabase from "../../lib/supabase";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
-import { useRole } from "../../lib/roles";
 import { notify } from "../../lib/notify";
 import { LABELS_PER_SHEET, buildLabelSheetHtml, formatItemNo, qrMatrix } from "../../lib/labels";
 import { openPrintView } from "../../lib/fileExport";
@@ -85,8 +83,6 @@ function compareItems(a: any, b: any) {
 
 export default function QRGen() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → รายการ 3 คอลัมน์
-  const { role } = useRole();
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<any[]>([]);
   const [selectedId, setSelectedId] = useState("");

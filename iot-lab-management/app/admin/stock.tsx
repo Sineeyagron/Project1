@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import supabase from "../../lib/supabase";
 import { ITEM_STATUS } from "../../lib/status";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
@@ -61,7 +61,6 @@ function countBy(list: Item[]) {
 
 export default function StockReport() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
-  const router = useRouter();
   // มาจากแจ้งเตือน → เปิดกลุ่มนั้นไว้เลย
   const params = useLocalSearchParams<{ watch?: string }>();
   const [items, setItems] = useState<Item[]>([]);

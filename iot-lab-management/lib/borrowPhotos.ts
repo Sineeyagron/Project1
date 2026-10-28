@@ -67,13 +67,6 @@ export async function uploadBorrowPhoto(uri: string): Promise<string> {
   return path;
 }
 
-// bucket ไม่สาธารณะ → ขอลิงก์ชั่วคราว (เจ้าของ หรือ staff เท่านั้นที่ขอได้)
-export async function borrowPhotoUrl(path?: string | null): Promise<string | null> {
-  if (!path) return null;
-  const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 60);
-  return data?.signedUrl ?? null;
-}
-
 // ข้อความประทับบนรูป: รหัสของ + เวลาฝั่งเซิร์ฟเวอร์ (แผน 2.6: แสดงซ้อน ไม่เขียนทับไฟล์)
 export function photoStamp(itemCode?: string | null, at?: string | null) {
   const when = at

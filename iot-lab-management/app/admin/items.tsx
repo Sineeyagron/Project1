@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { DESKTOP_GUTTER, DESKTOP_MAX, useIsDesktop } from "../../lib/layout";
 import supabase from "../../lib/supabase";
-import { ITEM_STATUS, RECORD_STATUS } from "../../lib/status";
+import { ITEM_STATUS } from "../../lib/status";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";

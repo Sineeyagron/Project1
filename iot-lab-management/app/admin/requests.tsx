@@ -12,7 +12,7 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import supabase from "../../lib/supabase";
 import { isMissingColumn, who } from "../../lib/people";
 import { useRealtime } from "../../lib/realtime";
@@ -85,7 +85,6 @@ type Decision = {
 };
 
 export default function AdminRequests() {
-  const router = useRouter();
   const { role, userId } = useRole();
   const { id: focusId } = useLocalSearchParams<{ id?: string }>();
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → รายการซ้าย + รายละเอียดขวา (components/desktop/RequestsDesktop)

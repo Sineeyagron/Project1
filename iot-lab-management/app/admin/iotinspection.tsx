@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,7 +9,6 @@ import {
 } from "react-native";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { currentUser } from "../../lib/session";
 import { notify } from "../../lib/notify";
@@ -118,7 +116,6 @@ function relativeInspection(value?: string) {
 
 export default function IotInspectionPage() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → การ์ด 2 คอลัมน์
-  const router = useRouter();
 
   const [term, setTerm] = useState(currentTerm());
   const [activeTerm, setActiveTerm] = useState(currentTerm());

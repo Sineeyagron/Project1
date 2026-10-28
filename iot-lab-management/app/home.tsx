@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import SearchBar from "../components/SearchBar";
-import { Text, TextInput } from "../components/AppText";
+import { Text } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
@@ -126,10 +126,6 @@ export default function Home() {
       };
     });
   }, [rooms, stations]);
-
-  const runSearch = () => {
-    setActiveSearch(search.trim());
-  };
 
   const filteredRooms = roomSummaries.filter((room) => {
     const query = activeSearch.trim().toLowerCase();

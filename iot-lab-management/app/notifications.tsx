@@ -9,7 +9,6 @@ import {
   Animated,
   Pressable,
   LayoutAnimation,
-  Platform,
 } from "react-native";
 import { Text } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";

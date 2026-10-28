@@ -1,7 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Animated,
-  Easing,
   Platform,
   RefreshControl,
   ScrollView,
@@ -12,7 +10,6 @@ import {
 import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import Svg, { Polyline } from "react-native-svg";
 import supabase from "../../lib/supabase";
 import { useRealtime } from "../../lib/realtime";
 import { fetchPeople, who } from "../../lib/people";
@@ -148,9 +145,8 @@ async function countPending() {
 
 // ข้อมูลแดชบอร์ดชุดล่าสุด (หน่วยความจำ) — กลับมาแดชบอร์ด (เช่น เมนูซ้ายจอคอม) เห็นตัวเลขทันที แล้วค่อยโหลดใหม่เบื้องหลัง
 // ล้างเมื่อออกจากระบบ
-type DashSeries = { total: number[]; available: number[]; borrowed: number[]; repair: number[] };
 type DashCache = {
-  total: number; available: number; borrowed: number; repair: number; series: DashSeries;
+  total: number; available: number; borrowed: number; repair: number;
   statusBorrowed: number; statusReturned: number; statusRepair: number;
   activities: ActivityItem[]; pendingRequests: number;
 };
@@ -197,8 +193,6 @@ export default function AdminHome() {
   const [available, setAvailable] = useState(cache?.available ?? 0);
   const [borrowed, setBorrowed] = useState(cache?.borrowed ?? 0);
   const [repair, setRepair] = useState(cache?.repair ?? 0);
-  // ข้อมูลกราฟย้อนหลัง 7 วัน (จุดสุดท้าย = ตัวเลขปัจจุบัน)
-  const [series, setSeries] = useState<DashSeries>(cache?.series ?? { total: [], available: [], borrowed: [], repair: [] });
   const [statusBorrowed, setStatusBorrowed] = useState(cache?.statusBorrowed ?? 0);
   const [statusReturned, setStatusReturned] = useState(cache?.statusReturned ?? 0);
   const [statusRepair, setStatusRepair] = useState(cache?.statusRepair ?? 0);
@@ -267,7 +261,6 @@ export default function AdminHome() {
       activeBorrowCount,
       returnedCount,
       activeRepairCount,
-      { data: loanHistory },
     ] = await Promise.all([
       // ของที่จำหน่ายแล้วไม่นับในสต็อก แต่ยังต้องใช้ชื่อในกิจกรรมล่าสุด
       supabase.from("items").select("id, name, item_code, status, created_at, retired_at"),
@@ -279,11 +272,6 @@ export default function AdminHome() {
       supabase.from("borrow_records").select("id", { count: "exact", head: true }).gte("borrow_date", startOfTodayBkk()),
       supabase.from("borrow_records").select("id", { count: "exact", head: true }).gte("return_date", startOfTodayBkk()),
       supabase.from("repair_records").select("id", { count: "exact", head: true }).in("status", ["pending", "in-repair"]),
-      // การยืมที่ยังค้างอยู่ช่วง 7 วันที่ผ่านมา (ใช้คำนวณกราฟ "ถูกยืม" ย้อนหลัง)
-      supabase
-        .from("borrow_records")
-        .select("item_id, borrow_date, return_date, status")
-        .or(`return_date.is.null,return_date.gte.${new Date(Date.now() - 7 * 86400000).toISOString()}`),
     ]);
 
     const safeItems = items || [];
@@ -296,7 +284,6 @@ export default function AdminHome() {
       available: stockItems.filter((i: any) => i.status === "available").length,
       borrowed: stockItems.filter((i: any) => i.status === "borrowed").length,
       repair: stockItems.filter((i: any) => i.status === "repair").length,
-      series: buildSeries(safeItems, loanHistory || []),
       statusBorrowed: activeBorrowCount.count || 0,
       statusReturned: returnedCount.count || 0,
       statusRepair: activeRepairCount.count || 0,
@@ -305,7 +292,6 @@ export default function AdminHome() {
     setAvailable(next.available);
     setBorrowed(next.borrowed);
     setRepair(next.repair);
-    setSeries(next.series);
     setStatusBorrowed(next.statusBorrowed);
     setStatusReturned(next.statusReturned);
     setStatusRepair(next.statusRepair);
@@ -400,10 +386,10 @@ export default function AdminHome() {
   }
 
   const stats = [
-    { icon: "cube-outline", iconBg: "#dbeafe", color: C.blue, num: total, label: "ทั้งหมด", data: series.total },
-    { icon: "checkmark-circle-outline", iconBg: "#ECFDF5", color: C.green, num: available, label: "ว่าง", data: series.available },
-    { icon: "time-outline", iconBg: "#ffedd5", color: C.orangeDark, num: borrowed, label: "ถูกยืม", data: series.borrowed },
-    { icon: "construct-outline", iconBg: "#fee2e2", color: C.red, num: repair, label: "ซ่อม", data: series.repair },
+    { icon: "cube-outline", color: C.blue, num: total, label: "ทั้งหมด" },
+    { icon: "checkmark-circle-outline", color: C.green, num: available, label: "ว่าง" },
+    { icon: "time-outline", color: C.orangeDark, num: borrowed, label: "ถูกยืม" },
+    { icon: "construct-outline", color: C.red, num: repair, label: "ซ่อม" },
   ];
 
   return (
@@ -527,7 +513,7 @@ export default function AdminHome() {
 
             <FadeIn delay={140}>
             <SectionLabel icon="cube-outline" title="ภาพรวมอุปกรณ์" />
-            {/* แถวเดียว 4 ตัวเลข (เดิมเป็นการ์ด 4 ใบ + กราฟ 7 วัน = StatCard ด้านล่าง เก็บไว้เผื่อกลับไปใช้) */}
+            {/* แถวเดียว 4 ตัวเลข */}
             <View style={s.statRow}>
               {stats.map((item, i) => (
                 <View key={item.label} style={[s.statCell, i > 0 && s.statCellDivider]}>
@@ -642,106 +628,6 @@ function TodayItem({ icon, color, num, label, date }: { icon: any; color: string
         <Text style={[s.todayNum, date && s.todayDateNum]}>{num}</Text>
         <Text style={s.todayLabel}>{label}</Text>
       </View>
-    </View>
-  );
-}
-
-// กราฟเส้นเล็กจากข้อมูลจริง 7 วัน (สเกลตามค่าต่ำสุด–สูงสุดของช่วงนั้น / ค่าเท่ากันทั้งช่วง = เส้นตรงกลาง)
-function MiniLine({ color, data }: { color: string; data: number[] }) {
-  const values = data.length ? data : [0, 0];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const step = 126 / Math.max(values.length - 1, 1);
-  const y = (v: number) => (max === min ? 11 : 19 - ((v - min) / (max - min)) * 16);
-  const points = values.map((v, i) => `${(i * step).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-  const empty = values.every((v) => v === 0);
-
-  return (
-    <View style={s.lineChart}>
-      <Svg width="100%" height="22" viewBox="0 0 126 22" preserveAspectRatio="none">
-        <Polyline
-          points={points}
-          fill="none"
-          stroke={color}
-          strokeWidth={empty ? "2" : "2.3"}
-          strokeDasharray={empty ? "5 5" : undefined}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={empty ? 0.38 : 0.95}
-        />
-      </Svg>
-    </View>
-  );
-}
-
-// สร้างตัวเลขย้อนหลัง 7 วัน (สิ้นวันของแต่ละวัน วันนี้ = ตอนนี้)
-// ทั้งหมด = ของที่เพิ่มแล้วและยังไม่จำหน่าย / ถูกยืม = ยืมไปแล้วยังไม่คืน ณ เวลานั้น (รายการเก่าที่คืนแล้วแต่ไม่มีวันคืน ไม่นับ)
-// ซ่อม = ไม่มีประวัติย้อนหลังในระบบ ใช้ค่าปัจจุบัน / ว่าง = ทั้งหมด − ถูกยืม − ซ่อม
-// จุดสุดท้ายยึดตามสถานะจริงของตอนนี้ ให้ตรงกับตัวเลขบนการ์ดเสมอ
-function buildSeries(items: any[], loans: any[]) {
-  const now = Date.now();
-  const days = Array.from({ length: 7 }, (_, i) => {
-    if (i === 6) return now;
-    const d = new Date(now - (6 - i) * 86400000);
-    d.setHours(23, 59, 59, 999);
-    return d.getTime();
-  });
-  const stock = items.filter((i) => i.status !== "retired");
-  const current = {
-    total: stock.length,
-    borrowed: stock.filter((i) => i.status === "borrowed").length,
-    repair: stock.filter((i) => i.status === "repair").length,
-    available: stock.filter((i) => i.status === "available").length,
-  };
-  const time = (v: string | null) => (v ? new Date(v).getTime() : null);
-  const total = days.map((t) => items.filter((i) => (time(i.created_at) ?? 0) <= t && (!i.retired_at || (time(i.retired_at) as number) > t)).length);
-  const borrowed = days.map((t) => loans.filter((l) => (time(l.borrow_date) ?? Infinity) <= t && (l.return_date ? (time(l.return_date) as number) > t : l.status !== "returned")).length);
-  const repair = days.map(() => current.repair);
-  const available = days.map((_, i) => Math.max(total[i] - borrowed[i] - repair[i], 0));
-  total[6] = current.total;
-  borrowed[6] = current.borrowed;
-  available[6] = current.available;
-  return { total, available, borrowed, repair };
-}
-
-function StatCard({
-  icon,
-  iconBg,
-  color,
-  num,
-  label,
-  data,
-}: {
-  icon: any;
-  iconBg: string;
-  color: string;
-  num: number;
-  label: string;
-  data: number[];
-}) {
-  // เปลี่ยนไปเท่าไรเทียบกับ 7 วันก่อน
-  const diff = data.length ? data[data.length - 1] - data[0] : 0;
-  const trend = diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : "0";
-  return (
-    <View
-      style={[
-        s.statCard,
-        gradient(`linear-gradient(160deg, #FFFFFF 0%, ${iconBg} 100%)`),
-        { backgroundColor: iconBg },
-      ]}
-    >
-      <View style={s.statTop}>
-        <View style={iconDot(color, 36)}>
-          <Ionicons name={icon} size={19} color="#FFFFFF" />
-        </View>
-        <View style={[s.trendPill, { backgroundColor: "rgba(255,255,255,0.75)" }]}>
-          <Ionicons name={trend.startsWith("-") ? "trending-down" : trend === "0" ? "remove" : "trending-up"} size={10} color={color} />
-          <Text style={[s.trendText, { color }]}>{trend}</Text>
-        </View>
-      </View>
-      <Text style={[s.statNum, { color }]}>{num}</Text>
-      <Text style={s.statLabel}>{label}</Text>
-      <MiniLine color={color} data={data} />
     </View>
   );
 }
