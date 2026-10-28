@@ -22,6 +22,7 @@ import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { LABELS_PER_SHEET, buildLabelSheetHtml, formatItemNo, qrMatrix } from "../../lib/labels";
 import { openPrintView } from "../../lib/fileExport";
+import { compareItems } from "../../lib/itemInfo";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
@@ -74,11 +75,6 @@ function typeIcon(type?: string) {
   if (key.includes("sensor")) return "pulse-outline";
   if (key.includes("sbc") || key.includes("rasp")) return "server-outline";
   return "hardware-chip-outline";
-}
-
-function compareItems(a: any, b: any) {
-  const byPrefix = (a.item_prefix || a.name || "").localeCompare(b.item_prefix || b.name || "", "th");
-  return byPrefix !== 0 ? byPrefix : (a.item_no || 0) - (b.item_no || 0);
 }
 
 export default function QRGen() {

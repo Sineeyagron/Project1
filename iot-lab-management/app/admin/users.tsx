@@ -18,7 +18,7 @@ import { useRole } from "../../lib/roles";
 import { W } from "../../lib/theme";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
-import { isMissingColumn } from "../../lib/people";
+import { STUDENT_ID_RE, formatStudentId, isMissingColumn } from "../../lib/people";
 import LoadingState from "../../components/LoadingState";
 
 // จัดการผู้ใช้: รหัสนักศึกษา (admin แก้ให้ได้ ตอน นศ. กรอกผิด — นศ. ตั้งเองได้ครั้งเดียว) + ตั้งสิทธิ์ ผู้ใช้ / TA / admin
@@ -55,12 +55,6 @@ const sortByName = (list: Profile[]) =>
 const initial = (p: Profile) => {
   const src = (p.full_name || "").trim() || p.email || "?";
   return (/^[เแโใไ]/.test(src) ? src.slice(0, 2) : src.charAt(0)).toUpperCase();
-};
-
-// พิมพ์ตัวเลขล้วน → ใส่ขีดให้เองหลังหลักที่ 9 (รูปแบบ มข. 633021098-9)
-const formatId = (raw: string) => {
-  const d = raw.replace(/\D/g, "").slice(0, 10);
-  return d.length > 9 ? `${d.slice(0, 9)}-${d.slice(9)}` : d;
 };
 
 type Role = "user" | "ta" | "admin";
@@ -153,7 +147,7 @@ export default function ManageTA() {
   // แก้รหัส นศ. (admin) — เว้นว่าง = ล้างรหัส ให้ นศ. กรอกใหม่เอง
   const saveStudentId = async (p: Profile) => {
     const value = editValue.trim();
-    if (value && !/^[0-9]{9}-[0-9]$/.test(value)) {
+    if (value && !STUDENT_ID_RE.test(value)) {
       notify("รูปแบบรหัสไม่ถูกต้อง", "ต้องเป็นเลข 9 หลัก ขีด แล้วเลข 1 หลัก เช่น 633021098-9");
       return;
     }
@@ -276,7 +270,7 @@ export default function ManageTA() {
                   <TextInput
                     style={s.editInput}
                     value={editValue}
-                    onChangeText={(t) => setEditValue(formatId(t))}
+                    onChangeText={(t) => setEditValue(formatStudentId(t))}
                     placeholder="633021098-9 (ว่าง = ล้าง)"
                     placeholderTextColor={C.faint}
                     keyboardType="number-pad"

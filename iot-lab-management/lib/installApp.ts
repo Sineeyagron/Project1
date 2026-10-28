@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Platform } from "react-native";
-import { isStandalone } from "./webPush";
+import { isIOS, isStandalone } from "./webPush";
 
 // ชวนติดตั้ง LabHub ลงหน้าจอโฮม (เว็บมือถือเท่านั้น) — แถบลอยล่างจอ components/InstallBanner ที่หน้า login
 //   iPhone (Safari/Chrome): เว็บสั่งติดตั้งเองไม่ได้ → บอกวิธี "แชร์ → เพิ่มไปยังหน้าจอโฮม"
@@ -31,7 +31,6 @@ export function captureInstallPrompt() {
 }
 
 const ua = () => (typeof navigator === "undefined" ? "" : navigator.userAgent);
-const isIOS = () => /iPhone|iPad|iPod/.test(ua()) || (ua().includes("Macintosh") && navigator.maxTouchPoints > 1);
 const isAndroid = () => /Android/i.test(ua());
 const inAppBrowser = () => /\bLine\/|FBAN|FBAV|FB_IAB|Instagram|Messenger|TikTok|MicroMessenger/i.test(ua());
 

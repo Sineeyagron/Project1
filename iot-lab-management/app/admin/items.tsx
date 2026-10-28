@@ -18,7 +18,7 @@ import { ITEM_STATUS } from "../../lib/status";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
-import { parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
+import { compareItems, parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
 import WarrantyDateField, { warrantyBlocked } from "../../components/WarrantyDateField";
 import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
@@ -106,12 +106,6 @@ function warrantyText(dateValue?: string) {
   if (Number.isNaN(end.getTime())) return "";
   if (end.getTime() < Date.now()) return "หมดประกันแล้ว";
   return `ประกันถึง ${end.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}`;
-}
-
-// เรียงตามชื่อรหัส แล้วตามเลขจริง (002 ก่อน 010)
-function compareItems(a: any, b: any) {
-  const byPrefix = (a.item_prefix || a.name || "").localeCompare(b.item_prefix || b.name || "", "th");
-  return byPrefix !== 0 ? byPrefix : (a.item_no || 0) - (b.item_no || 0);
 }
 
 function ItemCard({

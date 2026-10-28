@@ -5,6 +5,7 @@ import { Text, TextInput } from "../AppText";
 import Countdown from "../Countdown";
 import PickupInbox from "../PickupInbox";
 import { who } from "../../lib/people";
+import { thaiDate, thaiDateTime } from "../../lib/itemInfo";
 import { photoStamp } from "../../lib/borrowPhotos";
 import { Role } from "../../lib/roles";
 import { C } from "../../lib/theme";
@@ -40,11 +41,6 @@ type Props = {
   KIND: Record<string, Pill>;
   RESULT: Record<string, Pill>;
 };
-
-const thaiDate = (v?: string | null) =>
-  v ? new Date(`${v}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-";
-const thaiDateTime = (v?: string | null) =>
-  v ? new Date(v).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
 
 export default function RequestsDesktop(p: Props) {
   const list = p.tab === "pending" ? p.pending : p.history;

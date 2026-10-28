@@ -8,6 +8,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { Text } from "../components/AppText";
+import HeroChip from "../components/room/HeroChip";
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
@@ -513,15 +514,6 @@ export default function RoomMap() {
   );
 }
 
-function HeroChip({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  return (
-    <View style={s.heroChip}>
-      <Ionicons name={icon} size={12} color="#FFFFFF" />
-      <Text style={s.heroChipTxt}>{text}</Text>
-    </View>
-  );
-}
-
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
 
@@ -604,8 +596,6 @@ const s = StyleSheet.create({
   heroNum: { color: "#FFFFFF", fontSize: 40, fontWeight: "700", lineHeight: 50 },
   heroOf: { color: "rgba(255,255,255,0.8)", fontSize: 15, fontWeight: "600" },
   heroStats: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
-  heroChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)" },
-  heroChipTxt: { color: "#FFFFFF", fontSize: 11.5, fontWeight: "600" },
   heroRing: { width: 74, height: 74, alignItems: "center", justifyContent: "center" },
   heroPct: { position: "absolute", color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   toolRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },

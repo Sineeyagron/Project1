@@ -6,6 +6,7 @@ import {
   View,
 } from "react-native";
 import { Text } from "../components/AppText";
+import HeroChip from "../components/room/HeroChip";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import supabase from "../lib/supabase";
@@ -273,15 +274,6 @@ function NetworkLines() {
   );
 }
 
-function HeroChip({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  return (
-    <View style={s.heroChip}>
-      <Ionicons name={icon} size={12} color="#FFFFFF" />
-      <Text style={s.heroChipTxt}>{text}</Text>
-    </View>
-  );
-}
-
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
   header: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 4 },
@@ -303,8 +295,6 @@ const s = StyleSheet.create({
   heroNum: { color: "#FFFFFF", fontSize: 40, fontWeight: "700", lineHeight: 50 },
   heroOf: { color: "rgba(255,255,255,0.8)", fontSize: 15, fontWeight: "600" },
   heroStats: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
-  heroChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)" },
-  heroChipTxt: { color: "#FFFFFF", fontSize: 11.5, fontWeight: "600" },
 
   rackRow: { flexDirection: "row", alignItems: "flex-start", gap: 5 },
   rack: { width: 62, padding: 5, gap: 3, borderRadius: 11, backgroundColor: "rgba(15,12,60,0.35)", borderWidth: 1, borderColor: "rgba(255,255,255,0.45)" },

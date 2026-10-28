@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import supabase from "../../lib/supabase";
 import { isMissingColumn, who } from "../../lib/people";
+import { thaiDate, thaiDateTime } from "../../lib/itemInfo";
 import { useRealtime } from "../../lib/realtime";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify, DialogHost } from "../../lib/notify";
@@ -70,11 +71,6 @@ const SELECT = `
 `;
 // ยังไม่ได้รัน migration profile_student_id → ไม่มี full_name/student_id: ใช้ชุดเดิม (อีเมล) ให้กล่องคำขอยังใช้ได้
 const SELECT_LEGACY = SELECT.replace("(email, full_name, student_id)", "(email)");
-
-const thaiDate = (value?: string | null) =>
-  value ? new Date(`${value}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-";
-const thaiDateTime = (value?: string | null) =>
-  value ? new Date(value).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
 
 type Decision = {
   req: any;

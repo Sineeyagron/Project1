@@ -17,6 +17,7 @@ import { goBack } from "../lib/nav";
 import { currentUser } from "../lib/session";
 import { notify, confirmAction } from "../lib/notify";
 import { canTakeLivePhoto, takeLivePhoto, uploadBorrowPhoto } from "../lib/borrowPhotos";
+import { thaiDate } from "../lib/itemInfo";
 import Countdown from "../components/Countdown";
 import ConfirmRulesSheet, { SummaryRow } from "../components/ConfirmRulesSheet";
 import { W, NG, C as TC } from "../lib/theme";
@@ -61,9 +62,6 @@ const pickupTime = (iso: string) => {
   const d = new Date(new Date(iso).getTime() + 7 * 3600000);
   return `${thaiDate(d.toISOString().slice(0, 10))} ${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")} น.`;
 };
-
-const thaiDate = (value?: string | null) =>
-  value ? new Date(`${value}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-";
 
 // วันที่ (YYYY-MM-DD ตามเวลาเครื่อง) + n วัน — ใช้สรุปในป๊อปอัปยืนยัน
 const addDays = (base: string | null, n: number) => {

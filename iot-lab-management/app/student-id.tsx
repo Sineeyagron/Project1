@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { currentUser } from "../lib/session";
+import { STUDENT_ID_RE, formatStudentId } from "../lib/people";
 import { confirmAction, notify } from "../lib/notify";
 import { C, W, iconDot, TOP_INSET } from "../lib/theme";
 
@@ -13,18 +14,11 @@ import { C, W, iconDot, TOP_INSET } from "../lib/theme";
 // อาจารย์/ผู้ดูแลเห็นรหัสคู่กับชื่อในคำขอยืม-คืน ไม่ต้องไปไล่หาจากอีเมล
 // รูปแบบ มข.: 9 หลัก-1 หลัก (เช่น 633021098-9) / ตั้งได้ครั้งเดียว แก้ภายหลัง = ผู้ดูแล (กันที่ trigger profiles_protect)
 
-// พิมพ์ตัวเลขล้วน → ใส่ขีดให้เองหลังหลักที่ 9
-function formatId(raw: string) {
-  const digits = raw.replace(/\D/g, "").slice(0, 10);
-  return digits.length > 9 ? `${digits.slice(0, 9)}-${digits.slice(9)}` : digits;
-}
-const VALID = /^[0-9]{9}-[0-9]$/;
-
 export default function StudentIdScreen() {
   const router = useRouter();
   const [value, setValue] = useState("");
   const [saving, setSaving] = useState(false);
-  const valid = VALID.test(value);
+  const valid = STUDENT_ID_RE.test(value);
 
   const save = () => {
     if (!valid) return;
@@ -82,7 +76,7 @@ export default function StudentIdScreen() {
           <TextInput
             style={[s.input, value.length > 0 && !valid && s.inputWarn]}
             value={value}
-            onChangeText={(t) => setValue(formatId(t))}
+            onChangeText={(t) => setValue(formatStudentId(t))}
             placeholder="633021098-9"
             placeholderTextColor={C.faint}
             keyboardType="number-pad"
