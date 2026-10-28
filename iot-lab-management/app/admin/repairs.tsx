@@ -56,7 +56,7 @@ function stationTitle(record: any) {
 
 function stationSub(record: any) {
   if (record.stationRoom) {
-    const reporter = record.reporterName ? `แจ้งโดย ${record.reporterName}` : "แจ้งโดย admin";
+    const reporter = record.reporterName ? `แจ้งโดย ${record.reporterName}` : "แจ้งโดยผู้ดูแล";
     return `${record.stationRoom} · ${reporter}`;
   }
   return record.reporterName ? `แจ้งโดย ${record.reporterName}` : "ไม่ระบุเครื่อง";

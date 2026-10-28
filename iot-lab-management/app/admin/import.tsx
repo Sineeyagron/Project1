@@ -521,7 +521,7 @@ export default function ImportItems() {
                   <Text style={s.primaryText}>{saving ? "กำลังตรวจ/บันทึก..." : sum.bad ? `แก้แถวที่ผิด ${sum.bad} แถวก่อน` : sum.warn && !ack ? "ติ๊กยืนยันคำเตือนก่อน" : `เพิ่ม ${sum.total} ชิ้น`}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.linkBtn} onPress={() => applySource("", "")}>
-                  <Text style={[s.linkText, { color: C.muted }]}>ล้าง เริ่มใหม่</Text>
+                  <Text style={[s.linkText, { color: C.muted }]}>ล้างแล้วเริ่มใหม่</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -695,7 +695,7 @@ export default function ImportItems() {
                   <Text style={s.primaryText}>{saving ? "กำลังตรวจ/บันทึก..." : sum.bad ? `แก้แถวที่ผิด ${sum.bad} แถวก่อน` : sum.warn && !ack ? "ติ๊กยืนยันคำเตือนก่อน" : `เพิ่ม ${sum.total} ชิ้น`}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={s.linkBtn} onPress={() => applySource("", "")}>
-                  <Text style={[s.linkText, { color: C.muted }]}>ล้าง เริ่มใหม่</Text>
+                  <Text style={[s.linkText, { color: C.muted }]}>ล้างแล้วเริ่มใหม่</Text>
                 </TouchableOpacity>
               </View>
             )}

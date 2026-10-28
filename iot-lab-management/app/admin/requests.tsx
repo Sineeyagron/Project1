@@ -272,7 +272,7 @@ export default function AdminRequests() {
 
         {isPending && role !== "admin" && r.user_id === userId ? (
           // คำขอของตัวเอง (TA ที่ยืมของด้วย) — ฐานข้อมูลก็กันไว้ (trigger borrow_requests_no_self_decide)
-          <Text style={s.selfNote}>คำขอของคุณเอง — ให้ผู้ดูแลคนอื่นเป็นคนตัดสิน</Text>
+          <Text style={s.selfNote}>คำขอของคุณเอง — ให้ผู้ดูแลคนอื่นพิจารณา</Text>
         ) : isPending ? (
           <View style={s.actions}>
             <TouchableOpacity style={[s.btn, s.btnDecline]} onPress={() => openDecision(r, false)} activeOpacity={0.85}>
@@ -389,8 +389,8 @@ export default function AdminRequests() {
             <View style={s.sheetBody}>
               <Text style={s.sheetTitle}>
                 {decision.approve
-                  ? decision.req.kind === "return" ? "ตรวจสภาพตอนคืน" : `อนุมัติ${KIND[decision.req.kind].label}`
-                  : `ปฏิเสธ${KIND[decision.req.kind].label}`}
+                  ? decision.req.kind === "return" ? "ตรวจสภาพตอนคืน" : `อนุมัติคำ${KIND[decision.req.kind].label}`
+                  : `ปฏิเสธคำ${KIND[decision.req.kind].label}`}
                 {" "}{decision.req.items?.item_code}
               </Text>
 

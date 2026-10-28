@@ -103,8 +103,8 @@ export default function PickupRequestForm({
 
         <View style={s.info}>
           <InfoRow icon="calendar-outline" text="ผู้ดูแลเป็นคนกำหนดวัน-เวลานัดรับ แล้วแจ้งให้ทราบในแอป" />
-          <InfoRow icon="timer-outline" text={`ไม่มีผู้ดูแลนัดภายใน ${limits.hours} ชั่วโมง คำขอหมดอายุ`} />
-          <InfoRow icon="alert-circle-outline" text={`เลยเวลานัด ${limits.grace} นาที นัดถูกยกเลิก · คำขอนัดรับนับรวมในจำนวนที่ยืมได้`} />
+          <InfoRow icon="timer-outline" text={`ถ้าไม่มีผู้ดูแลนัดภายใน ${limits.hours} ชั่วโมง คำขอจะหมดอายุ`} />
+          <InfoRow icon="alert-circle-outline" text={`ถ้าเลยเวลานัด ${limits.grace} นาที นัดจะถูกยกเลิก · คำขอนัดรับนับรวมในจำนวนที่ยืมได้`} />
         </View>
 
         <TouchableOpacity style={s.check} onPress={() => setAccepted((v) => !v)} activeOpacity={0.8} accessibilityRole="checkbox" accessibilityState={{ checked: accepted }}>

@@ -324,7 +324,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 </div>
 
 <div class="cols">
-  <div><h2>ของที่ยืม ${total} ครั้ง จบยังไงบ้าง</h2><div class="stack">${stack}</div><table class="out">${outRows}</table></div>
+  <div><h2>ผลการยืม ${total} ครั้ง</h2><div class="stack">${stack}</div><table class="out">${outRows}</table></div>
   <div><h2 class="red">ต้องติดตาม</h2>${watchHtml}</div>
 </div>
 

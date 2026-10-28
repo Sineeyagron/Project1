@@ -235,7 +235,7 @@ export default function RequestsDesktop(p: Props) {
                     {sel.decision_note ? <Text style={s.info}>{sel.decision_note}</Text> : null}
                   </View>
                 ) : isSelf ? (
-                  <Text style={s.selfNote}>คำขอของคุณเอง — ให้ผู้ดูแลคนอื่นเป็นคนตัดสิน</Text>
+                  <Text style={s.selfNote}>คำขอของคุณเอง — ให้ผู้ดูแลคนอื่นพิจารณา</Text>
                 ) : d ? (
                   <View style={s.form}>
                     {/* อนุมัติ / ปฏิเสธ */}

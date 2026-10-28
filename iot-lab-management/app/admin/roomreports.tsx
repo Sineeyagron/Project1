@@ -127,13 +127,13 @@ export default function RoomReports() {
     });
     setSaving(false);
     if (error) {
-      notify("ไม่สำเร็จ", error.message);
+      notify("ทำรายการไม่สำเร็จ", error.message);
       load();
       return;
     }
     setDecision(null);
     notify(
-      decision.accept ? "รับเรื่องแล้ว" : "ปิดคำแจ้งแล้ว",
+      decision.accept ? "รับเรื่องแล้ว" : "ปิดเรื่องแล้ว",
       decision.accept
         ? decision.report.kind === "station"
           ? `สร้างงานซ่อม ${decision.report.label} แล้ว เครื่องเปลี่ยนเป็น "กำลังซ่อม"`
@@ -151,7 +151,7 @@ export default function RoomReports() {
   return (
     <View style={s.container}>
       <ScreenHeader
-        title={"คำแจ้งปัญหาห้องคอม"}
+        title={"แจ้งปัญหาห้องคอม"}
         subtitle={`${counts.open} รายการรอตรวจ`}
         onBack={() => goBack("/admin/room")}
       />
@@ -180,7 +180,7 @@ export default function RoomReports() {
           {!loadError && shown.length === 0 ? (
             <View style={[s.empty, desktopGrid.full]}>
               <Ionicons name="checkmark-done-outline" size={44} color="#cbd5e1" />
-              <Text style={s.emptyText}>{filter === "open" ? "ไม่มีคำแจ้งรอตรวจ" : "ไม่มีรายการ"}</Text>
+              <Text style={s.emptyText}>{filter === "open" ? "ไม่มีเรื่องรอตรวจ" : "ไม่มีรายการ"}</Text>
             </View>
           ) : null}
 
@@ -211,7 +211,7 @@ export default function RoomReports() {
                 ) : (
                   <View style={s.actions}>
                     <TouchableOpacity style={s.closeBtn} onPress={() => openDecision(r, false)}>
-                      <Text style={s.closeBtnText}>ปิดคำแจ้ง</Text>
+                      <Text style={s.closeBtnText}>ปิดเรื่อง</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={s.acceptBtn} onPress={() => openDecision(r, true)}>
                       <Ionicons name="construct-outline" size={15} color="#fff" />
@@ -228,7 +228,7 @@ export default function RoomReports() {
 
       <BottomSheet visible={!!decision} onClose={() => { if (!saving) setDecision(null); }} style={s.modalBox}>
             <Text style={s.modalTitle}>
-              {shownDecision?.accept ? "รับเป็นงานซ่อม" : "ปิดคำแจ้ง"} · {shownDecision?.report.room_id} {shownDecision?.report.label}
+              {shownDecision?.accept ? "รับเป็นงานซ่อม" : "ปิดเรื่อง"} · {shownDecision?.report.room_id} {shownDecision?.report.label}
             </Text>
             <Text style={s.modalDesc}>"{shownDecision?.report.description}"</Text>
             <Text style={s.fieldLabel}>{shownDecision?.accept ? "หมายเหตุ (ไม่บังคับ)" : "เหตุผล * (ผู้แจ้งจะเห็น)"}</Text>

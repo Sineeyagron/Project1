@@ -153,7 +153,7 @@ export default function ResetPassword() {
 
       {/* BACK TO LOGIN */}
       <View style={styles.signupRow}>
-        <Text style={{ color: "#475569" }}>ไม่เปลี่ยนแล้ว? </Text>
+        <Text style={{ color: "#475569" }}>เปลี่ยนใจ? </Text>
         <TouchableOpacity onPress={() => goBack("/profile")} disabled={isLoading}>
           <Text style={styles.signup}>กลับ</Text>
         </TouchableOpacity>

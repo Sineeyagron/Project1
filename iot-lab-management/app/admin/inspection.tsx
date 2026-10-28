@@ -185,7 +185,7 @@ export default function InspectionPage() {
 
   const openForm = (station: any) => {
     if (loadError) {
-      notify("ยังโหลดผลตรวจไม่ได้", "กด \"ลองใหม่\" ก่อน — กันบันทึกทับผลที่มีอยู่แล้ว");
+      notify("ยังโหลดผลตรวจไม่ได้", "กด \"ลองใหม่\" ก่อน เพื่อไม่ให้บันทึกทับผลเดิม");
       return;
     }
     if (termPending) {

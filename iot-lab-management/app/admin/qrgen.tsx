@@ -205,13 +205,13 @@ export default function QRGen() {
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
       if (status !== "granted") {
-        notify("ต้องการสิทธิ์เข้าถึง Gallery", "กรุณาอนุญาตเพื่อบันทึก QR Code ลงเครื่อง");
+        notify("ต้องการสิทธิ์เข้าถึงคลังรูปภาพ", "กรุณาอนุญาตเพื่อบันทึก QR Code ลงเครื่อง");
         return;
       }
       const fileUri = (FS.documentDirectory ?? "") + `LabHub_QR_${code}.png`;
       const { uri } = await FS.downloadAsync(qrImageUrl(qrValue(previewItem), 420), fileUri);
       await MediaLibrary.saveToLibraryAsync(uri);
-      notify("บันทึกสำเร็จ", "QR Code ถูกบันทึกลง Gallery แล้ว");
+      notify("บันทึกสำเร็จ", "บันทึก QR Code ลงคลังรูปภาพแล้ว");
     } catch (e: any) {
       notify("บันทึกไม่สำเร็จ", e.message || "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง");
     } finally {
@@ -284,7 +284,7 @@ export default function QRGen() {
             activeOpacity={0.84}
           >
             <Ionicons name="grid-outline" size={14} color="#1D4ED8" />
-            <Text style={s.modeTabText}>ทีละตัว</Text>
+            <Text style={s.modeTabText}>ทีละชิ้น</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.modeTab, mode === "batch" && s.modeTabActive]}
@@ -292,7 +292,7 @@ export default function QRGen() {
             activeOpacity={0.84}
           >
             <Ionicons name="albums-outline" size={14} color="#1D4ED8" />
-            <Text style={s.modeTabText}>หลายตัว (Batch)</Text>
+            <Text style={s.modeTabText}>หลายชิ้น</Text>
             <View style={s.newPill}><Text style={s.newPillText}>ใหม่</Text></View>
           </TouchableOpacity>
         </View>
@@ -385,7 +385,7 @@ export default function QRGen() {
             </Text>
           </View>
 
-          <Section index={3} title="Preview ก่อนพิมพ์" />
+          <Section index={3} title="ตัวอย่างก่อนพิมพ์" />
           <View style={s.previewList}>
             {/* แสดงแค่ชิ้นแรก — ดูครบทุกชิ้นทั้งแผ่นได้ตอนกดพิมพ์ (เดิมเรียงทุกชิ้น เลือกเยอะแล้วต้องเลื่อนไกล) */}
             {previewItem ? (

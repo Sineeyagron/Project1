@@ -264,7 +264,7 @@ function GroupCard({ group: g, index, onPress }: { group: Group; index: number; 
   const total = g.units.length;
   const ratio = total ? g.available / total : 0;
   // ข้อความใต้แถบ: มีว่าง = ไม่ต้องพูดซ้ำ (ตัวเลขขวาบอกแล้ว) / ไม่มีว่าง = บอกว่าจะว่างเมื่อไร
-  const note = g.available > 0 ? null : g.nextDue ? `ว่างอีกครั้ง ~${formatDue(g.nextDue)}` : g.held > 0 ? "มีคนขอนัดรับไว้หมดแล้ว" : "ไม่ว่างตอนนี้";
+  const note = g.available > 0 ? null : g.nextDue ? `ว่างประมาณ ${formatDue(g.nextDue)}` : g.held > 0 ? "มีคนขอนัดรับไว้หมดแล้ว" : "ไม่ว่างตอนนี้";
   return (
     <FadeIn delay={Math.min(index, 8) * 40}>
       <PressScale style={s.card} onPress={onPress} scaleTo={0.98} accessibilityLabel={`${g.name} ว่าง ${g.available} จาก ${total}`}>

@@ -681,7 +681,7 @@ export default function Scan() {
 
         <View style={styles.infoNote}>
           <Ionicons name="information-circle-outline" size={16} color="#1D4ED8" />
-          <Text style={styles.infoNoteText}>ระบบออกรหัสเรียก + รหัสสแกนให้เองตอนบันทึก · พิมพ์ป้าย QR ได้ที่เมนู "สร้าง QR"</Text>
+          <Text style={styles.infoNoteText}>ระบบออกรหัสอุปกรณ์ + รหัสสแกนให้เองตอนบันทึก · พิมพ์ป้าย QR ได้ที่เมนู "สร้าง QR"</Text>
         </View>
         </View>
         </View>
@@ -700,7 +700,7 @@ export default function Scan() {
           )}
         </TouchableOpacity>
         <TouchableOpacity style={styles.cancelBtn} onPress={resetAll} disabled={saving}>
-          <Text style={styles.cancelBtnText}>ล้างฟอร์ม เริ่มใหม่</Text>
+          <Text style={styles.cancelBtnText}>ล้างแล้วเริ่มใหม่</Text>
         </TouchableOpacity>
         </DesktopBox>
       </View>

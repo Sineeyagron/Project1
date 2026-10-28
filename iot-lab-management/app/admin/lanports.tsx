@@ -134,7 +134,7 @@ export default function AdminLanPorts() {
 
   // กดค้างเพื่อลบ
   const deletePort = (port: any) => {
-    confirmAction("ลบ Port", `ลบ Port ${port.port_no} ?`, "ลบ", async () => {
+    confirmAction("ลบ Port", `ลบ Port ${port.port_no}?`, "ลบ", async () => {
       const { data, error } = await supabase.from("lan_ports").delete().eq("id", port.id).select("id");
       if (error || !data?.length) {
         notify("ลบไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์ลบ หรือ port นี้ถูกลบไปแล้ว");
@@ -295,7 +295,7 @@ export default function AdminLanPorts() {
               onChangeText={setNewPortNo}
             />
 
-            <Text style={styles.fieldLabel}>Label (ไม่บังคับ)</Text>
+            <Text style={styles.fieldLabel}>ชื่อเรียก (ไม่บังคับ)</Text>
             <TextInput
               style={styles.input}
               placeholder="เช่น SWITCH L3, Firewall..."

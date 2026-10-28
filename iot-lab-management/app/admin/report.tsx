@@ -105,7 +105,7 @@ export default function BorrowReport() {
       : !isValidDate(customFrom.trim()) || !isValidDate(customTo.trim())
         ? "วันที่ไม่ถูกต้อง แตะเพื่อเลือกใหม่"
         : customFrom.trim() > customTo.trim()
-          ? "วันเริ่มต้องไม่หลังวันสิ้นสุด"
+          ? "วันเริ่มต้องไม่เกินวันสิ้นสุด"
           : "";
   const range = preset === "custom" ? { from: customFrom.trim(), to: customTo.trim() } : presetRange(preset);
   const rangeLabel = range.from ? `${thDate(range.from)} – ${thDate(range.to)}` : `ทั้งหมด ถึง ${thDate(range.to)}`;

@@ -164,7 +164,7 @@ export default function AdminStations() {
   const toggleStatus = (station: Station) => {
     if (station.active === false) {
       if (!isAdmin) {
-        notify("เครื่องนี้ปิดใช้งานอยู่", "เฉพาะ Admin เปิดใช้งานเครื่องได้");
+        notify("เครื่องนี้ปิดใช้งานอยู่", "เฉพาะผู้ดูแลระบบเปิดใช้งานเครื่องได้");
         return;
       }
       confirmAction("เปิดใช้งานเครื่อง", `เปิดใช้ "${station.name}" อีกครั้ง?\nเครื่องจะกลับมาขึ้นในผังห้อง`, "เปิดใช้งาน", () =>

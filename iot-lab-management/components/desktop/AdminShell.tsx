@@ -59,7 +59,7 @@ const NAV: { title?: string; tone: Tone; items: NavItem[] }[] = [
     items: [
       { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room" },
       { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations" },
-      { icon: "git-network-outline", label: "จัดการแลน", route: "/admin/lanports" },
+      { icon: "git-network-outline", label: "จัดการ LAN", route: "/admin/lanports" },
       { icon: "construct-outline", label: "ซ่อมบำรุง", route: "/admin/repairs" },
       { icon: "megaphone-outline", label: "แจ้งปัญหาห้อง", route: "/admin/roomreports", badge: "roomreports" },
     ],
