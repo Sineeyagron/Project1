@@ -73,12 +73,14 @@ export default function AdminCategories() {
     setRefreshing(false);
   };
 
-  const run = async (task: () => PromiseLike<{ error: any }>, failTitle: string) => {
+  // งานที่ต่อ .select("id") มา: ได้ 0 แถว = RLS ไม่ให้ หรือหมวดถูกลบจากเครื่องอื่นไปแล้ว (ไม่ error เอง)
+  const run = async (task: () => PromiseLike<{ error: any; data?: any }>, failTitle: string) => {
     setBusy(true);
-    const { error } = await task();
+    const { error, data } = await task();
     setBusy(false);
-    if (error) {
-      notify(failTitle, errorText(error));
+    if (error || (Array.isArray(data) && data.length === 0)) {
+      notify(failTitle, error ? errorText(error) : "ไม่มีสิทธิ์แก้ไข หรือหมวดนี้ถูกลบไปแล้ว");
+      if (!error) load();
       return false;
     }
     await load();
@@ -106,8 +108,8 @@ export default function AdminCategories() {
     }
     // ของเก่าบางชิ้นจับหมวดจากช่อง type → แก้ตามด้วย ชื่อหมวดบนการ์ดจะได้ตรงกัน
     const ok = await run(async () => {
-      const res = await supabase.from("categories").update({ name }).eq("id", c.id);
-      if (res.error) return res;
+      const res = await supabase.from("categories").update({ name }).eq("id", c.id).select("id");
+      if (res.error || !res.data?.length) return res;
       return supabase.from("items").update({ type: name }).eq("category_id", c.id);
     }, "แก้ชื่อไม่สำเร็จ");
     if (ok) setEditId(null);
@@ -120,9 +122,9 @@ export default function AdminCategories() {
     if (!a || !b) return;
     // ลำดับเดิมอาจซ้ำกัน (เช่น 0 ทั้งคู่) → ใช้ตำแหน่งในรายการแทน
     run(async () => {
-      const r1 = await supabase.from("categories").update({ sort_order: index + dir }).eq("id", a.id);
-      if (r1.error) return r1;
-      return supabase.from("categories").update({ sort_order: index }).eq("id", b.id);
+      const r1 = await supabase.from("categories").update({ sort_order: index + dir }).eq("id", a.id).select("id");
+      if (r1.error || !r1.data?.length) return r1;
+      return supabase.from("categories").update({ sort_order: index }).eq("id", b.id).select("id");
     }, "เลื่อนลำดับไม่สำเร็จ");
   };
 
@@ -132,11 +134,11 @@ export default function AdminCategories() {
         `ปิดหมวด ${c.name}?`,
         "หมวดจะหายจากปุ่มตัวกรองและฟอร์มเพิ่มอุปกรณ์ ของที่อยู่ในหมวดนี้จะไปแสดงใน \"อื่นๆ\" เปิดกลับได้ทุกเมื่อ",
         "ปิดหมวด",
-        () => run(() => supabase.from("categories").update({ active: false }).eq("id", c.id), "ปิดหมวดไม่สำเร็จ"),
+        () => run(() => supabase.from("categories").update({ active: false }).eq("id", c.id).select("id"), "ปิดหมวดไม่สำเร็จ"),
         true
       );
     } else {
-      run(() => supabase.from("categories").update({ active: true }).eq("id", c.id), "เปิดหมวดไม่สำเร็จ");
+      run(() => supabase.from("categories").update({ active: true }).eq("id", c.id).select("id"), "เปิดหมวดไม่สำเร็จ");
     }
   };
 
@@ -151,7 +153,7 @@ export default function AdminCategories() {
       `ลบหมวด ${c.name}?`,
       "หมวดนี้ไม่มีอุปกรณ์ ลบแล้วกู้คืนไม่ได้",
       "ลบ",
-      () => run(() => supabase.from("categories").delete().eq("id", c.id), "ลบหมวดไม่สำเร็จ"),
+      () => run(() => supabase.from("categories").delete().eq("id", c.id).select("id"), "ลบหมวดไม่สำเร็จ"),
       true
     );
   };
@@ -165,7 +167,7 @@ export default function AdminCategories() {
         const ok = await run(async () => {
           const moved = await supabase.from("items").update({ category_id: to.id, type: to.name }).eq("category_id", from.id);
           if (moved.error) return moved;
-          return supabase.from("categories").delete().eq("id", from.id);
+          return supabase.from("categories").delete().eq("id", from.id).select("id");
         }, "ย้ายและลบไม่สำเร็จ");
         if (ok) setMoveFromId(null);
       },
