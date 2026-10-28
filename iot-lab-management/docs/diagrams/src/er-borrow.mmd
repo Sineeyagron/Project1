@@ -1,0 +1,121 @@
+---
+title: ER Diagram — ระบบยืม-คืนอุปกรณ์ IoT
+---
+%% สร้างจากโครงตารางจริงใน Supabase (public schema) 28 ต.ค. 2569
+%% แสดงเฉพาะ PK, FK และคอลัมน์หลัก — คอลัมน์ทั้งหมดดูใน Data Dictionary
+%% เส้นประ = ความสัมพันธ์ทางตรรกะ (อ้างถึงกันแต่ไม่มี FK constraint ในฐานข้อมูล)
+erDiagram
+  profiles {
+    uuid id PK
+    text role
+    text full_name
+    text student_id
+  }
+  categories {
+    uuid id PK
+    text name
+    bool active
+  }
+  borrow_locations {
+    uuid id PK
+    text name
+  }
+  items {
+    uuid id PK
+    text item_code
+    text name
+    text status
+    uuid category_id FK
+    uuid location_id FK
+    date warranty_expires_at
+  }
+  borrow_requests {
+    uuid id PK
+    text kind
+    text status
+    uuid user_id FK
+    uuid item_id FK
+    uuid borrow_record_id FK
+    uuid location_id FK
+    uuid decided_by FK
+    timestamptz expires_at
+  }
+  borrow_records {
+    uuid id PK
+    uuid user_id
+    uuid item_id FK
+    uuid borrow_request_id FK
+    text status
+    date due_date
+    timestamptz return_date
+    uuid return_checked_by FK
+  }
+  pickup_requests {
+    uuid id PK
+    uuid user_id FK
+    text item_prefix
+    uuid location_id FK
+    text status
+    timestamptz pickup_at
+    uuid scheduled_by FK
+    uuid picked_item_id FK
+    uuid borrow_record_id FK
+  }
+  item_inspections {
+    uuid id PK
+    uuid item_id FK
+    text term
+    text condition
+    uuid inspector_id FK
+  }
+  item_alerts {
+    uuid item_id PK, FK
+    text kind PK
+    text alert_key PK
+  }
+  staff_presence {
+    uuid user_id PK, FK
+    uuid location_id FK
+    timestamptz checked_in_at
+  }
+  notifications {
+    uuid id PK
+    uuid user_id
+    text type
+    uuid item_id FK
+    uuid request_id FK
+    bool read
+  }
+  app_settings {
+    text key PK
+    jsonb value
+  }
+  item_code_counters {
+    text prefix_key PK
+    int last_no
+  }
+
+  categories |o--o{ items : "จัดหมวด"
+  borrow_locations ||--o{ items : "เก็บที่"
+  profiles ||--o{ borrow_requests : "ส่งคำขอ"
+  profiles |o--o{ borrow_requests : "พิจารณา"
+  items |o--o{ borrow_requests : "ถูกขอ"
+  borrow_requests |o--o| borrow_records : "อนุมัติแล้วเกิด"
+  borrow_records |o--o{ borrow_requests : "อ้างถึงการยืม"
+  borrow_locations |o--o{ borrow_requests : "จุดรับ-คืน"
+  borrow_locations |o--o{ pickup_requests : "จุดนัดรับ"
+  profiles ||..o{ borrow_records : "ยืม"
+  profiles |o--o{ borrow_records : "ตรวจรับคืน"
+  items |o--o{ borrow_records : "ถูกยืม"
+  profiles ||--o{ pickup_requests : "ขอนัดรับ"
+  profiles |o--o{ pickup_requests : "นัดเวลา"
+  items |o--o{ pickup_requests : "ส่งมอบ"
+  borrow_records |o--o| pickup_requests : "รับแล้วเกิด"
+  items |o--o{ item_inspections : "ถูกตรวจ"
+  profiles |o--o{ item_inspections : "ตรวจ"
+  items ||--o{ item_alerts : "มีการเตือน"
+  profiles ||--o| staff_presence : "เช็กอิน"
+  borrow_locations |o--o{ staff_presence : "ที่"
+  profiles ||..o{ notifications : "ได้รับ"
+  items |o--o{ notifications : "อ้างถึง"
+  borrow_requests |o--o{ notifications : "อ้างถึง"

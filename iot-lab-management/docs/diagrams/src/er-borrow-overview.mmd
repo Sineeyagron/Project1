@@ -1,0 +1,40 @@
+---
+title: ER Diagram ภาพรวม — ระบบยืม-คืนอุปกรณ์ IoT
+---
+%% ระดับแนวคิด: entity + ความสัมพันธ์ (ไม่แสดงคอลัมน์) — คอลัมน์หลักดู er-borrow, ทั้งหมดดู Data Dictionary
+%% ไม่รวมตารางตั้งค่าที่ไม่มีความสัมพันธ์ (app_settings, item_code_counters) · FK หลายตัวระหว่างคู่เดียวกันรวมเป็นเส้นเดียว (ป้ายบอกทุกบทบาท) ยกเว้นคนละทิศ หรือเส้นประ (ไม่มี FK) กับเส้นทึบ
+erDiagram
+  profiles["profiles<br/>(ผู้ใช้)"]
+  categories["categories<br/>(หมวดหมู่)"]
+  borrow_locations["borrow_locations<br/>(จุดยืม-คืน)"]
+  items["items<br/>(อุปกรณ์)"]
+  borrow_requests["borrow_requests<br/>(คำขอยืม/คืน/ยืมต่อ)"]
+  borrow_records["borrow_records<br/>(การยืม)"]
+  pickup_requests["pickup_requests<br/>(คำขอนัดรับ)"]
+  item_inspections["item_inspections<br/>(ผลตรวจประจำเทอม)"]
+  item_alerts["item_alerts<br/>(การเตือนประกัน/อายุ)"]
+  staff_presence["staff_presence<br/>(ผู้ดูแลที่อยู่ห้อง)"]
+  notifications["notifications<br/>(การแจ้งเตือน)"]
+
+  categories |o--o{ items : "จัดหมวด"
+  borrow_locations ||--o{ items : "เก็บที่"
+  profiles ||--o{ borrow_requests : "ส่ง/พิจารณาคำขอ"
+  items |o--o{ borrow_requests : "ถูกขอ"
+  borrow_requests |o--o| borrow_records : "อนุมัติแล้วเกิด"
+  borrow_records |o--o{ borrow_requests : "อ้างถึงการยืม"
+  profiles ||..o{ borrow_records : "ยืม"
+  profiles |o--o{ borrow_records : "ตรวจรับคืน"
+  items |o--o{ borrow_records : "ถูกยืม"
+  profiles ||--o{ pickup_requests : "ขอ/นัดเวลารับ"
+  borrow_records |o--o| pickup_requests : "รับแล้วเกิด"
+  items |o--o{ item_inspections : "ถูกตรวจ"
+  profiles |o--o{ item_inspections : "ตรวจ"
+  items |o--o{ pickup_requests : "ส่งมอบ"
+  borrow_locations |o--o{ borrow_requests : "จุดรับ-คืน"
+  borrow_locations |o--o{ pickup_requests : "จุดนัดรับ"
+  borrow_locations |o--o{ staff_presence : "ที่"
+  items |o--o{ notifications : "อ้างถึง"
+  borrow_requests |o--o{ notifications : "อ้างถึง"
+  items ||--o{ item_alerts : "มีการเตือน"
+  profiles ||--o| staff_presence : "เช็กอิน"
+  profiles ||..o{ notifications : "ได้รับ"

@@ -1,0 +1,33 @@
+---
+title: ER Diagram ภาพรวม — ระบบห้องคอมพิวเตอร์
+---
+%% ระดับแนวคิด: entity + ความสัมพันธ์ (ไม่แสดงคอลัมน์) — คอลัมน์หลักดู er-room, ทั้งหมดดู Data Dictionary
+%% FK หลายตัวระหว่างคู่เดียวกันรวมเป็นเส้นเดียว (ป้ายบอกทุกบทบาท) · เส้นประ = อ้างถึงแต่ไม่มี FK constraint
+erDiagram
+  profiles["profiles<br/>(ผู้ใช้)"]
+  rooms["rooms<br/>(ห้อง)"]
+  computer_stations["computer_stations<br/>(เครื่องคอม)"]
+  lan_ports["lan_ports<br/>(LAN port)"]
+  station_equipment["station_equipment<br/>(อุปกรณ์ประจำเครื่อง)"]
+  equipment_inspections["equipment_inspections<br/>(ผลตรวจประจำเทอม)"]
+  repair_records["repair_records<br/>(งานซ่อม)"]
+  room_reports["room_reports<br/>(คำแจ้งปัญหา)"]
+  room_status_log["room_status_log<br/>(ประวัติสถานะ)"]
+
+  rooms ||--o{ computer_stations : "มีเครื่อง"
+  rooms ||--o{ lan_ports : "มี LAN port"
+  rooms ||--o{ room_reports : "ถูกแจ้ง"
+  rooms ||..o{ room_status_log : "มีประวัติ"
+  computer_stations ||--o{ station_equipment : "มีอุปกรณ์"
+  computer_stations |o--o{ equipment_inspections : "ถูกตรวจ"
+  computer_stations |o--o{ repair_records : "ถูกซ่อม"
+  computer_stations |o--o{ room_reports : "ถูกแจ้ง"
+  lan_ports |o--o{ room_reports : "ถูกแจ้ง"
+  repair_records |o--o{ room_reports : "เปิดงานจาก"
+  computer_stations |o--o{ room_status_log : "มีประวัติ"
+  lan_ports |o--o{ room_status_log : "มีประวัติ"
+  profiles ||--o{ room_reports : "แจ้ง/พิจารณาปัญหา"
+  profiles |o--o{ repair_records : "แจ้งซ่อม/ซ่อม"
+  profiles |o--o{ equipment_inspections : "ตรวจ/ผู้ใช้ล่าสุด"
+  profiles |o--o{ station_equipment : "อัปเดต"
+  profiles |o--o{ room_status_log : "เปลี่ยนสถานะ"

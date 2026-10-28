@@ -1,0 +1,98 @@
+---
+title: ER Diagram — ระบบห้องคอมพิวเตอร์
+---
+%% สร้างจากโครงตารางจริงใน Supabase (public schema) 28 ต.ค. 2569
+%% แสดงเฉพาะ PK, FK และคอลัมน์หลัก — คอลัมน์ทั้งหมดดูใน Data Dictionary · profiles ใช้ร่วมกับระบบยืม-คืน
+%% เส้นประ = ความสัมพันธ์ทางตรรกะ (room_status_log.room_id อ้างถึงห้องแต่ไม่มี FK constraint)
+erDiagram
+  profiles {
+    uuid id PK
+    text role
+    text full_name
+  }
+  rooms {
+    text id PK
+    text building
+    text floor
+    bool active
+  }
+  computer_stations {
+    uuid id PK
+    text room_id FK
+    int group_no
+    text name
+    text status
+    bool active
+  }
+  lan_ports {
+    uuid id PK
+    text room_id FK
+    int group_no
+    int port_no
+    text status
+  }
+  station_equipment {
+    uuid id PK
+    uuid station_id FK
+    text equipment_type
+    text status
+    uuid updated_by FK
+  }
+  equipment_inspections {
+    uuid id PK
+    uuid station_id FK
+    text term
+    text equipment_type
+    text condition
+    uuid inspector_id FK
+    uuid last_borrower_id FK
+  }
+  repair_records {
+    uuid id PK
+    uuid station_id FK
+    text status
+    uuid reported_by FK
+    uuid repaired_by FK
+    timestamptz repaired_at
+  }
+  room_reports {
+    uuid id PK
+    text kind
+    text room_id FK
+    uuid station_id FK
+    uuid lan_port_id FK
+    text status
+    uuid reported_by FK
+    uuid handled_by FK
+    uuid repair_id FK
+  }
+  room_status_log {
+    bigint id PK
+    text room_id
+    uuid station_id FK
+    uuid lan_port_id FK
+    text from_status
+    text to_status
+    uuid changed_by FK
+  }
+
+  rooms ||--o{ computer_stations : "มีเครื่อง"
+  rooms ||--o{ lan_ports : "มี LAN port"
+  rooms ||--o{ room_reports : "ถูกแจ้ง"
+  computer_stations ||--o{ station_equipment : "มีอุปกรณ์"
+  computer_stations |o--o{ equipment_inspections : "ถูกตรวจ"
+  computer_stations |o--o{ repair_records : "ถูกซ่อม"
+  computer_stations |o--o{ room_reports : "ถูกแจ้ง"
+  lan_ports |o--o{ room_reports : "ถูกแจ้ง"
+  repair_records |o--o{ room_reports : "เปิดงานจาก"
+  computer_stations |o--o{ room_status_log : "มีประวัติ"
+  lan_ports |o--o{ room_status_log : "มีประวัติ"
+  profiles ||--o{ room_reports : "แจ้งปัญหา"
+  profiles |o--o{ room_reports : "พิจารณา"
+  profiles |o--o{ repair_records : "แจ้งซ่อม"
+  profiles |o--o{ repair_records : "ซ่อม"
+  profiles |o--o{ equipment_inspections : "ตรวจ"
+  profiles |o--o{ equipment_inspections : "ผู้ใช้ล่าสุด"
+  rooms ||..o{ room_status_log : "มีประวัติ"
+  profiles |o--o{ station_equipment : "อัปเดต"
+  profiles |o--o{ room_status_log : "เปลี่ยนสถานะ"

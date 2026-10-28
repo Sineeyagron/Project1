@@ -1,0 +1,14 @@
+{
+  "name": "labhub-diagrams",
+  "private": true,
+  "description": "สร้างแผนภาพ Use Case / ER และ Data Dictionary สำหรับรายงาน — ดู README.md",
+  "scripts": {
+    "build": "node src/usecase.js && node src/render.js && node src/data-dictionary.js",
+    "usecase": "node src/usecase.js && node src/render.js usecase-borrow-user && node src/render.js usecase-borrow-staff && node src/render.js usecase-room",
+    "er": "node src/render.js er-borrow && node src/render.js er-room && node src/render.js er-borrow-overview && node src/render.js er-room-overview",
+    "dd": "node src/data-dictionary.js"
+  },
+  "devDependencies": {
+    "docx": "9.5.1"
+  }
+}
