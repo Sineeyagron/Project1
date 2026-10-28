@@ -52,7 +52,13 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((c) => c.trim() !== ""));
 }
 
-const escape = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+// เซลล์ขึ้นต้น = + - @ (หรือ tab/CR) → Excel อ่านเป็นสูตร (CSV injection — ชื่อ Google/หมายเหตุ ผู้ใช้ตั้งเองได้)
+//   เติม ' ข้างหน้าให้เป็นข้อความธรรมดา · ตัวเลขติดลบ (-5) ไม่ต้องเติม
+const defuse = (v: string) => (/^[=+\-@\t\r]/.test(v) && !/^-\d+(\.\d+)?$/.test(v) ? `'${v}` : v);
+const escape = (raw: string) => {
+  const v = defuse(raw);
+  return /[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+};
 
 export function toCsv(rows: string[][]): string {
   return rows.map((r) => r.map(escape).join(",")).join("\r\n");
