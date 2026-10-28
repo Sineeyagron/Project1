@@ -16,7 +16,7 @@ import { DESKTOP_GUTTER, DESKTOP_MAX } from "../../lib/layout";
 // แดชบอร์ด admin แบบจอใหญ่ (เว็บบนคอม) — ข้อมูลชุดเดียวกับแดชบอร์ดมือถือ (app/admin/home.tsx ส่งมาให้)
 //   + ดึงเพิ่มเฉพาะที่จอใหญ่โชว์: รายการคำขอรออนุมัติ, เกินกำหนดคืน, สถานะห้องคอมรายกลุ่ม
 //   ปุ่มในตาราง = เปิดคำขอนั้นในกล่องคำขอ (ตัดสินผ่านแผ่นยืนยันเดิม ไม่ข้ามขั้นตอน)
-type Activity = { id: string; icon: string; iconBg: string; color: string; title: string; sub: string; time: string };
+type Activity = { id: string; icon: string; iconBg: string; color: string; title: string; sub: string; time: string; route?: string };
 type Props = {
   role: Role | null;
   userId: string | null;
@@ -28,6 +28,7 @@ type Props = {
   pending: number;
   unread: number;
   activities: Activity[];
+  onAllActivity: () => void; // "ดูทั้งหมด" → เลือกประวัติยืม-คืน / งานซ่อมห้องคอม (เหมือนมือถือ)
   onRefresh: () => void;
 };
 
@@ -169,14 +170,19 @@ export default function AdminDashboardDesktop(p: Props) {
           </View>
 
           <View style={s.card}>
-            <CardHead icon="pulse-outline" title="กิจกรรมล่าสุด" />
+            <CardHead icon="pulse-outline" title="กิจกรรมล่าสุด" action="ดูทั้งหมด" onAction={p.onAllActivity} />
             {p.loading ? (
               <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
             ) : p.activities.length === 0 ? (
               <Text style={[s.emptyText, { paddingVertical: 16, textAlign: "center" }]}>ยังไม่มีกิจกรรม</Text>
             ) : (
               p.activities.slice(0, 8).map((a) => (
-                <View key={a.id} style={s.act}>
+                <Pressable
+                  key={a.id}
+                  disabled={!a.route}
+                  onPress={() => a.route && router.push(a.route as any)}
+                  style={({ hovered }: any) => [s.act, hovered && a.route && s.trHover]}
+                >
                   <View style={[s.actIcon, { backgroundColor: a.iconBg }]}>
                     <Ionicons name={a.icon as any} size={15} color={a.color} />
                   </View>
@@ -185,7 +191,8 @@ export default function AdminDashboardDesktop(p: Props) {
                     <Text style={s.actSub} numberOfLines={1}>{a.sub}</Text>
                   </View>
                   <Text style={s.actTime}>{a.time}</Text>
-                </View>
+                  {a.route ? <Ionicons name="chevron-forward" size={14} color="#94A3B8" /> : null}
+                </Pressable>
               ))
             )}
           </View>

@@ -19,7 +19,7 @@ import GreetingLine from "../../components/GreetingLine";
 import StaffCheckInCard from "../../components/borrow/StaffCheckInCard";
 import { usePresence } from "../../lib/presence";
 import { FadeIn, PressScale, Pulse } from "../../components/Motion";
-import { confirmAction, notify } from "../../lib/notify";
+import { confirmAction, notify, pickOption } from "../../lib/notify";
 import { canAccess, useRole, useRoleLabel } from "../../lib/roles";
 import { W, NG, gradient, iconDot, BADGE_TEXT, TOP_INSET } from "../../lib/theme";
 import { useIsDesktop } from "../../lib/layout";
@@ -124,7 +124,15 @@ type ActivityItem = {
   title: string;
   sub: string;
   time: string;
+  at?: number; // เวลาจริง (ms) ใช้เรียง — แคชรุ่นเก่าไม่มี
+  route?: string; // กดการ์ด → หน้าของรายการนั้น
 };
+
+// "ดูทั้งหมด" ของกิจกรรมล่าสุด: ยืม-คืน (หลัก) + งานซ่อมห้องคอม
+const ACTIVITY_PAGES = [
+  { label: "ประวัติยืม-คืน", route: "/admin/history" },
+  { label: "งานซ่อมห้องคอม", route: "/admin/repairs" },
+];
 
 type Tile = { icon: string; title?: string; sub?: string; label?: string; route: string; color?: string; bg: string };
 
@@ -325,6 +333,8 @@ export default function AdminHome() {
         title: `${isReturned ? "คืน" : "ยืม"} ${itemMap.get(record.item_id) || "อุปกรณ์"}`,
         sub: emailMap[record.user_id] || "-",
         time: relativeTime(record.return_date || record.borrow_date),
+        at: timeOf(record.return_date || record.borrow_date),
+        route: "/admin/history",
       };
     });
 
@@ -336,10 +346,12 @@ export default function AdminHome() {
       title: record.status === "done" ? "ซ่อมเสร็จแล้ว" : "แจ้งซ่อม",
       sub: stationMap.get(record.station_id) || record.description || "-",
       time: relativeTime(record.repaired_at || record.reported_at),
+      at: timeOf(record.repaired_at || record.reported_at),
+      route: "/admin/repairs",
     }));
 
     const merged = [...borrowActivities, ...repairActivities]
-      .sort((a, b) => timeScore(b.time) - timeScore(a.time))
+      .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))
       .slice(0, 3);
 
     setActivities(merged);
@@ -367,6 +379,9 @@ export default function AdminHome() {
     confirmAction("ออกจากระบบ", "ต้องการออกจากระบบใช่ไหม?", "ออกจากระบบ", handleLogout, true);
   };
 
+  const openAllActivity = () =>
+    pickOption("ดูกิจกรรมทั้งหมดของ", ACTIVITY_PAGES.map((p) => p.label), (i) => router.push(ACTIVITY_PAGES[i].route as any));
+
   if (isDesktop) {
     return (
       <AdminDashboardDesktop
@@ -380,6 +395,7 @@ export default function AdminHome() {
         pending={pendingRequests}
         unread={unread}
         activities={activities}
+        onAllActivity={openAllActivity}
         onRefresh={onRefresh}
       />
     );
@@ -553,8 +569,13 @@ export default function AdminHome() {
             <FadeIn delay={200 + groups.length * 60}>
             <View style={s.activityHeader}>
               <SectionLabel icon="time-outline" title="กิจกรรมล่าสุด" compact />
-              <TouchableOpacity activeOpacity={0.75} onPress={() => router.push("/admin/history" as any)}>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                style={s.viewAllBtn}
+                onPress={openAllActivity}
+              >
                 <Text style={s.viewAll}>ดูทั้งหมด</Text>
+                <Ionicons name="chevron-forward" size={14} color="#2563EB" />
               </TouchableOpacity>
             </View>
 
@@ -566,7 +587,13 @@ export default function AdminHome() {
             ) : (
               <View style={s.activityList}>
                 {activities.map((item) => (
-                  <TouchableOpacity key={item.id} style={s.activityCard} activeOpacity={0.85}>
+                  <TouchableOpacity
+                    key={item.id}
+                    style={s.activityCard}
+                    activeOpacity={0.85}
+                    disabled={!item.route}
+                    onPress={() => item.route && router.push(item.route as any)}
+                  >
                     <View style={[s.activityIcon, { backgroundColor: item.iconBg }]}>
                       <Ionicons name={item.icon as any} size={22} color={item.color} />
                     </View>
@@ -575,6 +602,7 @@ export default function AdminHome() {
                       <Text style={s.activitySub} numberOfLines={1}>{item.sub}</Text>
                     </View>
                     <Text style={s.activityTime}>{item.time}</Text>
+                    {item.route ? <Ionicons name="chevron-forward" size={16} color="#94A3B8" /> : null}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -600,15 +628,10 @@ function relativeTime(dateValue?: string) {
   return `${days} วันที่แล้ว`;
 }
 
-function timeScore(label: string) {
-  if (label === "เมื่อสักครู่") return Date.now();
-  const match = label.match(/^(\d+)/);
-  if (!match) return 0;
-  const amount = Number(match[1]);
-  if (label.includes("นาที")) return Date.now() - amount * 60000;
-  if (label.includes("ชั่วโมง")) return Date.now() - amount * 3600000;
-  if (label.includes("วัน")) return Date.now() - amount * 86400000;
-  return 0;
+// เรียงกิจกรรมด้วยเวลาจริง (เดิมแปลงกลับจากข้อความ "x วันที่แล้ว" → วันเดียวกันเรียงมั่ว)
+function timeOf(dateValue?: string) {
+  const t = dateValue ? new Date(dateValue).getTime() : NaN;
+  return Number.isNaN(t) ? 0 : t;
 }
 
 function SectionLabel({ icon, title, compact }: { icon: any; title: string; compact?: boolean }) {
@@ -876,6 +899,12 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 10,
+  },
+  viewAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    minHeight: 32,
   },
   viewAll: {
     color: "#2563EB",
