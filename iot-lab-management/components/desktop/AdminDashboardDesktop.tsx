@@ -67,7 +67,7 @@ export default function AdminDashboardDesktop(p: Props) {
       supabase.from("borrow_records").select("id", { count: "exact", head: true })
         .eq("status", "borrowed").lt("due_date", new Date().toISOString()),
       supabase.from("computer_stations").select("room_id, group_no, status").eq("active", true),
-      supabase.from("room_reports").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("room_reports").select("id", { count: "exact", head: true }).eq("status", "open"),
     ]);
     const all = [...(reqs.data || []), ...(picks.data || [])];
     const people = await fetchPeople([...new Set(all.map((r: any) => r.user_id).filter(Boolean))] as string[]);

@@ -100,7 +100,7 @@ async function countUnread(userId: string | null) {
   return count || 0;
 }
 async function countRoomReports() {
-  const { count } = await supabase.from("room_reports").select("id", { count: "exact", head: true }).eq("status", "pending");
+  const { count } = await supabase.from("room_reports").select("id", { count: "exact", head: true }).eq("status", "open");
   return count || 0;
 }
 
