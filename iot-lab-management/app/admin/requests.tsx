@@ -21,7 +21,7 @@ import { notify, DialogHost } from "../../lib/notify";
 import { photoStamp } from "../../lib/borrowPhotos";
 import Countdown from "../../components/Countdown";
 import { useRole } from "../../lib/roles";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import PickupInbox from "../../components/PickupInbox";
 import BottomSheet from "../../components/BottomSheet";
@@ -456,22 +456,6 @@ export default function AdminRequests() {
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingTop: TOP_INSET,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
 
   tabs: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingTop: 14 },
   tab: { flex: 1, paddingVertical: 10, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", borderWidth: 1, borderColor: C.line },
@@ -527,7 +511,6 @@ const s = StyleSheet.create({
   zoomImg: { width: "100%", height: 420 },
   zoomStamp: { color: "#fff", fontSize: 14, fontWeight: "800" },
 
-  backdrop: { flex: 1, backgroundColor: "rgba(15,23,42,0.45)", justifyContent: "flex-end" },
   sheet: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 28 },
   sheetBody: { gap: 10 },
   sheetTitle: { fontSize: 18, fontWeight: "900", color: C.ink },

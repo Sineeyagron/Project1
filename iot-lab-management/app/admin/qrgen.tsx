@@ -22,7 +22,7 @@ import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { LABELS_PER_SHEET, buildLabelSheetHtml, formatItemNo, qrMatrix } from "../../lib/labels";
 import { openPrintView } from "../../lib/fileExport";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import LoadingState from "../../components/LoadingState";
@@ -503,32 +503,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 9,
   },
-  headerTop: {
-    ...W.headerBar, marginHorizontal: -16, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  titleWrap: { flex: 1 },
-  titleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700", lineHeight: 28 },
-  adminPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: "rgba(255,255,255,0.78)", boxShadow: "inset 0 1px 0 #FFFFFF, 0 2px 8px rgba(37,99,235,0.10)",
-    borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  adminPillText: { color: "#475569", fontSize: 10, fontWeight: "900" },
-  subtitleRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 3 },
-  headerSub: { color: "#475569", fontSize: 12 },
   modeTabs: {
     minHeight: 39,
     flexDirection: "row",
@@ -559,19 +533,6 @@ const s = StyleSheet.create({
   stepText: { color: "#fff", fontSize: 12, fontWeight: "900" },
   sectionTitle: { color: C.ink, fontSize: 14, fontWeight: "900" },
   sectionRight: { color: C.muted, fontSize: 12, fontWeight: "900" },
-  searchBox: {
-    minHeight: 42,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    ...W.input,
-    borderWidth: 0,
-    paddingLeft: 14,
-    paddingRight: 6,
-    marginBottom: 14,
-  },
-  searchInput: { flex: 1, color: C.ink, fontSize: 13, fontWeight: "700", paddingVertical: 10 },
-  filterBtn: { width: 34, height: 34, borderRadius: 9, backgroundColor: "#EEF5FF", alignItems: "center", justifyContent: "center" },
   itemList: { gap: 9, marginBottom: 18 },
   // จอใหญ่: การ์ดเลือกอุปกรณ์ 3 คอลัมน์
   itemGrid: { flexDirection: "row", flexWrap: "wrap" },
@@ -615,35 +576,7 @@ const s = StyleSheet.create({
   settingHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   settingTitle: { color: C.ink, fontSize: 12.5, fontWeight: "900" },
   settingHint: { color: C.purple, fontSize: 12, fontWeight: "900" },
-  optionRow: { flexDirection: "row", gap: 8 },
-  optionBox: {
-    flex: 1,
-    minHeight: 50,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.line,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  optionBoxActive: { ...NG, borderColor: C.purple, backgroundColor: "#F5F9FF" },
-  optionLabel: { color: C.ink, fontSize: 12, fontWeight: "900" },
-  optionLabelActive: { color: C.purple },
-  optionDetail: { color: C.muted, fontSize: 12, fontWeight: "700", marginTop: 2 },
   divider: { height: 1, backgroundColor: C.line, marginVertical: 14 },
-  toggleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 37 },
-  toggleLabelRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  toggleLabel: { color: C.ink, fontSize: 12.5, fontWeight: "900" },
-  formatBox: {
-    flex: 1,
-    minHeight: 61,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: C.line,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
-  formatText: { color: C.muted, fontSize: 12, fontWeight: "900" },
   previewList: {
     gap: 12,
     marginBottom: 16,
@@ -653,17 +586,6 @@ const s = StyleSheet.create({
     borderStyle: "dashed",
     padding: 19,
   },
-  previewTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-  brandText: { color: C.faint, fontSize: 12, fontWeight: "900", letterSpacing: 0.8 },
-  previewName: { color: C.ink, fontSize: 16, fontWeight: "900", marginTop: 2 },
-  previewCode: { color: C.muted, fontSize: 12, fontWeight: "900", marginTop: 2 },
-  typeBadge: { ...NG, backgroundColor: "#DBEAFE", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
-  typeBadgeText: { color: C.purple, fontSize: 10, fontWeight: "900" },
-  qrImage: { width: 178, height: 178, alignSelf: "center", marginTop: 11 },
-  locationRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, marginTop: 4 },
-  locationText: { color: C.muted, fontSize: 12, fontWeight: "800" },
-  previewFooter: { borderTopWidth: 1, borderStyle: "dashed", borderTopColor: C.line, marginTop: 12, paddingTop: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  previewFooterText: { color: C.faint, fontSize: 12, fontWeight: "900" },
   previewMore: { color: C.faint, fontSize: 12, fontWeight: "800", textAlign: "center" },
   bottomBar: {
     backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#E3EAF5",

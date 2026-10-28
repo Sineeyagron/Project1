@@ -30,7 +30,7 @@ import {
   Row,
   summary,
 } from "../../lib/importItems";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { W, NG } from "../../lib/theme";
 import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 
@@ -719,22 +719,6 @@ function SumPill({ color, icon, label }: { color: string; icon: any; label: stri
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingTop: TOP_INSET,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 12, paddingBottom: 48 },
   card: { ...W.card, padding: 14, gap: 10 },
   cardWarn: { ...NG, borderColor: "#fcd34d", backgroundColor: "#fffbeb" },

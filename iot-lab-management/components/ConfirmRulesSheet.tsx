@@ -124,7 +124,6 @@ export default function ConfirmRulesSheet({
 const s = StyleSheet.create({
   // แผ่น iOS แท้ (BottomSheet) มีขีดจับ/พื้น/มุมโค้งให้เอง
   sheet: { padding: 20, paddingTop: 18, gap: 10 },
-  handle: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: "#CBD5E1", marginTop: 10, marginBottom: 2 },
   title: { fontSize: 18, fontWeight: "700", color: C.ink },
 
   itemCard: { ...W.card, flexDirection: "row", alignItems: "center", gap: 12, padding: 12 },

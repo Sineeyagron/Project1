@@ -16,7 +16,7 @@ import { currentTerm } from "../../lib/term";
 import { naturalNo } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
@@ -526,24 +526,6 @@ const st = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 16,
   },
-  topBar: {
-    ...W.headerBar, marginHorizontal: -16, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 14,
-  },
-  backBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    flex: 1,
-    color: "#172033",
-    fontSize: 20,
-    fontWeight: "700",
-  },
   termRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -717,11 +699,6 @@ const st = StyleSheet.create({
     color: "#172033",
     fontSize: 12,
     fontWeight: "900",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(15,23,42,0.45)",
-    justifyContent: "flex-end",
   },
   modalBox: {
     backgroundColor: "#fff",

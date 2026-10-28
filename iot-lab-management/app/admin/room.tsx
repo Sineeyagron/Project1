@@ -18,7 +18,7 @@ import { ROOM_CODE_RE, Room, fetchRooms, roomPlace } from "../../lib/rooms";
 import LoadError from "../../components/LoadError";
 import { useRole } from "../../lib/roles";
 import { useRoomLive } from "../../lib/roomRealtime";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
@@ -401,24 +401,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  headerTop: {
-    ...W.headerBar, marginHorizontal: -16, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 14,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    flex: 1,
-    color: "#172033",
-    fontSize: 20,
-    fontWeight: "700",
-  },
   summaryRow: { flexDirection: "row", gap: 10 },
   headerStat: {
     flex: 1,
@@ -529,7 +511,6 @@ const s = StyleSheet.create({
   closedText: { fontSize: 12, color: C.muted, fontWeight: "900" },
   editBtn: { marginLeft: 8, width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center", backgroundColor: "#f1f5f9" },
   emptyText: { color: C.faint, fontSize: 14, fontWeight: "800", textAlign: "center", marginTop: 40 },
-  overlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.38)", justifyContent: "flex-end" },
   modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8 },
   modalTitle: { color: C.ink, fontSize: 18, fontWeight: "900" },

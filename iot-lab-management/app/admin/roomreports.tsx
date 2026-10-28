@@ -15,7 +15,7 @@ import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRealtime } from "../../lib/realtime";
 import LoadError from "../../components/LoadError";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
@@ -262,10 +262,6 @@ export default function RoomReports() {
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar, flexDirection: "row", alignItems: "center", gap: 12, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10, marginBottom: 8 },
-  iconBtn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
-  headerTitle: { color: "#172033", fontSize: 18, fontWeight: "900" },
-  headerSub: { color: "#475569", fontSize: 12, fontWeight: "800", marginTop: 2 },
   filterScroll: { maxHeight: 54 },
   filterRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   filterBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5" },
@@ -290,7 +286,6 @@ const s = StyleSheet.create({
   acceptBtn: { flex: 2, minHeight: 42, borderRadius: 10, backgroundColor: "#047857", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
   rejectBtn: { flex: 2, minHeight: 42, borderRadius: 10, backgroundColor: "#64748b", alignItems: "center", justifyContent: "center" },
   acceptBtnText: { color: "#fff", fontWeight: "800", fontSize: 13 },
-  overlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.38)", justifyContent: "flex-end" },
   modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
   modalTitle: { fontSize: 16, fontWeight: "900", color: "#172033" },
   modalDesc: { fontSize: 13, color: "#475569", marginTop: 6 },

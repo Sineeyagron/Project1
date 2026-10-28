@@ -15,7 +15,7 @@ import { currentUser } from "../lib/session";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
 import { confirmAction, notify } from "../lib/notify";
 import Countdown from "../components/Countdown";
-import { W, TOP_INSET } from "../lib/theme";
+import { W } from "../lib/theme";
 import StatWidget from "../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 import TimelineDays from "../components/TimelineDays";
@@ -286,22 +286,6 @@ export default function Borrow() {
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
 
-  header: { ...W.headerBar,
-    paddingTop: TOP_INSET,
-    paddingBottom: 10,
-    marginBottom: 8,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  backBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700" },
-  headerSub:   { color: "#475569", fontSize: 12, marginTop: 1 },
 
   body: { padding: 16, paddingTop: 4, paddingBottom: 40 },
 
@@ -321,16 +305,11 @@ const s = StyleSheet.create({
     alignItems: "center",
     gap: 12,
   },
-  cardOverdue: { borderColor: "#fca5a5", borderWidth: 1.5 },
   iconBox: { width: 46, height: 46, borderRadius: 15, justifyContent: "center", alignItems: "center", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
-  itemImg: { width: 46, height: 46, borderRadius: 15 },
 
   cardBody: { flex: 1 },
   cardName: { fontSize: 15, fontWeight: "600", color: "#172033" },
   cardDate: { fontSize: 12, color: "#475569", marginTop: 2 },
-  cardDue:  { fontSize: 12, color: "#475569", marginTop: 1 },
-  cardDueOverdue: { color: "#dc2626", fontWeight: "700" },
-  tapHint: { fontSize: 10, color: "#f97316", marginTop: 4, fontWeight: "600" },
   reqCard: {},
   countdown: { fontSize: 12, color: "#c2410c", fontWeight: "600", marginTop: 2 },
   cancelBtn: {

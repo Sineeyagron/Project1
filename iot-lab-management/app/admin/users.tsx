@@ -15,7 +15,7 @@ import { goBack } from "../../lib/nav";
 import { confirmAction, notify, pickOption } from "../../lib/notify";
 import { isStaffEmail } from "../../lib/googleAuth";
 import { useRole } from "../../lib/roles";
-import { W, TOP_INSET } from "../../lib/theme";
+import { W } from "../../lib/theme";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import { isMissingColumn } from "../../lib/people";
@@ -359,22 +359,6 @@ const s = StyleSheet.create({
   colMain: { flex: 1.5, gap: 8, minWidth: 0 },
   colSide: { flex: 1, gap: 8, minWidth: 0 },
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingTop: TOP_INSET,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
   card: { ...W.card, padding: 14, gap: 8 },
   cardTitle: { fontSize: 15, fontWeight: "900", color: C.ink, marginBottom: 2 },
@@ -412,17 +396,6 @@ const s = StyleSheet.create({
   roleText: { color: C.purple, fontSize: 13.5, fontWeight: "800" },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 6, minWidth: 0 },
   staffBadge: { flexShrink: 0, fontSize: 11, fontWeight: "800", color: "#7C3AED", backgroundColor: "#F3E8FF", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, overflow: "hidden" },
-  searchWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    backgroundColor: "#f8fafc",
-  },
-  searchInput: { flex: 1, paddingVertical: 11, fontSize: 15, color: C.ink },
   empty: { fontSize: 13, color: C.faint, paddingVertical: 6 },
   hint: { fontSize: 12, color: C.faint, marginTop: 4 },
   sub: { fontSize: 12, color: C.muted, marginTop: 1 },

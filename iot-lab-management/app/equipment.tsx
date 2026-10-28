@@ -293,18 +293,6 @@ const s = StyleSheet.create({
   container: { ...W.page },
 
   search: { marginHorizontal: 16 },
-  searchBox: {
-    ...(W.input as any),
-    marginHorizontal: 16,
-    height: 50,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingLeft: 14,
-    paddingRight: 6,
-  },
-  searchInput: { flex: 1, fontSize: 15, color: C.ink, paddingVertical: 0 },
-  searchAction: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#EEF3FB" },
   scanAction: { ...W.primary, flexDirection: "row", alignItems: "center", gap: 5, height: 38, paddingHorizontal: 12, borderRadius: 12 },
   scanActionText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
 

@@ -18,7 +18,7 @@ import { STATION_STATUS, naturalNo, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
 import { useRoomLive } from "../../lib/roomRealtime";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
@@ -546,20 +546,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
-  headerTop: {
-    ...W.headerBar, marginHorizontal: -16, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 13,
-  },
-  backBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTextWrap: { flex: 1 },
-  headerTitle: { color: "#172033", fontSize: 24, fontWeight: "900", lineHeight: 28 },
-  headerSub: { color: "#475569", fontSize: 12, fontWeight: "900", marginTop: 4 },
   roomTabs: {
     minHeight: 38,
     flexDirection: "row",
@@ -622,7 +608,6 @@ const s = StyleSheet.create({
   summaryText: { color: C.faint, fontSize: 12, fontWeight: "800" },
   empty: { alignItems: "center", paddingVertical: 64, gap: 8 },
   emptyText: { color: C.faint, fontSize: 14, fontWeight: "800" },
-  overlay: { flex: 1, backgroundColor: "rgba(15,23,42,0.38)", justifyContent: "flex-end" },
   modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 34 },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   modalTitle: { color: C.ink, fontSize: 18, fontWeight: "900" },

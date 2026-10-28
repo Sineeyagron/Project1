@@ -19,7 +19,7 @@ import { notify, confirmAction } from "../lib/notify";
 import { canTakeLivePhoto, takeLivePhoto, uploadBorrowPhoto } from "../lib/borrowPhotos";
 import Countdown from "../components/Countdown";
 import ConfirmRulesSheet, { SummaryRow } from "../components/ConfirmRulesSheet";
-import { W, NG, C as TC, TOP_INSET } from "../lib/theme";
+import { W, NG, C as TC } from "../lib/theme";
 import ScreenHeader from "../components/ScreenHeader";
 
 // นักศึกษาสแกน QR ที่ตัวของ ณ ห้อง → ขอยืม / ขอคืน / ขอยืมต่อ (แผน 2.6)
@@ -591,22 +591,6 @@ export default function StudentScan() {
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    paddingTop: TOP_INSET,
-    paddingBottom: 10,
-    marginBottom: 8,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  headerBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700" },
-  headerSub: { color: "#475569", fontSize: 12, marginTop: 1 },
   body: { padding: 16, paddingTop: 4, gap: 12 },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, padding: 24 },
 

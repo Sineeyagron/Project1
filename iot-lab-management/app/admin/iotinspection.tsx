@@ -13,7 +13,7 @@ import supabase from "../../lib/supabase";
 import { currentUser } from "../../lib/session";
 import { notify } from "../../lib/notify";
 import { goBack } from "../../lib/nav";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import { desktopBody, desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
@@ -410,19 +410,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
   },
-  headerRow: { ...W.headerBar, marginHorizontal: -16, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
-  backBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    flex: 1,
-    color: "#172033",
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  headerSpacer: { width: 0 },
   searchRow: {
     ...W.input,
     height: 44,
@@ -531,7 +518,6 @@ const s = StyleSheet.create({
     gap: 8,
   },
   emptyText: { color: C.faint, fontSize: 13, fontWeight: "700" },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(17,24,39,0.42)", justifyContent: "flex-end" },
   modalBox: {
     backgroundColor: "#ffffff",
     borderTopLeftRadius: 24,

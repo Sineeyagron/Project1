@@ -28,7 +28,7 @@ import {
   thDate,
   todayBkk,
 } from "../../lib/report";
-import { W, NG, gradient, tint, TOP_INSET } from "../../lib/theme";
+import { W, NG, gradient, tint } from "../../lib/theme";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import RangeCalendarSheet from "../../components/RangeCalendarSheet";
@@ -351,22 +351,6 @@ export default function BorrowReport() {
 
 const st = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingTop: TOP_INSET,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
   cols3: { flexDirection: "row", gap: 14, alignItems: "flex-start" },
   col: { flex: 1, minWidth: 0 },

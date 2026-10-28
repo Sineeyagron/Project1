@@ -17,7 +17,7 @@ import supabase from "../lib/supabase";
 import { useRealtime } from "../lib/realtime";
 import { currentUser } from "../lib/session";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
-import { W, TOP_INSET } from "../lib/theme";
+import { W } from "../lib/theme";
 import ScreenHeader, { HeaderButton } from "../components/ScreenHeader";
 import { haptic } from "../components/Motion";
 import TabBar from "../components/TabBar";
@@ -364,20 +364,6 @@ function NotifCard({ index, style, onPress, children }: { index: number; style: 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
 
-  header: { ...W.headerBar,
-    paddingTop: TOP_INSET,
-    paddingBottom: 10,
-    marginBottom: 8,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  backBtn: { ...W.iconBtn, alignItems: "center", justifyContent: "center" },
-  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700" },
-  headerSub: { color: "#475569", fontSize: 12, marginTop: 1 },
-  markAllBtn: { ...W.small, borderRadius: 13, height: 38, paddingHorizontal: 12, justifyContent: "center" },
-  markAllTxt: { color: "#1D4ED8", fontSize: 13, fontWeight: "600" },
 
   newBanner: {
     ...W.primary, flexDirection: "row", alignItems: "center",

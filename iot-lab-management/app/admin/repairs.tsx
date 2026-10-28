@@ -16,7 +16,7 @@ import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { REPAIR_STATUS, naturalNo, roomStatus } from "../../lib/roomStatus";
 import LoadError from "../../components/LoadError";
 import { fetchRooms as loadRooms } from "../../lib/rooms";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
@@ -472,15 +472,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 24,
   },
-  heroTop: { ...W.headerBar, marginHorizontal: -16, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  headerIconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  titleBlock: { alignItems: "flex-start", flex: 1 },
-  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700", lineHeight: 28 },
-  headerSub: { color: "#475569", fontSize: 12, marginTop: 0 },
   statsRow: { flexDirection: "row", gap: 10, marginTop: 16 },
   statCard: {
     flex: 1,
