@@ -21,8 +21,8 @@ npx expo export -p web  # build เว็บ (Vercel ใช้คำสั่ง
 | โฟลเดอร์ | เก็บอะไร |
 |---|---|
 | `app/` | หน้าจอ (ชื่อไฟล์ = URL ของ expo-router) · `app/admin/` = หน้าผู้ดูแล/TA |
-| `components/` | ชิ้นส่วน UI ใช้ร่วม · `desktop/` แบบจอใหญ่ของหน้า admin |
-| `lib/` | ตรรกะ/ตัวช่วย ใช้ร่วม · `shims/` ตัวแทนไลบรารีมือถือบนเว็บ |
+| `components/` | ชิ้นส่วน UI ใช้ร่วม · `borrow/` ระบบยืม-คืน · `room/` ระบบห้องคอม · `desktop/` แบบจอใหญ่ของหน้า admin |
+| `lib/` | ตรรกะ/ตัวช่วย (ระบบยืม-คืน + ใช้ร่วม) · `room/` ระบบห้องคอม · `web/` เฉพาะเว็บ (PWA, push, ป้ายติดตั้ง) · `shims/` ตัวแทนไลบรารีมือถือบนเว็บ |
 | `supabase/` | migration (SQL ทั้งหมด), Edge Function `send-push`, เทส SQL |
 | `public/` | ไฟล์ PWA (manifest, service worker, ไอคอน) |
 | `scripts/` | `subset-ionicons.js` (ตอน build), `make-web-icons.js`, `backup-db.js` |
