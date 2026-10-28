@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>LabHub สไลด์สรุป</title>
+<link rel="stylesheet" href="slides.css">
+<script src="https://unpkg.com/lucide@0.400.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<!-- 1 ปก -->
+<section class="slide hero">
+  <div class="tag"><span class="dot"></span>สไลด์สรุปสำหรับคนพรีเซนต์</div>
+  <h1>LabHub<br>ระบบจัดการห้องแล็บ IoT</h1>
+  <p class="lead">28 หน้า อ่านจบแล้วเล่าได้ว่าแอปทำอะไร มีอะไร และสร้างมายังไง<br>ไม่ต้องรู้เรื่องโค้ด · อยากรู้ลึกกว่านี้ เปิด<b>ฉบับเต็ม</b>ได้เลย</p>
+  <div class="kick">ภาพหน้าจอใช้ข้อมูลสมมติ (ชื่อคนกับรหัสนักศึกษาไม่ใช่ของจริง) · กล่องส้ม = ตัวอย่างคำพูด ไม่ต้องท่อง</div>
+</section>
+
+<!-- 2 คืออะไร -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>LabHub คืออะไร</div>
+  <h1>พูดง่าย ๆ คือ <em>แอปดูแลห้องแล็บ IoT</em></h1>
+  <div class="body">
+    <div class="col">
+      <p class="muted" style="font-size:12pt;margin-bottom:2mm"><b>ก่อนมีแอป</b> <span class="todo">แก้ให้ตรงกับที่เจอจริง</span></p>
+      <ul class="pts sm">
+        <li>จดยืมในสมุด หายง่าย ไม่รู้ว่าของอยู่กับใคร</li>
+        <li>ไม่รู้ว่าของว่างไหม ต้องเดินไปถาม</li>
+        <li>ไม่มีใครเตือนตอนครบกำหนดคืน</li>
+        <li>คอมเสีย ไม่มีช่องทางแจ้ง</li>
+      </ul>
+    </div>
+    <div class="col" style="flex:1.4">
+      <div class="cards c2">
+        <div class="card c-blue"><div class="ic blue"><i data-lucide="package"></i></div><div class="t">ยืม-คืนอุปกรณ์ IoT</div><div class="d">สแกน QR ถ่ายรูป ส่งคำขอ ผู้ดูแลกดอนุมัติในแอป</div></div>
+        <div class="card c-teal"><div class="ic teal"><i data-lucide="monitor"></i></div><div class="t">ดูแลห้องคอม</div><div class="d">เห็นเครื่องว่าง/เสีย แตะแจ้งปัญหาได้ทันที</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="say">LabHub ทำให้การยืม-คืนของและการดูแลห้องคอม <b>มีหลักฐาน ตรวจสอบได้ และเลิกใช้กระดาษ</b> ใช้ได้ทั้งบนมือถือและเว็บ</div>
+</section>
+
+<!-- 3 บทบาท -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ใครใช้บ้าง</div>
+  <h1>3 บทบาท เข้าด้วย <em>Google มข.</em></h1>
+  <div class="body">
+    <div class="cards c3">
+      <div class="card c-blue"><div class="ic blue"><i data-lucide="graduation-cap"></i></div><div class="t">นักศึกษา</div><div class="d">ดูของว่าง · ขอยืม/คืน/ยืมต่อ · นัดรับ · ดูประวัติตัวเอง · ดูผังห้องคอม · แจ้งปัญหา</div></div>
+      <div class="card c-amber"><div class="ic amber"><i data-lucide="user-check"></i></div><div class="t">TA (ผู้ช่วย)</div><div class="d">อนุมัติ/ปฏิเสธคำขอ · ตรวจของตอนคืน · นัดเวลารับของ · งานซ่อม · ตรวจประจำเทอม</div></div>
+      <div class="card c-red"><div class="ic red"><i data-lucide="crown"></i></div><div class="t">Admin</div><div class="d">ทุกอย่างของ TA + เพิ่ม/แก้อุปกรณ์ · ตั้งกติกา · แต่งตั้ง TA · เพิ่มห้อง/เครื่อง</div></div>
+    </div>
+  </div>
+  <div class="note">เข้าครั้งแรกระบบสร้างบัญชีให้เอง ไม่ต้องสมัคร · <b>TA อนุมัติคำขอของตัวเองไม่ได้</b> · ต้องมี Admin เหลืออย่างน้อย 1 คนเสมอ</div>
+</section>
+
+<!-- 4 ขั้นตอน + กติกา -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ยืม-คืน</div>
+  <h1>ยืมของ 1 ครั้ง ผ่านอะไรบ้าง</h1>
+  <div class="steps" style="margin:3mm 0 7mm">
+    <div class="s"><div class="ic blue"><i data-lucide="search"></i></div><div class="n">ดูของว่าง</div></div>
+    <div class="s"><div class="ic blue"><i data-lucide="scan-line"></i></div><div class="n">สแกน QR</div></div>
+    <div class="s"><div class="ic blue"><i data-lucide="camera"></i></div><div class="n">ถ่ายรูป + สภาพ</div></div>
+    <div class="s"><div class="ic blue"><i data-lucide="file-check"></i></div><div class="n">ยอมรับกฎ ส่ง</div></div>
+    <div class="s"><div class="ic amber"><i data-lucide="user-check"></i></div><div class="n">ผู้ดูแลอนุมัติ</div></div>
+    <div class="s"><div class="ic green"><i data-lucide="package-check"></i></div><div class="n">ได้ของ</div></div>
+  </div>
+  <div class="cards c4">
+    <div class="card white center"><div class="big">3</div><div class="d">ชิ้นสูงสุดต่อคน (นับคำขอที่รอด้วย)</div></div>
+    <div class="card white center"><div class="big">3/5/7</div><div class="d">วัน ให้เลือกระยะยืม</div></div>
+    <div class="card white center"><div class="big">30<small> นาที</small></div><div class="d">ไม่มีใครตอบ คำขอยืมหมดอายุ</div></div>
+    <div class="card white center"><div class="big">1<small> ครั้ง</small></div><div class="d">ยืมต่อได้ (ก่อนเลยกำหนด)</div></div>
+  </div>
+  <p class="muted" style="font-size:11.5pt;margin:4mm 0 0">คืนก็แบบเดียวกัน: สแกน → ขอคืน → ถ่ายรูป → ผู้ดูแลตรวจรับ (ไม่มีใครตอบใน 30 นาที ระบบบันทึกคืนให้เอง)</p>
+</section>
+
+<!-- 5 หน้าแรก -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ยืม-คืน · หน้าแรก</div>
+  <div class="body">
+    <figure class="phone"><img src="img/s02-home.png" alt="หน้าแรก"></figure>
+    <div class="col">
+      <h1>เปิดแอปมา เห็นอะไร</h1>
+      <ul class="pts">
+        <li><b>แถบเขียว</b> ตอนนี้มีผู้ดูแลอยู่ห้องไหม</li>
+        <li><b>ตัวเลข 3 ช่อง</b> คอมทั้งหมด / ใช้ได้ / มีปัญหา</li>
+        <li><b>การ์ดห้อง</b> กดเข้าไปดูผังห้องคอม</li>
+        <li><b>ปุ่มฟ้า</b> ทางลัดไปสแกนยืม-คืน</li>
+      </ul>
+      <div class="say">เปิดแอปมาก็รู้เลยว่ามีผู้ดูแลอยู่ห้องไหม ไม่ต้องเดินไปเก้อ</div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 ดูของ + สแกน -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ยืม-คืน · ดูของ + สแกน</div>
+  <div class="body">
+    <div class="phones">
+      <figure class="phone s"><img src="img/s03-equipment.png" alt="แท็บอุปกรณ์"><figcaption>ของว่างกี่ชิ้น</figcaption></figure>
+      <figure class="phone s"><img src="img/s04-scan.png" alt="ผลสแกน"><figcaption>สแกนแล้วขอยืม</figcaption></figure>
+    </div>
+    <div class="col">
+      <h1>เช็กก่อน แล้วสแกนยืม</h1>
+      <ul class="pts sm">
+        <li>รวมเป็นรุ่น เช่น NodeMCU <b>ว่าง 5 จาก 8</b> ของหมดก็บอกว่าน่าจะว่างวันไหน</li>
+        <li>สแกน QR ที่ตัวของ รู้เลยว่าว่างไหม</li>
+        <li>เลือกวัน บอกสภาพ <b>ถ่ายรูปสด</b> ยอมรับกฎ แล้วส่ง</li>
+        <li>สแกนไม่ติด? พิมพ์<b>รหัส 4 ตัว</b>ใต้ QR แทน</li>
+      </ul>
+      <div class="note"><b>ทำไมต้องถ่ายรูป?</b> เป็นหลักฐานสภาพของ ถ้าคืนมาเสีย ผู้ดูแลเทียบรูปก่อน-หลังได้ เลยต้องยืมบนมือถือ</div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 นัดรับ -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ยืม-คืน · นัดรับ</div>
+  <div class="body">
+    <figure class="phone"><img src="img/s09-home-nostaff.png" alt="ไม่มีผู้ดูแล"></figure>
+    <div class="col">
+      <h1>ไม่มีผู้ดูแลอยู่ห้อง? <em>นัดรับ</em></h1>
+      <ul class="pts">
+        <li>กด <b>"ขอยืมแบบนัดรับ"</b> ฝากคำขอไว้ก่อน</li>
+        <li>ผู้ดูแลเลือกเวลานัด แอปแจ้งกลับ</li>
+        <li>มาตามนัด สแกน → <b>"ยืนยันรับของตามนัด"</b></li>
+        <li>แอป<b>กันของไว้ให้</b> คนอื่นแย่งไม่ได้</li>
+      </ul>
+      <div class="say">ฟีเจอร์นี้อาจารย์ที่ปรึกษาแนะนำมา แก้ปัญหานักศึกษาไปแล้วไม่เจอผู้ดูแล</div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 ประวัติ ฯลฯ -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ยืม-คืน · หน้าอื่น ๆ</div>
+  <h1>ประวัติ · โปรไฟล์ · แจ้งเตือน</h1>
+  <div class="body">
+    <div class="phones">
+      <figure class="phone s"><img src="img/s05-borrow.png" alt="ประวัติ"><figcaption>ประวัติเรียงตามวัน แบบแอปธนาคาร</figcaption></figure>
+      <figure class="phone s"><img src="img/s06-profile.png" alt="โปรไฟล์"><figcaption>ยืมอยู่กี่ชิ้น เหลือสิทธิ์เท่าไร</figcaption></figure>
+      <figure class="phone s"><img src="img/s07-notifications.png" alt="แจ้งเตือน"><figcaption>ผลคำขอ + เตือนทุกวัน 08:00</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<!-- 9 ผู้ดูแล -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ฝั่งผู้ดูแล</div>
+  <div class="body">
+    <div class="phones">
+      <figure class="phone s"><img src="img/a01-dashboard.png" alt="แดชบอร์ด"><figcaption>แดชบอร์ด</figcaption></figure>
+      <figure class="phone s"><img src="img/a02-requests.png" alt="กล่องคำขอ"><figcaption>กล่องคำขอ</figcaption></figure>
+    </div>
+    <div class="col">
+      <h1>อนุมัติได้ในไม่กี่วินาที</h1>
+      <ul class="pts sm">
+        <li>มาถึงห้องกด<b>เช็กอิน</b> นักศึกษาเห็นว่ามีคนอยู่ (17:00 ระบบเช็กเอาท์ให้)</li>
+        <li>คำขอใหม่<b>เด้งขึ้นเอง</b> ไม่ต้องรีเฟรช</li>
+        <li>เห็นชื่อ รหัสนักศึกษา และ<b>รูปถ่าย</b> แล้วกดอนุมัติ</li>
+        <li>ตอนคืนเทียบรูปก่อน-หลัง ชำรุดใส่ค่าเสียหายได้</li>
+        <li>แท็บนัดรับ กดเลือกเวลานัดได้เลย</li>
+      </ul>
+      <div class="say">นักศึกษากดส่งปุ๊บ คำขอเด้งที่เครื่องผู้ดูแลปั๊บ</div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 บนคอม -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ฝั่งผู้ดูแล · บนคอม</div>
+  <h1>เปิดบนคอม หน้าตาเปลี่ยนเป็นแบบ<em>จอใหญ่</em></h1>
+  <div class="body" style="justify-content:center">
+    <figure class="wide"><img src="img/d01-dashboard.png" alt="แดชบอร์ดบนคอม"></figure>
+  </div>
+  <p class="muted center" style="font-size:11.5pt;margin:2mm 0 0">เมนูซ้าย ตาราง หลายคอลัมน์ · ทำได้ทุกอย่างเหมือนมือถือ แค่จัดหน้าให้เหมาะกับจอใหญ่</p>
+</section>
+
+<!-- 11 เครื่องมือ -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ฝั่งผู้ดูแล · เครื่องมือ</div>
+  <h1>เครื่องมืออื่น ๆ ของผู้ดูแล</h1>
+  <div class="body">
+    <div class="cards c3">
+      <div class="card sm white"><div class="ic sm amber"><i data-lucide="plus-circle"></i></div><div class="t">เพิ่มอุปกรณ์</div><div class="d">ถ่ายรูป ใส่ชื่อ ระบบ<b>ตั้งรหัสให้เอง</b> · นำเข้าจาก Excel ทีละหลายสิบชิ้นได้</div></div>
+      <div class="card sm white"><div class="ic sm blue"><i data-lucide="printer"></i></div><div class="t">พิมพ์ป้าย QR</div><div class="d">เป็นแผ่นสติกเกอร์ A4 ไว้ติดของ</div></div>
+      <div class="card sm white"><div class="ic sm blue"><i data-lucide="scan-search"></i></div><div class="t">สแกนดูสถานะ</div><div class="d">ใครยืมอยู่ คืนเมื่อไร ประวัติย้อนหลัง</div></div>
+      <div class="card sm white"><div class="ic sm blue"><i data-lucide="file-bar-chart"></i></div><div class="t">รายงาน Excel / PDF</div><div class="d">เลือกช่วงเวลาได้ ดูของและคนที่ยืมบ่อย</div></div>
+      <div class="card sm white"><div class="ic sm blue"><i data-lucide="shield-alert"></i></div><div class="t">สต็อก + ตรวจประจำเทอม</div><div class="d">เตือนประกันใกล้หมด ของเก่าที่ควรเปลี่ยน</div></div>
+      <div class="card sm white"><div class="ic sm amber"><i data-lucide="users"></i></div><div class="t">จัดการคน + ตั้งค่า</div><div class="d">ตั้ง TA/Admin · ปรับตัวเลขกติกาการยืม</div></div>
+    </div>
+  </div>
+  <p class="muted" style="font-size:11pt;margin:3mm 0 0">ไอคอนฟ้า = TA ใช้ได้ · ไอคอนส้ม = Admin เท่านั้น</p>
+</section>
+
+<!-- 12 ผังห้อง -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ห้องคอม</div>
+  <div class="body">
+    <figure class="phone"><img src="img/s08-roommap.png" alt="ผังห้อง"></figure>
+    <div class="col">
+      <h1>ผังห้องคอม รู้ก่อนเข้าห้อง</h1>
+      <p class="muted" style="font-size:12.5pt">1 ห้อง = 6 กลุ่ม × คอม 9 เครื่อง + ตู้ Server กลุ่มละ 12 ช่อง LAN</p>
+      <ul class="pts">
+        <li><b>ขาว+เขียว</b> ใช้ได้ · <b>เหลือง</b> ซ่อม · <b>แดง</b> เสีย</li>
+        <li>จุดส้ม = เมาส์/คีย์บอร์ด/จอ มีปัญหา</li>
+        <li>กด "เฉพาะที่ว่าง" ซ่อนเครื่องที่ใช้ไม่ได้</li>
+        <li>แตะเครื่อง → <b>แจ้งปัญหาเครื่องนี้</b></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 13 แจ้งปัญหา -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ห้องคอม · แจ้งปัญหา</div>
+  <div class="body">
+    <div class="col">
+      <h1>แจ้งปัญหาแล้วเกิดอะไรขึ้น</h1>
+      <div class="steps" style="margin:2mm 0 6mm">
+        <div class="s"><div class="ic red"><i data-lucide="message-square-warning"></i></div><div class="n">นศ. แจ้ง</div></div>
+        <div class="s"><div class="ic amber"><i data-lucide="inbox"></i></div><div class="n">เข้าคิว</div></div>
+        <div class="s"><div class="ic slate"><i data-lucide="wrench"></i></div><div class="n">ซ่อม</div></div>
+        <div class="s"><div class="ic green"><i data-lucide="check-circle"></i></div><div class="n">ใช้ได้</div></div>
+      </div>
+      <ul class="pts sm">
+        <li>ผู้ดูแลกด<b>รับเป็นงานซ่อม</b> หรือ<b>ปิดเรื่อง</b>พร้อมเหตุผล คนแจ้งได้แจ้งเตือน</li>
+        <li><b>กันแจ้งมั่ว:</b> เรื่องเดิมแจ้งซ้ำไม่ได้ · ไม่เกิน 5 ครั้ง/วัน</li>
+        <li>มีเช็กลิสต์เมาส์/คีย์บอร์ด/จอ · ตรวจประจำเทอม · สถานะสาย LAN</li>
+        <li>เครื่องเปลี่ยนสถานะเมื่อไร ใครเปลี่ยน <b>จดประวัติให้เอง</b></li>
+      </ul>
+    </div>
+    <figure class="phone"><img src="img/a03-roomreports.png" alt="คิวแจ้งปัญหา"></figure>
+  </div>
+</section>
+
+<!-- 14 ใช้ได้บนอะไร -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ใช้ได้บนอะไร</div>
+  <div class="body">
+    <figure class="phone"><img src="img/s01-login.png" alt="หน้าเข้าสู่ระบบ"></figure>
+    <div class="col">
+      <h1>ใช้ได้ทั้ง<em>แอป</em>และ<em>เว็บ</em></h1>
+      <ul class="pts">
+        <li>แอปมือถือ iPhone และ Android</li>
+        <li>เว็บ <b>labhub-kku.vercel.app</b></li>
+        <li>เว็บ<b>ติดตั้งเป็นไอคอน</b>บนมือถือได้ (PWA)</li>
+        <li><b>แจ้งเตือนเด้ง</b>ได้ แม้ไม่ได้เปิดแอป</li>
+      </ul>
+      <div class="warn"><b>ข้อจำกัด:</b> ยืม/คืนต้องทำบน<b>มือถือ</b> (ต้องถ่ายรูปสด) · เข้าได้เฉพาะบัญชี มข. · ไม่มีหน้าสมัคร/ลืมรหัส</div>
+    </div>
+  </div>
+</section>
+
+<!-- 15 สร้างยังไง -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>สร้างแอปมายังไง</div>
+  <h1>แอปเหมือน<em>ร้านอาหาร</em></h1>
+  <div class="body">
+    <div class="cards c3">
+      <div class="card c-blue"><div class="ic blue"><i data-lucide="store"></i></div><div class="t">หน้าร้าน = ตัวแอป</div><div class="d"><b>React Native + Expo</b> เขียนครั้งเดียว ได้ทั้ง iPhone, Android และเว็บ</div><span class="like">แม่พิมพ์เดียว ปั๊มขนมได้ 3 แบบ</span></div>
+      <div class="card c-amber"><div class="ic amber"><i data-lucide="chef-hat"></i></div><div class="t">ครัว = หลังบ้าน</div><div class="d"><b>Supabase</b> ฐานข้อมูล ล็อกอิน เก็บรูป อัปเดตสด งานตั้งเวลา ครบในที่เดียว</div><span class="like">ครัวที่มีตู้เย็น เตา พนักงานพร้อม</span></div>
+      <div class="card c-green"><div class="ic green"><i data-lucide="truck"></i></div><div class="t">บริการเสริม</div><div class="d"><b>Google</b> ล็อกอิน มข. · <b>Vercel</b> ฝากเว็บ · <b>Web Push</b> แจ้งเตือน · <b>GitHub</b> เก็บโค้ด</div><span class="like">เช่าที่ตั้งร้าน + คนส่งของ</span></div>
+    </div>
+  </div>
+  <div class="say">แอปแบ่งเป็น<b>หน้าร้าน</b>ที่ผู้ใช้เห็น กับ<b>ครัว</b>ที่เก็บข้อมูลและตัดสินกติกา หน้าร้านเขียนด้วย React Native ส่วนครัวใช้ Supabase</div>
+</section>
+
+<!-- 16 ปลอดภัย + ตัวเลข -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>สร้างแอปมายังไง</div>
+  <h1>ทำไมโกงไม่ได้ และปลอดภัย</h1>
+  <div class="body top" style="flex:none;margin-top:4mm">
+    <div class="cards c2">
+      <div class="card c-blue"><div class="ic sm blue"><i data-lucide="gavel"></i></div><div class="t">กติกาอยู่ในครัว</div><div class="d">แอปแค่ส่งคำขอ หลังบ้านเป็นคนตัดสิน แก้แอปก็โกงไม่ได้</div><span class="like">ลูกค้ากรอกใบถอน พนักงานธนาคารเช็กยอด</span></div>
+      <div class="card c-blue"><div class="ic sm blue"><i data-lucide="shield-check"></i></div><div class="t">เช็กสิทธิ์ทุกครั้ง</div><div class="d">นักศึกษาเห็นแค่ข้อมูลของตัวเอง ไม่ล็อกอินเข้าไม่ได้</div><span class="like">มี รปภ. เฝ้าทุกลิ้นชัก</span></div>
+    </div>
+  </div>
+  <div class="cards c4" style="margin-top:9mm">
+    <div class="card white center"><div class="big">30+</div><div class="d">หน้าจอ</div></div>
+    <div class="card white center"><div class="big">23</div><div class="d">ตารางในฐานข้อมูล</div></div>
+    <div class="card white center"><div class="big">53</div><div class="d">ข้อทดสอบอัตโนมัติ</div></div>
+    <div class="card white center"><div class="big">0<small> บาท</small></div><div class="d">ใช้แพ็กเกจฟรี</div></div>
+  </div>
+</section>
+
+<!-- 17 เส้นทาง -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>สร้างแอปมายังไง</div>
+  <h1>เส้นทางการพัฒนา (ปี 2569)</h1>
+  <div class="body top">
+    <table class="lite">
+      <tr><td style="width:30mm"><b>มีนาคม</b></td><td>เริ่มโปรเจกต์ · ลอง MongoDB แล้ว<b>เปลี่ยนมาใช้ Supabase</b> เพราะมีครบในที่เดียว</td></tr>
+      <tr><td><b>พฤษภาคม</b></td><td>ระบบสแกน QR · ออกแบบหน้าตาใหม่ทั้งแอป (โทนฟ้า)</td></tr>
+      <tr><td><b>ต้นตุลาคม</b></td><td>ยืม-คืนเฟสแรกเสร็จ · บทบาท TA · ระบบห้องคอมครบ</td></tr>
+      <tr><td><b>10–11 ต.ค.</b></td><td>ฟีเจอร์ที่<b>อาจารย์แนะนำ</b>: ป๊อปอัปกฎ · ประวัติแบบแอปธนาคาร · เช็กอินผู้ดูแล · นัดรับ</td></tr>
+      <tr><td><b>12–19 ต.ค.</b></td><td>ล็อกอิน Google มข. · เว็บติดตั้งเป็นแอป + แจ้งเตือนเด้ง · หน้าจอใหญ่ผู้ดูแล · ชุดทดสอบ</td></tr>
+      <tr><td><b>22–28 ต.ค.</b></td><td>รองรับบุคลากร มข. · เสริมความปลอดภัย · จัดระเบียบโค้ด · แผนภาพรายงาน</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- เกร็ดโค้ด 1: แผนที่ + เปิดไฟล์ -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ทริกโค้ด · เผื่ออาจารย์เปิดโค้ดให้ดู</div>
+  <h1>โค้ดอยู่ตรงไหน + เปิดยังไง</h1>
+  <div class="body top">
+    <div class="col">
+      <table class="lite">
+        <tr><td style="width:44mm"><b>app/</b></td><td><b>หน้าจอ</b> 1 ไฟล์ = 1 หน้า · <b>app/scan.tsx</b> = หน้าสแกน</td></tr>
+        <tr><td><b>components/</b></td><td>ชิ้นส่วนหน้าจอที่ใช้ซ้ำ</td></tr>
+        <tr><td><b>lib/</b></td><td>ตัวช่วย เช่น ชื่อ/สีสถานะ สิทธิ์</td></tr>
+        <tr><td><b>supabase/migrations/</b></td><td>ฐานข้อมูล + กติกา (SQL)</td></tr>
+      </table>
+    </div>
+    <div class="col">
+      <ul class="pts sm">
+        <li><b>GitHub:</b> github.com/Sineeyagron/Project1 → iot-lab-management → app → scan.tsx (หรือกด <b>t</b> แล้วพิมพ์ scan.tsx)</li>
+        <li><b>VS Code:</b> <b>Ctrl+P</b> พิมพ์ scan.tsx → <b>Ctrl+G</b> พิมพ์เลขบรรทัด</li>
+        <li><b>ทริก:</b> ค้นคำที่เห็นบนจอ เช่น <b>"ขอยืมอุปกรณ์นี้"</b> (VS Code <b>Ctrl+Shift+F</b>) เจอโค้ดของปุ่มนั้นทันที</li>
+        <li>เลขบรรทัดไม่ตรง? ค้นชื่อแทน เช่น <b>atLimit</b>, <b>formReady</b></li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">เปิดไฟล์ <b>app/scan.tsx</b> ค้างไว้ในแท็บก่อนพรีเซนต์ · เดี๋ยวจะมีรูปโค้ดจริงจากไฟล์นี้ 3 รูป <b>ไม่มีคอมเมนต์</b> เลขบรรทัดตรงกับไฟล์ (29 ต.ค.)</div>
+</section>
+
+<!-- ปูพื้น 1: syntax -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ทริกโค้ด · ปูพื้น syntax</div>
+  <h1>หน้าตาโค้ด 12 แบบ <em>แปลเป็นไทย</em></h1>
+  <div class="body top">
+    <div class="col">
+      <table class="read">
+        <tr><td>const ก = …</td><td>ตั้งชื่อ ก ให้ค่านี้ (ตัวแปร) · <span class="muted">แปะป้ายบนกล่อง</span></td></tr>
+        <tr><td>"ข้อความ"</td><td>ข้อความตรง ๆ</td></tr>
+        <tr><td>`…${ค่า}…`</td><td>ข้อความที่เติมค่าลงไป · <span class="muted">แบบฟอร์มเว้นช่อง</span></td></tr>
+        <tr><td>ก.ข</td><td><b>ข ของ ก</b> · item.id = รหัสของชิ้นนี้</td></tr>
+        <tr><td>{ ช่อง: ค่า }</td><td>กล่องข้อมูลหลายช่อง · <span class="muted">ใบฟอร์ม</span></td></tr>
+        <tr><td>ก[ข]</td><td>เปิด ก ที่ป้าย ข · <span class="muted">เปิดพจนานุกรม</span></td></tr>
+      </table>
+    </div>
+    <div class="col">
+      <table class="read">
+        <tr><td>ชื่อ(…)</td><td><b>สั่งให้ทำงาน</b> ในวงเล็บ = ของที่ยื่นให้</td></tr>
+        <tr><td>() =&gt; …</td><td>เมื่อถูกเรียก ให้ทำ… · <span class="muted">โน้ต "ถ้ากด ให้ทำ"</span></td></tr>
+        <tr><td>if (…)</td><td>ถ้า … ให้ทำ</td></tr>
+        <tr><td>await</td><td>รอให้เสร็จก่อน · <span class="muted">รอโอนเงินผ่าน</span></td></tr>
+        <tr><td>try / catch</td><td>ลองทำ พังไปทาง catch · throw = โยนปัญหา</td></tr>
+        <tr><td>&lt;ชื่อ ค่า={…}&gt;</td><td><b>ชิ้นส่วนบนจอ</b> + ตั้งค่าให้มัน · <span class="muted">เลโก้</span></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="note">โค้ด 1 บรรทัด ≈ <b>1 ประโยคคำสั่ง</b> อ่านซ้ายไปขวา · <b>;</b> = จบประโยค · ทุกแบบในหน้านี้จะเจอในรูปโค้ด 3 รูปข้างหน้า</div>
+</section>
+
+<!-- ปูพื้น 2: method -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ทริกโค้ด · method คืออะไร</div>
+  <h1>Method = <em>คำสั่งสำเร็จรูปที่มีชื่อ</em></h1>
+  <p class="lead" style="font-size:13pt;margin-bottom:3mm">เรียกชื่อ + ( ) แล้วมันทำงานให้ เหมือนกดปุ่ม "อุ่นข้าว" ที่ไมโครเวฟ · <b>มีจุดข้างหน้า</b> (supabase.rpc) = มาจากเครื่องมือภายนอก · <b>ไม่มีจุด</b> = ทีมเขียนเอง</p>
+  <div class="body top">
+    <table class="read">
+      <tr><td style="width:62mm">supabase.rpc("ชื่อ", {…})</td><td><b>โทรหาหลังบ้าน</b> ขอบริการตามชื่อ แนบฟอร์มไป</td><td class="muted" style="width:26mm">บรรทัด 194</td></tr>
+      <tr><td>uploadBorrowPhoto(รูป)</td><td>ย่อรูปแล้ว<b>อัปโหลด</b> ได้ที่อยู่รูปกลับมา</td><td class="muted">บรรทัด 192</td></tr>
+      <tr><td>openForm("borrow")</td><td><b>เปิดฟอร์มยืม</b> ล้างค่าเก่า ตั้งวันเริ่มต้น</td><td class="muted">บรรทัด 380</td></tr>
+      <tr><td>runLookup(รหัส)</td><td><b>ค้นชิ้นนี้ใหม่</b> ถามหลังบ้านว่าสถานะอะไร</td><td class="muted">บรรทัด 207</td></tr>
+      <tr><td>notify("หัวข้อ", "…")</td><td><b>เด้งป๊อปอัป</b>ที่มีปุ่มโอเค</td><td class="muted">บรรทัด 210</td></tr>
+      <tr><td>setXxx(…)</td><td>ขึ้นต้นด้วย <b>set</b> = เปลี่ยนค่าที่จอจำไว้ แล้วจอวาดใหม่เอง</td><td class="muted">บรรทัด 203–204</td></tr>
+      <tr><td>ข้อความ.trim()</td><td><b>ตัดช่องว่าง</b>หัวท้าย (เว้นวรรคอย่างเดียว = ยังไม่ได้เขียน)</td><td class="muted">บรรทัด 175</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- เกร็ดโค้ด 2: กุญแจอ่าน -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ทริกโค้ด · กุญแจ 3 ดอก</div>
+  <h1>สรุป: อ่านโค้ดไม่มีคอมเมนต์ยังไง</h1>
+  <div class="body top">
+    <div class="col" style="flex:.9">
+      <ul class="pts sm">
+        <li><b>1. หาภาษาไทยในโค้ด</b> = คำที่ขึ้นบนจอ รู้เลยว่าตรงนี้คือส่วนไหนของหน้า</li>
+        <li><b>2. อ่านชื่อเป็นภาษาอังกฤษ</b> atLimit = ถึงเพดาน · formReady = ฟอร์มพร้อม · photoUri = รูป · condition = สภาพ · ขึ้นต้นด้วย set = เปลี่ยนค่าบนจอ</li>
+        <li><b>3. แปลสัญลักษณ์</b> ตามตารางข้าง ๆ</li>
+      </ul>
+    </div>
+    <div class="col">
+      <table class="read">
+        <tr><td>===</td><td>เท่ากับ · <b>!==</b> ไม่เท่ากับ</td></tr>
+        <tr><td>&gt;=</td><td>มากกว่าหรือเท่ากับ</td></tr>
+        <tr><td>&amp;&amp;</td><td>และ (ต้องจริงทุกข้อ)</td></tr>
+        <tr><td>||</td><td>หรือ (จริงข้อเดียวก็พอ)</td></tr>
+        <tr><td>! / !!</td><td>ไม่ / มีค่าแล้วไหม</td></tr>
+        <tr><td>A ? B : C</td><td>ถ้า A ใช้ B ไม่งั้นใช้ C</td></tr>
+        <tr><td>??</td><td>ถ้าไม่มีค่า ใช้ค่านี้แทน</td></tr>
+        <tr><td>await</td><td>รอให้เสร็จก่อน</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ปูพื้น 3: แยกทีละคำ -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ทริกโค้ด · ลองแยกทีละคำ</div>
+  <h1>หั่นเป็นชิ้น → แปล → <em>อ่านเป็นประโยคไทย</em></h1>
+  <div class="body top">
+    <div class="col">
+      <div class="code sm"><div class="file">บรรทัด 363</div><pre>const atLimit = activeCount !== null &amp;&amp; activeCount &gt;= max;</pre></div>
+      <table class="read" style="margin-top:2mm">
+        <tr><td>const atLimit =</td><td>ตั้งชื่อ "ถึงเพดาน" =</td></tr>
+        <tr><td>!== null</td><td>ไม่ใช่ค่าว่าง (รู้ตัวเลขแล้ว)</td></tr>
+        <tr><td>&amp;&amp;</td><td>และ</td></tr>
+        <tr><td>&gt;= max</td><td>มากกว่าหรือเท่ากับ เพดาน</td></tr>
+      </table>
+      <p class="mini"><b>อ่านรวม:</b> "ถึงเพดาน คือ รู้จำนวนที่ยืมแล้ว และจำนวนนั้นไม่น้อยกว่าเพดาน"</p>
+    </div>
+    <div class="col">
+      <div class="code sm"><div class="file">บรรทัด 192</div><pre>const photoPath = await uploadBorrowPhoto(photoUri);</pre></div>
+      <table class="read" style="margin-top:2mm">
+        <tr><td>const photoPath =</td><td>ตั้งชื่อ "ที่อยู่รูป" =</td></tr>
+        <tr><td>await</td><td>รอให้เสร็จ</td></tr>
+        <tr><td>uploadBorrowPhoto</td><td>สั่งอัปโหลดรูปหลักฐาน</td></tr>
+        <tr><td>(photoUri)</td><td>ยื่นรูปที่เพิ่งถ่ายให้</td></tr>
+      </table>
+      <p class="mini"><b>อ่านรวม:</b> "อัปโหลดรูปที่ถ่าย รอจนเสร็จ แล้วจดที่อยู่รูปไว้"</p>
+    </div>
+  </div>
+</section>
+
+<!-- รูปที่ 1 -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ทริกโค้ด · รูปที่ 1 · app/scan.tsx</div>
+  <h1>ปุ่ม <em>"ขอยืมอุปกรณ์นี้"</em> กดไม่ได้เมื่อยืมครบ</h1>
+  <div class="body top">
+    <div class="col" style="flex:1.15">
+      <div class="code sm"><div class="file">app/scan.tsx · บรรทัด 362–363, 378–386 · … = ตัดท้ายบรรทัดให้พอดีจอ</div><pre><span class="ln">362</span>const max = lookup.max_active_borrows ?? 3;
+<span class="hl"><span class="ln">363</span>const atLimit = activeCount !== null &amp;&amp; activeCount &gt;= max;</span><span class="gap">      ⋮</span>
+<span class="ln">378</span>&lt;TouchableOpacity
+<span class="ln">379</span>  style={[s.primaryBtn, atLimit &amp;&amp; { opacity: 0.45 }]}
+<span class="ln">380</span>  onPress={() =&gt; openForm(<span class="s">"borrow"</span>)}
+<span class="hl"><span class="ln">381</span>  disabled={atLimit}</span><span class="ln">382</span>  activeOpacity={0.85}
+<span class="ln">383</span>&gt;
+<span class="ln">384</span>  &lt;Ionicons name=<span class="s">"hand-left-outline"</span> ... /&gt;
+<span class="hl"><span class="ln">385</span>  &lt;Text ...&gt;<span class="s">ขอยืมอุปกรณ์นี้</span>&lt;/Text&gt;</span><span class="ln">386</span>&lt;/TouchableOpacity&gt;</pre></div>
+    </div>
+    <div class="col">
+      <table class="read">
+        <tr><td>385</td><td>เจอคำไทย = <b>นี่คือปุ่มขอยืม</b></td></tr>
+        <tr><td>378</td><td>TouchableOpacity = ของที่แตะได้ = ตัวปุ่ม</td></tr>
+        <tr><td>363</td><td>atLimit = ยืมอยู่ <b>≥</b> เพดาน (3)</td></tr>
+        <tr><td>381</td><td>ถึงเพดาน → <b>ปุ่มกดไม่ได้</b></td></tr>
+        <tr><td>379</td><td>ถึงเพดาน → ปุ่มจาง 45%</td></tr>
+        <tr><td>380</td><td>กดแล้ว → เปิดฟอร์มยืม</td></tr>
+      </table>
+      <p class="mini"><b>พูดว่า:</b> "บรรทัด 363 เช็กว่ายืมครบหรือยัง ถ้าครบ บรรทัด 381 สั่งให้ปุ่มกดไม่ได้ ส่วนหลังบ้านก็เช็กซ้ำอีกชั้น"</p>
+    </div>
+  </div>
+</section>
+
+<!-- รูปที่ 2 -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ทริกโค้ด · รูปที่ 2 · app/scan.tsx</div>
+  <h1>ปุ่ม <em>"ส่งคำขอ"</em> กดได้เมื่อไร</h1>
+  <div class="code"><div class="file">app/scan.tsx · บรรทัด 171–175</div><pre><span class="ln">171</span>const needsEvidence = mode === <span class="s">"borrow"</span> || mode === <span class="s">"return"</span> || mode === <span class="s">"claim"</span>;
+<span class="ln">172</span>const formReady =
+<span class="ln">173</span>  !!mode &amp;&amp;
+<span class="ln">174</span>  (mode === <span class="s">"return"</span> || !!days) &amp;&amp;
+<span class="hl"><span class="ln">175</span>  (!needsEvidence || (!!condition &amp;&amp; !!photoUri &amp;&amp; (condition === <span class="s">"good"</span> || !!note.trim())));</span></pre></div>
+  <div class="body top" style="margin-top:4mm">
+    <div class="col">
+      <table class="read">
+        <tr><td>171</td><td>ต้องมีหลักฐานไหม = ใช่ ถ้า<b>ยืม</b> หรือ<b>คืน</b> หรือ<b>รับตามนัด</b></td></tr>
+        <tr><td>172</td><td>ฟอร์มพร้อมส่ง = ต้องผ่าน<b>ครบ 3 ข้อ</b> (&amp;&amp;)</td></tr>
+        <tr><td>173</td><td>ข้อ 1: เลือกแล้วว่าจะทำอะไร</td></tr>
+      </table>
+    </div>
+    <div class="col">
+      <table class="read">
+        <tr><td>174</td><td>ข้อ 2: เป็นการคืน หรือเลือกวันแล้ว</td></tr>
+        <tr><td>175</td><td>ข้อ 3: เลือกสภาพ <b>และ</b> ถ่ายรูป <b>และ</b> (ปกติ <b>หรือ</b> เขียนหมายเหตุ)</td></tr>
+        <tr><td>535</td><td>disabled={!formReady} = ยังไม่พร้อม ปุ่มส่งกดไม่ได้</td></tr>
+      </table>
+    </div>
+  </div>
+  <p class="mini"><b>พูดว่า:</b> "บรรทัด 175 คือเหตุผลที่ยืมโดยไม่ถ่ายรูปไม่ได้ ปุ่มส่งกดได้ก็ต่อเมื่อเลือกสภาพ ถ่ายรูปแล้ว และถ้าชำรุดต้องเขียนว่าตรงไหน"</p>
+</section>
+
+<!-- รูปที่ 3 -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>ทริกโค้ด · รูปที่ 3 · app/scan.tsx</div>
+  <h1>กดส่งแล้ว <em>เกิดอะไรขึ้น</em></h1>
+  <div class="body top">
+    <div class="col" style="flex:1.25">
+      <div class="code sm"><div class="file">app/scan.tsx · บรรทัด 192–210 ในฟังก์ชัน submit · … = ตัดบางส่วนให้พอดีจอ (ฉบับเต็มมีครบ)</div><pre><span class="ln">192</span>const photoPath = await uploadBorrowPhoto(photoUri);
+<span class="ln">193</span>({ error } = mode === <span class="s">"borrow"</span>
+<span class="hl"><span class="ln">194</span>  ? await supabase.rpc(<span class="s">"request_borrow"</span>, {</span><span class="ln">195</span>      p_item_id: item.id, p_days: days, ...
+<span class="ln">196</span>    })
+<span class="ln">197</span>  : await supabase.rpc(<span class="s">"request_return"</span>, {
+<span class="ln">198</span>      p_item_id: item.id, p_condition: condition, ...
+<span class="ln">199</span>    }));
+<span class="gap">      ⋮</span>
+<span class="hl"><span class="ln">202</span>if (error) throw error;</span><span class="ln">203</span>setConfirmOpen(false);
+<span class="ln">204</span>setJustSent(mode === <span class="s">"claim"</span>
+<span class="ln">205</span>  ? `<span class="s">รับ ${item.item_code} ตามนัดแล้ว ...</span>`
+<span class="ln">206</span>  : `<span class="s">ส่งคำ${KIND_TH[mode]} ${item.item_code} แล้ว รอผู้ดูแลอนุมัติ</span>`);
+<span class="ln">207</span>await runLookup(item.id);
+<span class="ln">208</span>} catch (e: any) {
+<span class="ln">210</span>  notify(<span class="s">"ส่งคำขอไม่สำเร็จ"</span>, e.message || ...);</pre></div>
+    </div>
+    <div class="col">
+      <table class="read">
+        <tr><td>192</td><td><b>อัปโหลดรูป</b>ก่อน รอจนเสร็จ</td></tr>
+        <tr><td>193–199</td><td>ยืม (?) → request_borrow · ไม่งั้น (:) คืน → request_return</td></tr>
+        <tr><td>202</td><td>หลังบ้านตอบว่า<b>มีปัญหา</b> → ไปที่ catch</td></tr>
+        <tr><td>204–206</td><td>สำเร็จ → "ส่งคำขอยืม … แล้ว รอผู้ดูแลอนุมัติ"</td></tr>
+        <tr><td>207</td><td>สแกนชิ้นเดิมซ้ำ จอเปลี่ยนเป็นรออนุมัติ</td></tr>
+        <tr><td>208–210</td><td>พลาด → เด้ง "ส่งคำขอไม่สำเร็จ" + เหตุผล</td></tr>
+      </table>
+      <p class="mini"><b>พูดว่า:</b> "แอปอัปโหลดรูป แล้วส่งคำขอไปหลังบ้าน หลังบ้านเป็นคนตัดสิน ผ่านก็รออนุมัติ ไม่ผ่านก็เด้งเหตุผลบอก"</p>
+    </div>
+  </div>
+</section>
+
+<!-- 18 แบ่งเวลา + เตรียม -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>วันพรีเซนต์</div>
+  <h1>แบ่งกันพูด + ของที่ต้องเตรียม</h1>
+  <div class="body top">
+    <div class="col">
+      <table class="lite">
+        <tr><td>แนะนำ + ภาพรวม</td><td>5 นาที</td><td><span class="who p1">คนที่ 1</span></td></tr>
+        <tr><td>เดโมนักศึกษา</td><td>6 นาที</td><td><span class="who p1">คนที่ 1</span></td></tr>
+        <tr><td>เดโมผู้ดูแล</td><td>5 นาที</td><td><span class="who p2">คนที่ 2</span></td></tr>
+        <tr><td>ห้องคอม</td><td>4 นาที</td><td><span class="who p2">คนที่ 2</span></td></tr>
+        <tr><td>สร้างยังไง</td><td>4 นาที</td><td><span class="who p1">คนที่ 1</span></td></tr>
+        <tr><td>สรุป + ถามตอบ</td><td>1 นาที</td><td><span class="who both">ทั้งคู่</span></td></tr>
+      </table>
+    </div>
+    <div class="col">
+      <ul class="pts sm">
+        <li><b>มือถือ</b> บัญชีนักศึกษาทดสอบ อนุญาตกล้องแล้ว</li>
+        <li><b>โน้ตบุ๊ก</b> บัญชี TA/Admin (ต้องคนละบัญชี)</li>
+        <li><b>ของทดสอบ 1 ชิ้น</b> ติด QR สถานะว่าง</li>
+        <li><b>เปิดแอปเล่นก่อน 1 วัน</b> (แพ็กเกจฟรีจะหลับถ้าไม่มีคนใช้ราว 7 วัน)</li>
+        <li>ฮอตสปอตสำรอง + <b>วิดีโอเดโมสำรอง</b></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 19 เดโม -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>วันพรีเซนต์ · เดโมสด</div>
+  <h1>ลำดับเดโม</h1>
+  <div class="body top">
+    <table class="lite">
+      <tr><td class="n">1</td><td><span class="who p1">คนที่ 1</span> โชว์หน้าแรก · <span class="who p2">คนที่ 2</span> กดเช็กอิน → แถบในมือถือเปลี่ยนเป็นสีเขียวเอง</td></tr>
+      <tr><td class="n">2</td><td><span class="who p1">คนที่ 1</span> แท็บอุปกรณ์ → สแกน QR → ขอยืม → ถ่ายรูป → ยอมรับกฎ → ส่ง</td></tr>
+      <tr><td class="n">3</td><td><span class="who p2">คนที่ 2</span> คำขอเด้งบนโน้ตบุ๊ก → ดูรูป → อนุมัติ</td></tr>
+      <tr><td class="n">4</td><td><span class="who p1">คนที่ 1</span> เปิดแจ้งเตือน → ประวัติ → สแกนชิ้นเดิม ขอคืน · <span class="who p2">คนที่ 2</span> รับคืน</td></tr>
+      <tr><td class="n">5</td><td><span class="who p2">คนที่ 2</span> ผังห้องคอม · <span class="who p1">คนที่ 1</span> แจ้งปัญหา "ทดสอบระบบ" · <span class="who p2">คนที่ 2</span> <b>ปิดเรื่อง</b></td></tr>
+      <tr><td class="n">6</td><td><span class="who p2">คนที่ 2</span> (ถ้ามีเวลา) ออกรายงาน PDF</td></tr>
+    </table>
+  </div>
+  <div class="warn"><b>ของที่ทำตอนเดโมเข้าระบบจริง</b> ใช้ของ/บัญชีทดสอบเท่านั้น · สแกนไม่ติด → พิมพ์รหัส 4 ตัว · คำขอไม่เด้ง → กดรีเฟรช · เน็ตล่ม → เปิดวิดีโอสำรอง</div>
+</section>
+
+<!-- 20 สรุป + ถามยอดฮิต -->
+<section class="slide">
+  <div class="tag"><span class="dot"></span>อ่านหน้านี้ก่อนขึ้นพูด</div>
+  <h1>สรุป + คำถามยอดฮิต</h1>
+  <div class="body top">
+    <div class="col">
+      <ul class="pts">
+        <li><b>LabHub</b> = ยืม-คืนอุปกรณ์ + ห้องคอม ในแอปเดียว</li>
+        <li><b>ยืม:</b> สแกน → ถ่ายรูป → ยอมรับกฎ → ผู้ดูแลอนุมัติ</li>
+        <li><b>กติกา:</b> 3 ชิ้น · 3/5/7 วัน · ยืมต่อ 1 ครั้ง · เตือน 08:00</li>
+        <li><b>สร้างด้วย:</b> React Native (หน้าร้าน) + Supabase (ครัว)</li>
+      </ul>
+    </div>
+    <div class="col">
+      <div class="qa" style="margin-bottom:3mm"><div class="q">ยืมแล้วไม่คืน?</div><div class="a">เตือนทุกวัน เลยกำหนดยืมต่อไม่ได้ ของค้างนับโควตา ยืมชิ้นใหม่ไม่ได้</div></div>
+      <div class="qa" style="margin-bottom:3mm"><div class="q">ของคืนมาเสีย?</div><div class="a">เทียบรูปก่อน-หลัง ใส่ค่าเสียหายได้</div></div>
+      <div class="qa"><div class="q">ไม่รู้คำตอบ?</div><div class="a">"ขอไปเช็กแล้วแจ้งกลับนะครับ/ค่ะ" ไม่ผิด · คำถามอื่นอยู่ในฉบับเต็ม</div></div>
+    </div>
+  </div>
+  <div class="note center"><b>ประโยคปิด:</b> "LabHub ทำให้การยืม-คืนของและการดูแลห้องคอม มีหลักฐาน ตรวจสอบได้ และเลิกใช้กระดาษ"</div>
+</section>
+
+<script>
+  lucide.createIcons();
+  document.querySelectorAll(".slide").forEach((s, i) => s.setAttribute("data-n", i + 1));
+</script>
+</body>
+</html>
