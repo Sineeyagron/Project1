@@ -1,0 +1,1341 @@
+[
+ {
+  "name": "profiles",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "role",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "email",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "full_name",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "avatar_url",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "student_id",
+    "type": "text",
+    "nul": true,
+    "key": "UQ"
+   }
+  ]
+ },
+ {
+  "name": "notifications",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "user_id",
+    "type": "uuid",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "type",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "title",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "body",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "item_name",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "read",
+    "type": "boolean",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "created_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "request_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → borrow_requests.id"
+   },
+   {
+    "col": "item_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → items.id"
+   },
+   {
+    "col": "for_staff",
+    "type": "boolean",
+    "nul": true,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "push_subscriptions",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "user_id",
+    "type": "uuid",
+    "nul": false,
+    "key": "FK → auth.users.id"
+   },
+   {
+    "col": "endpoint",
+    "type": "text",
+    "nul": false,
+    "key": "UQ"
+   },
+   {
+    "col": "p256dh",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "auth",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "user_agent",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "created_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "app_settings",
+  "cols": [
+   {
+    "col": "key",
+    "type": "text",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "value",
+    "type": "jsonb",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "updated_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "client_errors",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "created_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "user_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → auth.users.id"
+   },
+   {
+    "col": "message",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "stack",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "url",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "platform",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "app_version",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "categories",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "name",
+    "type": "text",
+    "nul": false,
+    "key": "UQ"
+   },
+   {
+    "col": "sort_order",
+    "type": "integer",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "active",
+    "type": "boolean",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "created_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "borrow_locations",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "name",
+    "type": "text",
+    "nul": false,
+    "key": "UQ"
+   },
+   {
+    "col": "active",
+    "type": "boolean",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "created_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "items",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "created_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "name",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "status",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "image_url",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "description",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "barcode",
+    "type": "text",
+    "nul": true,
+    "key": "UQ"
+   },
+   {
+    "col": "type",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "item_prefix",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "item_no",
+    "type": "integer",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "item_code",
+    "type": "text",
+    "nul": false,
+    "key": "UQ"
+   },
+   {
+    "col": "short_name",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "manufacturer_serial",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "warranty_expires_at",
+    "type": "date",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "retired_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "retire_reason",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "category_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → categories.id"
+   },
+   {
+    "col": "location_id",
+    "type": "uuid",
+    "nul": false,
+    "key": "FK → borrow_locations.id"
+   }
+  ]
+ },
+ {
+  "name": "item_code_counters",
+  "cols": [
+   {
+    "col": "prefix_key",
+    "type": "text",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "display_prefix",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "last_no",
+    "type": "integer",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "updated_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "borrow_requests",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "kind",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "status",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "item_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → items.id"
+   },
+   {
+    "col": "user_id",
+    "type": "uuid",
+    "nul": false,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "borrow_record_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → borrow_records.id"
+   },
+   {
+    "col": "location_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → borrow_locations.id"
+   },
+   {
+    "col": "days",
+    "type": "integer",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "condition",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "condition_note",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "photo_path",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "created_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "expires_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "decided_by",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "decided_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "decision_note",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "borrow_records",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "user_id",
+    "type": "uuid",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "item_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → items.id"
+   },
+   {
+    "col": "borrow_date",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "return_date",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "status",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "due_date",
+    "type": "date",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "borrow_signature_url",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "return_signature_url",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "borrow_request_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → borrow_requests.id"
+   },
+   {
+    "col": "borrow_photo_path",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "borrow_condition",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "borrow_condition_note",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "return_photo_path",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "return_condition",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "return_condition_note",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "return_checked_by",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "return_checked_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "damage_cost",
+    "type": "numeric",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "damage_note",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "auto_returned",
+    "type": "boolean",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "renew_count",
+    "type": "integer",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "due_soon_notified_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "overdue_notified_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "pickup_requests",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "user_id",
+    "type": "uuid",
+    "nul": false,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "item_prefix",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "location_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → borrow_locations.id"
+   },
+   {
+    "col": "days",
+    "type": "integer",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "note",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "status",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "pickup_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "scheduled_by",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "decided_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "decision_note",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "picked_item_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → items.id"
+   },
+   {
+    "col": "borrow_record_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → borrow_records.id"
+   },
+   {
+    "col": "created_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "expires_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "item_inspections",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "term",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "item_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → items.id"
+   },
+   {
+    "col": "condition",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "notes",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "inspector_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "inspected_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "item_alerts",
+  "cols": [
+   {
+    "col": "item_id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK, FK → items.id"
+   },
+   {
+    "col": "kind",
+    "type": "text",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "alert_key",
+    "type": "text",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "sent_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "staff_presence",
+  "cols": [
+   {
+    "col": "user_id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK, FK → profiles.id"
+   },
+   {
+    "col": "location_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → borrow_locations.id"
+   },
+   {
+    "col": "checked_in_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "rooms",
+  "cols": [
+   {
+    "col": "id",
+    "type": "text",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "building",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "floor",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "sort_order",
+    "type": "integer",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "active",
+    "type": "boolean",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "created_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "computer_stations",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "room_id",
+    "type": "text",
+    "nul": false,
+    "key": "FK → rooms.id"
+   },
+   {
+    "col": "name",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "group_no",
+    "type": "integer",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "status",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "created_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "active",
+    "type": "boolean",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "lan_ports",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "room_id",
+    "type": "text",
+    "nul": false,
+    "key": "FK → rooms.id"
+   },
+   {
+    "col": "group_no",
+    "type": "integer",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "port_no",
+    "type": "integer",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "label",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "status",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "created_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "station_equipment",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "station_id",
+    "type": "uuid",
+    "nul": false,
+    "key": "FK → computer_stations.id"
+   },
+   {
+    "col": "equipment_type",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "status",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "updated_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "updated_by",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   }
+  ]
+ },
+ {
+  "name": "equipment_inspections",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "term",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "station_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → computer_stations.id"
+   },
+   {
+    "col": "inspector_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "equipment_type",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "condition",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "notes",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "last_borrower_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "inspected_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "repair_records",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "station_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → computer_stations.id"
+   },
+   {
+    "col": "description",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "status",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "reported_by",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "repaired_by",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "reported_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "repaired_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "notes",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "room_reports",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "kind",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "station_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → computer_stations.id"
+   },
+   {
+    "col": "lan_port_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → lan_ports.id"
+   },
+   {
+    "col": "room_id",
+    "type": "text",
+    "nul": false,
+    "key": "FK → rooms.id"
+   },
+   {
+    "col": "label",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "description",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "status",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "reported_by",
+    "type": "uuid",
+    "nul": false,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "reported_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "handled_by",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "handled_at",
+    "type": "timestamptz",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "handle_note",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "repair_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → repair_records.id"
+   }
+  ]
+ },
+ {
+  "name": "room_status_log",
+  "cols": [
+   {
+    "col": "id",
+    "type": "bigint",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "kind",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "station_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → computer_stations.id"
+   },
+   {
+    "col": "lan_port_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → lan_ports.id"
+   },
+   {
+    "col": "room_id",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "label",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "from_status",
+    "type": "text",
+    "nul": true,
+    "key": ""
+   },
+   {
+    "col": "to_status",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "source",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "changed_by",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "changed_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ }
+]
