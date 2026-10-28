@@ -30,7 +30,9 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
+# local env files (กันรหัสลับ เช่น service role key หลุดขึ้น git)
+.env
+.env.*
 .env*.local
 
 # typescript
