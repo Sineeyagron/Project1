@@ -7,7 +7,7 @@ import supabase from "../../lib/supabase";
 import { useRealtime } from "../../lib/realtime";
 import { useRoomLive } from "../../lib/roomRealtime";
 import { onUnreadRefresh } from "../../lib/unread";
-import { canAccess, ROLE_LABEL, useRole } from "../../lib/roles";
+import { canAccess, useRole, useRoleLabel } from "../../lib/roles";
 import { confirmAction, notify } from "../../lib/notify";
 import { ADMIN_COLUMN_WIDTH, isDesktopReady } from "../../lib/layout";
 import { C } from "../../lib/theme";
@@ -151,6 +151,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const pathname = usePathname();
   const { role, userId } = useRole();
+  const roleLabel = useRoleLabel(role, true);
   const [name, setName] = useState("");
   const [badges, setBadges] = useState({ requests: 0, roomreports: 0, unread: 0 });
 
@@ -227,7 +228,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           <View style={s.avatar}><Text style={s.avatarText}>{(name || "?").slice(0, 1).toUpperCase()}</Text></View>
           <View style={{ flex: 1, minWidth: 0 }}>
             <Text style={s.meName} numberOfLines={1}>{name || "-"}</Text>
-            <Text style={s.meRole}>{role ? ROLE_LABEL[role] : ""}</Text>
+            <Text style={s.meRole} numberOfLines={1}>{roleLabel || ""}</Text>
           </View>
           <Pressable onPress={logout} style={({ hovered, focused }: any) => [s.logout, hovered && s.itemHover, focused && s.itemFocus]} accessibilityLabel="ออกจากระบบ">
             <Ionicons name="log-out-outline" size={18} color={SIDE.text} />

@@ -1,4 +1,6 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
+import { currentUser } from "./session";
+import { isStaffEmail } from "./googleAuth";
 
 // บทบาทผู้ใช้ (profiles.role) — สิทธิ์จริงอยู่ที่ RLS/RPC ในฐานข้อมูล ไฟล์นี้ใช้แค่ซ่อน/กันหน้าในแอป
 // admin = ทุกอย่าง / ta = ผู้ช่วย admin (เฟส 4.1) / user = นักศึกษา
@@ -11,7 +13,19 @@ export const ROLE_LABEL: Record<Role, string> = {
   admin: "ผู้ดูแลระบบ",
 };
 
-export const isStaffRole = (role?: string | null): role is "ta" | "admin" => role === "admin" || role === "ta";
+// ป้ายบทบาทบนหัว: บุคลากร มข. (@kku.ac.th) ที่ได้สิทธิ์ ไม่เรียกอาจารย์ว่า "TA" เฉย ๆ
+//   withRole = "บุคลากร มข. · TA" (เมนูซ้ายบนคอม) / ไม่ใส่ = "บุคลากร มข." (แดชบอร์ด — หัวใหญ่บอก TA/Admin อยู่แล้ว + ยาวเกินจอมือถือ)
+export function useRoleLabel(role?: Role | null, withRole = false) {
+  const [kkuStaff, setKkuStaff] = useState(false);
+  useEffect(() => {
+    currentUser().then((u) => setKkuStaff(isStaffEmail(u?.email)));
+  }, []);
+  if (!role) return undefined;
+  if (!kkuStaff || role === "user") return ROLE_LABEL[role];
+  return withRole ? `บุคลากร มข. · ${ROLE_LABEL[role]}` : "บุคลากร มข.";
+}
+
+export const isStaffRole =(role?: string | null): role is "ta" | "admin" => role === "admin" || role === "ta";
 
 // หน้าใน app/admin/ ที่ TA เข้าได้ (ที่เหลือ admin เท่านั้น: เพิ่ม/แก้/จำหน่ายของ, หมวด, ตั้งค่า, แต่งตั้ง TA)
 const TA_ROUTES = new Set([

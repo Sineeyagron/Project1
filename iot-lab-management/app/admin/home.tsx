@@ -23,7 +23,7 @@ import StaffCheckInCard from "../../components/StaffCheckInCard";
 import { usePresence } from "../../lib/presence";
 import { FadeIn, PressScale, Pulse } from "../../components/Motion";
 import { confirmAction, notify } from "../../lib/notify";
-import { canAccess, ROLE_LABEL, useRole } from "../../lib/roles";
+import { canAccess, useRole, useRoleLabel } from "../../lib/roles";
 import { W, NG, gradient, iconDot, BADGE_TEXT, TOP_INSET } from "../../lib/theme";
 import { useIsDesktop } from "../../lib/layout";
 import AdminDashboardDesktop from "../../components/desktop/AdminDashboardDesktop";
@@ -173,6 +173,7 @@ supabase.auth.onAuthStateChange((event) => { if (event === "SIGNED_OUT") saveCac
 export default function AdminHome() {
   const router = useRouter();
   const { role, userId } = useRole();
+  const roleLabel = useRoleLabel(role);
   // F4 ผู้ดูแลที่อยู่ห้องตอนนี้ — การ์ดเช็กอิน + จุดสีบนบรรทัดทักทาย (เช็กอินแล้ว = เขียว / ยังไม่เช็กอิน = แดง)
   const presence = usePresence();
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → แดชบอร์ดแบบคอม (ข้อมูลชุดเดียวกัน)
@@ -416,7 +417,7 @@ export default function AdminHome() {
         <View style={s.heroTop}>
           {/* กว้างเต็มที่ว่างเหลือ + ชื่อบรรทัดเดียว — เดิมกล่องกว้างตามตัวหนังสือ บน Safari ตอนชื่อเปลี่ยน Admin→TA บางทีคำนวณขาดช่องว่าง → "Dashboard" ตกบรรทัด */}
           <View style={s.heroLeft}>
-            <GreetingLine roleLabel={role ? ROLE_LABEL[role] : undefined} dot={checkedIn ? "green" : "red"} />
+            <GreetingLine roleLabel={roleLabel} dot={checkedIn ? "green" : "red"} />
             <Text style={s.heroTitle} numberOfLines={1}>
               {role === "ta" ? "TA" : "Admin"} <Text style={s.heroTitleAccent}>Dashboard</Text>
             </Text>
