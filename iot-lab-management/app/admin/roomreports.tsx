@@ -13,7 +13,7 @@ import supabase from "../../lib/supabase";
 import { fetchRoomPeople } from "../../lib/room/roomPeople";
 import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
-import { useRealtime } from "../../lib/realtime";
+import { useMyNotifications } from "../../lib/broadcast";
 import LoadError from "../../components/room/LoadError";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
@@ -97,7 +97,7 @@ export default function RoomReports() {
   useEffect(() => { load(); }, []);
   useRefreshOnFocus(() => load());
   // มีคำแจ้งใหม่ = ผู้ดูแลทุกคนได้แจ้งเตือน room_report → สัญญาณ Realtime ช่องของตัวเอง → โหลดคิวใหม่ทันที
-  useRealtime("user", "notification", () => load());
+  useMyNotifications(() => load());
 
   const counts = useMemo(() => ({
     open: reports.filter((r) => r.status === "open").length,

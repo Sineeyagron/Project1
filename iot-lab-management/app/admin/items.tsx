@@ -289,12 +289,14 @@ export default function AdminItems() {
 
   const label = (item: any) => item.item_code || item.name;
 
-  const run = async (task: () => PromiseLike<{ error: any }>, failTitle: string) => {
+  // ทุกงานต่อ .select("id"): ได้ 0 แถว = RLS ไม่ให้ หรือชิ้นนี้ถูกลบจากเครื่องอื่นไปแล้ว (ไม่ error เอง)
+  const run = async (task: () => PromiseLike<{ error: any; data?: any }>, failTitle: string) => {
     setBusy(true);
-    const { error } = await task();
+    const { error, data } = await task();
     setBusy(false);
-    if (error) {
-      notify(failTitle, error.message);
+    if (error || (Array.isArray(data) && data.length === 0)) {
+      notify(failTitle, error ? error.message : "ไม่มีสิทธิ์แก้ไข หรืออุปกรณ์ชิ้นนี้ถูกลบไปแล้ว");
+      if (!error) fetchItems();
       return false;
     }
     fetchItems();
@@ -303,7 +305,7 @@ export default function AdminItems() {
 
   const setStatus = (item: any, status: string) => {
     setSheet(null);
-    run(() => supabase.from("items").update({ status }).eq("id", item.id), "เปลี่ยนสถานะไม่สำเร็จ");
+    run(() => supabase.from("items").update({ status }).eq("id", item.id).select("id"), "เปลี่ยนสถานะไม่สำเร็จ");
   };
 
   const restore = (item: any) => {
@@ -311,7 +313,8 @@ export default function AdminItems() {
     run(
       () => supabase.from("items")
         .update({ status: "available", retired_at: null, retire_reason: null })
-        .eq("id", item.id),
+        .eq("id", item.id)
+        .select("id"),
       "ยกเลิกการจำหน่ายไม่สำเร็จ"
     );
   };
@@ -324,7 +327,7 @@ export default function AdminItems() {
         label: "ลบถาวร", icon: "trash-outline", tone: "danger",
         onPress: () => {
           setSheet(null);
-          run(() => supabase.from("items").delete().eq("id", item.id), "ลบไม่สำเร็จ");
+          run(() => supabase.from("items").delete().eq("id", item.id).select("id"), "ลบไม่สำเร็จ");
         },
       }],
     });
@@ -342,7 +345,7 @@ export default function AdminItems() {
           setSheet(null);
           if (c.name === item.category && item.category_id === c.id) return;
           run(
-            () => supabase.from("items").update({ category_id: c.id, type: c.name }).eq("id", item.id),
+            () => supabase.from("items").update({ category_id: c.id, type: c.name }).eq("id", item.id).select("id"),
             "เปลี่ยนหมวดไม่สำเร็จ"
           );
         },
@@ -369,7 +372,8 @@ export default function AdminItems() {
           warranty_expires_at: parseThaiDate(editWarranty),
           manufacturer_serial: editSerial.trim() || null,
         })
-        .eq("id", editTarget.id),
+        .eq("id", editTarget.id)
+        .select("id"),
       "บันทึกไม่สำเร็จ"
     );
     if (ok) setEditTarget(null);
@@ -387,7 +391,8 @@ export default function AdminItems() {
     const ok = await run(
       () => supabase.from("items")
         .update({ status: "retired", retired_at: new Date().toISOString(), retire_reason: retireReason.trim() })
-        .eq("id", item.id),
+        .eq("id", item.id)
+        .select("id"),
       "จำหน่ายออกไม่สำเร็จ"
     );
     if (ok) setRetireTarget(null);
