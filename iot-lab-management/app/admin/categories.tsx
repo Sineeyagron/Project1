@@ -9,11 +9,10 @@ import {
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { W, NG } from "../../lib/theme";
 import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import LoadingState from "../../components/LoadingState";
@@ -43,7 +42,6 @@ function errorText(error: any) {
 
 export default function AdminCategories() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
-  const router = useRouter();
   const [list, setList] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -438,22 +436,6 @@ export default function AdminCategories() {
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingTop: TOP_INSET,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10 },
   addRow: { flexDirection: "row", gap: 8, marginBottom: 6 },
   input: {

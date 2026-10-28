@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "expo-router";
 import { Text, TextScale } from "../AppText";
 import supabase from "../../lib/supabase";
 import { useRealtime } from "../../lib/realtime";
-import { useRoomLive } from "../../lib/roomRealtime";
+import { useRoomLive } from "../../lib/room/roomRealtime";
 import { onUnreadRefresh } from "../../lib/unread";
 import { canAccess, useRole, useRoleLabel } from "../../lib/roles";
 import { confirmAction, notify } from "../../lib/notify";

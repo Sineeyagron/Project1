@@ -1,6 +1,6 @@
 import React from "react";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import PickupRequestForm from "../components/PickupRequestForm";
+import PickupRequestForm from "../components/borrow/PickupRequestForm";
 import { useSheetFit } from "../lib/sheetFit";
 import { DialogHost } from "../lib/notify";
 

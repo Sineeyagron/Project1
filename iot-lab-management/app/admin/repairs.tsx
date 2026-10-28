@@ -10,14 +10,13 @@ import {
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
-import { fetchRoomPeople } from "../../lib/roomPeople";
+import { fetchRoomPeople } from "../../lib/room/roomPeople";
 import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
-import { REPAIR_STATUS, roomStatus } from "../../lib/roomStatus";
-import LoadError from "../../components/LoadError";
-import { fetchRooms as loadRooms } from "../../lib/rooms";
-import { naturalNo } from "../../lib/roomStatus";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { REPAIR_STATUS, naturalNo, roomStatus } from "../../lib/room/roomStatus";
+import LoadError from "../../components/room/LoadError";
+import { fetchRooms as loadRooms } from "../../lib/room/rooms";
+import { W, NG } from "../../lib/theme";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
 import { desktopGrid, useIsDesktop } from "../../lib/layout";
@@ -111,7 +110,7 @@ export default function RepairsPage() {
 
     const safeStations = stationRows || [];
     const userIds = [...new Set((recs || []).map((r: any) => r.reported_by).filter(Boolean))];
-    // ชื่อ · รหัส นศ. ของผู้แจ้ง (lib/roomPeople ของระบบห้อง)
+    // ชื่อ · รหัส นศ. ของผู้แจ้ง (lib/room/roomPeople ของระบบห้อง)
     const nameMap = await fetchRoomPeople(userIds as string[]);
 
     const enriched = (recs || []).map((record: any) => {
@@ -473,15 +472,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 24,
   },
-  heroTop: { ...W.headerBar, marginHorizontal: -16, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  headerIconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  titleBlock: { alignItems: "flex-start", flex: 1 },
-  headerTitle: { color: "#172033", fontSize: 20, fontWeight: "700", lineHeight: 28 },
-  headerSub: { color: "#475569", fontSize: 12, marginTop: 0 },
   statsRow: { flexDirection: "row", gap: 10, marginTop: 16 },
   statCard: {
     flex: 1,

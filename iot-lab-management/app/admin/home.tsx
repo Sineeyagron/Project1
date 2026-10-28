@@ -1,7 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Animated,
-  Easing,
   Platform,
   RefreshControl,
   ScrollView,
@@ -12,17 +10,16 @@ import {
 import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import Svg, { Polyline } from "react-native-svg";
 import supabase from "../../lib/supabase";
 import { useRealtime } from "../../lib/realtime";
 import { fetchPeople, who } from "../../lib/people";
 import { currentUser } from "../../lib/session";
 import { useRefreshOnFocus } from "../../lib/nav";
 import GreetingLine from "../../components/GreetingLine";
-import StaffCheckInCard from "../../components/StaffCheckInCard";
+import StaffCheckInCard from "../../components/borrow/StaffCheckInCard";
 import { usePresence } from "../../lib/presence";
 import { FadeIn, PressScale, Pulse } from "../../components/Motion";
-import { confirmAction, notify } from "../../lib/notify";
+import { confirmAction, notify, pickOption } from "../../lib/notify";
 import { canAccess, useRole, useRoleLabel } from "../../lib/roles";
 import { W, NG, gradient, iconDot, BADGE_TEXT, TOP_INSET } from "../../lib/theme";
 import { useIsDesktop } from "../../lib/layout";
@@ -127,7 +124,15 @@ type ActivityItem = {
   title: string;
   sub: string;
   time: string;
+  at?: number; // เวลาจริง (ms) ใช้เรียง — แคชรุ่นเก่าไม่มี
+  route?: string; // กดการ์ด → หน้าของรายการนั้น
 };
+
+// "ดูทั้งหมด" ของกิจกรรมล่าสุด: ยืม-คืน (หลัก) + งานซ่อมห้องคอม
+const ACTIVITY_PAGES = [
+  { label: "ประวัติยืม-คืน", route: "/admin/history" },
+  { label: "งานซ่อมห้องคอม", route: "/admin/repairs" },
+];
 
 type Tile = { icon: string; title?: string; sub?: string; label?: string; route: string; color?: string; bg: string };
 
@@ -148,9 +153,8 @@ async function countPending() {
 
 // ข้อมูลแดชบอร์ดชุดล่าสุด (หน่วยความจำ) — กลับมาแดชบอร์ด (เช่น เมนูซ้ายจอคอม) เห็นตัวเลขทันที แล้วค่อยโหลดใหม่เบื้องหลัง
 // ล้างเมื่อออกจากระบบ
-type DashSeries = { total: number[]; available: number[]; borrowed: number[]; repair: number[] };
 type DashCache = {
-  total: number; available: number; borrowed: number; repair: number; series: DashSeries;
+  total: number; available: number; borrowed: number; repair: number;
   statusBorrowed: number; statusReturned: number; statusRepair: number;
   activities: ActivityItem[]; pendingRequests: number;
 };
@@ -197,8 +201,6 @@ export default function AdminHome() {
   const [available, setAvailable] = useState(cache?.available ?? 0);
   const [borrowed, setBorrowed] = useState(cache?.borrowed ?? 0);
   const [repair, setRepair] = useState(cache?.repair ?? 0);
-  // ข้อมูลกราฟย้อนหลัง 7 วัน (จุดสุดท้าย = ตัวเลขปัจจุบัน)
-  const [series, setSeries] = useState<DashSeries>(cache?.series ?? { total: [], available: [], borrowed: [], repair: [] });
   const [statusBorrowed, setStatusBorrowed] = useState(cache?.statusBorrowed ?? 0);
   const [statusReturned, setStatusReturned] = useState(cache?.statusReturned ?? 0);
   const [statusRepair, setStatusRepair] = useState(cache?.statusRepair ?? 0);
@@ -267,7 +269,6 @@ export default function AdminHome() {
       activeBorrowCount,
       returnedCount,
       activeRepairCount,
-      { data: loanHistory },
     ] = await Promise.all([
       // ของที่จำหน่ายแล้วไม่นับในสต็อก แต่ยังต้องใช้ชื่อในกิจกรรมล่าสุด
       supabase.from("items").select("id, name, item_code, status, created_at, retired_at"),
@@ -279,11 +280,6 @@ export default function AdminHome() {
       supabase.from("borrow_records").select("id", { count: "exact", head: true }).gte("borrow_date", startOfTodayBkk()),
       supabase.from("borrow_records").select("id", { count: "exact", head: true }).gte("return_date", startOfTodayBkk()),
       supabase.from("repair_records").select("id", { count: "exact", head: true }).in("status", ["pending", "in-repair"]),
-      // การยืมที่ยังค้างอยู่ช่วง 7 วันที่ผ่านมา (ใช้คำนวณกราฟ "ถูกยืม" ย้อนหลัง)
-      supabase
-        .from("borrow_records")
-        .select("item_id, borrow_date, return_date, status")
-        .or(`return_date.is.null,return_date.gte.${new Date(Date.now() - 7 * 86400000).toISOString()}`),
     ]);
 
     const safeItems = items || [];
@@ -296,7 +292,6 @@ export default function AdminHome() {
       available: stockItems.filter((i: any) => i.status === "available").length,
       borrowed: stockItems.filter((i: any) => i.status === "borrowed").length,
       repair: stockItems.filter((i: any) => i.status === "repair").length,
-      series: buildSeries(safeItems, loanHistory || []),
       statusBorrowed: activeBorrowCount.count || 0,
       statusReturned: returnedCount.count || 0,
       statusRepair: activeRepairCount.count || 0,
@@ -305,7 +300,6 @@ export default function AdminHome() {
     setAvailable(next.available);
     setBorrowed(next.borrowed);
     setRepair(next.repair);
-    setSeries(next.series);
     setStatusBorrowed(next.statusBorrowed);
     setStatusReturned(next.statusReturned);
     setStatusRepair(next.statusRepair);
@@ -339,6 +333,8 @@ export default function AdminHome() {
         title: `${isReturned ? "คืน" : "ยืม"} ${itemMap.get(record.item_id) || "อุปกรณ์"}`,
         sub: emailMap[record.user_id] || "-",
         time: relativeTime(record.return_date || record.borrow_date),
+        at: timeOf(record.return_date || record.borrow_date),
+        route: "/admin/history",
       };
     });
 
@@ -350,10 +346,12 @@ export default function AdminHome() {
       title: record.status === "done" ? "ซ่อมเสร็จแล้ว" : "แจ้งซ่อม",
       sub: stationMap.get(record.station_id) || record.description || "-",
       time: relativeTime(record.repaired_at || record.reported_at),
+      at: timeOf(record.repaired_at || record.reported_at),
+      route: "/admin/repairs",
     }));
 
     const merged = [...borrowActivities, ...repairActivities]
-      .sort((a, b) => timeScore(b.time) - timeScore(a.time))
+      .sort((a, b) => (b.at ?? 0) - (a.at ?? 0))
       .slice(0, 3);
 
     setActivities(merged);
@@ -381,6 +379,9 @@ export default function AdminHome() {
     confirmAction("ออกจากระบบ", "ต้องการออกจากระบบใช่ไหม?", "ออกจากระบบ", handleLogout, true);
   };
 
+  const openAllActivity = () =>
+    pickOption("ดูกิจกรรมทั้งหมดของ", ACTIVITY_PAGES.map((p) => p.label), (i) => router.push(ACTIVITY_PAGES[i].route as any));
+
   if (isDesktop) {
     return (
       <AdminDashboardDesktop
@@ -394,16 +395,17 @@ export default function AdminHome() {
         pending={pendingRequests}
         unread={unread}
         activities={activities}
+        onAllActivity={openAllActivity}
         onRefresh={onRefresh}
       />
     );
   }
 
   const stats = [
-    { icon: "cube-outline", iconBg: "#dbeafe", color: C.blue, num: total, label: "ทั้งหมด", data: series.total },
-    { icon: "checkmark-circle-outline", iconBg: "#ECFDF5", color: C.green, num: available, label: "ว่าง", data: series.available },
-    { icon: "time-outline", iconBg: "#ffedd5", color: C.orangeDark, num: borrowed, label: "ถูกยืม", data: series.borrowed },
-    { icon: "construct-outline", iconBg: "#fee2e2", color: C.red, num: repair, label: "ซ่อม", data: series.repair },
+    { icon: "cube-outline", color: C.blue, num: total, label: "ทั้งหมด" },
+    { icon: "checkmark-circle-outline", color: C.green, num: available, label: "ว่าง" },
+    { icon: "time-outline", color: C.orangeDark, num: borrowed, label: "ถูกยืม" },
+    { icon: "construct-outline", color: C.red, num: repair, label: "ซ่อม" },
   ];
 
   return (
@@ -527,7 +529,7 @@ export default function AdminHome() {
 
             <FadeIn delay={140}>
             <SectionLabel icon="cube-outline" title="ภาพรวมอุปกรณ์" />
-            {/* แถวเดียว 4 ตัวเลข (เดิมเป็นการ์ด 4 ใบ + กราฟ 7 วัน = StatCard ด้านล่าง เก็บไว้เผื่อกลับไปใช้) */}
+            {/* แถวเดียว 4 ตัวเลข */}
             <View style={s.statRow}>
               {stats.map((item, i) => (
                 <View key={item.label} style={[s.statCell, i > 0 && s.statCellDivider]}>
@@ -567,8 +569,13 @@ export default function AdminHome() {
             <FadeIn delay={200 + groups.length * 60}>
             <View style={s.activityHeader}>
               <SectionLabel icon="time-outline" title="กิจกรรมล่าสุด" compact />
-              <TouchableOpacity activeOpacity={0.75} onPress={() => router.push("/admin/history" as any)}>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                style={s.viewAllBtn}
+                onPress={openAllActivity}
+              >
                 <Text style={s.viewAll}>ดูทั้งหมด</Text>
+                <Ionicons name="chevron-forward" size={14} color="#2563EB" />
               </TouchableOpacity>
             </View>
 
@@ -580,7 +587,13 @@ export default function AdminHome() {
             ) : (
               <View style={s.activityList}>
                 {activities.map((item) => (
-                  <TouchableOpacity key={item.id} style={s.activityCard} activeOpacity={0.85}>
+                  <TouchableOpacity
+                    key={item.id}
+                    style={s.activityCard}
+                    activeOpacity={0.85}
+                    disabled={!item.route}
+                    onPress={() => item.route && router.push(item.route as any)}
+                  >
                     <View style={[s.activityIcon, { backgroundColor: item.iconBg }]}>
                       <Ionicons name={item.icon as any} size={22} color={item.color} />
                     </View>
@@ -589,6 +602,7 @@ export default function AdminHome() {
                       <Text style={s.activitySub} numberOfLines={1}>{item.sub}</Text>
                     </View>
                     <Text style={s.activityTime}>{item.time}</Text>
+                    {item.route ? <Ionicons name="chevron-forward" size={16} color="#94A3B8" /> : null}
                   </TouchableOpacity>
                 ))}
               </View>
@@ -614,15 +628,10 @@ function relativeTime(dateValue?: string) {
   return `${days} วันที่แล้ว`;
 }
 
-function timeScore(label: string) {
-  if (label === "เมื่อสักครู่") return Date.now();
-  const match = label.match(/^(\d+)/);
-  if (!match) return 0;
-  const amount = Number(match[1]);
-  if (label.includes("นาที")) return Date.now() - amount * 60000;
-  if (label.includes("ชั่วโมง")) return Date.now() - amount * 3600000;
-  if (label.includes("วัน")) return Date.now() - amount * 86400000;
-  return 0;
+// เรียงกิจกรรมด้วยเวลาจริง (เดิมแปลงกลับจากข้อความ "x วันที่แล้ว" → วันเดียวกันเรียงมั่ว)
+function timeOf(dateValue?: string) {
+  const t = dateValue ? new Date(dateValue).getTime() : NaN;
+  return Number.isNaN(t) ? 0 : t;
 }
 
 function SectionLabel({ icon, title, compact }: { icon: any; title: string; compact?: boolean }) {
@@ -642,106 +651,6 @@ function TodayItem({ icon, color, num, label, date }: { icon: any; color: string
         <Text style={[s.todayNum, date && s.todayDateNum]}>{num}</Text>
         <Text style={s.todayLabel}>{label}</Text>
       </View>
-    </View>
-  );
-}
-
-// กราฟเส้นเล็กจากข้อมูลจริง 7 วัน (สเกลตามค่าต่ำสุด–สูงสุดของช่วงนั้น / ค่าเท่ากันทั้งช่วง = เส้นตรงกลาง)
-function MiniLine({ color, data }: { color: string; data: number[] }) {
-  const values = data.length ? data : [0, 0];
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const step = 126 / Math.max(values.length - 1, 1);
-  const y = (v: number) => (max === min ? 11 : 19 - ((v - min) / (max - min)) * 16);
-  const points = values.map((v, i) => `${(i * step).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-  const empty = values.every((v) => v === 0);
-
-  return (
-    <View style={s.lineChart}>
-      <Svg width="100%" height="22" viewBox="0 0 126 22" preserveAspectRatio="none">
-        <Polyline
-          points={points}
-          fill="none"
-          stroke={color}
-          strokeWidth={empty ? "2" : "2.3"}
-          strokeDasharray={empty ? "5 5" : undefined}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity={empty ? 0.38 : 0.95}
-        />
-      </Svg>
-    </View>
-  );
-}
-
-// สร้างตัวเลขย้อนหลัง 7 วัน (สิ้นวันของแต่ละวัน วันนี้ = ตอนนี้)
-// ทั้งหมด = ของที่เพิ่มแล้วและยังไม่จำหน่าย / ถูกยืม = ยืมไปแล้วยังไม่คืน ณ เวลานั้น (รายการเก่าที่คืนแล้วแต่ไม่มีวันคืน ไม่นับ)
-// ซ่อม = ไม่มีประวัติย้อนหลังในระบบ ใช้ค่าปัจจุบัน / ว่าง = ทั้งหมด − ถูกยืม − ซ่อม
-// จุดสุดท้ายยึดตามสถานะจริงของตอนนี้ ให้ตรงกับตัวเลขบนการ์ดเสมอ
-function buildSeries(items: any[], loans: any[]) {
-  const now = Date.now();
-  const days = Array.from({ length: 7 }, (_, i) => {
-    if (i === 6) return now;
-    const d = new Date(now - (6 - i) * 86400000);
-    d.setHours(23, 59, 59, 999);
-    return d.getTime();
-  });
-  const stock = items.filter((i) => i.status !== "retired");
-  const current = {
-    total: stock.length,
-    borrowed: stock.filter((i) => i.status === "borrowed").length,
-    repair: stock.filter((i) => i.status === "repair").length,
-    available: stock.filter((i) => i.status === "available").length,
-  };
-  const time = (v: string | null) => (v ? new Date(v).getTime() : null);
-  const total = days.map((t) => items.filter((i) => (time(i.created_at) ?? 0) <= t && (!i.retired_at || (time(i.retired_at) as number) > t)).length);
-  const borrowed = days.map((t) => loans.filter((l) => (time(l.borrow_date) ?? Infinity) <= t && (l.return_date ? (time(l.return_date) as number) > t : l.status !== "returned")).length);
-  const repair = days.map(() => current.repair);
-  const available = days.map((_, i) => Math.max(total[i] - borrowed[i] - repair[i], 0));
-  total[6] = current.total;
-  borrowed[6] = current.borrowed;
-  available[6] = current.available;
-  return { total, available, borrowed, repair };
-}
-
-function StatCard({
-  icon,
-  iconBg,
-  color,
-  num,
-  label,
-  data,
-}: {
-  icon: any;
-  iconBg: string;
-  color: string;
-  num: number;
-  label: string;
-  data: number[];
-}) {
-  // เปลี่ยนไปเท่าไรเทียบกับ 7 วันก่อน
-  const diff = data.length ? data[data.length - 1] - data[0] : 0;
-  const trend = diff > 0 ? `+${diff}` : diff < 0 ? `${diff}` : "0";
-  return (
-    <View
-      style={[
-        s.statCard,
-        gradient(`linear-gradient(160deg, #FFFFFF 0%, ${iconBg} 100%)`),
-        { backgroundColor: iconBg },
-      ]}
-    >
-      <View style={s.statTop}>
-        <View style={iconDot(color, 36)}>
-          <Ionicons name={icon} size={19} color="#FFFFFF" />
-        </View>
-        <View style={[s.trendPill, { backgroundColor: "rgba(255,255,255,0.75)" }]}>
-          <Ionicons name={trend.startsWith("-") ? "trending-down" : trend === "0" ? "remove" : "trending-up"} size={10} color={color} />
-          <Text style={[s.trendText, { color }]}>{trend}</Text>
-        </View>
-      </View>
-      <Text style={[s.statNum, { color }]}>{num}</Text>
-      <Text style={s.statLabel}>{label}</Text>
-      <MiniLine color={color} data={data} />
     </View>
   );
 }
@@ -952,65 +861,6 @@ const s = StyleSheet.create({
   statCellTop: { flexDirection: "row", alignItems: "center", gap: 5 },
   statCellNum: { fontSize: 20, fontWeight: "700", lineHeight: 28 },
   statCellLabel: { color: C.muted, fontSize: 12 },
-  statGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    rowGap: 12,
-    marginBottom: 20,
-  },
-  statCard: {
-    ...W.card,
-    width: "48.2%",
-    minHeight: 138,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-  },
-  statTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)",
-  },
-  trendPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 2,
-    minWidth: 38,
-    justifyContent: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  trendText: {
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  statNum: {
-    fontSize: 30,
-    fontWeight: "700",
-    lineHeight: 38,
-    marginTop: 6,
-  },
-  statLabel: {
-    color: C.muted,
-    fontSize: 12,
-    marginTop: 0,
-  },
-  lineChart: {
-    alignSelf: "stretch",
-    height: 24,
-    marginTop: 5,
-    marginHorizontal: 0,
-    overflow: "hidden",
-  },
   // 3 คอลัมน์ ชิดซ้าย (แถวสุดท้ายที่ไม่เต็มจะไม่ถูกกระจายห่าง)
   toolGrid: {
     flexDirection: "row",
@@ -1049,6 +899,12 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 10,
+  },
+  viewAllBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    minHeight: 32,
   },
   viewAll: {
     color: "#2563EB",

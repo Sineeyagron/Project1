@@ -8,13 +8,13 @@ import {
 } from "react-native";
 import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import supabase from "../../lib/supabase";
 import { ITEM_STATUS } from "../../lib/status";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import { ageMonths, ageText, warrantyInfo } from "../../lib/itemInfo";
-import { W, gradient, tint, TOP_INSET } from "../../lib/theme";
+import { W, gradient, tint } from "../../lib/theme";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import LoadingState from "../../components/LoadingState";
@@ -61,7 +61,6 @@ function countBy(list: Item[]) {
 
 export default function StockReport() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
-  const router = useRouter();
   // มาจากแจ้งเตือน → เปิดกลุ่มนั้นไว้เลย
   const params = useLocalSearchParams<{ watch?: string }>();
   const [items, setItems] = useState<Item[]>([]);
@@ -272,22 +271,6 @@ function ItemRow({ item, showCategory, warnDays }: { item: Item; showCategory?: 
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingTop: TOP_INSET,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
   cols: { flexDirection: "row", gap: 18, alignItems: "flex-start" },
   col: { flex: 1, gap: 10, minWidth: 0 },

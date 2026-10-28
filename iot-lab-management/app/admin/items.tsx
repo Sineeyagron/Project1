@@ -14,13 +14,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { DESKTOP_GUTTER, DESKTOP_MAX, useIsDesktop } from "../../lib/layout";
 import supabase from "../../lib/supabase";
-import { ITEM_STATUS, RECORD_STATUS } from "../../lib/status";
+import { ITEM_STATUS } from "../../lib/status";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
-import { parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
-import WarrantyDateField, { warrantyBlocked } from "../../components/WarrantyDateField";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { compareItems, parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
+import WarrantyDateField, { warrantyBlocked } from "../../components/borrow/WarrantyDateField";
+import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
@@ -106,12 +106,6 @@ function warrantyText(dateValue?: string) {
   if (Number.isNaN(end.getTime())) return "";
   if (end.getTime() < Date.now()) return "หมดประกันแล้ว";
   return `ประกันถึง ${end.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}`;
-}
-
-// เรียงตามชื่อรหัส แล้วตามเลขจริง (002 ก่อน 010)
-function compareItems(a: any, b: any) {
-  const byPrefix = (a.item_prefix || a.name || "").localeCompare(b.item_prefix || b.name || "", "th");
-  return byPrefix !== 0 ? byPrefix : (a.item_no || 0) - (b.item_no || 0);
 }
 
 function ItemCard({
@@ -753,54 +747,10 @@ const s = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 17,
   },
-  headerTop: {
-    ...W.headerBar, marginHorizontal: -16, paddingTop: TOP_INSET, paddingHorizontal: 16, paddingBottom: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 14,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  titleBlock: {
-    flex: 1,
-  },
-  headerTitle: {
-    color: "#172033",
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 28,
-  },
-  headerSub: {
-    color: "#475569",
-    fontSize: 12,
-    fontWeight: "900",
-    marginBottom: 2,
-  },
   statRow: {
     flexDirection: "row",
     gap: 10,
     marginBottom: 14,
-  },
-  searchWrap: {
-    minHeight: 46,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    ...W.input,
-    borderWidth: 0,
-    paddingLeft: 14,
-    paddingRight: 7,
-  },
-  searchInput: {
-    flex: 1,
-    color: "#1e293b",
-    fontSize: 14,
-    fontWeight: "800",
-    paddingVertical: 12,
   },
   scanBtn: {
     width: 36,
@@ -944,36 +894,14 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cardActionPrimary: {
-    backgroundColor: C.purpleSoft,
-    shadowColor: C.purple,
-    shadowOpacity: 0.38,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
   cardActionMuted: {
     ...NG,
     backgroundColor: "#f8fafc",
     borderWidth: 1,
     borderColor: "#DCE6F5",
   },
-  sortRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
-  },
-  clearBtn: {
-    padding: 4,
-  },
   cardRetired: {
     opacity: 0.6,
-  },
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(15,23,42,0.45)",
-    justifyContent: "flex-end",
   },
   sheet: {
     backgroundColor: "#fff",

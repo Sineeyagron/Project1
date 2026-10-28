@@ -1,50 +1,31 @@
-# Welcome to your Expo app 👋
+# LabHub — IoT Lab Management (มข.)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+แอปจัดการห้องปฏิบัติการ IoT มหาวิทยาลัยขอนแก่น มี 2 ระบบที่แยกกันเด็ดขาด
 
-## Get started
+1. **ระบบยืม-คืนอุปกรณ์** — นักศึกษาสแกน QR ที่ตัวของ → ส่งคำขอยืม/คืน/ยืมต่อ/นัดรับ → ผู้ดูแลอนุมัติ
+2. **ระบบห้องคอม** — ผังห้อง (เครื่องคอม + LAN port), แจ้งปัญหา, งานซ่อม, ตรวจประจำเทอม
 
-1. Install dependencies
+Stack: React Native + Expo (expo-router) + Supabase · ใช้ได้ทั้งแอปมือถือและเว็บ (PWA ที่ labhub-kku.vercel.app)
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## เริ่มใช้งาน
 
 ```bash
-npm run reset-project
+npm install
+npx expo start          # มือถือ (Expo Go) / กด w = เว็บ
+npx tsc --noEmit        # ตรวจ type
+npx expo export -p web  # build เว็บ (Vercel ใช้คำสั่งใน vercel.json)
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## โครงสร้าง
 
-## Learn more
+| โฟลเดอร์ | เก็บอะไร |
+|---|---|
+| `app/` | หน้าจอ (ชื่อไฟล์ = URL ของ expo-router) · `app/admin/` = หน้าผู้ดูแล/TA |
+| `components/` | ชิ้นส่วน UI ใช้ร่วม · `borrow/` ระบบยืม-คืน · `room/` ระบบห้องคอม · `desktop/` แบบจอใหญ่ของหน้า admin |
+| `lib/` | ตรรกะ/ตัวช่วย (ระบบยืม-คืน + ใช้ร่วม) · `room/` ระบบห้องคอม · `web/` เฉพาะเว็บ (PWA, push, ป้ายติดตั้ง) · `shims/` ตัวแทนไลบรารีมือถือบนเว็บ |
+| `supabase/` | migration (SQL ทั้งหมด), Edge Function `send-push`, เทส SQL |
+| `public/` | ไฟล์ PWA (manifest, service worker, ไอคอน) |
+| `scripts/` | `subset-ionicons.js` (ตอน build), `make-web-icons.js`, `backup-db.js` |
+| `docs/` | `DESIGN.md` (ระบบดีไซน์), คู่มือ deploy/ดูแลระบบ, `guides/` คู่มือผู้ใช้, `archive/` เอกสารเก่า |
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+กติกาการเขียนโค้ดทั้งหมดอยู่ใน [`CLAUDE.md`](CLAUDE.md)

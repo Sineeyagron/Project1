@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./AppText";
 import { C, W } from "../lib/theme";
 import { confirmAction, notify } from "../lib/notify";
-import { disablePush, enablePush, getPushState, type PushState } from "../lib/webPush";
+import { disablePush, enablePush, getPushState, type PushState } from "../lib/web/webPush";
 
 // การ์ด "แจ้งเตือนบนเครื่องนี้" ในหน้าแจ้งเตือน — เว็บ/PWA เท่านั้น (แอปมือถือไม่แสดง)
 //   iPhone ที่ยังเปิดใน Safari → บอกวิธีเพิ่มไปยังหน้าจอโฮมก่อน (iOS รับ push ได้เฉพาะแอปหน้าจอโฮม)

@@ -14,11 +14,11 @@ import { useRole } from "../../lib/roles";
 import supabase from "../../lib/supabase";
 import { confirmAction, notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
-import { LAN_STATUS, roomStatus } from "../../lib/roomStatus";
-import LoadError from "../../components/LoadError";
-import { fetchRooms as loadRooms } from "../../lib/rooms";
-import { useRoomLive } from "../../lib/roomRealtime";
-import { W, NG, TOP_INSET } from "../../lib/theme";
+import { LAN_STATUS, roomStatus } from "../../lib/room/roomStatus";
+import LoadError from "../../components/room/LoadError";
+import { fetchRooms as loadRooms } from "../../lib/room/rooms";
+import { useRoomLive } from "../../lib/room/roomRealtime";
+import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
@@ -319,21 +319,6 @@ export default function AdminLanPorts() {
 
 const styles = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingTop: TOP_INSET,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  backBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerText: { flex: 1, color: "#172033", fontSize: 20, fontWeight: "700" },
 
   selectorScroll: { maxHeight: 52 },
   selectorRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
@@ -350,9 +335,6 @@ const styles = StyleSheet.create({
   scroll: { padding: 16 },
 
   statsRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
-  statCard: { ...W.card, flex: 1, padding: 12, borderLeftWidth: 4, alignItems: "center" },
-  statNum: { fontSize: 22, fontWeight: "800" },
-  statLabel: { fontSize: 12, color: "#475569", marginTop: 2 },
 
   hint: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#eff6ff", padding: 10, borderRadius: 10, marginBottom: 12 },
   hintTxt: { fontSize: 12, color: "#1d4ed8" },
@@ -371,7 +353,6 @@ const styles = StyleSheet.create({
   empty: { width: "100%", alignItems: "center", paddingVertical: 40, gap: 10 },
   emptyTxt: { color: "#475569", fontSize: 13 },
 
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   modalBox: { backgroundColor: "#fff", borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20, paddingBottom: 36 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
   modalTitle: { fontSize: 16, fontWeight: "bold", color: "#1e293b" },

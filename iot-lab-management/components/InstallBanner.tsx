@@ -3,9 +3,9 @@ import { Platform, Pressable, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./AppText";
 import { C, W } from "../lib/theme";
-import { dismissInstall, iosSteps, promptInstall, useInstallMode } from "../lib/installApp";
+import { dismissInstall, iosSteps, promptInstall, useInstallMode } from "../lib/web/installApp";
 
-// แถบชวนติดตั้ง LabHub ลอยติดล่างจอ (หน้า login, เว็บมือถือเท่านั้น — ผู้ใช้เลือกแบบ 1 ใน docs/mockups/install-banner-ios26.html · พื้นฟ้า ขึ้นทันที ตามที่ขอ)
+// แถบชวนติดตั้ง LabHub ลอยติดล่างจอ (หน้า login, เว็บมือถือเท่านั้น — ผู้ใช้เลือกแบบ 1 จาก mockup · พื้นฟ้า ขึ้นทันที ตามที่ขอ)
 //   iPhone = บอกขั้นตอน (iOS 26: ≡ → แชร์ → เพิ่มไปยังหน้าจอโฮม / รุ่นเก่า: แชร์ → เพิ่ม...) ชื่อเมนูตามภาษาเครื่อง
 //   Android = ปุ่มติดตั้ง · กด × = ซ่อนจนเปิดครั้งหน้า · แตะช่องพิมพ์ = หลบไปก่อน (ไม่บังตอนกรอก)
 // หน้า login เว้นที่ล่างเท่าแถบ (INSTALL_BANNER_SPACE) เลื่อนขึ้นแล้วเห็นปุ่มครบ

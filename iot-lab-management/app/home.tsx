@@ -7,21 +7,21 @@ import {
   View,
 } from "react-native";
 import SearchBar from "../components/SearchBar";
-import { Text, TextInput } from "../components/AppText";
+import { Text } from "../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { useRefreshOnFocus } from "../lib/nav";
-import LoadError from "../components/LoadError";
-import { Room, fetchRooms as fetchRoomList, roomPlace } from "../lib/rooms";
-import { useRoomLive } from "../lib/roomRealtime";
+import LoadError from "../components/room/LoadError";
+import { Room, fetchRooms as fetchRoomList, roomPlace } from "../lib/room/rooms";
+import { useRoomLive } from "../lib/room/roomRealtime";
 import Svg, { Circle } from "react-native-svg";
 import TabBar from "../components/TabBar";
 import { HeaderButton } from "../components/ScreenHeader";
 import { FadeIn, PressScale } from "../components/Motion";
 import GreetingLine from "../components/GreetingLine";
-import LoanQuickCard from "../components/LoanSummary";
-import StaffPresenceBanner from "../components/StaffPresenceBanner";
+import LoanQuickCard from "../components/borrow/LoanSummary";
+import StaffPresenceBanner from "../components/borrow/StaffPresenceBanner";
 import StatWidget from "../components/StatWidget";
 import { currentUser } from "../lib/session";
 import { isStaffEmail } from "../lib/googleAuth";
@@ -126,10 +126,6 @@ export default function Home() {
       };
     });
   }, [rooms, stations]);
-
-  const runSearch = () => {
-    setActiveSearch(search.trim());
-  };
 
   const filteredRooms = roomSummaries.filter((room) => {
     const query = activeSearch.trim().toLowerCase();
@@ -355,39 +351,9 @@ const s = StyleSheet.create({
     alignItems: "center",
     marginBottom: 16,
   },
-  headerKicker: { color: C.text2, fontSize: 13, marginBottom: 2 },
   headerTitle: { color: C.ink, fontSize: 26, fontWeight: "700", lineHeight: 34, marginTop: 2 },
   headerTitleAccent: { color: C.primary },
   statsRow: { flexDirection: "row", gap: 10, marginBottom: 16 },
-  searchBox: {
-    ...W.input,
-    borderWidth: 0,
-    height: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingLeft: 14,
-    paddingRight: 6,
-    marginBottom: 18,
-  },
-  searchInput: { flex: 1, color: C.ink, fontSize: 15 },
-  clearSearchBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  filterBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 11,
-    backgroundColor: C.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: "0 4px 10px rgba(37,99,235,0.3)",
-  },
   sectionHead: {
     flexDirection: "row",
     alignItems: "flex-end",

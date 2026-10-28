@@ -6,6 +6,13 @@ export const PERSON_COLS = "email, full_name, student_id";
 
 export type Person = { email?: string | null; full_name?: string | null; student_id?: string | null } | null | undefined;
 
+// รหัสนักศึกษา มข. (633021098-9) — พิมพ์ตัวเลขล้วน → ใส่ขีดให้เองหลังหลักที่ 9
+export const STUDENT_ID_RE = /^[0-9]{9}-[0-9]$/;
+export function formatStudentId(raw: string) {
+  const d = raw.replace(/\D/g, "").slice(0, 10);
+  return d.length > 9 ? `${d.slice(0, 9)}-${d.slice(9)}` : d;
+}
+
 export function who(p: Person) {
   if (!p) return "-";
   const name = p.full_name || p.email || "-";

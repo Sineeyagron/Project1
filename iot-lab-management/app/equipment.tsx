@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import SearchBar from "../components/SearchBar";
-import { Text, TextInput } from "../components/AppText";
+import { Text } from "../components/AppText";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
@@ -17,7 +17,7 @@ import { BADGE_TEXT, C, W } from "../lib/theme";
 import TabBar from "../components/TabBar";
 import ScreenHeader from "../components/ScreenHeader";
 import { FadeIn, PressScale } from "../components/Motion";
-import { Group, OTHER, Thumb, availTone, formatDue, iconFor, setSelectedGroup, takePendingAction, toneOf } from "../components/EquipmentParts";
+import { Group, OTHER, Thumb, availTone, formatDue, iconFor, setSelectedGroup, takePendingAction, toneOf } from "../components/borrow/EquipmentParts";
 import LoadingState from "../components/LoadingState";
 
 // หน้าอุปกรณ์ของนักศึกษา (ดูอย่างเดียว — ยืม/คืนทางเดียวคือสแกน QR ที่ตัวของ แผน 2.6)
@@ -293,18 +293,6 @@ const s = StyleSheet.create({
   container: { ...W.page },
 
   search: { marginHorizontal: 16 },
-  searchBox: {
-    ...(W.input as any),
-    marginHorizontal: 16,
-    height: 50,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingLeft: 14,
-    paddingRight: 6,
-  },
-  searchInput: { flex: 1, fontSize: 15, color: C.ink, paddingVertical: 0 },
-  searchAction: { width: 34, height: 34, borderRadius: 17, alignItems: "center", justifyContent: "center", backgroundColor: "#EEF3FB" },
   scanAction: { ...W.primary, flexDirection: "row", alignItems: "center", gap: 5, height: 38, paddingHorizontal: 12, borderRadius: 12 },
   scanActionText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
 

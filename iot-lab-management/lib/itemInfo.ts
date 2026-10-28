@@ -14,6 +14,16 @@ export const thaiDate = (value?: string | null) =>
       })
     : "-";
 
+// วัน + เวลา (เช่น "28 ต.ค. 14:05") — ไม่มีค่า = ว่าง
+export const thaiDateTime = (value?: string | null) =>
+  value ? new Date(value).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+
+// เรียงอุปกรณ์ตามชื่อรหัส แล้วตามเลขจริง (002 ก่อน 010)
+export function compareItems(a: any, b: any) {
+  const byPrefix = (a.item_prefix || a.name || "").localeCompare(b.item_prefix || b.name || "", "th");
+  return byPrefix !== 0 ? byPrefix : (a.item_no || 0) - (b.item_no || 0);
+}
+
 // จำนวนเดือนเต็มนับจากวันที่เพิ่มเข้าระบบ
 export function ageMonths(createdAt?: string | null) {
   if (!createdAt) return 0;
@@ -60,7 +70,7 @@ export const isValidDate = (value: string) => {
 };
 
 // ── ช่องกรอกวันหมดประกันแบบ วว/ดด/ปปปป (ปี พ.ศ.) — ฐานข้อมูลเก็บ ปปปป-ดด-วว (ค.ศ.) เหมือนเดิม ──
-//   ใช้ร่วมกัน: หน้าเพิ่มอุปกรณ์ (admin/scan) + แก้ประกัน (admin/items) ผ่าน components/WarrantyDateField
+//   ใช้ร่วมกัน: หน้าเพิ่มอุปกรณ์ (admin/scan) + แก้ประกัน (admin/items) ผ่าน components/borrow/WarrantyDateField
 const PART_MAX = [2, 2, 4];
 
 // จัดรูประหว่างพิมพ์: ใส่ / ให้เอง (พิมพ์ 31122570 → 31/12/2570), รับเลขไทย, พิมพ์ / . - เองก็ได้

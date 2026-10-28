@@ -8,19 +8,20 @@ import {
   RefreshControl,
 } from "react-native";
 import { Text } from "../components/AppText";
+import HeroChip from "../components/room/HeroChip";
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
-import { fetchRoomPeople } from "../lib/roomPeople";
+import { fetchRoomPeople } from "../lib/room/roomPeople";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
-import { EQUIP_STATUS, LAN_STATUS, STATION_STATUS, naturalNo, roomStatus } from "../lib/roomStatus";
-import LoadError from "../components/LoadError";
-import { Room, fetchRooms, roomPlace } from "../lib/rooms";
+import { EQUIP_STATUS, LAN_STATUS, STATION_STATUS, naturalNo, roomStatus } from "../lib/room/roomStatus";
+import LoadError from "../components/room/LoadError";
+import { Room, fetchRooms, roomPlace } from "../lib/room/rooms";
 import { notify } from "../lib/notify";
 import { currentUser } from "../lib/session";
-import RoomReportForm from "../components/RoomReportForm";
-import { useRoomLive } from "../lib/roomRealtime";
-import { W, gradient, TOP_INSET } from "../lib/theme";
+import RoomReportForm from "../components/room/RoomReportForm";
+import { useRoomLive } from "../lib/room/roomRealtime";
+import { W, gradient } from "../lib/theme";
 import Svg, { Circle } from "react-native-svg";
 import { FadeIn, PressScale } from "../components/Motion";
 import BottomSheet from "../components/BottomSheet";
@@ -164,7 +165,7 @@ export default function RoomMap() {
         .from("room_status_log").select("*").eq("station_id", station.id)
         .order("changed_at", { ascending: false }).limit(5);
       const rows = data || [];
-      // ชื่อผู้เปลี่ยน ("ชื่อ · รหัส นศ." — lib/roomPeople ของระบบห้อง)
+      // ชื่อผู้เปลี่ยน ("ชื่อ · รหัส นศ." — lib/room/roomPeople ของระบบห้อง)
       const ids = [...new Set(rows.map((row: any) => row.changed_by).filter(Boolean))] as string[];
       const names = await fetchRoomPeople(ids);
       setStationLog(rows.map((row: any) => ({ ...row, who: names[row.changed_by] || "ระบบ" })));
@@ -513,55 +514,17 @@ export default function RoomMap() {
   );
 }
 
-function HeroChip({ icon, text }: { icon: keyof typeof Ionicons.glyphMap; text: string }) {
-  return (
-    <View style={s.heroChip}>
-      <Ionicons name={icon} size={12} color="#FFFFFF" />
-      <Text style={s.heroChipTxt}>{text}</Text>
-    </View>
-  );
-}
-
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    paddingTop: TOP_INSET,
-    paddingBottom: 10,
-    marginBottom: 8,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitleBlock: { flex: 1, paddingHorizontal: 10 },
-  headerText: { fontSize: 20, fontWeight: "700", color: "#172033" },
-  headerSub: { color: "#475569", fontSize: 12, marginTop: 1 },
 
-  legend: {
-    flexDirection: "row",
-    gap: 12,
-    marginBottom: 14,
-    alignItems: "center",
-    flexWrap: "wrap",
-    paddingHorizontal: 16,
-    paddingTop: 0,
-  },
   legItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legDot: { width: 10, height: 10, borderRadius: 3 },
   legTxt: { fontSize: 12, color: "#475569" },
-  viewOnly: { marginLeft: "auto", fontSize: 12, color: "#475569" },
 
   scrollContent: { paddingHorizontal: 16 },
 
   board: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 5, height: 34, borderRadius: 12, backgroundColor: "rgba(226,232,240,0.7)", paddingHorizontal: 8 },
   boardTxt: { color: "#475569", fontWeight: "600", fontSize: 11.5 },
-  teacherDesk: { ...W.small, borderRadius: 12, padding: 8, alignItems: "center", marginBottom: 14 },
-  teacherTxt: { color: "#475569", fontSize: 12 },
 
   groupBox: { ...W.card, padding: 10, marginBottom: 12 },
   groupHead: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 },
@@ -576,7 +539,6 @@ const s = StyleSheet.create({
   stBroken: { backgroundColor: "#FEF2F2", borderColor: "#FECACA" },
   statusLight: { position: "absolute", bottom: 5, width: 16, height: 3, borderRadius: 2 },
   stationName: { fontSize: 12, fontWeight: "700", marginBottom: 4 },
-  stationSub: { fontSize: 9, fontWeight: "700" },
   equipWarnDot: {
     position: "absolute", top: 4, right: 4,
     width: 7, height: 7, borderRadius: 4, backgroundColor: "#f97316",
@@ -592,7 +554,6 @@ const s = StyleSheet.create({
   empty: { padding: 40, alignItems: "center", gap: 10 },
   emptyTxt: { color: "#475569", fontSize: 14 },
 
-  modalOverlay: { flex: 1, backgroundColor: "rgba(23,32,51,0.4)", justifyContent: "flex-end" },
   modalBox: { ...W.sheet, padding: 20, paddingBottom: 36 },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 },
   modalTitle: { fontSize: 20, fontWeight: "700", color: "#172033" },
@@ -635,8 +596,6 @@ const s = StyleSheet.create({
   heroNum: { color: "#FFFFFF", fontSize: 40, fontWeight: "700", lineHeight: 50 },
   heroOf: { color: "rgba(255,255,255,0.8)", fontSize: 15, fontWeight: "600" },
   heroStats: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 },
-  heroChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.18)" },
-  heroChipTxt: { color: "#FFFFFF", fontSize: 11.5, fontWeight: "600" },
   heroRing: { width: 74, height: 74, alignItems: "center", justifyContent: "center" },
   heroPct: { position: "absolute", color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
   toolRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },

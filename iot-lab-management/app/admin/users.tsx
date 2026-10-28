@@ -10,16 +10,15 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import SearchBar from "../../components/SearchBar";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
 import { confirmAction, notify, pickOption } from "../../lib/notify";
 import { isStaffEmail } from "../../lib/googleAuth";
 import { useRole } from "../../lib/roles";
-import { W, TOP_INSET } from "../../lib/theme";
+import { W } from "../../lib/theme";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
-import { isMissingColumn } from "../../lib/people";
+import { STUDENT_ID_RE, formatStudentId, isMissingColumn } from "../../lib/people";
 import LoadingState from "../../components/LoadingState";
 
 // จัดการผู้ใช้: รหัสนักศึกษา (admin แก้ให้ได้ ตอน นศ. กรอกผิด — นศ. ตั้งเองได้ครั้งเดียว) + ตั้งสิทธิ์ ผู้ใช้ / TA / admin
@@ -58,12 +57,6 @@ const initial = (p: Profile) => {
   return (/^[เแโใไ]/.test(src) ? src.slice(0, 2) : src.charAt(0)).toUpperCase();
 };
 
-// พิมพ์ตัวเลขล้วน → ใส่ขีดให้เองหลังหลักที่ 9 (รูปแบบ มข. 633021098-9)
-const formatId = (raw: string) => {
-  const d = raw.replace(/\D/g, "").slice(0, 10);
-  return d.length > 9 ? `${d.slice(0, 9)}-${d.slice(9)}` : d;
-};
-
 type Role = "user" | "ta" | "admin";
 const ROLES: Role[] = ["user", "ta", "admin"];
 const ROLE_NAME: Record<Role, string> = { user: "ผู้ใช้ทั่วไป", ta: "TA (ผู้ช่วย)", admin: "ผู้ดูแลระบบ (admin)" };
@@ -73,7 +66,6 @@ const CANNOT = ["เพิ่ม / แก้ / จำหน่ายอุปก
 
 export default function ManageTA() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
-  const router = useRouter();
   const { userId } = useRole();
   const [people, setPeople] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,7 +147,7 @@ export default function ManageTA() {
   // แก้รหัส นศ. (admin) — เว้นว่าง = ล้างรหัส ให้ นศ. กรอกใหม่เอง
   const saveStudentId = async (p: Profile) => {
     const value = editValue.trim();
-    if (value && !/^[0-9]{9}-[0-9]$/.test(value)) {
+    if (value && !STUDENT_ID_RE.test(value)) {
       notify("รูปแบบรหัสไม่ถูกต้อง", "ต้องเป็นเลข 9 หลัก ขีด แล้วเลข 1 หลัก เช่น 633021098-9");
       return;
     }
@@ -278,7 +270,7 @@ export default function ManageTA() {
                   <TextInput
                     style={s.editInput}
                     value={editValue}
-                    onChangeText={(t) => setEditValue(formatId(t))}
+                    onChangeText={(t) => setEditValue(formatStudentId(t))}
                     placeholder="633021098-9 (ว่าง = ล้าง)"
                     placeholderTextColor={C.faint}
                     keyboardType="number-pad"
@@ -361,22 +353,6 @@ const s = StyleSheet.create({
   colMain: { flex: 1.5, gap: 8, minWidth: 0 },
   colSide: { flex: 1, gap: 8, minWidth: 0 },
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingTop: TOP_INSET,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
   card: { ...W.card, padding: 14, gap: 8 },
   cardTitle: { fontSize: 15, fontWeight: "900", color: C.ink, marginBottom: 2 },
@@ -414,17 +390,6 @@ const s = StyleSheet.create({
   roleText: { color: C.purple, fontSize: 13.5, fontWeight: "800" },
   nameRow: { flexDirection: "row", alignItems: "center", gap: 6, minWidth: 0 },
   staffBadge: { flexShrink: 0, fontSize: 11, fontWeight: "800", color: "#7C3AED", backgroundColor: "#F3E8FF", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, overflow: "hidden" },
-  searchWrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    borderWidth: 1,
-    borderColor: C.line,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    backgroundColor: "#f8fafc",
-  },
-  searchInput: { flex: 1, paddingVertical: 11, fontSize: 15, color: C.ink },
   empty: { fontSize: 13, color: C.faint, paddingVertical: 6 },
   hint: { fontSize: 12, color: C.faint, marginTop: 4 },
   sub: { fontSize: 12, color: C.muted, marginTop: 1 },

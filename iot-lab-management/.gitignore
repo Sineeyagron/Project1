@@ -52,3 +52,7 @@ assets/fonts/Ionicons.web.ttf
 
 # สำรองข้อมูลจาก scripts/backup-db.js (มีข้อมูลส่วนตัวผู้ใช้ ห้ามขึ้น git)
 backups/
+
+# log/ค่าส่วนตัวของเครื่อง dev (ไม่ขึ้น git)
+.expo-codex-logs/
+.claude/settings.local.json

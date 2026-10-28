@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { Text } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { fetchPeople, who } from "../../lib/people";
 import { currentUser } from "../../lib/session";
@@ -29,10 +28,10 @@ import {
   thDate,
   todayBkk,
 } from "../../lib/report";
-import { W, NG, gradient, tint, TOP_INSET } from "../../lib/theme";
+import { W, NG, gradient, tint } from "../../lib/theme";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
-import RangeCalendarSheet from "../../components/RangeCalendarSheet";
+import RangeCalendarSheet from "../../components/borrow/RangeCalendarSheet";
 import { thaiShort } from "../../lib/calendar";
 import LoadingState from "../../components/LoadingState";
 
@@ -84,7 +83,6 @@ async function fetchAll(page: (from: number) => PromiseLike<{ data: any[] | null
 
 export default function BorrowReport() {
   const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → กว้าง + อันดับ 3 คอลัมน์
-  const router = useRouter();
   const [preset, setPreset] = useState<PresetKey>("30d");
   const [customFrom, setCustomFrom] = useState(addDays(todayBkk(), -29));
   const [customTo, setCustomTo] = useState(todayBkk());
@@ -199,27 +197,6 @@ export default function BorrowReport() {
       setExporting(null);
     }
   };
-
-  const Stat = ({ label, value, color }: { label: string; value: string | number; color?: string }) => (
-    <View style={[st.stat, gradient(`linear-gradient(160deg, #FFFFFF 0%, ${tint(color || "#2563EB")} 100%)`)]}>
-      <Text style={[st.statNum, color ? { color } : null]}>{value}</Text>
-      <Text style={st.statLabel}>{label}</Text>
-    </View>
-  );
-
-  const TopList = ({ title, items }: { title: string; items: [string, number][] }) => (
-    <View style={st.card}>
-      <Text style={st.cardTitle}>{title}</Text>
-      {items.length === 0 && <Text style={st.empty}>-</Text>}
-      {items.map(([name, n], i) => (
-        <View key={name} style={st.topRow}>
-          <Text style={st.topRank}>{i + 1}</Text>
-          <Text style={st.topName} numberOfLines={1}>{name}</Text>
-          <Text style={st.topCount}>{n}</Text>
-        </View>
-      ))}
-    </View>
-  );
 
   return (
     <KeyboardAvoidingView style={st.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -351,24 +328,29 @@ export default function BorrowReport() {
   );
 }
 
+const Stat = ({ label, value, color }: { label: string; value: string | number; color?: string }) => (
+  <View style={[st.stat, gradient(`linear-gradient(160deg, #FFFFFF 0%, ${tint(color || "#2563EB")} 100%)`)]}>
+    <Text style={[st.statNum, color ? { color } : null]}>{value}</Text>
+    <Text style={st.statLabel}>{label}</Text>
+  </View>
+);
+
+const TopList = ({ title, items }: { title: string; items: [string, number][] }) => (
+  <View style={st.card}>
+    <Text style={st.cardTitle}>{title}</Text>
+    {items.length === 0 && <Text style={st.empty}>-</Text>}
+    {items.map(([name, n], i) => (
+      <View key={name} style={st.topRow}>
+        <Text style={st.topRank}>{i + 1}</Text>
+        <Text style={st.topName} numberOfLines={1}>{name}</Text>
+        <Text style={st.topCount}>{n}</Text>
+      </View>
+    ))}
+  </View>
+);
+
 const st = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  header: { ...W.headerBar,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingTop: TOP_INSET,
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    marginBottom: 8,
-  },
-  iconBtn: {
-    ...W.iconBtn,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: { color: "#172033", fontSize: 21, fontWeight: "900" },
-  headerSub: { color: "#475569", fontSize: 12, fontWeight: "700", marginTop: 2 },
   body: { padding: 16, gap: 10, paddingBottom: 40 },
   cols3: { flexDirection: "row", gap: 14, alignItems: "flex-start" },
   col: { flex: 1, minWidth: 0 },

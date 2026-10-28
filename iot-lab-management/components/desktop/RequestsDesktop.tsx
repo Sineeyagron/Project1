@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Text, TextInput } from "../AppText";
-import Countdown from "../Countdown";
-import PickupInbox from "../PickupInbox";
+import Countdown from "../borrow/Countdown";
+import PickupInbox from "../borrow/PickupInbox";
 import { who } from "../../lib/people";
+import { thaiDate, thaiDateTime } from "../../lib/itemInfo";
 import { photoStamp } from "../../lib/borrowPhotos";
 import { Role } from "../../lib/roles";
 import { C } from "../../lib/theme";
@@ -40,11 +41,6 @@ type Props = {
   KIND: Record<string, Pill>;
   RESULT: Record<string, Pill>;
 };
-
-const thaiDate = (v?: string | null) =>
-  v ? new Date(`${v}T00:00:00`).toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "numeric" }) : "-";
-const thaiDateTime = (v?: string | null) =>
-  v ? new Date(v).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
 
 export default function RequestsDesktop(p: Props) {
   const list = p.tab === "pending" ? p.pending : p.history;
@@ -87,30 +83,6 @@ export default function RequestsDesktop(p: Props) {
   const d = p.decision && sel && p.decision.req.id === sel.id ? p.decision : null;
   const patch = (x: Partial<Decision>) => d && p.setDecision({ ...d, ...x });
 
-  const Photo = ({ path, code, at, label }: { path?: string; code?: string; at?: string; label: string }) => {
-    const url = path ? p.photoUrls[path] : null;
-    const stamp = photoStamp(code, at);
-    return (
-      <View style={{ flex: 1, gap: 6 }}>
-        <Text style={s.photoLabel}>{label}</Text>
-        {url ? (
-          <Pressable onPress={() => p.onZoom({ url, stamp })} accessibilityLabel={`ขยายรูป${label}`}>
-            <Image source={{ uri: url }} style={s.photo} />
-            <Text style={s.stamp} numberOfLines={1}>{stamp}</Text>
-          </Pressable>
-        ) : (
-          <View style={[s.photo, s.photoEmpty]}><Ionicons name="image-outline" size={26} color="#94A3B8" /></View>
-        )}
-      </View>
-    );
-  };
-
-  const TabBtn = ({ k, label }: { k: Props["tab"]; label: string }) => (
-    <Pressable onPress={() => p.setTab(k)} style={({ hovered }: any) => [s.tab, p.tab === k && s.tabOn, hovered && p.tab !== k && s.hover]}>
-      <Text style={[s.tabText, p.tab === k && s.tabTextOn]}>{label}</Text>
-    </Pressable>
-  );
-
   return (
     <View style={s.page}>
       <View style={s.head}>
@@ -118,9 +90,9 @@ export default function RequestsDesktop(p: Props) {
           <Text style={s.title}>กล่องคำขอ</Text>
           <Text style={s.sub}>ยืม · คืน · ยืมต่อ · นัดรับ ที่นักศึกษาส่งมา</Text>
         </View>
-        <TabBtn k="pending" label={`รอดำเนินการ (${p.pending.length})`} />
-        <TabBtn k="pickup" label={`นัดรับ (${p.pickupCount})`} />
-        <TabBtn k="history" label="ประวัติ" />
+        <TabBtn tab={p.tab} setTab={p.setTab} k="pending" label={`รอดำเนินการ (${p.pending.length})`} />
+        <TabBtn tab={p.tab} setTab={p.setTab} k="pickup" label={`นัดรับ (${p.pickupCount})`} />
+        <TabBtn tab={p.tab} setTab={p.setTab} k="history" label="ประวัติ" />
         <Pressable onPress={p.onReload} style={({ hovered }: any) => [s.iconBtn, hovered && s.hover]} accessibilityLabel="รีเฟรช">
           <Ionicons name="refresh" size={18} color={C.primaryDark} />
         </Pressable>
@@ -220,9 +192,9 @@ export default function RequestsDesktop(p: Props) {
 
                 {sel.kind !== "renew" ? (
                   <View style={s.photos}>
-                    <Photo path={sel.photo_path} code={sel.items?.item_code} at={sel.created_at} label={sel.kind === "return" ? "รูปตอนคืน" : "รูปตอนขอยืม"} />
+                    <Photo photoUrls={p.photoUrls} onZoom={p.onZoom} path={sel.photo_path} code={sel.items?.item_code} at={sel.created_at} label={sel.kind === "return" ? "รูปตอนคืน" : "รูปตอนขอยืม"} />
                     {sel.kind === "return" && sel.record?.borrow_photo_path ? (
-                      <Photo path={sel.record.borrow_photo_path} code={sel.items?.item_code} at={sel.record.borrow_date} label="เทียบรูปตอนยืม" />
+                      <Photo photoUrls={p.photoUrls} onZoom={p.onZoom} path={sel.record.borrow_photo_path} code={sel.items?.item_code} at={sel.record.borrow_date} label="เทียบรูปตอนยืม" />
                     ) : null}
                   </View>
                 ) : null}
@@ -295,6 +267,30 @@ export default function RequestsDesktop(p: Props) {
     </View>
   );
 }
+
+const Photo = ({ path, code, at, label, photoUrls, onZoom }: { path?: string; code?: string; at?: string; label: string; photoUrls: Props["photoUrls"]; onZoom: Props["onZoom"] }) => {
+  const url = path ? photoUrls[path] : null;
+  const stamp = photoStamp(code, at);
+  return (
+    <View style={{ flex: 1, gap: 6 }}>
+      <Text style={s.photoLabel}>{label}</Text>
+      {url ? (
+        <Pressable onPress={() => onZoom({ url, stamp })} accessibilityLabel={`ขยายรูป${label}`}>
+          <Image source={{ uri: url }} style={s.photo} />
+          <Text style={s.stamp} numberOfLines={1}>{stamp}</Text>
+        </Pressable>
+      ) : (
+        <View style={[s.photo, s.photoEmpty]}><Ionicons name="image-outline" size={26} color="#94A3B8" /></View>
+      )}
+    </View>
+  );
+};
+
+const TabBtn = ({ k, label, tab, setTab }: { k: Props["tab"]; label: string; tab: Props["tab"]; setTab: Props["setTab"] }) => (
+  <Pressable onPress={() => setTab(k)} style={({ hovered }: any) => [s.tab, tab === k && s.tabOn, hovered && tab !== k && s.hover]}>
+    <Text style={[s.tabText, tab === k && s.tabTextOn]}>{label}</Text>
+  </Pressable>
+);
 
 const s = StyleSheet.create({
   page: { flex: 1, paddingHorizontal: DESKTOP_GUTTER, paddingTop: 28, paddingBottom: 28, maxWidth: DESKTOP_MAX, width: "100%", alignSelf: "center", gap: 18 },
