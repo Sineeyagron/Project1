@@ -15,7 +15,7 @@ import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { W, TOP_INSET } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import SearchBar from "../../components/SearchBar";
-import TimelineDays from "../../components/TimelineDays";
+import TimelineDays from "../../components/borrow/TimelineDays";
 import TimelineTable from "../../components/desktop/TimelineTable";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import { PAGE_DAYS, TimelineFilter, buildEvents, filterEvents, groupByDay, sinceIso } from "../../lib/timeline";

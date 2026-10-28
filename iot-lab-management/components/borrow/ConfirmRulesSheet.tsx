@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Text } from "./AppText";
-import BottomSheet from "./BottomSheet";
-import { fetchBorrowRules } from "../lib/borrowRules";
-import { C, W, NG } from "../lib/theme";
+import { Text } from "../AppText";
+import BottomSheet from "../BottomSheet";
+import { fetchBorrowRules } from "../../lib/borrowRules";
+import { C, W, NG } from "../../lib/theme";
 
 // F1 ป๊อปอัปยืนยันก่อนส่ง ขอยืม / ขอคืน / ขอยืมต่อ (ระบบยืม-คืน)
 // กฎชุดเดียวกันทุกแบบ · ต้องติ๊กยอมรับก่อนกดยืนยัน (ไม่จำค่าติ๊กข้ามครั้ง) — ด่านจริงอยู่ใน RPC

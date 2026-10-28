@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Text } from "./AppText";
-import BottomSheet from "./BottomSheet";
+import { Text } from "../AppText";
+import BottomSheet from "../BottomSheet";
 import {
   DateRange,
   EditSide,
@@ -16,8 +16,8 @@ import {
   pickDay,
   shiftMonth,
   thaiShort,
-} from "../lib/calendar";
-import { C, W, NG } from "../lib/theme";
+} from "../../lib/calendar";
+import { C, W, NG } from "../../lib/theme";
 
 // ปฏิทินเลือกช่วงวันที่ (แผ่นเลื่อนจากล่าง) — ใช้ซ้ำได้ทุกหน้า (ไม่ผูกระบบยืมหรือระบบห้อง) · ตรรกะอยู่ใน lib/calendar.ts
 //   ช่อง วันเริ่ม | วันสิ้นสุด ด้านบน = กำลังแก้ช่องไหน (แก้ค้างไว้ ไม่เด้งเอง แตะสลับได้) · แตะวันเดิมซ้ำ = 1 วัน

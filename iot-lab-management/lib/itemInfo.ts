@@ -70,7 +70,7 @@ export const isValidDate = (value: string) => {
 };
 
 // ── ช่องกรอกวันหมดประกันแบบ วว/ดด/ปปปป (ปี พ.ศ.) — ฐานข้อมูลเก็บ ปปปป-ดด-วว (ค.ศ.) เหมือนเดิม ──
-//   ใช้ร่วมกัน: หน้าเพิ่มอุปกรณ์ (admin/scan) + แก้ประกัน (admin/items) ผ่าน components/WarrantyDateField
+//   ใช้ร่วมกัน: หน้าเพิ่มอุปกรณ์ (admin/scan) + แก้ประกัน (admin/items) ผ่าน components/borrow/WarrantyDateField
 const PART_MAX = [2, 2, 4];
 
 // จัดรูประหว่างพิมพ์: ใส่ / ให้เอง (พิมพ์ 31122570 → 31/12/2570), รับเลขไทย, พิมพ์ / . - เองก็ได้

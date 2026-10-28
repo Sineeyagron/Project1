@@ -31,7 +31,7 @@ import {
 import { W, NG, gradient, tint } from "../../lib/theme";
 import { desktopBody, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
-import RangeCalendarSheet from "../../components/RangeCalendarSheet";
+import RangeCalendarSheet from "../../components/borrow/RangeCalendarSheet";
 import { thaiShort } from "../../lib/calendar";
 import LoadingState from "../../components/LoadingState";
 

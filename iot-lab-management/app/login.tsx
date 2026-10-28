@@ -20,7 +20,7 @@ import { notify } from "../lib/notify";
 import { getAllowedDomains, isAllowedEmail, isStaffEmail, isUniEmail as isUniAddress, oauthReturned, signInWithGoogle, uniEmailTypoFix, webRedirectError } from "../lib/googleAuth";
 import { W, NG, TOP_INSET } from "../lib/theme";
 import InstallBanner, { INSTALL_BANNER_SPACE } from "../components/InstallBanner";
-import { useInstallMode } from "../lib/installApp";
+import { useInstallMode } from "../lib/web/installApp";
 
 const KKU = { brick: "#A8341C", orange: "#D97A1E", shadow: "#7A2412" };
 

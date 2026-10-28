@@ -11,7 +11,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         {/* maximum-scale=1: iPhone ไม่ซูมหน้าเองตอนแตะช่องพิมพ์ (ตัวอักษรเล็กกว่า 16px) — ยังถ่างนิ้วซูมได้ */}
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" />
-        {/* PWA: ติดตั้งเป็นแอปได้ (public/manifest.webmanifest + public/sw.js — ลงทะเบียน SW ที่ lib/webPush) */}
+        {/* PWA: ติดตั้งเป็นแอปได้ (public/manifest.webmanifest + public/sw.js — ลงทะเบียน SW ที่ lib/web/webPush) */}
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="theme-color" content="#2563EB" />
         <meta name="application-name" content="LabHub" />

@@ -1,11 +1,11 @@
 import React, { useRef, useState } from "react";
 import { ActivityIndicator, StyleSheet, TouchableOpacity, View, ViewStyle, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Text } from "./AppText";
-import { Pulse } from "./Motion";
-import { PRESENCE_ROLE, PresentStaff, checkinTime, staffCheckIn, staffCheckOut } from "../lib/presence";
-import { notify } from "../lib/notify";
-import { C, W, gradient } from "../lib/theme";
+import { Text } from "../AppText";
+import { Pulse } from "../Motion";
+import { PRESENCE_ROLE, PresentStaff, checkinTime, staffCheckIn, staffCheckOut } from "../../lib/presence";
+import { notify } from "../../lib/notify";
+import { C, W, gradient } from "../../lib/theme";
 
 // F4 การ์ดบนแดชบอร์ด Admin/TA แบบแถบเดียว (ย่อจาก ~190px ให้กล่องคำขอ/ทางลัดขึ้นมาใกล้ขึ้น — เจ้าของโปรเจกต์เลือก 11 ต.ค. 2569)
 //   ยังไม่เช็กอิน: การ์ดส้มอำพันเต็มใบ + ไอคอนหมุดมีวงชีพจร + ปุ่มขาว "เช็กอิน" — ชวนกดตอนเข้ามา

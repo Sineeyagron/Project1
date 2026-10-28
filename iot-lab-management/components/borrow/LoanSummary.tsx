@@ -2,13 +2,13 @@ import React, { useCallback, useEffect, useState } from "react";
 import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { Text } from "./AppText";
-import { PressScale } from "./Motion";
-import supabase from "../lib/supabase";
-import { currentUser } from "../lib/session";
-import { useRefreshOnFocus } from "../lib/nav";
-import { useRealtime } from "../lib/realtime";
-import { C, iconDot } from "../lib/theme";
+import { Text } from "../AppText";
+import { PressScale } from "../Motion";
+import supabase from "../../lib/supabase";
+import { currentUser } from "../../lib/session";
+import { useRefreshOnFocus } from "../../lib/nav";
+import { useRealtime } from "../../lib/realtime";
+import { C, iconDot } from "../../lib/theme";
 
 // ช่อง "การยืมของฉัน" ในลิงก์ด่วนหน้าแรกนักศึกษา (ระบบยืม — แยกจากส่วนการ์ดห้องในหน้าแรก)
 // ขนาด/หน้าตาเท่าช่องลิงก์ด่วนอื่น บอกสถานะสั้น ๆ + สีตามความเร่ง:

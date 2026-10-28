@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { Text } from "./AppText";
+import { Text } from "../AppText";
 import { Ionicons } from "@expo/vector-icons";
 
 // แถบแจ้ง "โหลดไม่สำเร็จ" + ปุ่มลองใหม่

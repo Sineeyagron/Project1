@@ -17,7 +17,7 @@ import { ITEM_PHOTO_MAX, shrinkPhoto } from "../../lib/shrinkPhoto";
 import supabase from "../../lib/supabase";
 import { goBack as navBack } from "../../lib/nav";
 import { parseThaiDate } from "../../lib/itemInfo";
-import WarrantyDateField, { warrantyBlocked } from "../../components/WarrantyDateField";
+import WarrantyDateField, { warrantyBlocked } from "../../components/borrow/WarrantyDateField";
 import { notify } from "../../lib/notify";
 import { C, W, NG, gradient } from "../../lib/theme";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

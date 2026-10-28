@@ -17,7 +17,7 @@ import { BADGE_TEXT, C, W } from "../lib/theme";
 import TabBar from "../components/TabBar";
 import ScreenHeader from "../components/ScreenHeader";
 import { FadeIn, PressScale } from "../components/Motion";
-import { Group, OTHER, Thumb, availTone, formatDue, iconFor, setSelectedGroup, takePendingAction, toneOf } from "../components/EquipmentParts";
+import { Group, OTHER, Thumb, availTone, formatDue, iconFor, setSelectedGroup, takePendingAction, toneOf } from "../components/borrow/EquipmentParts";
 import LoadingState from "../components/LoadingState";
 
 // หน้าอุปกรณ์ของนักศึกษา (ดูอย่างเดียว — ยืม/คืนทางเดียวคือสแกน QR ที่ตัวของ แผน 2.6)

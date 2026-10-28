@@ -18,8 +18,8 @@ import { currentUser } from "../lib/session";
 import { notify, confirmAction } from "../lib/notify";
 import { canTakeLivePhoto, takeLivePhoto, uploadBorrowPhoto } from "../lib/borrowPhotos";
 import { thaiDate } from "../lib/itemInfo";
-import Countdown from "../components/Countdown";
-import ConfirmRulesSheet, { SummaryRow } from "../components/ConfirmRulesSheet";
+import Countdown from "../components/borrow/Countdown";
+import ConfirmRulesSheet, { SummaryRow } from "../components/borrow/ConfirmRulesSheet";
 import { W, NG, C as TC } from "../lib/theme";
 import ScreenHeader from "../components/ScreenHeader";
 

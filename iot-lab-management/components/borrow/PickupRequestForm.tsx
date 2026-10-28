@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, LayoutChangeEvent, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Text, TextInput } from "./AppText";
+import { Text, TextInput } from "../AppText";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import supabase from "../lib/supabase";
-import { fetchBorrowRules } from "../lib/borrowRules";
-import { notify } from "../lib/notify";
-import { C, W, NG } from "../lib/theme";
+import supabase from "../../lib/supabase";
+import { fetchBorrowRules } from "../../lib/borrowRules";
+import { notify } from "../../lib/notify";
+import { C, W, NG } from "../../lib/theme";
 
 // F2 ขอยืมแบบนัดรับ (ระบบยืม-คืน): เลือกรุ่นจากหน้าอุปกรณ์ ไม่ต้องสแกน → ผู้ดูแลนัดเวลาให้
 // กติกาทั้งหมดอยู่ใน RPC request_pickup (โควตา / ของว่างหลังหักนัด / ซ้ำ)

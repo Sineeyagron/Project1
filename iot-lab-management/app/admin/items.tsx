@@ -19,7 +19,7 @@ import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
 import { compareItems, parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
-import WarrantyDateField, { warrantyBlocked } from "../../components/WarrantyDateField";
+import WarrantyDateField, { warrantyBlocked } from "../../components/borrow/WarrantyDateField";
 import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";

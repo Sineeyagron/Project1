@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import { ActivityIndicator, StyleSheet, TouchableOpacity, View } from "react-native";
-import { Text, TextInput } from "./AppText";
+import { Text, TextInput } from "../AppText";
 import { Ionicons } from "@expo/vector-icons";
-import supabase from "../lib/supabase";
-import { notify } from "../lib/notify";
+import supabase from "../../lib/supabase";
+import { notify } from "../../lib/notify";
 
 // ฟอร์มแจ้งปัญหาเครื่องคอม / LAN port (ระบบห้อง R3) — ใช้ในผังห้อง
 // เรียก RPC report_room_problem: ฐานข้อมูลกันแจ้งซ้ำ (เรื่องเดิมยังค้าง) + จำกัด 5 ครั้งต่อวัน + แจ้ง Admin/TA

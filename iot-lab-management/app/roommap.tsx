@@ -12,15 +12,15 @@ import HeroChip from "../components/room/HeroChip";
 import { useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../lib/supabase";
-import { fetchRoomPeople } from "../lib/roomPeople";
+import { fetchRoomPeople } from "../lib/room/roomPeople";
 import { goBack, useRefreshOnFocus } from "../lib/nav";
-import { EQUIP_STATUS, LAN_STATUS, STATION_STATUS, naturalNo, roomStatus } from "../lib/roomStatus";
-import LoadError from "../components/LoadError";
-import { Room, fetchRooms, roomPlace } from "../lib/rooms";
+import { EQUIP_STATUS, LAN_STATUS, STATION_STATUS, naturalNo, roomStatus } from "../lib/room/roomStatus";
+import LoadError from "../components/room/LoadError";
+import { Room, fetchRooms, roomPlace } from "../lib/room/rooms";
 import { notify } from "../lib/notify";
 import { currentUser } from "../lib/session";
-import RoomReportForm from "../components/RoomReportForm";
-import { useRoomLive } from "../lib/roomRealtime";
+import RoomReportForm from "../components/room/RoomReportForm";
+import { useRoomLive } from "../lib/room/roomRealtime";
 import { W, gradient } from "../lib/theme";
 import Svg, { Circle } from "react-native-svg";
 import { FadeIn, PressScale } from "../components/Motion";
@@ -165,7 +165,7 @@ export default function RoomMap() {
         .from("room_status_log").select("*").eq("station_id", station.id)
         .order("changed_at", { ascending: false }).limit(5);
       const rows = data || [];
-      // ชื่อผู้เปลี่ยน ("ชื่อ · รหัส นศ." — lib/roomPeople ของระบบห้อง)
+      // ชื่อผู้เปลี่ยน ("ชื่อ · รหัส นศ." — lib/room/roomPeople ของระบบห้อง)
       const ids = [...new Set(rows.map((row: any) => row.changed_by).filter(Boolean))] as string[];
       const names = await fetchRoomPeople(ids);
       setStationLog(rows.map((row: any) => ({ ...row, who: names[row.changed_by] || "ระบบ" })));

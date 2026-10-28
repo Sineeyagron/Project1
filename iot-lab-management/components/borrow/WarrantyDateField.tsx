@@ -1,9 +1,9 @@
 import React from "react";
 import { StyleProp, StyleSheet, TextStyle, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Text, TextInput } from "./AppText";
-import { addYears, maskThaiDate, parseThaiDate, thaiDate, toThaiDateInput } from "../lib/itemInfo";
-import { C } from "../lib/theme";
+import { Text, TextInput } from "../AppText";
+import { addYears, maskThaiDate, parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
+import { C } from "../../lib/theme";
 
 // ช่องวันหมดประกันแบบ วว/ดด/ปปปป (ปี พ.ศ.) — ใช้ที่หน้าเพิ่มอุปกรณ์ + แก้ประกัน ให้เหมือนกันทุกที่
 //   value = ข้อความในช่อง (ไม่ใช่ค่าฐานข้อมูล) → แปลงเป็น ปปปป-ดด-วว ด้วย parseThaiDate ตอนบันทึก

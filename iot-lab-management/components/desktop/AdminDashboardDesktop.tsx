@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Text } from "../AppText";
 import GreetingLine from "../GreetingLine";
-import StaffCheckInCard from "../StaffCheckInCard";
+import StaffCheckInCard from "../borrow/StaffCheckInCard";
 import supabase from "../../lib/supabase";
 import { fetchPeople, who } from "../../lib/people";
 import { useRealtime } from "../../lib/realtime";

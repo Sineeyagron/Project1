@@ -1,5 +1,5 @@
 import { Platform } from "react-native";
-import supabase, { SUPABASE_URL } from "./supabase";
+import supabase, { SUPABASE_URL } from "../supabase";
 
 // PWA + Web Push (เว็บเท่านั้น — แอปมือถือทุกฟังก์ชันในไฟล์นี้ไม่ทำอะไร)
 //   service worker = public/sw.js / ส่ง push = Edge Function send-push / ตาราง = push_subscriptions

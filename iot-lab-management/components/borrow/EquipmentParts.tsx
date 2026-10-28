@@ -2,7 +2,7 @@ import React from "react";
 import { View } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { C, gradient } from "../lib/theme";
+import { C, gradient } from "../../lib/theme";
 
 // ชิ้นส่วนที่ใช้ร่วมระหว่างหน้าอุปกรณ์ (app/equipment.tsx) กับแผ่นรายละเอียดรุ่น (app/equipment-sheet.tsx) — ระบบยืม-คืน
 

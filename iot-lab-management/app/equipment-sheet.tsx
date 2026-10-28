@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Text } from "../components/AppText";
 import { PressScale } from "../components/Motion";
-import { Thumb, availTone, formatDue, getSelectedGroup, setPendingAction } from "../components/EquipmentParts";
+import { Thumb, availTone, formatDue, getSelectedGroup, setPendingAction } from "../components/borrow/EquipmentParts";
 import { ITEM_STATUS } from "../lib/status";
 import { useSheetFit } from "../lib/sheetFit";
 import { C, W } from "../lib/theme";

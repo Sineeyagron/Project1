@@ -301,7 +301,7 @@ export default function AdminSettings() {
       {loading ? (
         <LoadingState style={{ marginTop: 44 }} />
       ) : loadError ? (
-        // แถบลองใหม่ของหน้านี้เอง (components/LoadError เป็นของระบบห้อง ระบบยืมห้าม import)
+        // แถบลองใหม่ของหน้านี้เอง (components/room/LoadError เป็นของระบบห้อง ระบบยืมห้าม import)
         <View style={s.errorBox}>
           <Ionicons name="cloud-offline-outline" size={20} color="#b91c1c" />
           <View style={{ flex: 1 }}>

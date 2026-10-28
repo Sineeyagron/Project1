@@ -3,7 +3,7 @@ import { File as FSFile, Paths } from "expo-file-system";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { toCsv } from "./csv";
-import { isStandalone } from "./webPush";
+import { isStandalone } from "./web/webPush";
 
 // ส่งออกไฟล์: เว็บคอม = ดาวน์โหลด / เปิดหน้าพิมพ์ในแท็บใหม่ · มือถือ (แอป) = สร้างไฟล์แล้วเปิดเมนูแชร์ (LINE, อีเมล, Files, Drive)
 // เว็บบนมือถือ / แอปที่ติดตั้ง (PWA): ไม่มีแถบเบราว์เซอร์ให้กดย้อน → แท็บใหม่/ไฟล์ที่เปิดเต็มจอ = ค้างออกไม่ได้

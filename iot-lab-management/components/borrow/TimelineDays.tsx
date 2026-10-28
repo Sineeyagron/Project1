@@ -1,9 +1,9 @@
 import React from "react";
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Text } from "./AppText";
-import { DayGroup, EVENT_STYLE, bkkTime } from "../lib/timeline";
-import { C, W } from "../lib/theme";
+import { Text } from "../AppText";
+import { DayGroup, EVENT_STYLE, bkkTime } from "../../lib/timeline";
+import { C, W } from "../../lib/theme";
 
 // F3 รายการประวัติจัดกลุ่มตามวัน (ระบบยืม-คืน) ใช้ร่วมหน้า นศ. + Admin
 // 1 วัน = การ์ดเดียว แถวคั่นเส้นบาง (ไม่ใช่การ์ดต่อแถว) · person = บรรทัด "ชื่อ · รหัส นศ." (Admin)

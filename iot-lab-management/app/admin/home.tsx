@@ -16,7 +16,7 @@ import { fetchPeople, who } from "../../lib/people";
 import { currentUser } from "../../lib/session";
 import { useRefreshOnFocus } from "../../lib/nav";
 import GreetingLine from "../../components/GreetingLine";
-import StaffCheckInCard from "../../components/StaffCheckInCard";
+import StaffCheckInCard from "../../components/borrow/StaffCheckInCard";
 import { usePresence } from "../../lib/presence";
 import { FadeIn, PressScale, Pulse } from "../../components/Motion";
 import { confirmAction, notify } from "../../lib/notify";

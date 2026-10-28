@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import supabase from "./supabase";
-import { currentUser } from "./session";
+import supabase from "../supabase";
+import { currentUser } from "../session";
 
 // อัปเดตสดของ "ระบบห้องคอม" (migration room_realtime) — ช่อง "room" event "room_status" payload { room_id }
 // แยกจาก lib/realtime.ts ของระบบยืม-คืนโดยตั้งใจ (สองระบบห้าม import ข้ามกัน)

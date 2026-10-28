@@ -1,9 +1,9 @@
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Text } from "./AppText";
-import { PRESENCE_ROLE, checkinTime, usePresence } from "../lib/presence";
-import { C, W } from "../lib/theme";
+import { Text } from "../AppText";
+import { PRESENCE_ROLE, checkinTime, usePresence } from "../../lib/presence";
+import { C, W } from "../../lib/theme";
 
 // F4 แถบหน้าแรก นศ.: "มีผู้ดูแลอยู่ที่ IoT Lab ไหม" (ระบบยืม-คืน — แยกจากโค้ดระบบห้องในหน้าแรก)
 // onPickup = ปุ่ม "ขอยืมแบบนัดรับ" (F2) — ยังไม่ส่ง = ซ่อนปุ่ม

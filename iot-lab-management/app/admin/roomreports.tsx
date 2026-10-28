@@ -10,11 +10,11 @@ import {
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
-import { fetchRoomPeople } from "../../lib/roomPeople";
+import { fetchRoomPeople } from "../../lib/room/roomPeople";
 import { notify } from "../../lib/notify";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
 import { useRealtime } from "../../lib/realtime";
-import LoadError from "../../components/LoadError";
+import LoadError from "../../components/room/LoadError";
 import { W, NG } from "../../lib/theme";
 import ScreenHeader from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
@@ -87,7 +87,7 @@ export default function RoomReports() {
     setLoadError("");
     const list = (data as Report[]) || [];
     setReports(list);
-    // ชื่อผู้แจ้ง/ผู้จัดการ ("ชื่อ · รหัส นศ." — lib/roomPeople ของระบบห้อง)
+    // ชื่อผู้แจ้ง/ผู้จัดการ ("ชื่อ · รหัส นศ." — lib/room/roomPeople ของระบบห้อง)
     const ids = [...new Set(list.flatMap((r) => [r.reported_by, r.handled_by]).filter(Boolean))] as string[];
     if (ids.length) {
       setNames(await fetchRoomPeople(ids));

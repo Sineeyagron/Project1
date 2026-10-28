@@ -1,7 +1,7 @@
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import supabase from "./supabase";
-import { isStandalone } from "./webPush";
+import { isStandalone } from "./web/webPush";
 import { currentUser } from "./session";
 
 // ส่ง error ที่ไม่มีใครจับบนเครื่องผู้ใช้ไปเก็บที่ตาราง client_errors (RPC log_client_error — migration 20261019120000)

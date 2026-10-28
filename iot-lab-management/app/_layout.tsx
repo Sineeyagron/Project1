@@ -4,12 +4,12 @@ import { Platform, StyleSheet, View } from "react-native";
 import supabase from "../lib/supabase";
 import { DialogHost } from "../lib/notify";
 import { applyRememberLogin } from "../lib/session";
-import { dropPushOnSignOut, registerServiceWorker, rememberMode } from "../lib/webPush";
-import { installPullToRefresh } from "../lib/webPullRefresh";
-import { installPageTransitions } from "../lib/webTransitions";
+import { dropPushOnSignOut, registerServiceWorker, rememberMode } from "../lib/web/webPush";
+import { installPullToRefresh } from "../lib/web/webPullRefresh";
+import { installPageTransitions } from "../lib/web/webTransitions";
 import { installErrorReporting } from "../lib/errorReport";
-import { captureInstallPrompt } from "../lib/installApp";
-import { showConsoleWarning } from "../lib/consoleWarning";
+import { captureInstallPrompt } from "../lib/web/installApp";
+import { showConsoleWarning } from "../lib/web/consoleWarning";
 import { isAdminPath } from "../lib/roles";
 import { useFonts, NotoSansThai_400Regular, NotoSansThai_500Medium, NotoSansThai_600SemiBold, NotoSansThai_700Bold } from "@expo-google-fonts/noto-sans-thai";
 import { C } from "../lib/theme";
@@ -40,7 +40,7 @@ export default function Layout() {
   const lastPage = useRef(pathname);
   if (pathname !== "/sheet-host") lastPage.current = pathname;
   const wide = isDesktop && isAdminPath(lastPage.current);
-  // เว็บ: จดโหมดที่ใช้อยู่ (ผู้ดูแล / นักศึกษา) → แตะแจ้งเตือนแล้วพาไปหน้าแจ้งเตือนของโหมดนั้น (lib/webPush)
+  // เว็บ: จดโหมดที่ใช้อยู่ (ผู้ดูแล / นักศึกษา) → แตะแจ้งเตือนแล้วพาไปหน้าแจ้งเตือนของโหมดนั้น (lib/web/webPush)
   //   หน้าแจ้งเตือน: มาจากแถบล่าง (?tab=1) = นักศึกษา / จากกระดิ่งแดชบอร์ด = ผู้ดูแล
   const { tab } = useGlobalSearchParams<{ tab?: string }>();
   useEffect(() => {
