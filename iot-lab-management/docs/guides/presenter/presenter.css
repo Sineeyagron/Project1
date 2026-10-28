@@ -1,0 +1,68 @@
+/* คู่มือผู้นำเสนอ — ต่อยอดจาก ../style.css (ธีมฟ้าเดียวกัน) เพิ่มชิ้นส่วนสำหรับภาพหน้าจอและบทพูด */
+@import url("../style.css");
+
+/* ภาพหน้าจอมือถือ: กรอบโค้งเหมือนเครื่องจริง */
+.shot { margin: 0; text-align: center; break-inside: avoid; }
+.shot img { width: 100%; border-radius: 18px; border: 6px solid #1e293b; box-shadow: 0 6px 18px rgba(15, 23, 42, 0.18); display: block; background: #fff; }
+.shot.wide img { border-width: 4px; border-radius: 10px; }
+.shot figcaption { font-size: 9pt; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+
+/* ภาพ + คำอธิบายข้างกัน */
+.pair { display: grid; grid-template-columns: 44mm 1fr; gap: 16px; align-items: start; margin: 14px 0 18px; break-inside: avoid; }
+.pair.r { grid-template-columns: 1fr 44mm; }
+.pair .txt > :first-child { margin-top: 0; }
+.shots-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 12px 0 16px; break-inside: avoid; }
+.shots-1 { display: grid; gap: 18px; margin: 12px 0 16px; }
+.shots-1 .shot { break-inside: avoid; }
+.shots-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin: 12px 0 16px; break-inside: avoid; }
+
+/* กล่อง "พูดว่า" — ประโยคที่อ่านออกเสียงได้เลย */
+.say { position: relative; border-radius: 14px; padding: 10px 14px 10px 44px; margin: 10px 0; background: #fff7ed; border: 1px solid #fed7aa; color: #7c2d12; font-size: 10.8pt; break-inside: avoid; }
+.say::before { content: "พูด"; position: absolute; left: 10px; top: 10px; width: 26px; height: 26px; border-radius: 8px; background: #ea580c; color: #fff; font-size: 8.5pt; font-weight: 700; text-align: center; line-height: 26px; }
+.say b { color: #7c2d12; }
+
+/* ป้ายผู้พูด */
+.who { display: inline-block; border-radius: 999px; padding: 0 10px; font-size: 9pt; font-weight: 700; line-height: 1.9; vertical-align: 2px; }
+.who.p1 { background: #dbeafe; color: #1d4ed8; }
+.who.p2 { background: #ede9fe; color: #6d28d9; }
+.who.both { background: #dcfce7; color: #047857; }
+
+/* บทเดโม: ขั้นตอนแบบมีมือ/ปาก */
+table.demo td:first-child { width: 34px; text-align: center; font-weight: 700; color: var(--primary-dark); }
+table.demo td:nth-child(2) { width: 46%; }
+
+/* ถาม-ตอบ */
+.qa { border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; margin: 8px 0; background: #fff; break-inside: avoid; }
+.qa .q { font-weight: 700; color: var(--ink); }
+.qa .q::before { content: "ถาม "; color: var(--primary); }
+.qa .a { margin-top: 4px; font-size: 10.6pt; }
+.qa .a::before { content: "ตอบ "; color: var(--green); font-weight: 700; }
+
+/* อธิบายด้วยการเปรียบเทียบ */
+.like { font-size: 9.6pt; color: #0f766e; background: #f0fdfa; border-radius: 8px; padding: 2px 8px; display: inline-block; margin-top: 4px; }
+
+/* ตารางคำศัพท์ */
+table.gloss td:first-child { width: 30%; font-weight: 600; color: var(--ink); }
+
+.todo { background: #fef9c3; border: 1px dashed #ca8a04; color: #713f12; border-radius: 8px; padding: 1px 6px; font-size: 9.5pt; }
+.small { font-size: 9.5pt; color: var(--muted); }
+.toc { columns: 2; column-gap: 24px; font-size: 11pt; }
+.toc li { break-inside: avoid; }
+img.diagram { width: 100%; border: 1px solid var(--line); border-radius: 12px; display: block; }
+
+/* เกร็ดโค้ด: กล่องโค้ดพื้นเข้ม + ป้ายชื่อไฟล์ */
+.code { margin: 8px 0 4px; border-radius: 12px; overflow: hidden; border: 1px solid #1e293b; break-inside: avoid; }
+.code .file { background: #1e293b; color: #cbd5e1; font-size: 8.8pt; padding: 4px 12px; font-family: "Consolas", monospace; }
+.code pre { margin: 0; padding: 10px 12px; background: #0f172a; color: #e2e8f0; font-family: "Consolas", "Noto Sans Thai", monospace; font-size: 9.6pt; line-height: 1.6; white-space: pre-wrap; }
+.code .c { color: #86efac; }
+.code .k { color: #93c5fd; }
+.code .s { color: #fcd34d; }
+.explain { font-size: 10.4pt; margin: 4px 0 14px; }
+.explain li { margin: 2px 0; }
+.code .ln { display: inline-block; width: 3.2ch; margin-right: 1.4ch; color: #64748b; text-align: right; user-select: none; }
+.code .hl { display: block; background: rgba(250, 204, 21, 0.16); margin: 0 -12px; padding: 0 12px; }
+.code .gap { color: #64748b; }
+table.read td:first-child { width: 30%; font-size: 9.6pt; font-family: "Consolas", monospace; font-weight: 700; color: var(--primary-dark); word-break: break-word; }
+.step3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 10px 0 14px; }
+.step3 .tile .t { margin-top: 4px; }
+table.read.c4 td:first-child { width: 21%; }

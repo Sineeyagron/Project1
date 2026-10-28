@@ -1,0 +1,163 @@
+/* คู่มือผู้นำเสนอแบบสไลด์ — หน้าแนวนอน 16:9 · 1 หน้า = 1 เรื่อง · โทนฟ้าตาม docs/DESIGN.md */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&display=swap");
+
+:root {
+  --blue: #2563eb;
+  --blue-dark: #1d4ed8;
+  --blue-deep: #1e3a8a;
+  --tint: #eaf2ff;
+  --tint-2: #f5f9ff;
+  --ink: #0f172a;
+  --text: #334155;
+  --muted: #64748b;
+  --line: #dbe5f4;
+  --green: #047857;
+  --green-bg: #e7f8ef;
+  --amber: #b45309;
+  --amber-bg: #fff4dc;
+  --red: #b91c1c;
+  --red-bg: #fdecec;
+}
+
+@page { size: 297mm 167mm; margin: 0; }
+* { box-sizing: border-box; }
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+body { margin: 0; background: #cbd5e1; font-family: "Noto Sans Thai", "Leelawadee UI", sans-serif; color: var(--text); font-size: 15pt; line-height: 1.6; }
+
+/* ── สไลด์ ── */
+.slide {
+  width: 297mm; height: 167mm; margin: 10mm auto; padding: 13mm 17mm 11mm;
+  background: #fff; position: relative; overflow: hidden; display: flex; flex-direction: column;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.15); break-after: page;
+}
+@media print { body { background: #fff; } .slide { margin: 0; box-shadow: none; } }
+.slide::after { content: attr(data-n); position: absolute; right: 12mm; bottom: 6mm; font-size: 9pt; color: #64748b; }
+
+.tag { font-size: 10.5pt; font-weight: 700; color: var(--blue); letter-spacing: .3px; margin-bottom: 2mm; display: flex; align-items: center; gap: 6px; }
+.tag .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); }
+h1 { margin: 0 0 3mm; font-size: 27pt; line-height: 1.3; color: var(--ink); font-weight: 800; }
+h1 em { font-style: normal; color: var(--blue); }
+.lead { font-size: 15.5pt; color: var(--text); margin: 0 0 5mm; max-width: 235mm; }
+.body { flex: 1; min-height: 0; display: flex; gap: 10mm; align-items: center; }
+.body.top { align-items: flex-start; }
+.col { flex: 1; min-width: 0; }
+p { margin: 0 0 3mm; }
+b, strong { color: var(--ink); }
+
+/* รายการหัวข้อสั้น */
+ul.pts { list-style: none; margin: 0; padding: 0; }
+ul.pts li { position: relative; padding-left: 9mm; margin: 0 0 3.2mm; font-size: 14.5pt; line-height: 1.5; }
+ul.pts li::before { content: ""; position: absolute; left: 1mm; top: 2.6mm; width: 9px; height: 9px; border-radius: 3px; background: var(--blue); }
+ul.pts.sm li { font-size: 13pt; margin-bottom: 2.4mm; }
+
+/* ภาพมือถือ / ภาพจอคอม */
+.phone { flex: none; margin: 0; text-align: center; }
+.phone img { height: 128mm; width: auto; border-radius: 16px; border: 5px solid #1e293b; box-shadow: 0 8px 22px rgba(15, 23, 42, .2); display: block; }
+.phone.s img { height: 112mm; }
+.phone figcaption, .wide figcaption { font-size: 9.5pt; color: var(--muted); margin-top: 2mm; }
+.wide { margin: 0; flex: none; }
+.wide img { height: 112mm; width: auto; border-radius: 10px; border: 4px solid #1e293b; box-shadow: 0 8px 22px rgba(15, 23, 42, .2); display: block; }
+.phones { display: flex; gap: 8mm; justify-content: center; }
+
+/* กล่องพูด */
+.say { border-radius: 14px; padding: 3mm 5mm 3mm 5mm; background: #fff7ed; border: 1px solid #fed7aa; color: #7c2d12; font-size: 13pt; line-height: 1.55; margin-top: 4mm; }
+.say::before { content: "💬 ลองพูดแบบนี้"; display: block; font-size: 9.5pt; font-weight: 700; color: #ea580c; margin-bottom: 1mm; }
+.say b { color: #7c2d12; }
+
+.note { border-radius: 14px; padding: 3mm 5mm; background: var(--tint); border: 1px solid #bfdbfe; font-size: 13pt; margin-top: 4mm; }
+.warn { border-radius: 14px; padding: 3mm 5mm; background: var(--amber-bg); border: 1px solid #fcd34d; font-size: 12.5pt; margin-top: 4mm; color: #78350f; }
+.warn b { color: #78350f; }
+.todo { background: #fef08a; color: #713f12; border-radius: 6px; padding: 0 6px; font-size: 10.5pt; font-weight: 600; white-space: nowrap; }
+
+/* การ์ด */
+.cards { display: grid; gap: 5mm; width: 100%; }
+.cards.c2 { grid-template-columns: 1fr 1fr; }
+.cards.c3 { grid-template-columns: 1fr 1fr 1fr; }
+.cards.c4 { grid-template-columns: repeat(4, 1fr); }
+.card { border: 1px solid var(--line); border-radius: 18px; padding: 5mm; background: var(--tint-2); }
+.card .t { font-size: 15pt; font-weight: 700; color: var(--ink); line-height: 1.35; margin-top: 2.5mm; }
+.card .d { font-size: 12.5pt; color: var(--text); line-height: 1.5; margin-top: 1mm; }
+.card.sm { padding: 4mm; }
+.card.sm .t { font-size: 13pt; margin-top: 1.5mm; }
+.card.sm .d { font-size: 11pt; }
+.card.white { background: #fff; }
+.card.c-blue { background: #eff6ff; border-color: #bfdbfe; }
+.card.c-teal { background: #f0fdfa; border-color: #99f6e4; }
+.card.c-amber { background: #fffbeb; border-color: #fde68a; }
+.card.c-red { background: #fef2f2; border-color: #fecaca; }
+.card.c-green { background: #f0fdf4; border-color: #bbf7d0; }
+
+.ic { display: inline-flex; align-items: center; justify-content: center; width: 13mm; height: 13mm; border-radius: 4mm; font-size: 22px; }
+.ic.sm { width: 10mm; height: 10mm; border-radius: 3mm; font-size: 17px; }
+.ic.blue { background: #dbeafe; color: #1d4ed8; }
+.ic.green { background: #dcfce7; color: #047857; }
+.ic.amber { background: #fef3c7; color: #b45309; }
+.ic.red { background: #fee2e2; color: #b91c1c; }
+.ic.teal { background: #ccfbf1; color: #0f766e; }
+.ic.slate { background: #e2e8f0; color: #334155; }
+svg.lucide { width: 1em; height: 1em; stroke-width: 2; }
+
+/* ขั้นตอนแนวนอน */
+.steps { display: flex; gap: 3mm; width: 100%; }
+.steps .s { flex: 1; text-align: center; position: relative; }
+.steps .s .ic { margin: 0 auto 2mm; }
+.steps .s .n { font-size: 13.5pt; font-weight: 700; color: var(--ink); line-height: 1.35; }
+.steps .s .d { font-size: 11pt; color: var(--muted); line-height: 1.4; }
+.steps .s:not(:last-child)::after { content: "›"; position: absolute; right: -3mm; top: 2mm; font-size: 22pt; color: #93c5fd; transform: translateX(50%); }
+
+/* ตัวเลขใหญ่ */
+.big { font-size: 34pt; font-weight: 800; color: var(--blue-dark); line-height: 1.15; }
+.big small { font-size: 14pt; font-weight: 600; color: var(--muted); }
+
+/* ป้ายผู้พูด */
+.who { display: inline-block; border-radius: 999px; padding: 0 3mm; font-size: 10pt; font-weight: 700; line-height: 1.8; }
+.who.p1 { background: #dbeafe; color: #1d4ed8; }
+.who.p2 { background: #fce7f3; color: #9d174d; }
+.who.both { background: #dcfce7; color: #047857; }
+
+/* ตารางเบา ๆ */
+table.lite { width: 100%; border-collapse: collapse; font-size: 12.5pt; line-height: 1.45; }
+table.lite td, table.lite th { padding: 2.2mm 3mm; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+table.lite th { font-size: 10.5pt; color: var(--muted); font-weight: 600; }
+table.lite td.n { width: 10mm; font-weight: 800; color: var(--blue); font-size: 14pt; }
+
+/* ถาม-ตอบ */
+.qa { border: 1px solid var(--line); border-radius: 14px; padding: 3mm 5mm; background: #fff; }
+.qa .q { font-weight: 700; color: var(--ink); font-size: 13.5pt; }
+.qa .a { font-size: 12pt; margin-top: 1mm; line-height: 1.5; }
+
+/* สไลด์ปก / คั่นบท */
+.slide.hero { background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 55%, #2563eb 100%); color: #fff; justify-content: center; }
+.slide.hero::before { content: ""; position: absolute; right: -40mm; top: -40mm; width: 130mm; height: 130mm; border-radius: 50%; background: rgba(255, 255, 255, .08); }
+.slide.hero h1 { color: #fff; font-size: 38pt; }
+.slide.hero .lead { color: #dbeafe; font-size: 17pt; }
+.slide.hero .tag { color: #bfdbfe; }
+.slide.hero .tag .dot { background: #93c5fd; }
+.slide.hero .kick { font-size: 12pt; color: #bfdbfe; margin-top: 6mm; }
+.slide.hero b { color: #fff; }
+.slide.hero::after { color: rgba(255, 255, 255, .8); }
+.slide.section { background: var(--tint); justify-content: center; }
+.slide.section .num { font-size: 70pt; font-weight: 800; color: #3b82f6; line-height: 1; }
+.slide.section h1 { font-size: 36pt; }
+
+.like { display: inline-block; margin-top: 1.5mm; font-size: 11pt; color: #0f766e; background: #ccfbf1; border-radius: 8px; padding: 0 6px; }
+.muted { color: var(--muted); }
+.center { text-align: center; }
+
+/* เกร็ดโค้ด */
+.code { border-radius: 12px; overflow: hidden; border: 1px solid #1e293b; }
+.code .file { background: #1e293b; color: #cbd5e1; font-size: 9pt; padding: 1.2mm 4mm; font-family: "Consolas", monospace; }
+.code pre { margin: 0; padding: 3mm 4mm; background: #0f172a; color: #e2e8f0; font-family: "Consolas", "Noto Sans Thai", monospace; font-size: 10.5pt; line-height: 1.6; white-space: pre-wrap; }
+.code .c { color: #86efac; }
+.code .k { color: #93c5fd; }
+.code .s { color: #fcd34d; }
+.mini { font-size: 11.5pt; line-height: 1.5; margin-top: 2.5mm; color: var(--text); }
+.mini b { color: var(--ink); }
+.code .ln { display: inline-block; width: 3.2ch; margin-right: 1.4ch; color: #64748b; text-align: right; user-select: none; }
+.code .hl { display: block; background: rgba(250, 204, 21, 0.16); margin: 0 -4mm; padding: 0 4mm; }
+.code .gap { color: #64748b; }
+.code.sm pre { font-size: 9.4pt; line-height: 1.5; padding: 2.5mm 4mm; }
+table.read { width: 100%; border-collapse: collapse; font-size: 12.5pt; line-height: 1.5; }
+table.read.tight { font-size: 11.5pt; line-height: 1.45; }
+table.read td { padding: 2.2mm 2mm; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.read td:first-child { width: 22mm; font-family: "Consolas", monospace; font-weight: 700; color: var(--blue-dark); white-space: nowrap; }
