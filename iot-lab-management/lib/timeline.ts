@@ -19,8 +19,8 @@ export type TimelineEvent = {
 };
 
 export const EVENT_STYLE: Record<EventKind, { label: string; icon: string; color: string; bg: string }> = {
-  borrow:   { label: "ยืมออก",     icon: "arrow-up-outline",       color: "#1D4ED8", bg: "#DBEAFE" },
-  return:   { label: "คืนเข้า",     icon: "arrow-down-outline",     color: "#047857", bg: "#ECFDF5" },
+  borrow:   { label: "ยืม",         icon: "arrow-up-outline",       color: "#1D4ED8", bg: "#DBEAFE" },
+  return:   { label: "คืน",         icon: "arrow-down-outline",     color: "#047857", bg: "#ECFDF5" },
   renew:    { label: "ยืมต่อ",      icon: "refresh-outline",        color: "#6D28D9", bg: "#EDE9FE" },
   declined: { label: "ถูกปฏิเสธ",   icon: "close-outline",          color: "#B91C1C", bg: "#FEF2F2" },
   expired:  { label: "หมดอายุ",     icon: "timer-outline",          color: "#475569", bg: "#F1F5F9" },
@@ -87,7 +87,7 @@ export function buildEvents(records: any[], requests: any[], opts: BuildOpts, pi
       if (by) parts.push(`อนุมัติโดย ${by}`);
       out.push({
         key: `b:${r.id}`, kind: "borrow", at: r.borrow_date, itemName: item, userId: r.user_id,
-        detail: parts.join(" · ") || "ยืมออก", detailTone: overdue ? "bad" : "normal", overdue,
+        detail: parts.join(" · ") || "ยืม", detailTone: overdue ? "bad" : "normal", overdue,
       });
     }
     if (r.status === "returned" && r.return_date) {

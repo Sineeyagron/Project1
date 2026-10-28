@@ -205,7 +205,7 @@ export default function StudentScan() {
       setConfirmOpen(false);
       setJustSent(mode === "claim"
         ? `รับ ${item.item_code} ตามนัดแล้ว บันทึกการยืมเรียบร้อย`
-        : `ส่ง${KIND_TH[mode]} ${item.item_code} แล้ว รอผู้ดูแลอนุมัติ`);
+        : `ส่งคำ${KIND_TH[mode]} ${item.item_code} แล้ว รอผู้ดูแลอนุมัติ`);
       await runLookup(item.id);
     } catch (e: any) {
       setConfirmOpen(false);
@@ -218,7 +218,7 @@ export default function StudentScan() {
   const cancelPending = () => {
     const pending = lookup?.pending;
     if (!pending) return;
-    confirmAction("ยกเลิกคำขอ", `ยกเลิก${KIND_TH[pending.kind]} ${lookup?.item?.item_code} ?`, "ยกเลิกคำขอ", async () => {
+    confirmAction("ยกเลิกคำขอ", `ยกเลิกคำ${KIND_TH[pending.kind]} ${lookup?.item?.item_code}?`, "ยกเลิกคำขอ", async () => {
       const { error } = await supabase.rpc("cancel_request", { p_request_id: pending.id });
       if (error) {
         notify("ยกเลิกไม่สำเร็จ", error.message);
@@ -538,7 +538,7 @@ export default function StudentScan() {
               onPress={() => setConfirmOpen(true)}
               activeOpacity={0.85}
             >
-              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{mode === "claim" ? "ยืนยันรับของ" : `ส่ง${KIND_TH[mode]}`}</Text>}
+              {submitting ? <ActivityIndicator color="#fff" /> : <Text style={s.primaryBtnText}>{mode === "claim" ? "ยืนยันรับของ" : `ส่งคำ${KIND_TH[mode]}`}</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={s.textBtn} onPress={resetForm} activeOpacity={0.8}>
               <Text style={s.textBtnText}>ยกเลิก</Text>

@@ -58,7 +58,7 @@ export default function StudentIdScreen() {
   };
 
   const logout = () => {
-    confirmAction("ออกจากระบบ", "ต้องการออกจากระบบหรือไม่?", "ออกจากระบบ", async () => {
+    confirmAction("ออกจากระบบ", "ต้องการออกจากระบบใช่ไหม?", "ออกจากระบบ", async () => {
       await supabase.auth.signOut();
       router.replace("/login");
     }, true);

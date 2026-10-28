@@ -38,7 +38,7 @@ const C = {
 
 const CONDITION_CFG: Record<string, { color: string; bg: string; label: string; short: string; icon: any }> = {
   good: { color: C.green, bg: "#ECFDF5", label: "ใช้งานได้", short: "ปกติ", icon: "hardware-chip-outline" },
-  damaged: { color: C.orange, bg: "#fef3c7", label: "กำลังซ่อมแซม", short: "ซ่อมแซม", icon: "construct-outline" },
+  damaged: { color: C.orange, bg: "#fef3c7", label: "กำลังซ่อม", short: "ซ่อม", icon: "construct-outline" },
   missing: { color: C.red, bg: "#fee2e2", label: "เสีย", short: "เสีย", icon: "desktop-outline" },
 };
 
@@ -269,20 +269,20 @@ export default function IotInspectionPage() {
         {loading ? (
           <View style={s.loadingBox}>
             <ActivityIndicator color={C.purple} />
-            <Text style={s.loadingText}>กำลังโหลดข้อมูลจริง...</Text>
+            <Text style={s.loadingText}>กำลังโหลดข้อมูล...</Text>
           </View>
         ) : (
           <>
             <View style={s.statGrid}>
               <SummaryCard value={counts.good} label="ใช้งานได้" color={C.green} />
-              <SummaryCard value={counts.damaged} label="ซ่อมแซม" color={C.orange} />
+              <SummaryCard value={counts.damaged} label="ซ่อม" color={C.orange} />
               <SummaryCard value={counts.missing} label="เสีย" color={C.red} />
             </View>
 
             <View style={s.filterRow}>
               <FilterChip label="ทั้งหมด" active={filter === "all"} onPress={() => setFilter("all")} />
               <FilterChip label="ใช้งานได้" active={filter === "good"} onPress={() => setFilter("good")} />
-              <FilterChip label="ซ่อมแซม" active={filter === "damaged"} onPress={() => setFilter("damaged")} />
+              <FilterChip label="ซ่อม" active={filter === "damaged"} onPress={() => setFilter("damaged")} />
               <FilterChip label="เสีย" active={filter === "missing"} onPress={() => setFilter("missing")} />
             </View>
 

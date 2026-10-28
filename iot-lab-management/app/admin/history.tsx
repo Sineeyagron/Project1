@@ -39,8 +39,8 @@ const C = {
 
 const FILTERS: { key: TimelineFilter; label: string; color: string }[] = [
   { key: "all", label: "ทั้งหมด", color: C.blue },
-  { key: "borrow", label: "ยืมออก", color: C.purple },
-  { key: "return", label: "คืนเข้า", color: C.green },
+  { key: "borrow", label: "ยืม", color: C.purple },
+  { key: "return", label: "คืน", color: C.green },
   { key: "overdue", label: "เกินกำหนด", color: C.red },
   { key: "other", label: "อื่น ๆ", color: C.violet },
 ];

@@ -65,7 +65,7 @@ export default function RoomReportForm({
           ) : (
             <>
               <Ionicons name="send-outline" size={16} color="#fff" />
-              <Text style={s.sendText}>ส่งคำแจ้ง</Text>
+              <Text style={s.sendText}>ส่งเรื่อง</Text>
             </>
           )}
         </TouchableOpacity>

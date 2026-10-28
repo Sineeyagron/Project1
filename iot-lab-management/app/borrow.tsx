@@ -28,8 +28,8 @@ const KIND_TH: Record<string, string> = { borrow: "ขอยืม", return: "�
 // F3 ตัวกรองประวัติ (หน้า นศ.)
 const FILTERS: { key: TimelineFilter; label: string }[] = [
   { key: "all", label: "ทั้งหมด" },
-  { key: "borrow", label: "ยืมออก" },
-  { key: "return", label: "คืนเข้า" },
+  { key: "borrow", label: "ยืม" },
+  { key: "return", label: "คืน" },
   { key: "other", label: "อื่น ๆ" },
 ];
 
@@ -91,7 +91,7 @@ export default function Borrow() {
 
   const cancelRequest = (req: any) => {
     const code = req.items?.item_code || req.items?.name || "อุปกรณ์";
-    confirmAction("ยกเลิกคำขอ", `ยกเลิก${KIND_TH[req.kind]} ${code} ?`, "ยกเลิกคำขอ", async () => {
+    confirmAction("ยกเลิกคำขอ", `ยกเลิกคำ${KIND_TH[req.kind]} ${code}?`, "ยกเลิกคำขอ", async () => {
       const { error } = await supabase.rpc("cancel_request", { p_request_id: req.id });
       if (error) {
         notify("ยกเลิกไม่สำเร็จ", error.message);
@@ -130,7 +130,7 @@ export default function Borrow() {
   const cancelPickup = (p: any) => {
     confirmAction(
       p.status === "scheduled" ? "ยกเลิกนัด" : "ยกเลิกคำขอ",
-      `ยกเลิกนัดรับ ${p.item_prefix} ?`,
+      `ยกเลิกนัดรับ ${p.item_prefix}?`,
       "ยกเลิก",
       async () => {
         const { error } = await supabase.rpc("cancel_pickup", { p_id: p.id });

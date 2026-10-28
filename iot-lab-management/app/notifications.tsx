@@ -91,7 +91,7 @@ const formatDateTime = (d: string) => {
 const timeAgo = (d: string) => {
   if (!d) return "";
   const diff = Math.floor((Date.now() - new Date(d).getTime()) / 1000);
-  if (diff < 60) return "เมื่อกี้";
+  if (diff < 60) return "เมื่อสักครู่";
   if (diff < 3600) return `${Math.floor(diff / 60)} นาทีที่แล้ว`;
   if (diff < 86400) return `${Math.floor(diff / 3600)} ชั่วโมงที่แล้ว`;
   if (diff < 604800) return `${Math.floor(diff / 86400)} วันที่แล้ว`;

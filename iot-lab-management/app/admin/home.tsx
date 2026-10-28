@@ -94,7 +94,7 @@ const TOOL_GROUPS = [
     items: [
       { icon: "business-outline", label: "จัดการห้อง", route: "/admin/room", color: "#3B82F6", bg: "#DBEAFE" },
       { icon: "desktop-outline", label: "จัดการเครื่อง", route: "/admin/stations", color: C.red, bg: "#fee2e2" },
-      { icon: "git-network-outline", label: "จัดการแลน", route: "/admin/lanports", color: C.purple, bg: "#DBEAFE" },
+      { icon: "git-network-outline", label: "จัดการ LAN", route: "/admin/lanports", color: C.purple, bg: "#DBEAFE" },
       { icon: "construct-outline", label: "ซ่อมบำรุง", route: "/admin/repairs", color: C.orangeDark, bg: "#ffedd5" },
       { icon: "megaphone-outline", label: "แจ้งปัญหาห้อง", route: "/admin/roomreports", color: "#7c3aed", bg: "#ede9fe" },
     ],

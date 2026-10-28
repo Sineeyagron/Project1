@@ -477,7 +477,7 @@ export default function Login() {
           <>
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>หรือเข้าใช้ระบบ</Text>
+            <Text style={styles.dividerText}>หรือ</Text>
             <View style={styles.dividerLine} />
           </View>
 

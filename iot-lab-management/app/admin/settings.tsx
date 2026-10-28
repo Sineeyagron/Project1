@@ -55,7 +55,7 @@ const GROUPS: { title: string; fields: Field[]; days?: boolean }[] = [
     title: "การยืม",
     fields: [
       { key: "max_active_borrows", label: "ยืมพร้อมกันได้สูงสุด", unit: "ชิ้น/คน", hint: "นับรวมคำขอที่รออนุมัติและคำขอนัดรับ", min: 1, max: 20, fallback: 3 },
-      { key: "request_expiry_minutes", label: "คำขอหมดอายุใน", unit: "นาที", hint: "ไม่มีใครตอบภายในเวลานี้ คำขอยืมหมดอายุ / คำขอคืนคืนอัตโนมัติ", min: 5, max: 1440, fallback: 30 },
+      { key: "request_expiry_minutes", label: "คำขอหมดอายุใน", unit: "นาที", hint: "ถ้าไม่มีผู้ดูแลตอบ คำขอยืมจะหมดอายุ ส่วนคำขอคืนจะคืนให้อัตโนมัติ", min: 5, max: 1440, fallback: 30 },
     ],
     days: true,
   },
@@ -64,7 +64,7 @@ const GROUPS: { title: string; fields: Field[]; days?: boolean }[] = [
     title: "นัดรับ",
     fields: [
       { key: "pickup_expiry_hours", label: "คำขอนัดรับหมดอายุใน", unit: "ชม.", hint: "ไม่มีผู้ดูแลนัดเวลาภายในเวลานี้ (ใช้กับคำขอใหม่)", min: 1, max: 72, fallback: 12 },
-      { key: "pickup_grace_minutes", label: "เลยเวลานัดแล้วยกเลิกใน", unit: "นาที", hint: "นศ. ไม่มารับตามนัด = ไม่มารับ", min: 5, max: 120, fallback: 10 },
+      { key: "pickup_grace_minutes", label: "ยกเลิกนัดเมื่อเลยเวลา", unit: "นาที", hint: "ถ้า นศ. ไม่มาภายในเวลานี้ นัดจะถูกยกเลิก (ไม่มาตามนัด)", min: 5, max: 120, fallback: 10 },
     ],
   },
 ];

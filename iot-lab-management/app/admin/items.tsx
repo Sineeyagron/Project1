@@ -440,10 +440,10 @@ export default function AdminItems() {
       { label: `เปลี่ยนหมวด (ตอนนี้: ${item.category})`, icon: "pricetag-outline", onPress: () => pickCategory(item) },
     ];
     if (item.status !== "available") {
-      actions.push({ label: "เปลี่ยนเป็น ว่าง", icon: "checkmark-circle-outline", onPress: () => setStatus(item, "available") });
+      actions.push({ label: "เปลี่ยนเป็น \"ว่าง\"", icon: "checkmark-circle-outline", onPress: () => setStatus(item, "available") });
     }
     if (item.status !== "repair") {
-      actions.push({ label: "เปลี่ยนเป็น ซ่อมบำรุง", icon: "construct-outline", onPress: () => setStatus(item, "repair") });
+      actions.push({ label: "เปลี่ยนเป็น \"ซ่อมบำรุง\"", icon: "construct-outline", onPress: () => setStatus(item, "repair") });
     }
     actions.push({ label: "จำหน่ายออก", icon: "archive-outline", tone: "danger", onPress: () => openRetire(item) });
     if (!everBorrowed) {

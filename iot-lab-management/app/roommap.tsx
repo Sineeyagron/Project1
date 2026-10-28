@@ -419,7 +419,7 @@ export default function RoomMap() {
                 );
               })}
             </View>
-            {isStaff ? <Text style={s.staffHint}>Admin/TA: กดอุปกรณ์เพื่อเปลี่ยน ครบ → หาย → ชำรุด</Text> : null}
+            {isStaff ? <Text style={s.staffHint}>ผู้ดูแล: กดอุปกรณ์เพื่อเปลี่ยน ครบ → หาย → ชำรุด</Text> : null}
 
             {isStaff && stationLog.length > 0 ? (
               <View style={s.logBox}>

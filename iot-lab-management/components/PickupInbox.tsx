@@ -40,7 +40,7 @@ const QUICK: { key: Quick; label: string }[] = [
 const DAY_CHOICES = [
   { offset: 0, label: "วันนี้" },
   { offset: 1, label: "พรุ่งนี้" },
-  { offset: 2, label: "มะรืน" },
+  { offset: 2, label: "มะรืนนี้" },
 ];
 
 // วัน (ไทย) + "HH:mm" → ISO / เวลาไม่ถูกต้อง = null
@@ -242,7 +242,7 @@ function PendingCard({ r, self, onDone }: { r: any; self: boolean; onDone: () =>
 function ScheduledCard({ r, onDone }: { r: any; onDone: () => void }) {
   const late = Date.parse(r.pickup_at) < Date.now();
   const noShow = () => {
-    confirmAction("นศ. ไม่มาตามนัด", `ยกเลิกนัดรับ ${r.item_prefix} ของ ${who(r.requester)} ?`, "ยกเลิกนัด", async () => {
+    confirmAction("นศ. ไม่มาตามนัด", `ยกเลิกนัดรับ ${r.item_prefix} ของ ${who(r.requester)}?`, "ยกเลิกนัด", async () => {
       const { error } = await supabase.rpc("cancel_pickup", { p_id: r.id, p_no_show: true });
       if (error) {
         notify("ยกเลิกไม่สำเร็จ", error.message);

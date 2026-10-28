@@ -165,7 +165,7 @@ export default function AdminRoom() {
     if (error || !data?.length) {
       notify(
         editing ? "แก้ไขห้องไม่สำเร็จ" : "เพิ่มห้องไม่สำเร็จ",
-        error?.code === "23505" ? `มีห้องรหัส ${code} อยู่แล้ว` : error?.message || "ไม่มีสิทธิ์แก้ไข (เฉพาะ Admin)"
+        error?.code === "23505" ? `มีห้องรหัส ${code} อยู่แล้ว` : error?.message || "ไม่มีสิทธิ์แก้ไข (เฉพาะผู้ดูแลระบบ)"
       );
       return;
     }
@@ -185,7 +185,7 @@ export default function AdminRoom() {
       async () => {
         const { data, error } = await supabase.from("rooms").update({ active: next }).eq("id", row.room.id).select("id");
         if (error || !data?.length) {
-          notify("ไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข (เฉพาะ Admin)");
+          notify("ทำรายการไม่สำเร็จ", error?.message || "ไม่มีสิทธิ์แก้ไข (เฉพาะผู้ดูแลระบบ)");
           return;
         }
         setRoomModal(false);
@@ -251,7 +251,7 @@ export default function AdminRoom() {
           >
             <Ionicons name="megaphone-outline" size={20} color={openReports > 0 ? "#c2410c" : C.muted} />
             <Text style={[s.reportsText, openReports > 0 && { color: "#9a3412" }]}>
-              {openReports > 0 ? `คำแจ้งจากนักศึกษา ${openReports} รายการรอตรวจ` : "คำแจ้งปัญหาจากนักศึกษา"}
+              {openReports > 0 ? `เรื่องแจ้งปัญหาจากนักศึกษา ${openReports} รายการรอตรวจ` : "เรื่องแจ้งปัญหาจากนักศึกษา"}
             </Text>
             <Ionicons name="chevron-forward" size={18} color={C.faint} />
           </TouchableOpacity>

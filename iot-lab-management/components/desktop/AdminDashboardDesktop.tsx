@@ -160,7 +160,7 @@ export default function AdminDashboardDesktop(p: Props) {
                         </View>
                       </View>
                       <Text style={[s.td, { flex: 1.1, color: "#64748B" }]}>{timeLeft(r.expires_at)}</Text>
-                      <View style={s.openBtn}><Text style={s.openBtnText}>{r.source === "pickup" ? "นัดเวลา" : "ตัดสิน"}</Text></View>
+                      <View style={s.openBtn}><Text style={s.openBtnText}>{r.source === "pickup" ? "นัดเวลา" : "พิจารณา"}</Text></View>
                     </Pressable>
                   );
                 })}
@@ -237,7 +237,7 @@ export default function AdminDashboardDesktop(p: Props) {
               <Text style={s.lineText}>ซ่อมค้าง</Text><Text style={s.lineNum}>{p.today.repairOpen}</Text>
             </Pressable>
             <Pressable onPress={() => router.push("/admin/roomreports")} style={({ hovered }: any) => [s.line, hovered && s.trHover]}>
-              <Text style={s.lineText}>คำแจ้งปัญหาใหม่</Text><Text style={s.lineNum}>{roomReports}</Text>
+              <Text style={s.lineText}>เรื่องแจ้งปัญหาใหม่</Text><Text style={s.lineNum}>{roomReports}</Text>
             </Pressable>
           </View>
         </View>
