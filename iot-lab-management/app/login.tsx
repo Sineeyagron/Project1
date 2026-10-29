@@ -138,6 +138,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
+  const emailRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
   const [googleLoading, setGoogleLoading] = useState(false);
   const installMode = useInstallMode();
@@ -380,6 +381,7 @@ export default function Login() {
               <Ionicons name="mail-outline" size={18} color={focusedField === "email" ? "#2563EB" : "#7f8ea3"} />
             </View>
             <TextInput
+              ref={emailRef}
               placeholder={focusedField === "email" ? "" : "Student@kkumail.com"}
               placeholderTextColor="#94a3b8"
               style={styles.input}
@@ -392,6 +394,17 @@ export default function Login() {
               textContentType="emailAddress"
               selectionColor="#2563EB"
             />
+            {/* พิมพ์ผิด → แตะทีเดียวลบทั้งช่อง แล้วพิมพ์ต่อได้เลย (ช่องรหัสไม่ใส่ — ชิดปุ่มตาเกินไป) */}
+            {email.length > 0 && (
+              <TouchableOpacity
+                onPress={() => { updateEmail(""); emailRef.current?.focus(); }}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="ลบอีเมล"
+              >
+                <Ionicons name="close-circle" size={20} color="#94a3b8" />
+              </TouchableOpacity>
+            )}
           </View>
           {!!fieldErrors.email && (
             <View style={styles.errorRow}>
@@ -675,7 +688,8 @@ const styles = StyleSheet.create({
   },
   glowClip: {
     borderRadius: 24,
-    overflow: "hidden",
+    // เว็บ: "clip" ไม่ใช่ "hidden" — แผ่นไฟหมุนใหญ่กว่าการ์ด กล่อง hidden เลื่อนได้ → แตะช่องอีเมลแล้วเบราว์เซอร์เลื่อนการ์ดเบี้ยว
+    overflow: (Platform.OS === "web" ? "clip" : "hidden") as "hidden",
     padding: 1.5, // ความหนาขอบไฟ
     backgroundColor: "#BFD3F7", // ขอบน้ำเงินอ่อนตอนไฟไม่ผ่าน
   },
