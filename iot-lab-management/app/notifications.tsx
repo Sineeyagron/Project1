@@ -44,18 +44,18 @@ const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; d
   // เตือนกำหนดคืน
   due_soon:       { icon: "alarm-outline",            iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
   overdue:        { icon: "warning-outline",          iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
-  // ถึงผู้ดูแล: ประกัน / อายุอุปกรณ์ (เฟส 2.3)
+  // ถึงผู้ดูแล: ประกัน / อายุอุปกรณ์
   warranty_soon:    { icon: "shield-half-outline",    iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
   warranty_expired: { icon: "shield-outline",         iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
   age_warn:         { icon: "eye-outline",            iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
   age_replace:      { icon: "refresh-circle-outline", iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
-  // สิทธิ์ TA เปลี่ยน (เฟส 4.1)
+  // สิทธิ์ TA เปลี่ยน
   role_changed:     { icon: "shield-checkmark-outline", iconColor: "#2563EB", iconBg: "#DBEAFE", dot: "#3B82F6" },
-  // ระบบห้องคอม R3: คำแจ้งปัญหาเครื่อง/LAN (แยกจากระบบยืม-คืน)
+  // ระบบห้องคอม: คำแจ้งปัญหาเครื่อง/LAN
   room_report:          { icon: "megaphone-outline",        iconColor: "#c2410c", iconBg: "#ffedd5", dot: "#fb923c" },
   room_report_accepted: { icon: "construct-outline",        iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
   room_report_closed:   { icon: "chatbox-ellipses-outline", iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
-  // F2 ขอยืมแบบนัดรับ (ถึงผู้ขอ) → เปิดหน้าการยืมของฉัน
+  // นัดรับ (ถึงผู้ขอ) → หน้าการยืมของฉัน
   pickup_scheduled: { icon: "calendar-outline",       iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
   pickup_declined:  { icon: "close-circle-outline",   iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
   pickup_expired:   { icon: "time-outline",           iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
@@ -63,7 +63,7 @@ const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; d
   pickup_no_show:   { icon: "alert-circle-outline",   iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
 };
 
-// แจ้งเตือนประกัน/อายุ → เปิดรายงานสต็อก ตรงกลุ่ม "ต้องดูแล" นั้น
+// ประกัน/อายุ → รายงานสต็อกกลุ่มนั้น
 const STOCK_WATCH: Record<string, string> = {
   warranty_soon: "soon",
   warranty_expired: "expired",
@@ -74,7 +74,7 @@ const STOCK_WATCH: Record<string, string> = {
 // ประเภทที่ผู้ดูแลต้องไปจัดการในกล่องคำขอ
 const STAFF_TYPES = new Set(["request_borrow", "request_return", "request_renew", "auto_returned", "overdue"]);
 
-// งานผู้ดูแล = for_staff (+ แจ้งสิทธิ์ TA) / โหมดนักศึกษา = เรื่องของตัวเอง — คอลัมน์ for_staff คำนวณในฐานข้อมูล
+// ผู้ดูแล = for_staff (+ สิทธิ์ TA) / นักศึกษา = เรื่องของตัวเอง (for_staff คำนวณใน DB)
 const modeFilter = <Q extends { or: (f: string) => Q; eq: (c: string, v: any) => Q }>(q: Q, staffMode: boolean | null) =>
   staffMode ? q.or("for_staff.eq.true,type.eq.role_changed") : q.eq("for_staff", false);
 
@@ -96,8 +96,7 @@ const timeAgo = (d: string) => {
   return formatDateTime(d);
 };
 
-// ข้อมูลชุดล่าสุด (หน่วยความจำ) แยกตามโหมด — เปิดซ้ำเห็นรายการทันที แล้วค่อยโหลดใหม่เบื้องหลัง / ล้างเมื่อออกจากระบบ
-//   "student" = มาจากแถบเมนูล่าง (?tab=1) · "bell" = กระดิ่งผู้ดูแล — โหมดยังตัดสินใหม่ทุกครั้ง (staffModeRef) เหมือนเดิม
+// แคชรายการล่าสุดแยกโหมด: student (?tab=1) / bell (กระดิ่งผู้ดูแล) — ล้างเมื่อออกจากระบบ
 const cache: Record<string, { list: any[]; isStaff: boolean | null }> = {};
 supabase.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_OUT") for (const k of Object.keys(cache)) delete cache[k];
@@ -105,9 +104,9 @@ supabase.auth.onAuthStateChange((event) => {
 
 export default function Notifications() {
   const router = useRouter();
-  // เว็บจอใหญ่ใต้ /admin (มีเมนูซ้าย): เนื้อหาอยู่ในกรอบเดียวกับหน้าอื่นของผู้ดูแล · หน้านักศึกษา/มือถือเหมือนเดิม
+  // เว็บจอใหญ่ใต้ /admin: อยู่ในกรอบเดียวกับหน้าผู้ดูแลอื่น
   const desktopAdmin = useIsDesktopAdmin();
-  // แถบเมนูล่าง: มาจากแถบเมนู (ทุกบทบาท รวม TA/Admin ที่อยู่โหมดนักศึกษา) หรือเป็นนักศึกษา
+  // แถบเมนูล่าง: เข้าจากแถบเมนู หรือเป็นนักศึกษา
   const { tab } = useLocalSearchParams<{ tab?: string }>();
   const cacheKey = tab === "1" ? "student" : "bell";
   const cached = cache[cacheKey];
@@ -115,23 +114,22 @@ export default function Notifications() {
   const [loading, setLoading] = useState(!cached);
   const [refreshing, setRefreshing] = useState(false);
   const [newCount, setNewCount] = useState(0);
-  // null = ยังไม่รู้ (กันแถบเมนูนักศึกษาโผล่แวบให้ staff เห็น)
+  // null = ยังไม่รู้ (กันแถบเมนูนักศึกษาโผล่แวบ)
   const [isStaff, setIsStaff] = useState<boolean | null>(cached?.isStaff ?? null);
-  // จำรายการล่าสุด (รวมที่กด "อ่านทั้งหมด") ไว้ให้ครั้งหน้า
+  // จำรายการล่าสุดไว้ครั้งหน้า
   useEffect(() => {
     if (!loading) cache[cacheKey] = { list: notifications, isStaff };
   }, [notifications, isStaff, loading, cacheKey]);
   const showTabBar = tab === "1" || isStaff === false;
   const prevNewestRef = useRef("");
   const isFirstLoad = useRef(true);
-  // TA/Admin มีสองโหมดใช้กล่องเดียวกัน → แยกรายการ (เดิมซ้ำกันทั้งสองโหมด)
-  //   มาจากแถบเมนูล่าง (?tab=1) = โหมดนักศึกษา: เรื่องของตัวเอง / มาจากกระดิ่งแดชบอร์ด = งานผู้ดูแล + สิทธิ์ TA
+  // TA/Admin: ?tab=1 = โหมดนักศึกษา / กระดิ่ง = งานผู้ดูแล + สิทธิ์ TA
   const staffModeRef = useRef<boolean | null>(null);
 
   const fetchNotifications = useCallback(async (silent = false) => {
     const user = await currentUser();
     if (!user) { setLoading(false); return; }
-    // ครั้งแรก: รู้โหมดก่อนค่อยโหลด (โหมดนักศึกษารู้จาก ?tab=1 เลย ไม่ต้องรอ)
+    // ครั้งแรก: รู้โหมดก่อนค่อยโหลด
     if (staffModeRef.current === null) {
       if (tab === "1") {
         staffModeRef.current = false;
@@ -151,7 +149,7 @@ export default function Notifications() {
 
     const list = data || [];
 
-    // นับรายการที่ใหม่กว่ารายการบนสุดครั้งก่อน (เดิมเทียบจำนวนแถว → ครบ 50 รายการแล้วแถบ "มีแจ้งเตือนใหม่" ไม่ขึ้นอีกเลย)
+    // นับรายการที่ใหม่กว่ารายการบนสุดครั้งก่อน (ไม่ใช้จำนวนแถว — ตันที่ 50)
     const newest = prevNewestRef.current;
     if (!isFirstLoad.current) {
       const added = newest ? list.filter((n: any) => n.created_at > newest).length : list.length;
@@ -165,7 +163,7 @@ export default function Notifications() {
     else setLoading(false);
   }, [tab]);
 
-  // อัปเดตจอทันที (ไฮไลต์ยังไม่อ่านค่อย ๆ จางหาย + สั่นเบา ๆ) แล้วค่อยบันทึกลงฐานข้อมูลเบื้องหลัง — พลาดก็โหลดใหม่
+  // อัปเดตจอก่อน แล้วบันทึก DB เบื้องหลัง — พลาดก็โหลดใหม่
   const markAllRead = async () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -173,7 +171,7 @@ export default function Notifications() {
     haptic("success");
     const user = await currentUser();
     if (!user) return;
-    // อ่านแล้วเฉพาะรายการของโหมดนี้ (อีกโหมดยังนับค้างไว้)
+    // เฉพาะรายการของโหมดนี้
     const { error } = await modeFilter(
       supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false),
       !!staffModeRef.current,
@@ -183,13 +181,11 @@ export default function Notifications() {
   };
 
   useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
-  // กลับมาหน้านี้ (ปุ่ม ← / สลับแท็บ) → โหลดข้อมูลใหม่
   useRefreshOnFocus(() => { fetchNotifications(true); });
-  // Realtime: มีแจ้งเตือนใหม่ → โหลดทันที
   useRealtime("user", "notification", () => { fetchNotifications(true); });
 
   useEffect(() => {
-    // สำรองกรณีสัญญาณ Realtime หลุด: ทุก 5 นาที (เดิม 30 วิ) ข้ามตอนแอป/แท็บอยู่เบื้องหลัง
+    // สำรองเมื่อ Realtime หลุด: ทุก 5 นาที ข้ามตอนอยู่เบื้องหลัง
     const interval = setInterval(() => { if (AppState.currentState === "active") fetchNotifications(true); }, 300000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
@@ -203,14 +199,12 @@ export default function Notifications() {
 
   const onRefresh = () => { setRefreshing(true); setNewCount(0); fetchNotifications(); };
 
-  // TA อาจยืมของเองด้วย: "เกินกำหนด" / "คืนอัตโนมัติ" ของผู้ยืมกับของผู้ดูแลเป็นประเภทเดียวกัน
-  // → ถ้าเป็นของที่ตัวเองยืม พาไปหน้าการยืมของตัวเอง ไม่ใช่กล่องคำขอ
+  // TA ที่ยืมเอง: เกินกำหนด/คืนอัตโนมัติของตัวเอง → หน้าการยืมของฉัน
   const isMyLoan = async (n: any) => {
     if (!["overdue", "auto_returned"].includes(n.type) || !n.item_id) return false;
     const user = await currentUser();
     if (!user) return false;
-    // คืนอัตโนมัติ: ดูว่าคำขอคืนนั้นเป็นของเราไหม / เกินกำหนด: ดูว่าเรายังยืมชิ้นนั้นอยู่ไหม
-    // (เดิมนับประวัติทั้งหมด → TA ที่เคยยืมชิ้นนั้นเมื่อนานมาแล้ว กดแจ้งเตือนของนักศึกษาคนอื่นแล้วไปหน้าการยืมของตัวเอง)
+    // คืนอัตโนมัติ: คำขอคืนเป็นของเรา / เกินกำหนด: เรายังยืมชิ้นนั้นอยู่
     if (n.type === "auto_returned" && n.request_id) {
       const { count } = await supabase
         .from("borrow_requests")
@@ -228,23 +222,22 @@ export default function Notifications() {
     return (count || 0) > 0;
   };
 
-  // กดแจ้งเตือน → อ่านแล้ว + ไปหน้าที่เกี่ยวข้อง
+  // กด → อ่านแล้ว + ไปหน้าที่เกี่ยวข้อง
   const openNotification = async (n: any) => {
     // โหมดนักศึกษา = ทำตัวเป็นนักศึกษา ไม่พาเข้าหน้าผู้ดูแล
     const staffMode = !!staffModeRef.current;
     if (!n.read) {
-      // ไม่ต้องรอฐานข้อมูลก่อนเปิดหน้าถัดไป
       setNotifications((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
       supabase.from("notifications").update({ read: true }).eq("id", n.id).then(() => refreshUnreadCount());
     }
-    // ระบบห้องคอม: ผู้ดูแล → คิวคำแจ้ง / ผู้แจ้ง → อ่านผลในข้อความพอ ไม่พาไปหน้าการยืม
+    // ระบบห้อง: ผู้ดูแล → คิวคำแจ้ง / ผู้แจ้ง → อ่านในข้อความพอ
     if (n.type === "room_report") {
       if (staffMode) router.push("/admin/roomreports" as any);
       return;
     }
     if (n.type === "room_report_accepted" || n.type === "room_report_closed") return;
     if (n.type === "role_changed") {
-      // ด่านหน้า admin เช็กสิทธิ์ล่าสุดเอง: ได้ TA → เข้าได้ / ถูกถอด → พากลับหน้านักศึกษา
+      // ด่าน admin เช็กสิทธิ์ล่าสุดเอง
       router.replace("/admin/home");
     } else if (staffMode && STOCK_WATCH[n.type]) {
       router.push(`/admin/stock?watch=${STOCK_WATCH[n.type]}` as any);
@@ -260,7 +253,6 @@ export default function Notifications() {
   return (
     <View style={s.container}>
 
-      {/* HEADER */}
       <ScreenHeader
         title={"การแจ้งเตือน"}
         subtitle={unreadCount > 0 ? `${unreadCount} รายการยังไม่ได้อ่าน` : undefined}
@@ -268,12 +260,11 @@ export default function Notifications() {
         right={unreadCount > 0 ? <HeaderButton icon="checkmark-done-outline" label="อ่านทั้งหมด" onPress={markAllRead} /> : null}
       />
 
-      {/* เว็บ/PWA: เปิด-ปิด Web Push บนเครื่องนี้ (แอปมือถือไม่แสดง) */}
-      {/* การ์ด/แถบมี marginHorizontal 16 ของตัวเอง → กรอบลด padding เหลือ 12 ให้ขอบตรงกับชื่อหน้า (28) */}
+      {/* เว็บ/PWA: เปิด-ปิด Web Push (มือถือไม่แสดง) */}
+      {/* การ์ดมี margin 16 เอง → กรอบ padding 12 ให้ขอบตรงชื่อหน้า */}
       <DesktopBox style={{ paddingHorizontal: 12 }}>
       <WebPushCard />
 
-      {/* new banner */}
       {newCount > 0 && (
         <TouchableOpacity style={s.newBanner} onPress={() => setNewCount(0)}>
           <Ionicons name="notifications" size={16} color="#fff" />
@@ -329,14 +320,13 @@ export default function Notifications() {
         </ScrollView>
       )}
 
-      {/* หน้านี้เป็นแท็บหนึ่งของนักศึกษา → แถบเมนูล่างเหมือนหน้าอื่น / Admin-TA เข้าจากกระดิ่งแดชบอร์ด = ไม่มี */}
+      {/* แถบเมนูล่างเฉพาะโหมดนักศึกษา */}
       {showTabBar ? <TabBar current="/notifications" /> : null}
     </View>
   );
 }
 
-// การ์ดแจ้งเตือน: ตอนเปิดหน้าค่อย ๆ ลอยขึ้นทีละใบ (เฉพาะ 8 ใบแรก ใบที่เหลือโผล่ทันที) + กดแล้วยุบนิดหนึ่ง
-// ใช้ Animated แบบ native driver — ไม่กระทบการโหลดข้อมูล
+// การ์ด: 8 ใบแรกลอยขึ้นทีละใบ + กดแล้วยุบนิด (native driver)
 function NotifCard({ index, style, onPress, children }: { index: number; style: any; onPress: () => void; children: React.ReactNode }) {
   const animate = index < 8;
   const appear = useRef(new Animated.Value(animate ? 0 : 1)).current;
@@ -391,7 +381,7 @@ const s = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4, position: "absolute", top: 14, left: 6 },
   iconBox: { width: 44, height: 44, borderRadius: 22, justifyContent: "center", alignItems: "center", marginLeft: 4, boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" },
   cardContent: { flex: 1 },
-  // หัวข้อเข้ม-ใหญ่ / รายละเอียดเทากลาง / เวลาเทาอ่อนเล็ก — แยกระดับกันชัด (ยังไม่อ่าน = หัวข้อหนาขึ้น + จุดสี)
+  // ยังไม่อ่าน = หัวข้อหนา + จุดสี
   cardTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
   cardTitle: { fontSize: 15, fontWeight: "600", color: "#1E293B", flex: 1, marginRight: 6 },
   cardTitleUnread: { fontWeight: "700", color: "#0F172A" },

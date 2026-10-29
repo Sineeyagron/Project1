@@ -29,7 +29,7 @@ const FS = FileSystem as any;
 const SUPABASE_URL = "https://enupmlxmajjwskvzgcdq.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVudXBtbHhtYWpqd3NrdnpnY2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDIxMDUsImV4cCI6MjA4OTMxODEwNX0.px5ah-o_guGnQ8lTP7oJIwZXJEDiAcicuQTo3A_4aqE";
 
-// เพิ่มอุปกรณ์: กรอก → ยืนยัน (QR ป้ายสร้างทีหลังที่หน้า qrgen ไม่ได้สแกนตอนเพิ่มแล้ว)
+// เพิ่มอุปกรณ์: กรอก → ยืนยัน (ป้าย QR สร้างทีหลังที่ qrgen)
 type Step = "details" | "preview";
 type Category = { id: string; name: string };
 
@@ -43,7 +43,7 @@ const formatThaiDate = (value: string) =>
   });
 
 export default function Scan() {
-  const isDesktop = useIsDesktop(); // เว็บจอใหญ่ → 2 คอลัมน์
+  const isDesktop = useIsDesktop();
 
   const [step, setStep] = useState<Step>("details");
 
@@ -51,14 +51,13 @@ export default function Scan() {
   const [description, setDescription] = useState("");
   const [quantity, setQuantity] = useState("1");
 
-  // ข้อมูลเพิ่มเติม (เฟส 1)
+  // ข้อมูลเพิ่มเติม
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoryId, setCategoryId] = useState("");
   const [shortName, setShortName] = useState("");
   const [serial, setSerial] = useState("");
   const [warranty, setWarranty] = useState("");
 
-  // รูปภาพจริง
   const [photoUri, setPhotoUri] = useState("");
 
   const [saving, setSaving] = useState(false);
@@ -67,7 +66,7 @@ export default function Scan() {
   const [showMore, setShowMore] = useState(false);
   // เลขถัดไปของรุ่นนี้ (แค่แสดงช่วงรหัสตัวอย่าง)
   const [nextNo, setNextNo] = useState<number | null>(null);
-  // เลื่อนจอให้การ์ด "ข้อมูลเพิ่มเติม" ขึ้นมาอยู่บนสุดตอนเปิด/กดพิมพ์ในการ์ดนี้
+  // เลื่อนการ์ด "ข้อมูลเพิ่มเติม" ขึ้นบนสุดตอนเปิด/พิมพ์
   const scrollRef = useRef<any>(null);
   const moreY = useRef(0);
   const focusMore = () => scrollRef.current?.scrollTo({ y: Math.max(0, moreY.current - 8), animated: true });
@@ -82,7 +81,7 @@ export default function Scan() {
   }, []);
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
-  // ช่องประกันพิมพ์ วว/ดด/ปปปป (พ.ศ.) → warrantyIso = ปปปป-ดด-วว (ค.ศ.) ที่บันทึกลงฐานข้อมูล
+  // ประกัน วว/ดด/ปปปป (พ.ศ.) → warrantyIso (ค.ศ.)
   const warrantyIso = parseThaiDate(warranty);
   const warrantyInvalid = warrantyBlocked(warranty);
   const canContinue = !!name.trim() && !warrantyInvalid;
@@ -134,7 +133,7 @@ export default function Scan() {
     }
   };
 
-  // ── เลือกรูปจาก Gallery แทน ──
+  // ── เลือกรูปจากคลัง ──
   const handlePickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       quality: 0.8,
@@ -146,14 +145,14 @@ export default function Scan() {
     }
   };
 
-  // ── Upload รูป + บันทึก items ──
+  // ── อัปโหลดรูป + บันทึก ──
   const handleSave = async () => {
     if (!name.trim()) { notify("กรอกชื่ออุปกรณ์ก่อน"); return; }
     if (warrantyInvalid) {
       notify("วันหมดประกันไม่ถูกต้อง", "ใช้รูปแบบ วัน/เดือน/ปี พ.ศ. เช่น 31/12/2570");
       return;
     }
-    // พิมพ์ติดลบ/ตัวอักษร/เยอะเกิน → เดิมบันทึก 0 แถวแต่ขึ้นว่าสำเร็จ หรือเพิ่มของทีละหลายร้อยชิ้นโดยไม่ตั้งใจ
+    // กันจำนวนติดลบ/ตัวอักษร/เยอะเกิน
     const qty = parseInt(quantity, 10);
     if (!Number.isInteger(qty) || qty < 1 || qty > 200) {
       notify("จำนวนไม่ถูกต้อง", "ใส่จำนวน 1–200 ชิ้น");
@@ -169,11 +168,11 @@ export default function Scan() {
         const fileBase = `items/${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
         let fileName = "";
         let uploadError = "";
-        // ย่อเหลือด้านยาว 1000px + JPEG ก่อนอัปโหลด (รูปกล้องเต็มขนาดหนักเกินที่แอปใช้ — lib/shrinkPhoto)
+        // ย่อด้านยาว 1000px ก่อนอัปโหลด (lib/shrinkPhoto)
         const uploadUri = await shrinkPhoto(photoUri, ITEM_PHOTO_MAX);
 
         if (Platform.OS === "web") {
-          // บนเว็บรูปเป็น blob:/data: URL และไม่มี FileSystem.uploadAsync → อัปโหลดผ่าน supabase-js
+          // เว็บ: blob:/data: URL ไม่มี uploadAsync → ผ่าน supabase-js
           const blob = await (await fetch(uploadUri)).blob();
           const ext = blob.type === "image/png" ? "png" : "jpg";
           fileName = `${fileBase}.${ext}`;
@@ -182,11 +181,11 @@ export default function Scan() {
             .upload(fileName, blob, { contentType: blob.type || "image/jpeg", upsert: true });
           if (upErr) uploadError = upErr.message;
         } else {
-          // มือถือ: FileSystem.uploadAsync (reliable ที่สุดใน RN, กัน bug ไฟล์ 0 ไบต์)
+          // มือถือ: uploadAsync (กันไฟล์ 0 ไบต์)
           const ext = uploadUri.split(".").pop()?.split("?")[0]?.toLowerCase() || "jpg";
           fileName = `${fileBase}.${ext}`;
           const contentType = ext === "png" ? "image/png" : "image/jpeg";
-          // Storage อนุญาตเฉพาะ admin → ต้องส่ง token ของผู้ใช้ที่ล็อกอิน ไม่ใช่ anon key
+          // Storage เฉพาะ admin → ส่ง token ผู้ใช้ ไม่ใช่ anon key
           const { data: { session } } = await supabase.auth.getSession();
 
           const uploadRes = await FS.uploadAsync(
@@ -218,7 +217,7 @@ export default function Scan() {
         }
       }
 
-      // Insert items (1 row ต่อ 1 ชิ้น) — item_code, barcode, location_id ฐานข้อมูลสร้างให้เอง
+      // 1 แถวต่อชิ้น — item_code/barcode/location_id DB สร้างเอง
       const insertData = Array.from({ length: qty }, () => ({
         name: name.trim(),
         status: "available",
@@ -277,7 +276,7 @@ export default function Scan() {
 
   const prefix = codePrefixPreview(name, shortName);
   const qtyNum = Math.max(1, parseInt(quantity, 10) || 1);
-  // ช่วงรหัสที่จะได้ (ประมาณจากเลขล่าสุดของรุ่นนี้ — ฐานข้อมูลออกเลขจริงตอนบันทึก)
+  // ช่วงรหัสโดยประมาณ — DB ออกเลขจริงตอนบันทึก
   const codeRange =
     nextNo == null
       ? `${prefix} ###`
@@ -285,7 +284,7 @@ export default function Scan() {
       ? `${prefix} ${pad3(nextNo)}`
       : `${prefix} ${pad3(nextNo)}–${pad3(nextNo + qtyNum - 1)}`;
 
-  // ── ขั้น 1: รายละเอียด (แบบ ก 11 ต.ค. 2569: รูปขึ้นก่อน + การ์ดตามกลุ่ม + ส่วนไม่บังคับพับเก็บ + ปุ่มติดล่าง) ──
+  // ── ขั้น 1: รายละเอียด ──
   if (step === "details") {
     return (
       <View style={styles.container}>
@@ -294,10 +293,10 @@ export default function Scan() {
 
         <KeyboardAwareScrollView ref={scrollRef} bottomOffset={24} contentContainerStyle={[styles.form, isDesktop && desktopBody.wide]}>
           {isDesktop ? (
-            // จอใหญ่: ซ้าย = รูป · ขวา = ข้อมูลหลัก/จำนวน/ข้อมูลเพิ่มเติม
+            // จอใหญ่: ซ้าย = รูป · ขวา = ข้อมูล
             <View style={desktopCols.row}>
               <View style={desktopCols.side}>
-          {/* รูป — แตะกรอบ = ถ่ายรูป / ลิงก์ล่าง = เลือกจากคลังรูป */}
+          {/* รูป: แตะ = ถ่าย / ลิงก์ล่าง = คลังรูป */}
           {photoUri ? (
             <View style={styles.photoPreview}>
               <Image source={{ uri: photoUri }} style={styles.photoImage} />
@@ -391,7 +390,7 @@ export default function Scan() {
             </View>
           </View>
 
-          {/* ข้อมูลเพิ่มเติม (ไม่บังคับ) — พับเก็บ / เปิดเองถ้าวันที่ผิด */}
+          {/* ข้อมูลเพิ่มเติม (ไม่บังคับ) */}
           <View style={styles.card} onLayout={(e) => (moreY.current = e.nativeEvent.layout.y)}>
             <TouchableOpacity
               style={styles.moreHead}
@@ -444,7 +443,7 @@ export default function Scan() {
             </View>
           ) : (
             <>
-          {/* รูป — แตะกรอบ = ถ่ายรูป / ลิงก์ล่าง = เลือกจากคลังรูป */}
+          {/* รูป: แตะ = ถ่าย / ลิงก์ล่าง = คลังรูป */}
           {photoUri ? (
             <View style={styles.photoPreview}>
               <Image source={{ uri: photoUri }} style={styles.photoImage} />
@@ -536,7 +535,7 @@ export default function Scan() {
             </View>
           </View>
 
-          {/* ข้อมูลเพิ่มเติม (ไม่บังคับ) — พับเก็บ / เปิดเองถ้าวันที่ผิด */}
+          {/* ข้อมูลเพิ่มเติม (ไม่บังคับ) */}
           <View style={styles.card} onLayout={(e) => (moreY.current = e.nativeEvent.layout.y)}>
             <TouchableOpacity
               style={styles.moreHead}
@@ -609,7 +608,7 @@ export default function Scan() {
     );
   }
 
-  // ── ขั้น 2: ยืนยัน & บันทึก — การ์ดตัวอย่าง (แบบที่ นศ. จะเห็น) + สรุป ──
+  // ── ขั้น 2: ยืนยัน & บันทึก ──
   return (
     <View style={styles.container}>
       <ScreenHeader title="ยืนยัน & บันทึก" onBack={() => setStep("details")} />

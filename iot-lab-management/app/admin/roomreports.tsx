@@ -262,7 +262,7 @@ export default function RoomReports() {
 
 const s = StyleSheet.create({
   container: { ...W.page, flex: 1 },
-  filterScroll: { maxHeight: 54 },
+  filterScroll: { flexGrow: 0 }, // สูงตามเนื้อหา (ตัวอักษรใหญ่ในเครื่องไม่โดนตัด)
   filterRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 10 },
   filterBtn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCE6F5" },
   filterBtnActive: { ...NG, backgroundColor: "#2563EB", borderColor: "#2563EB" },

@@ -25,7 +25,7 @@ import { useInstallMode } from "../lib/web/installApp";
 const KKU = { brick: "#A8341C", orange: "#D97A1E", shadow: "#7A2412" };
 const KKU_ONLY_MSG = 'นักศึกษาให้ใช้อีเมล @kkumail.com แล้วกด "ดำเนินการต่อด้วย Google"';
 
-// พื้นไล่สีอ่อนๆ (สว่างกว่านิดเดียวด้านบน) — ไม่มีแสงมัน (เจ้าของโปรเจกต์ว่าปุ่มนูนไม่สวย 12 ต.ค. 2569) · วางเป็นลูกแรกของปุ่ม
+// พื้นไล่สีอ่อน (ไม่มีแสงมัน) — วางเป็นลูกแรกของปุ่ม
 // kku = ปุ่ม KKU Mail (สีอิฐ มีแถบส้มล่าง) / ไม่ใส่ = ปุ่มเข้าสู่ระบบสีฟ้าของแอป
 function Shine({ kku }: { kku?: boolean }) {
   return (
@@ -40,12 +40,12 @@ function Shine({ kku }: { kku?: boolean }) {
   );
 }
 
-// กรอบการ์ดมีไฟวิ่ง: แผ่นไล่สีน้ำเงิน (โทนทางการ) หมุนช้าๆ อยู่หลังการ์ด โผล่ให้เห็นแค่ขอบ
-// หมุนด้วย native driver (ไม่กิน JS) / เว็บใช้ CSS animation · เครื่องเปิด "ลดภาพเคลื่อนไหว" = ขอบนิ่ง
+// ขอบการ์ดมีไฟวิ่ง: แผ่นไล่สีหมุนช้า ๆ หลังการ์ด
+// มือถือ native driver / เว็บ CSS animation · "ลดภาพเคลื่อนไหว" = ขอบนิ่ง
 function GlowFrame({ children }: { children: React.ReactNode }) {
   const [box, setBox] = useState({ w: 0, h: 0 });
   const spin = useRef(new Animated.Value(0)).current;
-  // เว็บ: หมุนด้วย CSS animation (Animated.loop บนเว็บวนด้วย JS แล้วหยุดบน iPhone PWA)
+  // เว็บ: CSS animation (Animated.loop บน iPhone PWA หยุดเอง)
   const [moving, setMoving] = useState(false);
 
   useEffect(() => {
@@ -62,8 +62,7 @@ function GlowFrame({ children }: { children: React.ReactNode }) {
 
   // แผ่นจัตุรัสกว้าง = เส้นทแยงการ์ด จุดหมุนอยู่กลางการ์ด → ลิ่มแสงยาวถึงขอบทุกมุม
   const d = Math.ceil(Math.hypot(box.w, box.h));
-  // ความเร็วคงที่บนขอบ: หมุนมุมเท่ากันทุกช่วง = ตรงมุมการ์ด (ไกลจุดกลาง) แสงวิ่งเร็วขึ้น
-  // → แบ่งเส้นรอบเป็นช่วงเท่าๆ กัน แล้วแปลงแต่ละจุดเป็นมุมที่ต้องหมุน (หัวลิ่มชี้ไปที่จุดนั้น)
+  // ความเร็วบนขอบคงที่: แบ่งเส้นรอบเป็นช่วงเท่ากัน แล้วแปลงแต่ละจุดเป็นมุม
   const stops = useMemo(() => {
     const { w, h } = box;
     if (!w || !h) return { input: [0, 1], output: ["0deg", "360deg"] };
@@ -142,18 +141,17 @@ export default function Login() {
 
   const [googleLoading, setGoogleLoading] = useState(false);
   const installMode = useInstallMode();
-  // อีเมล มข. (@kkumail.com นศ. / @kku.ac.th บุคลากร) = บัญชี Google ของมหาวิทยาลัย → ซ่อนช่องรหัส ปุ่มหลักพาไปหน้า Google (แอปไม่รับรหัส มข.)
+  // อีเมล มข. = บัญชี Google → ซ่อนช่องรหัส ปุ่มหลักไปหน้า Google
   const isUniEmail = isUniAddress(email);
   const canSubmit = email.trim().length > 0 && (isUniEmail || password.length > 0) && !isLoading && !googleLoading;
-  // พิมพ์โดเมนผิดนิดหน่อย (เช่น @kkmail.com) → เสนอแก้เป็น @kkumail.com + ปุ่ม KKU Mail ส่งอีเมลที่แก้แล้วให้ Google
+  // โดเมนพิมพ์ผิด (@kkmail.com) → เสนอแก้เป็น @kkumail.com
   const kkuFix = uniEmailTypoFix(email);
 
-  // ล็อกอิน Google สำเร็จ → ตรวจโดเมนซ้ำ (ด่านจริงอยู่ที่ Auth Hook) แล้วไปต่อเหมือนล็อกอินปกติ
+  // ล็อกอิน Google สำเร็จ → ตรวจโดเมนซ้ำ (ด่านจริง = Auth Hook)
   const afterGoogle = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    // เฉพาะโดเมนใน app_settings.allowed_email_domain (ว่าง = ทุกบัญชีผ่าน)
-    //   เช็กเฉพาะบัญชีที่เข้าด้วย Google — เจ้าหน้าที่ที่ใช้อีเมล/รหัสผ่าน (session ค้างแล้วเปิดหน้านี้) ไม่โดนออก
+    // เฉพาะโดเมนใน allowed_email_domain (ว่าง = ผ่านหมด) · เช็กเฉพาะบัญชี Google
     const viaGoogle = user.app_metadata?.provider === "google" || (user.identities || []).some((i) => i.provider === "google");
     const domains = viaGoogle ? await getAllowedDomains() : [];
     if (!isAllowedEmail(user.email, domains)) {
@@ -165,10 +163,8 @@ export default function Login() {
     await finishLogin(user, user.email || "");
   };
 
-  // เว็บ: กลับมาจากหน้า Google → supabase-js อ่าน token จาก URL ให้แล้ว / มี error → แจ้ง
-  //   เดิมดูแค่ URL — แต่ supabase-js ลบ token ออกจาก URL ก่อนหน้านี้แสดง (รอฟอนต์บนมือถือ) → บางครั้งเด้งกลับมาเฉย ๆ ไม่ล็อกอิน
-  //   Android แบบติดตั้ง: หน้า Google เปิดเป็นหน้าต่างย่อย บางเครื่องล็อกอินเสร็จในหน้าต่างนั้น แล้วกลับมาหน้า login เดิมที่ไม่รู้ตัว
-  //   ตอนนี้: มี session อยู่แล้ว (getSession รอ supabase-js อ่าน URL เสร็จ) = พาเข้าระบบ · กลับมาที่แอป = เช็กอีกรอบ
+  // เว็บ: กลับจาก Google → มี session แล้ว (getSession รอ supabase-js อ่าน URL) = พาเข้า / มี error = แจ้ง
+  // กลับมาที่แอป = เช็กอีกรอบ (Android ติดตั้ง: Google อาจล็อกอินเสร็จในหน้าต่างย่อย)
   useEffect(() => {
     if (Platform.OS !== "web") return;
     const err = webRedirectError();
@@ -205,7 +201,7 @@ export default function Login() {
     if (res.ok && Platform.OS !== "web") await afterGoogle();
   };
 
-  // หน้าต่างแจ้งของแอปเอง (window.alert ถูกซ่อนในบางเบราว์เซอร์/แผงพรีวิว)
+  // แจ้งด้วยหน้าต่างของแอป (window.alert ถูกซ่อนบางเบราว์เซอร์)
   const showPopup = (title: string, message: string) => notify(title, message);
 
   const updateEmail = (value: string) => {
@@ -254,7 +250,7 @@ export default function Login() {
         email: "อีเมลอาจไม่ถูกต้อง",
         password: "รหัสผ่านอาจไม่ถูกต้อง",
       });
-      // มาถึงตรงนี้ = ไม่ใช่อีเมล มข. (อีเมล มข. ไปทาง Google ข้างบน) → บอก นศ. ที่พิมพ์ Gmail มาด้วยว่าต้องใช้ kkumail
+      // ไม่ใช่อีเมล มข. → นศ. ที่พิมพ์ Gmail ให้ใช้ kkumail
       showPopup("เข้าสู่ระบบไม่สำเร็จ", `อีเมลหรือรหัสผ่านไม่ถูกต้อง\n\n${KKU_ONLY_MSG}`);
       setIsLoading(false);
       return;
@@ -294,8 +290,7 @@ export default function Login() {
       return;
     }
 
-    // อีเมลนอก มข. + รหัสผ่าน = เฉพาะผู้ดูแล (admin/TA) · บัญชีนักศึกษาที่ใช้อีเมลอื่น → ออก + บอกให้ใช้ kkumail
-    //   ตามสวิตช์ app_settings.allowed_email_domain (ว่าง = ทุกบัญชีผ่าน)
+    // อีเมลนอก มข. + รหัสผ่าน = เฉพาะ admin/TA · นศ. → ออก + ให้ใช้ kkumail
     const isStaffRole = profile?.role === "admin" || profile?.role === "ta";
     if (!isStaffRole && !isAllowedEmail(user.email, await getAllowedDomains())) {
       await supabase.auth.signOut();
@@ -345,7 +340,7 @@ export default function Login() {
     <View
       style={styles.screen}
     >
-      {/* พื้นหลังเฉพาะหน้า login: โทนฟ้าเดียวกับทั้งแอป (W.page) แต่เข้มกว่า */}
+      {/* พื้นหลังหน้า login: โทนฟ้าเดียวกับแอป แต่เข้มกว่า */}
       <LinearGradient colors={["#4F82EC", "#79A2F3", "#B0C9F8", "#DCE7FB"]} locations={[0, 0.32, 0.64, 1]} style={styles.topBand} />
       <KeyboardAwareScrollView bottomOffset={24}
         contentContainerStyle={styles.content}
@@ -394,7 +389,7 @@ export default function Login() {
               textContentType="emailAddress"
               selectionColor="#2563EB"
             />
-            {/* พิมพ์ผิด → แตะทีเดียวลบทั้งช่อง แล้วพิมพ์ต่อได้เลย (ช่องรหัสไม่ใส่ — ชิดปุ่มตาเกินไป) */}
+            {/* แตะลบทั้งช่อง (ช่องรหัสไม่ใส่ — ชิดปุ่มตา) */}
             {email.length > 0 && (
               <TouchableOpacity
                 onPress={() => { updateEmail(""); emailRef.current?.focus(); }}
@@ -524,7 +519,7 @@ export default function Login() {
           </>
           )}
 
-          {/* ไม่มีลืมรหัสผ่าน/สมัครสมาชิกในแอป → บอกทางออกให้คนที่เข้าไม่ได้ */}
+          {/* ไม่มีลืมรหัส/สมัครในแอป → บอกทางออก */}
           <View style={styles.helpRow}>
             <Ionicons name="help-circle-outline" size={14} color="#64748B" />
             <Text style={styles.helpText}>มีปัญหาเข้าระบบ? ติดต่อผู้ดูแลห้องแล็บ</Text>
@@ -532,7 +527,6 @@ export default function Login() {
         </View>
         </GlowFrame>
 
-        {/* ไม่มีสมัครสมาชิกในแอป (ถอดออก 12 ต.ค. 2569) — นศ. เข้าด้วย Google @kkumail.com ครั้งแรก = สร้างบัญชีให้เอง */}
         <View style={styles.sslPill}>
           <Ionicons name="shield-checkmark" size={14} color="#047857" />
           <Text style={styles.sslText}>ปลอดภัย เข้ารหัส SSL</Text>
@@ -542,7 +536,7 @@ export default function Login() {
         {installMode ? <View style={{ height: INSTALL_BANNER_SPACE }} /> : null}
       </KeyboardAwareScrollView>
 
-      {/* เว็บมือถือที่ยังไม่ได้ติดตั้ง: แถบชวนเพิ่มลงหน้าจอโฮม ลอยติดล่างจอ (iPhone = บอกวิธี / Android = ปุ่มติดตั้ง) */}
+      {/* เว็บมือถือยังไม่ติดตั้ง: แถบชวนเพิ่มลงหน้าโฮม */}
       <InstallBanner />
     </View>
   );
@@ -562,7 +556,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   googleText: { fontSize: 15, fontWeight: "800", color: "#ffffff", flexShrink: 1 },
-  // ปุ่ม KKU Mail = สีมหาวิทยาลัย (อิฐ + แถบส้ม) — ข้อยกเว้นเดียวจากสีฟ้าของแอป (เจ้าของโปรเจกต์เลือก 12 ต.ค. 2569)
+  // ปุ่ม KKU Mail = สีมหาวิทยาลัย — ข้อยกเว้นเดียวจากสีฟ้า
   kkuBtn: {
     minHeight: 50,
     borderRadius: 14,
@@ -658,7 +652,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0,
   },
-  // ป้ายขาวโปร่งรองคำโปรย — พื้นหลังหน้า login เข้มขึ้น ตัวเทาเดิมกลืน
+  // ป้ายขาวโปร่งรองคำโปรย (พื้นเข้ม ตัวเทากลืน)
   subtitleRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -688,7 +682,7 @@ const styles = StyleSheet.create({
   },
   glowClip: {
     borderRadius: 24,
-    // เว็บ: "clip" ไม่ใช่ "hidden" — แผ่นไฟหมุนใหญ่กว่าการ์ด กล่อง hidden เลื่อนได้ → แตะช่องอีเมลแล้วเบราว์เซอร์เลื่อนการ์ดเบี้ยว
+    // เว็บ: "clip" ไม่ใช่ "hidden" — hidden เลื่อนได้ → แตะช่องอีเมลแล้วการ์ดเบี้ยว
     overflow: (Platform.OS === "web" ? "clip" : "hidden") as "hidden",
     padding: 1.5, // ความหนาขอบไฟ
     backgroundColor: "#BFD3F7", // ขอบน้ำเงินอ่อนตอนไฟไม่ผ่าน
@@ -891,7 +885,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 5,
-    marginTop: 28, // เดิมมีแถว "สมัครสมาชิก" คั่น
+    marginTop: 28,
     borderWidth: 1,
     borderColor: "#bbf7d0",
   },
