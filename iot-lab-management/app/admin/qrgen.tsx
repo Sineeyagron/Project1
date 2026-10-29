@@ -529,7 +529,7 @@ const s = StyleSheet.create({
   stepText: { color: "#fff", fontSize: 12, fontWeight: "900" },
   sectionTitle: { color: C.ink, fontSize: 14, fontWeight: "900" },
   sectionRight: { color: C.muted, fontSize: 12, fontWeight: "900" },
-  itemList: { gap: 9, marginBottom: 18 },
+  itemList: { gap: 9, marginTop: 12, marginBottom: 18 },
   // จอใหญ่: การ์ดเลือกอุปกรณ์ 3 คอลัมน์
   itemGrid: { flexDirection: "row", flexWrap: "wrap" },
   itemCell: { width: "32.6%" },
