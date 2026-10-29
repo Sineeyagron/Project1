@@ -23,6 +23,7 @@ import InstallBanner, { INSTALL_BANNER_SPACE } from "../components/InstallBanner
 import { useInstallMode } from "../lib/web/installApp";
 
 const KKU = { brick: "#A8341C", orange: "#D97A1E", shadow: "#7A2412" };
+const KKU_ONLY_MSG = 'นักศึกษาให้ใช้อีเมล @kkumail.com แล้วกด "ดำเนินการต่อด้วย Google"';
 
 // พื้นไล่สีอ่อนๆ (สว่างกว่านิดเดียวด้านบน) — ไม่มีแสงมัน (เจ้าของโปรเจกต์ว่าปุ่มนูนไม่สวย 12 ต.ค. 2569) · วางเป็นลูกแรกของปุ่ม
 // kku = ปุ่ม KKU Mail (สีอิฐ มีแถบส้มล่าง) / ไม่ใส่ = ปุ่มเข้าสู่ระบบสีฟ้าของแอป
@@ -137,6 +138,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [focusedField, setFocusedField] = useState<"email" | "password" | null>(null);
   const [fieldErrors, setFieldErrors] = useState({ email: "", password: "" });
+  const emailRef = useRef<React.ElementRef<typeof TextInput>>(null);
 
   const [googleLoading, setGoogleLoading] = useState(false);
   const installMode = useInstallMode();
@@ -252,7 +254,8 @@ export default function Login() {
         email: "อีเมลอาจไม่ถูกต้อง",
         password: "รหัสผ่านอาจไม่ถูกต้อง",
       });
-      showPopup("เข้าสู่ระบบไม่สำเร็จ", "อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบแล้วลองใหม่อีกครั้ง");
+      // มาถึงตรงนี้ = ไม่ใช่อีเมล มข. (อีเมล มข. ไปทาง Google ข้างบน) → บอก นศ. ที่พิมพ์ Gmail มาด้วยว่าต้องใช้ kkumail
+      showPopup("เข้าสู่ระบบไม่สำเร็จ", `อีเมลหรือรหัสผ่านไม่ถูกต้อง\n\n${KKU_ONLY_MSG}`);
       setIsLoading(false);
       return;
     }
@@ -288,6 +291,16 @@ export default function Login() {
         profileError.message || "กรุณาลองเข้าสู่ระบบอีกครั้ง"
       );
       setIsLoading(false);
+      return;
+    }
+
+    // อีเมลนอก มข. + รหัสผ่าน = เฉพาะผู้ดูแล (admin/TA) · บัญชีนักศึกษาที่ใช้อีเมลอื่น → ออก + บอกให้ใช้ kkumail
+    //   ตามสวิตช์ app_settings.allowed_email_domain (ว่าง = ทุกบัญชีผ่าน)
+    const isStaffRole = profile?.role === "admin" || profile?.role === "ta";
+    if (!isStaffRole && !isAllowedEmail(user.email, await getAllowedDomains())) {
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      showPopup("เข้าสู่ระบบได้เฉพาะอีเมล มข.", KKU_ONLY_MSG);
       return;
     }
 
@@ -360,7 +373,7 @@ export default function Login() {
         <GlowFrame>
         <View style={styles.card}>
           <Text style={styles.title}>เข้าสู่ระบบ</Text>
-          <Text style={styles.description}>นักศึกษา/บุคลากร มข. เข้าด้วย Google · บัญชีอื่นใช้รหัสผ่าน</Text>
+          <Text style={styles.description}>นักศึกษา/บุคลากร มข. เข้าด้วย Google</Text>
 
           <Text style={styles.label}>อีเมล</Text>
           <View style={[styles.inputBox, fieldErrors.email && styles.inputBoxError, focusedField === "email" && styles.inputBoxFocused]}>
@@ -368,6 +381,7 @@ export default function Login() {
               <Ionicons name="mail-outline" size={18} color={focusedField === "email" ? "#2563EB" : "#7f8ea3"} />
             </View>
             <TextInput
+              ref={emailRef}
               placeholder={focusedField === "email" ? "" : "Student@kkumail.com"}
               placeholderTextColor="#94a3b8"
               style={styles.input}
@@ -380,6 +394,17 @@ export default function Login() {
               textContentType="emailAddress"
               selectionColor="#2563EB"
             />
+            {/* พิมพ์ผิด → แตะทีเดียวลบทั้งช่อง แล้วพิมพ์ต่อได้เลย (ช่องรหัสไม่ใส่ — ชิดปุ่มตาเกินไป) */}
+            {email.length > 0 && (
+              <TouchableOpacity
+                onPress={() => { updateEmail(""); emailRef.current?.focus(); }}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="ลบอีเมล"
+              >
+                <Ionicons name="close-circle" size={20} color="#94a3b8" />
+              </TouchableOpacity>
+            )}
           </View>
           {!!fieldErrors.email && (
             <View style={styles.errorRow}>
@@ -663,7 +688,8 @@ const styles = StyleSheet.create({
   },
   glowClip: {
     borderRadius: 24,
-    overflow: "hidden",
+    // เว็บ: "clip" ไม่ใช่ "hidden" — แผ่นไฟหมุนใหญ่กว่าการ์ด กล่อง hidden เลื่อนได้ → แตะช่องอีเมลแล้วเบราว์เซอร์เลื่อนการ์ดเบี้ยว
+    overflow: (Platform.OS === "web" ? "clip" : "hidden") as "hidden",
     padding: 1.5, // ความหนาขอบไฟ
     backgroundColor: "#BFD3F7", // ขอบน้ำเงินอ่อนตอนไฟไม่ผ่าน
   },
