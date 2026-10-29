@@ -72,10 +72,12 @@ async function share(uri: string, mimeType: string, UTI: string, dialogTitle: st
 export function openPrintView(html: string, title: string, note?: string, pageWidth = PAGE_PORTRAIT) {
   if (!isMobileWeb()) {
     const win = window.open("", "_blank");
-    if (!win) throw new Error("เบราว์เซอร์บล็อกหน้าต่างใหม่ อนุญาต pop-up ให้เว็บนี้แล้วลองอีกครั้ง");
-    win.document.write(html);
-    win.document.close();
-    return;
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      return;
+    }
+    // เบราว์เซอร์/ส่วนเสริมบล็อกแท็บใหม่ → เปิดซ้อนในหน้าแทน (พิมพ์ได้เหมือนกัน)
   }
   showPrintOverlay(html, title, note, pageWidth);
 }
