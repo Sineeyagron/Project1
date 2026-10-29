@@ -150,7 +150,7 @@ export default function Login() {
   const afterGoogle = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    // สวิตช์ปิดอยู่ (ช่วงพัฒนา) = ทุกบัญชีผ่าน / เปิดตอน Final Project = เฉพาะโดเมนที่ตั้ง
+    // เฉพาะโดเมนใน app_settings.allowed_email_domain (ว่าง = ทุกบัญชีผ่าน)
     //   เช็กเฉพาะบัญชีที่เข้าด้วย Google — เจ้าหน้าที่ที่ใช้อีเมล/รหัสผ่าน (session ค้างแล้วเปิดหน้านี้) ไม่โดนออก
     const viaGoogle = user.app_metadata?.provider === "google" || (user.identities || []).some((i) => i.provider === "google");
     const domains = viaGoogle ? await getAllowedDomains() : [];

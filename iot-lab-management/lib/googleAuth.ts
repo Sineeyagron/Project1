@@ -23,8 +23,8 @@ export const isStaffEmail = (email: string | null | undefined) => domainOf(email
 
 WebBrowser.maybeCompleteAuthSession();
 
-// สวิตช์ "รับเฉพาะอีเมล มข." อยู่ใน app_settings.allowed_email_domain = "kkumail.com,kku.ac.th" (ว่าง = ทุกบัญชีใช้ได้ — ช่วงพัฒนา)
-// เปิดตอน Final Project ที่หน้าตั้งค่าระบบ (+ เปิด Auth Hook ใน Supabase)
+// โดเมนที่รับ = app_settings.allowed_email_domain ("kkumail.com,kku.ac.th" — ใช้จริงแล้ว ไม่มีสวิตช์ในแอป แก้ได้จาก SQL เท่านั้น)
+// ว่าง = ทุกบัญชีใช้ได้ · ฝั่งเซิร์ฟเวอร์กันซ้ำด้วย Auth Hook hook_restrict_signup_domain
 export async function getAllowedDomains(): Promise<string[]> {
   const { data } = await supabase.from("app_settings").select("value").eq("key", "allowed_email_domain").maybeSingle();
   return typeof data?.value === "string" ? parseDomains(data.value) : [];
