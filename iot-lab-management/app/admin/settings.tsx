@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Keyboard,
-  Switch,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -15,7 +13,6 @@ import { Ionicons } from "@expo/vector-icons";
 import supabase from "../../lib/supabase";
 import { goBack } from "../../lib/nav";
 import { confirmAction, notify } from "../../lib/notify";
-import { UNI_DOMAINS } from "../../lib/googleAuth";
 import { W, NG } from "../../lib/theme";
 import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
@@ -80,9 +77,6 @@ export default function AdminSettings() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
-  // สวิตช์ "รับเฉพาะอีเมล มข." (app_settings.allowed_email_domain = "kkumail.com,kku.ac.th") — ช่วงพัฒนาปิดไว้ เปิดตอน Final Project
-  const [restrictDomain, setRestrictDomain] = useState(false);
-  const [domainBusy, setDomainBusy] = useState(false);
   // F1 กฎการยืม-คืน (app_settings.borrow_rules) — แสดงในป๊อปอัปยืนยันของ นศ. + หน้าโปรไฟล์
   // savedRules = แบบที่เก็บใน DB ({max}) / rules = แบบที่ admin แก้ ([จำนวนสูงสุด])
   const [savedRules, setSavedRules] = useState<string[]>([]);
@@ -113,7 +107,7 @@ export default function AdminSettings() {
     const { data, error } = await supabase
       .from("app_settings")
       .select("key, value")
-      .in("key", [...FIELDS.map((f) => f.key), "allowed_email_domain", "borrow_rules", "borrow_day_options"]);
+      .in("key", [...FIELDS.map((f) => f.key), "borrow_rules", "borrow_day_options"]);
     // โหลดพัง = ไม่โชว์ฟอร์ม (ไม่งั้นช่องขึ้นค่าตั้งต้นเหมือนค่าจริง กดบันทึกแล้วทับค่าในฐานข้อมูล)
     if (error) {
       setLoadError(error.message);
@@ -128,8 +122,6 @@ export default function AdminSettings() {
     setSavedDays(days);
     setDayOptions(days);
     setNewDay(null);
-    const domainValue = (data || []).find((r: any) => r.key === "allowed_email_domain")?.value;
-    setRestrictDomain(typeof domainValue === "string" && domainValue.trim() !== "");
     const values: Record<string, number> = {};
     FIELDS.forEach((f) => {
       const n = Number((data || []).find((r: any) => r.key === f.key)?.value);
@@ -244,31 +236,6 @@ export default function AdminSettings() {
     setRules(cleanRules.map(toThaiVars));
     setEditing(null);
     notify("บันทึกกฎแล้ว", "นักศึกษาเห็นกฎใหม่ทันทีในป๊อปอัปยืนยันและหน้าโปรไฟล์");
-  };
-
-  const toggleDomain = (on: boolean) => {
-    confirmAction(
-      on ? "รับเฉพาะอีเมล มข.?" : "เปิดให้ทุกอีเมลใช้ได้?",
-      on
-        ? `ล็อกอินด้วย Google และสมัครบัญชีใหม่ได้เฉพาะ @kkumail.com (นักศึกษา) และ @kku.ac.th (บุคลากร) — บัญชีเดิมทั้งหมดยังใช้ได้
-
-อย่าลืมเปิด Auth Hook "Before User Created" ใน Supabase ด้วย ไม่งั้นด่านฝั่งเซิร์ฟเวอร์ยังไม่ทำงาน`
-        : "ทุกอีเมลล็อกอินด้วย Google และสมัครบัญชีใหม่ได้ (ใช้ช่วงพัฒนา/ทดสอบ)",
-      on ? "เปิดใช้" : "ปิด",
-      async () => {
-        setDomainBusy(true);
-        const { error } = await supabase
-          .from("app_settings")
-          .upsert({ key: "allowed_email_domain", value: on ? UNI_DOMAINS.join(",") : "", updated_at: new Date().toISOString() });
-        setDomainBusy(false);
-        if (error) {
-          notify("บันทึกไม่สำเร็จ", error.message);
-          return;
-        }
-        setRestrictDomain(on);
-      },
-      on
-    );
   };
 
   const save = async () => {
@@ -507,27 +474,6 @@ export default function AdminSettings() {
               <Text style={s.saveText}>{rulesSaving ? "กำลังบันทึก..." : rulesChanged ? "บันทึกกฎ" : "กฎยังไม่มีการเปลี่ยนแปลง"}</Text>
             </TouchableOpacity>
           </View>
-
-          <View style={{ gap: 8 }}>
-            <Text style={s.section}>การเข้าสู่ระบบ</Text>
-            <View style={s.card}>
-              <View style={s.field}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.label}>รับเฉพาะอีเมล มข.</Text>
-                  <Text style={s.hint}>
-                    {restrictDomain
-                      ? "เปิดอยู่ — ล็อกอิน Google / สมัครใหม่ได้เฉพาะ @kkumail.com (นักศึกษา) และ @kku.ac.th (บุคลากร)"
-                      : "ปิดอยู่ (ช่วงพัฒนา) — ทุกอีเมลใช้ได้ · เปิดตอน Final Project"}
-                  </Text>
-                </View>
-                {domainBusy ? (
-                  <ActivityIndicator color={C.purple} />
-                ) : (
-                  <Switch value={restrictDomain} onValueChange={toggleDomain} trackColor={{ true: C.purple }} />
-                )}
-              </View>
-            </View>
-          </View>
               </View>
             </View>
           ) : (
@@ -718,27 +664,6 @@ export default function AdminSettings() {
             <TouchableOpacity style={[s.saveBtn, !canSaveRules && { opacity: 0.4 }]} disabled={!canSaveRules} onPress={saveRules} activeOpacity={0.85}>
               <Text style={s.saveText}>{rulesSaving ? "กำลังบันทึก..." : rulesChanged ? "บันทึกกฎ" : "กฎยังไม่มีการเปลี่ยนแปลง"}</Text>
             </TouchableOpacity>
-          </View>
-
-          <View style={{ gap: 8 }}>
-            <Text style={s.section}>การเข้าสู่ระบบ</Text>
-            <View style={s.card}>
-              <View style={s.field}>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.label}>รับเฉพาะอีเมล มข.</Text>
-                  <Text style={s.hint}>
-                    {restrictDomain
-                      ? "เปิดอยู่ — ล็อกอิน Google / สมัครใหม่ได้เฉพาะ @kkumail.com (นักศึกษา) และ @kku.ac.th (บุคลากร)"
-                      : "ปิดอยู่ (ช่วงพัฒนา) — ทุกอีเมลใช้ได้ · เปิดตอน Final Project"}
-                  </Text>
-                </View>
-                {domainBusy ? (
-                  <ActivityIndicator color={C.purple} />
-                ) : (
-                  <Switch value={restrictDomain} onValueChange={toggleDomain} trackColor={{ true: C.purple }} />
-                )}
-              </View>
-            </View>
           </View>
             </>
           )}
