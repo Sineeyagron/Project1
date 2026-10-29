@@ -320,7 +320,7 @@ export default function AdminLanPorts() {
 const styles = StyleSheet.create({
   container: { ...W.page, flex: 1 },
 
-  selectorScroll: { maxHeight: 52 },
+  selectorScroll: { flexGrow: 0 }, // สูงตามเนื้อหา (ตัวอักษรใหญ่ในเครื่องไม่โดนตัด)
   selectorRow: { gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
   selectorBtn: { paddingHorizontal: 16, paddingVertical: 6, borderRadius: 10, backgroundColor: "#DCE6F5" },
   selectorBtnActive: { ...NG, backgroundColor: "#1D4ED8" },

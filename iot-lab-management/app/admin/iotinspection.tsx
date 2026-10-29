@@ -62,14 +62,6 @@ function latestPerItem(inspections: any[]) {
   return map;
 }
 
-function itemIcon(item: any, condition: ConditionKey) {
-  const key = `${item?.name || ""} ${item?.type || ""}`.toLowerCase();
-  if (key.includes("wifi") || key.includes("ap") || key.includes("router")) return "wifi-outline";
-  if (key.includes("sensor") || key.includes("dht") || key.includes("hc-sr") || key.includes("ultra")) return "pulse-outline";
-  if (key.includes("rasp") || key.includes("server") || key.includes("gateway")) return "server-outline";
-  if (key.includes("monitor") || key.includes("display")) return "desktop-outline";
-  return CONDITION_CFG[condition].icon;
-}
 
 function itemLocation(item: any) {
   const description = String(item?.description || "").trim();
@@ -105,12 +97,12 @@ function relativeInspection(value?: string) {
   const diff = Date.now() - new Date(value).getTime();
   if (Number.isNaN(diff)) return "ยังไม่เคยตรวจ";
   const minutes = Math.max(0, Math.floor(diff / 60000));
-  if (minutes < 1) return "อัปเดตเมื่อสักครู่";
-  if (minutes < 60) return `อัปเดต ${minutes} นาทีที่แล้ว`;
+  if (minutes < 1) return "เมื่อสักครู่";
+  if (minutes < 60) return `${minutes} นาทีที่แล้ว`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `อัปเดต ${hours} ชั่วโมงที่แล้ว`;
+  if (hours < 24) return `${hours} ชม.ที่แล้ว`;
   const days = Math.floor(hours / 24);
-  if (days <= 7) return `อัปเดต ${days} วันที่แล้ว`;
+  if (days <= 7) return `${days} วันที่แล้ว`;
   return `รายงาน ${formatThaiDate(value)}`;
 }
 
@@ -300,7 +292,7 @@ export default function IotInspectionPage() {
                     activeOpacity={0.86}
                   >
                     <View style={[s.itemIcon, { backgroundColor: cfg.bg }]}>
-                      <Ionicons name={itemIcon(item, condition)} size={23} color={cfg.color} />
+                      <Ionicons name="hardware-chip-outline" size={23} color={cfg.color} />
                     </View>
 
                     <View style={s.itemMiddle}>
@@ -500,7 +492,7 @@ const s = StyleSheet.create({
   inlineStatus: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
   statusDot: { width: 6, height: 6, borderRadius: 3 },
   inlineStatusText: { fontSize: 12, fontWeight: "800" },
-  itemRight: { alignItems: "flex-end", maxWidth: 98 },
+  itemRight: { alignItems: "flex-end", maxWidth: 120 },
   statusPill: {
     minWidth: 77,
     minHeight: 22,
