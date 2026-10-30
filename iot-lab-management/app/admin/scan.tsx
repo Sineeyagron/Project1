@@ -6,14 +6,12 @@ import {
   ScrollView,
   ActivityIndicator,
   Image,
-  Platform,
 } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { Text, TextInput } from "../../components/AppText";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
-import { ITEM_PHOTO_MAX, shrinkPhoto } from "../../lib/shrinkPhoto";
+import { uploadItemPhoto } from "../../lib/itemPhoto";
 import supabase from "../../lib/supabase";
 import { goBack as navBack } from "../../lib/nav";
 import { parseThaiDate } from "../../lib/itemInfo";
@@ -25,9 +23,6 @@ import { desktopBody, desktopCols, useIsDesktop } from "../../lib/layout";
 import ScreenHeader from "../../components/ScreenHeader";
 import DesktopBox from "../../components/desktop/DesktopBox";
 
-const FS = FileSystem as any;
-const SUPABASE_URL = "https://enupmlxmajjwskvzgcdq.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVudXBtbHhtYWpqd3NrdnpnY2RxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDIxMDUsImV4cCI6MjA4OTMxODEwNX0.px5ah-o_guGnQ8lTP7oJIwZXJEDiAcicuQTo3A_4aqE";
 
 // เพิ่มอุปกรณ์: กรอก → ยืนยัน (ป้าย QR สร้างทีหลังที่ qrgen)
 type Step = "details" | "preview";
@@ -164,56 +159,10 @@ export default function Scan() {
       let finalImageUrl = "";
 
       if (photoUri) {
-        // ชื่อไฟล์ใช้แค่ ASCII: Storage ไม่รับ key ที่มีตัวอักษรไทย
-        const fileBase = `items/${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        let fileName = "";
-        let uploadError = "";
-        // ย่อด้านยาว 1000px ก่อนอัปโหลด (lib/shrinkPhoto)
-        const uploadUri = await shrinkPhoto(photoUri, ITEM_PHOTO_MAX);
-
-        if (Platform.OS === "web") {
-          // เว็บ: blob:/data: URL ไม่มี uploadAsync → ผ่าน supabase-js
-          const blob = await (await fetch(uploadUri)).blob();
-          const ext = blob.type === "image/png" ? "png" : "jpg";
-          fileName = `${fileBase}.${ext}`;
-          const { error: upErr } = await supabase.storage
-            .from("item-images")
-            .upload(fileName, blob, { contentType: blob.type || "image/jpeg", upsert: true });
-          if (upErr) uploadError = upErr.message;
-        } else {
-          // มือถือ: uploadAsync (กันไฟล์ 0 ไบต์)
-          const ext = uploadUri.split(".").pop()?.split("?")[0]?.toLowerCase() || "jpg";
-          fileName = `${fileBase}.${ext}`;
-          const contentType = ext === "png" ? "image/png" : "image/jpeg";
-          // Storage เฉพาะ admin → ส่ง token ผู้ใช้ ไม่ใช่ anon key
-          const { data: { session } } = await supabase.auth.getSession();
-
-          const uploadRes = await FS.uploadAsync(
-            `${SUPABASE_URL}/storage/v1/object/item-images/${fileName}`,
-            uploadUri,
-            {
-              uploadType: FS.FileSystemUploadType.BINARY_CONTENT,
-              mimeType: contentType,
-              httpMethod: "POST",
-              headers: {
-                Authorization: `Bearer ${session?.access_token ?? SUPABASE_ANON}`,
-                apikey: SUPABASE_ANON,
-                "Content-Type": contentType,
-                "x-upsert": "true",
-              },
-            }
-          );
-          if (uploadRes.status !== 200 && uploadRes.status !== 201) {
-            uploadError = `status: ${uploadRes.status}\n${uploadRes.body}`;
-          }
-        }
-
-        if (uploadError) {
-          notify("อัปโหลดรูปไม่สำเร็จ", `${uploadError}\n\nจะบันทึกอุปกรณ์โดยไม่มีรูป`);
-        } else {
-          const { data: { publicUrl } } = supabase.storage
-            .from("item-images").getPublicUrl(fileName);
-          finalImageUrl = publicUrl;
+        try {
+          finalImageUrl = await uploadItemPhoto(photoUri);
+        } catch (e: any) {
+          notify("อัปโหลดรูปไม่สำเร็จ", `${e.message}\n\nจะบันทึกอุปกรณ์โดยไม่มีรูป`);
         }
       }
 
