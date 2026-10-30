@@ -138,7 +138,9 @@ function ItemCard({
       onPress={() => onPress(item)}
     >
       <View style={[s.itemIconBox, { backgroundColor: typeCfg.bg }]}>
-        <Ionicons name={typeCfg.icon} size={24} color={typeCfg.color} />
+        {item.image_url
+          ? <Image source={{ uri: item.image_url }} style={s.itemThumb} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+          : <Ionicons name={typeCfg.icon} size={24} color={typeCfg.color} />}
       </View>
 
       <View style={s.cardBody}>
@@ -577,7 +579,11 @@ export default function AdminItems() {
                     : item.status === "retired" ? item.retire_reason || "" : warrantyText(item.warranty_expires_at);
                   return (
                     <Pressable key={item.id} onPress={() => openManage(item)} style={({ hovered }: any) => [d.tr, hovered && d.hover, item.status === "retired" && { opacity: 0.6 }]} accessibilityLabel={`จัดการ ${label(item)}`}>
-                      <View style={[d.icon, { backgroundColor: tc.bg }]}><Ionicons name={tc.icon} size={17} color={tc.color} /></View>
+                      <View style={[d.icon, { backgroundColor: tc.bg }]}>
+                        {item.image_url
+                          ? <Image source={{ uri: item.image_url }} style={d.thumb} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+                          : <Ionicons name={tc.icon} size={17} color={tc.color} />}
+                      </View>
                       <Text style={[d.td, d.code, { flex: 1.2 }]} numberOfLines={1}>{item.item_code || "-"}</Text>
                       <Text style={[d.td, { flex: 1.6 }]} numberOfLines={1}>{item.name}</Text>
                       <Text style={[d.td, d.muted, { flex: 1 }]} numberOfLines={1}>{item.category}</Text>
@@ -951,7 +957,10 @@ const s = StyleSheet.create({
     borderRadius: 11,
     justifyContent: "center",
     alignItems: "center",
+    overflow: "hidden",
   },
+  // มีรูป = แสดงรูปแทนไอคอนหมวด
+  itemThumb: { width: 46, height: 46 },
   cardBody: {
     flex: 1,
     minWidth: 0,
@@ -1139,7 +1148,8 @@ const d = StyleSheet.create({
   td: { fontSize: 13.5, color: C.ink },
   code: { fontWeight: "800" },
   muted: { color: "#64748B", fontSize: 12.5 },
-  icon: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center" },
+  icon: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  thumb: { width: 32, height: 32 },
   pill: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   pillText: { fontSize: 11.5, fontWeight: "800" },
   empty: { alignItems: "center", paddingVertical: 50, gap: 8 },
