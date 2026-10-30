@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -12,6 +13,9 @@ import SearchBar from "../../components/SearchBar";
 import { Text, TextInput } from "../../components/AppText";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
+import { uploadItemPhoto } from "../../lib/itemPhoto";
 import { DESKTOP_GUTTER, DESKTOP_MAX, useIsDesktop } from "../../lib/layout";
 import supabase from "../../lib/supabase";
 import { ITEM_STATUS } from "../../lib/status";
@@ -174,6 +178,8 @@ export default function AdminItems() {
   const [editWarranty, setEditWarranty] = useState("");
   const [editSerial, setEditSerial] = useState("");
   const [busy, setBusy] = useState(false);
+  const [photoTarget, setPhotoTarget] = useState<any>(null);
+  const [photoUri, setPhotoUri] = useState("");
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
@@ -379,6 +385,49 @@ export default function AdminItems() {
     if (ok) setEditTarget(null);
   };
 
+  // เปลี่ยนรูปทั้งรุ่น: รุ่น = ชื่อย่อ (item_prefix) ไม่มีก็ใช้ชื่อ — แบบเดียวกับ _item_model ใน DB · ไม่แตะของที่จำหน่ายแล้ว
+  const modelKey = (item: any) => String(item.item_prefix || item.name || "").trim().toLowerCase();
+  const sameModel = (item: any) => items.filter((i) => modelKey(i) === modelKey(item) && i.status !== "retired");
+
+  const openPhoto = (item: any) => {
+    setSheet(null);
+    setPhotoUri("");
+    setPhotoTarget(item);
+  };
+
+  const pickPhoto = async (camera: boolean) => {
+    if (camera) {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") { notify("ต้องการสิทธิ์กล้อง"); return; }
+    }
+    const opts = { quality: 0.8, allowsEditing: true, aspect: [4, 3] as [number, number] };
+    const result = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+    if (!result.canceled) setPhotoUri(result.assets[0].uri);
+  };
+
+  const savePhoto = async () => {
+    if (!photoUri || !photoTarget) return;
+    const ids = sameModel(photoTarget).map((i) => i.id);
+    setBusy(true);
+    let url = "";
+    try {
+      url = await uploadItemPhoto(photoUri);
+    } catch (e: any) {
+      setBusy(false);
+      notify("อัปโหลดรูปไม่สำเร็จ", e.message);
+      return;
+    }
+    setBusy(false);
+    const ok = await run(
+      () => supabase.from("items").update({ image_url: url }).in("id", ids).select("id"),
+      "บันทึกรูปไม่สำเร็จ"
+    );
+    if (ok) {
+      setPhotoTarget(null);
+      notify("เปลี่ยนรูปแล้ว", `ใช้รูปใหม่กับ ${ids.length} ชิ้น`);
+    }
+  };
+
   const openRetire = (item: any) => {
     setSheet(null);
     setRetireReason("");
@@ -426,6 +475,7 @@ export default function AdminItems() {
           ? "มีคำขอยืมรออนุมัติอยู่ ต้องอนุมัติหรือปฏิเสธคำขอก่อน"
           : "กำลังถูกยืมอยู่ ต้องคืนของก่อนถึงจะเปลี่ยนสถานะ ลบ หรือจำหน่ายได้",
         actions: [
+          { label: `เปลี่ยนรูปทั้งรุ่น (${sameModel(item).length} ชิ้น)`, icon: "image-outline", onPress: () => openPhoto(item) },
           { label: "แก้ประกัน / Serial", icon: "create-outline", onPress: () => openEdit(item) },
           { label: "เปลี่ยนหมวด", icon: "pricetag-outline", onPress: () => pickCategory(item) },
         ],
@@ -435,6 +485,7 @@ export default function AdminItems() {
 
     const everBorrowed = (records || []).length > 0;
     const actions: SheetAction[] = [
+      { label: `เปลี่ยนรูปทั้งรุ่น (${sameModel(item).length} ชิ้น)`, icon: "image-outline", onPress: () => openPhoto(item) },
       { label: "แก้ประกัน / Serial", icon: "create-outline", onPress: () => openEdit(item) },
       { label: `เปลี่ยนหมวด (ตอนนี้: ${item.category})`, icon: "pricetag-outline", onPress: () => pickCategory(item) },
     ];
@@ -686,6 +737,50 @@ export default function AdminItems() {
               <Text style={s.sheetPrimaryText}>{busy ? "กำลังบันทึก..." : "ยืนยันจำหน่ายออก"}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={s.sheetCancel} onPress={() => setRetireTarget(null)} activeOpacity={0.8}>
+              <Text style={s.sheetCancelText}>ยกเลิก</Text>
+            </TouchableOpacity>
+      </BottomSheet>
+
+      {/* เปลี่ยนรูปทั้งรุ่น */}
+      <BottomSheet visible={!!photoTarget} onClose={() => { if (!busy) setPhotoTarget(null); }} style={s.sheet}>
+            <Text style={s.sheetTitle}>เปลี่ยนรูปทั้งรุ่น</Text>
+            <Text style={s.sheetMessage}>
+              {photoTarget && `${photoTarget.item_prefix || photoTarget.name} · ใช้รูปเดียวกันทั้ง ${sameModel(photoTarget).length} ชิ้น`}
+            </Text>
+            <Pressable style={s.photoBox} onPress={() => pickPhoto(false)} disabled={busy}>
+              {photoUri || photoTarget?.image_url ? (
+                <Image source={{ uri: photoUri || photoTarget.image_url }} style={s.photoImg} contentFit="cover" />
+              ) : (
+                <>
+                  <Ionicons name="image-outline" size={28} color={C.faint} />
+                  <Text style={s.photoHint}>ยังไม่มีรูป</Text>
+                </>
+              )}
+              {!!photoUri && <Text style={s.photoTag}>รูปใหม่</Text>}
+            </Pressable>
+            {photoUri ? (
+              <TouchableOpacity
+                style={[s.sheetPrimary, { backgroundColor: C.purple }, busy && { opacity: 0.4 }]}
+                disabled={busy}
+                onPress={savePhoto}
+                activeOpacity={0.85}
+              >
+                <Text style={s.sheetPrimaryText}>
+                  {busy ? "กำลังอัปโหลด..." : `ใช้รูปนี้กับ ${photoTarget ? sameModel(photoTarget).length : 0} ชิ้น`}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+            {Platform.OS !== "web" && (
+              <Pressable style={({ pressed }) => [s.sheetBtn, pressed && { opacity: 0.7 }]} onPress={() => pickPhoto(true)} disabled={busy}>
+                <Ionicons name="camera-outline" size={18} color={C.purple} />
+                <Text style={s.sheetBtnText}>{photoUri ? "ถ่ายใหม่" : "ถ่ายรูป"}</Text>
+              </Pressable>
+            )}
+            <Pressable style={({ pressed }) => [s.sheetBtn, pressed && { opacity: 0.7 }]} onPress={() => pickPhoto(false)} disabled={busy}>
+              <Ionicons name="images-outline" size={18} color={C.purple} />
+              <Text style={s.sheetBtnText}>{photoUri ? "เลือกรูปอื่น" : Platform.OS === "web" ? "เลือกไฟล์รูป" : "เลือกจากคลังรูป"}</Text>
+            </Pressable>
+            <TouchableOpacity style={s.sheetCancel} onPress={() => setPhotoTarget(null)} disabled={busy} activeOpacity={0.8}>
               <Text style={s.sheetCancelText}>ยกเลิก</Text>
             </TouchableOpacity>
       </BottomSheet>
@@ -954,6 +1049,30 @@ const s = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "900",
+  },
+  photoBox: {
+    height: 170,
+    borderRadius: 14,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    marginBottom: 4,
+  },
+  photoImg: { width: "100%", height: "100%" },
+  photoHint: { color: C.faint, fontSize: 12, fontWeight: "700", marginTop: 4 },
+  photoTag: {
+    position: "absolute",
+    right: 8,
+    bottom: 8,
+    backgroundColor: "#fff",
+    color: C.purple,
+    fontSize: 11,
+    fontWeight: "800",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    overflow: "hidden",
   },
   sheetCancel: {
     alignItems: "center",
