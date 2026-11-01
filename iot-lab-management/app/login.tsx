@@ -16,6 +16,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { setRememberLogin } from "../lib/session";
+import { takeReturnTo } from "../lib/returnTo";
 import { notify } from "../lib/notify";
 import { getAllowedDomains, isAllowedEmail, isStaffEmail, isUniEmail as isUniAddress, oauthReturned, signInWithGoogle, uniEmailTypoFix, webRedirectError } from "../lib/googleAuth";
 import { W, NG, TOP_INSET } from "../lib/theme";
@@ -322,14 +323,17 @@ export default function Login() {
       }
 
       setIsLoading(false);
-      router.replace("/home");
+      router.replace((takeReturnTo() || "/home") as any);
       return;
     }
 
     setIsLoading(false);
 
-    // admin และ TA เข้าหน้าผู้ดูแล (TA เห็นเมนูเท่าที่มีสิทธิ์)
-    if (profile.role === "admin" || profile.role === "ta") {
+    // เปิดลิงก์มาก่อนล็อกอิน (เช่น สแกน QR คอม) → กลับหน้านั้น / ไม่มี: admin และ TA เข้าหน้าผู้ดูแล (TA เห็นเมนูเท่าที่มีสิทธิ์)
+    const back = takeReturnTo();
+    if (back) {
+      router.replace(back as any);
+    } else if (profile.role === "admin" || profile.role === "ta") {
       router.replace("/admin/home");
     } else {
       router.replace("/home");

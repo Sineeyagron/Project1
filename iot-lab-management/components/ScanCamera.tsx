@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Text } from "./AppText";
 import { C } from "../lib/theme";
 
-// กล้องสแกนกลาง (ระบบยืม-คืน): หน้าสแกนยืม/คืนของ นศ. (app/scan) + สแกนดูสถานะของผู้ดูแล (app/admin/lookup)
+// กล้องสแกนกลาง (ใช้ร่วม — แค่กล้อง ไม่มีกติกาของระบบใด): ระบบยืม = app/scan + app/admin/lookup · ระบบห้อง = app/roomscan
 //   แบบ ก ที่เจ้าของโปรเจกต์เลือก 11 ต.ค. 2569: กล้องใหญ่ + กรอบเล็ง 4 มุม + เส้นสแกนวิ่ง + ปุ่มไฟฉาย + ป้ายบอกวิธีบนภาพ
 //   ยังไม่อนุญาตกล้อง = พื้นเข้มเหมือนกล้อง + ปุ่มอนุญาต / กำลังค้นหา = วงหมุนบนภาพกล้อง
 const FRAME = 190; // ขนาดกรอบเล็ง
@@ -17,6 +17,7 @@ export default function ScanCamera({
   tip,
   footnote,
   busy = false,
+  askSub = "ใช้สแกน QR ที่ติดบนอุปกรณ์",
 }: {
   height: number;
   onScanned: (data: string) => void;
@@ -24,6 +25,7 @@ export default function ScanCamera({
   tip: string; // ป้ายบนภาพด้านบน
   footnote?: string; // ข้อความเล็กมุมล่างซ้าย
   busy?: boolean; // กำลังค้นหาหลังสแกน
+  askSub?: string; // ข้อความใต้ปุ่มขออนุญาตกล้อง
 }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
@@ -98,7 +100,7 @@ export default function ScanCamera({
                 <Ionicons name="camera-outline" size={30} color="#FFFFFF" />
               </View>
               <Text style={s.askTitle}>แตะเพื่ออนุญาตใช้กล้อง</Text>
-              <Text style={s.askSub}>ใช้สแกน QR ที่ติดบนอุปกรณ์</Text>
+              <Text style={s.askSub}>{askSub}</Text>
             </>
           )}
         </TouchableOpacity>

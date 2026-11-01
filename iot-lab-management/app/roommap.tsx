@@ -36,7 +36,8 @@ const EQUIP_LABELS: Record<string, string> = {
 
 export default function RoomMap() {
   // from=admin = เปิดจากหน้าผู้ดูแล (admin/room) → มีเครื่องมือแก้ / ไม่มี = โหมดนักศึกษา (ดูอย่างเดียว แม้เป็น TA/Admin)
-  const { room_id, from } = useLocalSearchParams<{ room_id: string; from?: string }>();
+  // station = เปิดจาก QR ที่แปะคอม (lib/room/stationQr) → เปิดแผ่นของเครื่องนั้นให้เลย
+  const { room_id, from, station } = useLocalSearchParams<{ room_id: string; from?: string; station?: string }>();
   // ไม่ได้ส่งห้องมา → ใช้ห้องแรกจากตาราง rooms (เดิมฟิก "CP9524")
   const [roomName, setRoomName] = useState(room_id ? String(room_id) : "");
   const [roomInfo, setRoomInfo] = useState<Room | null>(null);
@@ -129,6 +130,16 @@ export default function RoomMap() {
   };
 
   const onRefresh = () => { setRefreshing(true); fetchAll(); };
+
+  // QR: โหลดห้องเสร็จ → เปิดแผ่นเครื่องที่สแกนครั้งเดียว (สแกนเครื่องใหม่ = param เปลี่ยน → เปิดอีกรอบ)
+  const openedFromQr = useRef("");
+  useEffect(() => {
+    if (!station || openedFromQr.current === station || stations.length === 0) return;
+    const target = stations.find((x) => x.id === station);
+    openedFromQr.current = station;
+    if (target) openStation(target);
+    else notify("ไม่พบเครื่องนี้", "เครื่องอาจถูกปิดใช้งานหรือย้ายห้องแล้ว แจ้งผู้ดูแลได้ที่ผังห้อง");
+  }, [station, stations]);
 
   const getGroupPorts = (groupNo: number) =>
     lanPorts.filter(p => p.group_no === groupNo);

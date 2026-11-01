@@ -275,6 +275,20 @@ export default function Home() {
               </View>
             ) : null}
 
+            {/* ระบบห้อง: สแกน QR ที่แปะคอม → ดูสถานะเครื่อง / แจ้งปัญหา (แยกจากปุ่มสแกนยืม-คืนด้านล่าง) */}
+            <View style={s.quickGrid}>
+              <PressScale style={s.quickCard} onPress={() => router.push("/roomscan" as any)} scaleTo={0.98} accessibilityLabel="สแกน QR คอม">
+                <View style={iconDot(C.primary, 38)}>
+                  <Ionicons name="qr-code-outline" size={19} color="#FFFFFF" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.quickName}>สแกน QR คอม</Text>
+                  <Text style={s.quickSub}>ดูสถานะเครื่อง / แจ้งเครื่องเสีย</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={C.faint} />
+              </PressScale>
+            </View>
+
             <Text style={s.quickTitle}>ลิงก์ด่วน</Text>
             {/* ทางเข้าหลักของการยืม-คืน (แผน 2.6: ยืม/คืนได้ทางเดียวคือสแกน QR ที่ตัวของ) */}
             <PressScale style={s.scanCard} onPress={() => router.push("/scan")} scaleTo={0.98}>

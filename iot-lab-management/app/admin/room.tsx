@@ -24,6 +24,8 @@ import { desktopGrid, useIsDesktop } from "../../lib/layout";
 import BottomSheet from "../../components/BottomSheet";
 import LoadingState from "../../components/LoadingState";
 import DesktopBox from "../../components/desktop/DesktopBox";
+import { exportPdf } from "../../lib/fileExport";
+import { buildRoomSummaryHtml, buildStationLabelsHtml } from "../../lib/room/stationQr";
 
 const C = {
   bg: "#EAF1FC",
@@ -120,6 +122,58 @@ export default function AdminRoom() {
     setRefreshing(true);
     fetchStats();
   };
+
+  // ป้าย QR แปะคอม / สรุปห้อง (PDF) — เว็บ = หน้าพิมพ์ / มือถือ = ไฟล์ PDF แล้วแชร์ (lib/fileExport ใช้ร่วม)
+  const [exporting, setExporting] = useState<string | null>(null); // "<ห้อง>:labels" | "<ห้อง>:summary"
+  const runExport = async (key: string, job: () => Promise<void>) => {
+    if (exporting) return;
+    setExporting(key);
+    try {
+      await job();
+    } catch (e: any) {
+      notify("ทำไฟล์ไม่สำเร็จ", e?.message || "ลองใหม่อีกครั้ง");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const printLabels = (room: Room) =>
+    runExport(`${room.id}:labels`, async () => {
+      const { data, error } = await supabase
+        .from("computer_stations").select("id, name, group_no, room_id")
+        .eq("room_id", room.id).eq("active", true);
+      if (error) throw error;
+      if (!data?.length) {
+        notify("ยังไม่มีเครื่อง", `ห้อง ${room.id} ยังไม่มีเครื่องที่เปิดใช้งาน`);
+        return;
+      }
+      await exportPdf(buildStationLabelsHtml(data, false), buildStationLabelsHtml(data), `ป้าย QR คอม ห้อง ${room.id} (${data.length} เครื่อง)`);
+    });
+
+  const exportSummary = (room: Room) =>
+    runExport(`${room.id}:summary`, async () => {
+      const [st, lan, eq, rep, rr] = await Promise.all([
+        supabase.from("computer_stations").select("id, name, group_no, status").eq("room_id", room.id).eq("active", true),
+        supabase.from("lan_ports").select("group_no, port_no, status").eq("room_id", room.id),
+        supabase.from("station_equipment").select("station_id, equipment_type, status, computer_stations!inner(room_id)")
+          .eq("computer_stations.room_id", room.id).neq("status", "present"),
+        supabase.from("repair_records").select("id, computer_stations!inner(room_id)", { count: "exact", head: true })
+          .eq("computer_stations.room_id", room.id).neq("status", "done"),
+        supabase.from("room_reports").select("id", { count: "exact", head: true }).eq("room_id", room.id).eq("status", "open"),
+      ]);
+      const failed = st.error || lan.error || eq.error || rep.error || rr.error;
+      if (failed) throw failed;
+      const data = {
+        roomId: room.id,
+        place: roomPlace(room),
+        stations: st.data || [],
+        lanPorts: lan.data || [],
+        equipIssues: (eq.data || []) as any[],
+        openRepairs: rep.count || 0,
+        openReports: rr.count || 0,
+      };
+      await exportPdf(buildRoomSummaryHtml(data, false), buildRoomSummaryHtml(data), `สรุปห้องคอม ${room.id}`);
+    });
 
   const totals = useMemo(() => {
     const open = stats.filter((row) => row.room.active);
@@ -312,6 +366,12 @@ export default function AdminRoom() {
                     <ActionButton icon="desktop-outline" label="จัดการเครื่อง" onPress={() => router.push({ pathname: "/admin/stations", params: { room_id: room.id } } as any)} />
                     <ActionButton icon="git-network-outline" label="LAN Port" onPress={() => router.push({ pathname: "/admin/lanports", params: { room_id: room.id } } as any)} />
                   </View>
+                  {/* QR แปะคอม: สแกนดูสถานะ (โหมดผู้ดูแล) · พิมพ์ป้าย · สรุปห้อง PDF */}
+                  <View style={[s.actionRow, s.actionRowNext]}>
+                    <ActionButton icon="scan-outline" label="สแกน QR" onPress={() => router.push({ pathname: "/roomscan", params: { from: "admin" } } as any)} />
+                    <ActionButton icon="qr-code-outline" label="ป้าย QR" busy={exporting === `${room.id}:labels`} onPress={() => printLabels(room)} />
+                    <ActionButton icon="document-text-outline" label="สรุป PDF" busy={exporting === `${room.id}:summary`} onPress={() => exportSummary(room)} />
+                  </View>
                 </>
               ) : null}
             </View>
@@ -385,10 +445,10 @@ function RoomMetric({ value, label, color }: { value: number; label: string; col
   );
 }
 
-function ActionButton({ icon, label, onPress }: { icon: any; label: string; onPress: () => void }) {
+function ActionButton({ icon, label, onPress, busy = false }: { icon: any; label: string; onPress: () => void; busy?: boolean }) {
   return (
-    <TouchableOpacity style={s.actionBtn} onPress={onPress} activeOpacity={0.84}>
-      <Ionicons name={icon} size={19} color={C.ink} />
+    <TouchableOpacity style={s.actionBtn} onPress={onPress} activeOpacity={0.84} disabled={busy}>
+      {busy ? <ActivityIndicator size="small" color={C.purple} /> : <Ionicons name={icon} size={19} color={C.ink} />}
       <Text style={s.actionText}>{label}</Text>
     </TouchableOpacity>
   );
@@ -493,6 +553,7 @@ const s = StyleSheet.create({
     borderRadius: 2,
   },
   actionRow: { flexDirection: "row" },
+  actionRowNext: { borderTopWidth: 1, borderTopColor: "#bfc5d1" },
   actionBtn: {
     flex: 1,
     minHeight: 52,

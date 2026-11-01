@@ -4,6 +4,7 @@ import { Platform, StyleSheet, View } from "react-native";
 import supabase from "../lib/supabase";
 import { DialogHost } from "../lib/notify";
 import { applyRememberLogin } from "../lib/session";
+import { saveReturnTo } from "../lib/returnTo";
 import { dropPushOnSignOut, registerServiceWorker, rememberMode } from "../lib/web/webPush";
 import { installPullToRefresh } from "../lib/web/webPullRefresh";
 import { installPageTransitions } from "../lib/web/webTransitions";
@@ -57,7 +58,9 @@ export default function Layout() {
     if (PUBLIC_PATHS.has(pathname) || isAdminPath(pathname)) return;
     let active = true;
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (active && !session) setTimeout(() => router.replace("/login"), 0);
+      if (!active || session) return;
+      saveReturnTo(); // ล็อกอินเสร็จ → กลับหน้านี้ (เช่น เครื่องที่สแกน QR)
+      setTimeout(() => router.replace("/login"), 0);
     });
     return () => { active = false; };
   }, [pathname]);
@@ -108,6 +111,7 @@ export default function Layout() {
       <Stack.Screen name="home" />
       <Stack.Screen name="equipment" />
       <Stack.Screen name="roommap" />
+      <Stack.Screen name="roomscan" />
       <Stack.Screen name="lanstatus" />
       <Stack.Screen name="profile" />
       <Stack.Screen name="student-id" options={{ gestureEnabled: false }} />
