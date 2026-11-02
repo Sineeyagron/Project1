@@ -80,7 +80,7 @@ type LabelSpec = {
 };
 export const LABEL_SIZES: Record<LabelSize, LabelSpec> = {
   // 4×45 + 3×3 = 189 · 8×32 + 7×2.5 = 273.5 (มม.) — ป้ายเล็ก: คำอธิบายบรรทัดเดียว ไม่มี LabHub
-  s: { name: "เล็ก", w: 45, h: 32, qr: 22, cols: 4, rows: 8, gapX: 3, gapY: 2.5, room: 7.5, title: 20, hint: 7.5, brand: 0, short: true },
+  s: { name: "เล็ก", w: 45, h: 32, qr: 22, cols: 4, rows: 8, gapX: 3, gapY: 2.5, room: 7.5, title: 18, hint: 7.5, brand: 0, short: true },
   // 3×60 + 2×5 = 190 · 6×42 + 5×3 = 267
   m: { name: "ปกติ", w: 60, h: 42, qr: 32, cols: 3, rows: 6, gapX: 5, gapY: 3, room: 8.5, title: 23, hint: 8, brand: 8.5, short: false },
   // 2×92 + 5 = 189 · 4×62 + 3×3 = 257
@@ -123,10 +123,10 @@ export function buildStationLabelsHtml(stations: StationLabel[], autoPrint = tru
 .q{flex:none;width:${z.qr}mm;height:${z.qr}mm;display:block}
 .t{min-width:0;flex:1}
 .r,.n{overflow-wrap:anywhere}
-.r{font-size:${z.room}pt;color:#000;line-height:1.2}
+.r{font-size:${z.room}pt;color:#000;line-height:1.45}
 .r b{font-weight:700}
 .n{font-size:${z.title}pt;font-weight:700;line-height:1.05}
-.h{font-size:${z.hint}pt;color:#000;line-height:1.2;margin-top:.8mm}
+.h{font-size:${z.hint}pt;color:#000;line-height:1.45;margin-top:.8mm}
 .b{font-size:${z.brand}pt;font-weight:700;color:#1D4ED8;margin-top:.6mm}`;
   return page(`ป้าย QR คอม ${stations.length} เครื่อง (${z.name})`, css, pages.join(""), autoPrint);
 }
