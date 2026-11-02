@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../../lib/supabase";
 import { goBack, useRefreshOnFocus } from "../../lib/nav";
-import { confirmAction, notify } from "../../lib/notify";
+import { confirmAction, notify, pickOption } from "../../lib/notify";
 import { STATION_STATUS } from "../../lib/room/roomStatus";
 import { ROOM_CODE_RE, Room, fetchRooms, roomPlace } from "../../lib/room/rooms";
 import LoadError from "../../components/room/LoadError";
@@ -25,7 +25,7 @@ import BottomSheet from "../../components/BottomSheet";
 import LoadingState from "../../components/LoadingState";
 import DesktopBox from "../../components/desktop/DesktopBox";
 import { exportPdf } from "../../lib/fileExport";
-import { buildRoomSummaryHtml, buildStationLabelsHtml } from "../../lib/room/stationQr";
+import { LABEL_SIZES, LabelSize, buildRoomSummaryHtml, buildStationLabelsHtml, labelsPerSheet } from "../../lib/room/stationQr";
 
 const C = {
   bg: "#EAF1FC",
@@ -137,6 +137,7 @@ export default function AdminRoom() {
     }
   };
 
+  // โหลดเครื่องก่อน → เลือกขนาดป้าย (บอกจำนวนแผ่น A4) → ทำไฟล์ตอนแตะเลือก (เว็บ: เปิดแท็บพิมพ์ในจังหวะแตะ ไม่โดนบล็อก)
   const printLabels = (room: Room) =>
     runExport(`${room.id}:labels`, async () => {
       const { data, error } = await supabase
@@ -147,7 +148,21 @@ export default function AdminRoom() {
         notify("ยังไม่มีเครื่อง", `ห้อง ${room.id} ยังไม่มีเครื่องที่เปิดใช้งาน`);
         return;
       }
-      await exportPdf(buildStationLabelsHtml(data, false), buildStationLabelsHtml(data), `ป้าย QR คอม ห้อง ${room.id} (${data.length} เครื่อง)`);
+      const keys: LabelSize[] = ["s", "m", "l"];
+      const options = keys.map((k) => {
+        const z = LABEL_SIZES[k];
+        const sheets = Math.ceil(data.length / labelsPerSheet(k));
+        return `${z.name} ${z.w / 10} × ${z.h / 10} ซม. · QR ${z.qr / 10} ซม. · ${labelsPerSheet(k)} ป้าย/แผ่น · ใช้ ${sheets} แผ่น`;
+      });
+      pickOption(`ขนาดป้าย QR · ห้อง ${room.id} (${data.length} เครื่อง)`, options, (i) => {
+        const k = keys[i];
+        runExport(`${room.id}:labels`, () =>
+          exportPdf(
+            buildStationLabelsHtml(data, false, k),
+            buildStationLabelsHtml(data, true, k),
+            `ป้าย QR คอม ห้อง ${room.id} (${data.length} เครื่อง · ${LABEL_SIZES[k].name})`,
+          ));
+      }, 1);
     });
 
   const exportSummary = (room: Room) =>

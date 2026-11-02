@@ -71,36 +71,64 @@ if (window.self === window.top) (document.fonts ? document.fonts.ready : Promise
 </body></html>`;
 }
 
-// ป้ายแปะคอม 6 × 4.2 ซม. — A4 แผ่นละ 18 ป้าย (3 × 6) · QR 3.4 ซม. สแกนได้ไกลกว่าป้ายอุปกรณ์
-const PER_SHEET = 18;
+// ป้ายแปะคอม 3 ขนาด (เลือกตอนกด "ป้าย QR" ใน admin/room) — พื้นที่พิมพ์ A4 = 190 × 277 มม.
+//   ตัวหนังสือเล็กสุด 7.5pt · ห้อง/กลุ่มแยก 2 บรรทัด · ชื่อเครื่องยาวย่อฟอนต์เอง · ห้ามล้นกรอบ (เช็กชื่อยาวแบบ "SERVER-01A")
+export type LabelSize = "s" | "m" | "l";
+type LabelSpec = {
+  name: string; w: number; h: number; qr: number; cols: number; rows: number; gapX: number; gapY: number;
+  room: number; title: number; hint: number; brand: number; short: boolean;
+};
+export const LABEL_SIZES: Record<LabelSize, LabelSpec> = {
+  // 4×45 + 3×3 = 189 · 8×32 + 7×2.5 = 273.5 (มม.) — ป้ายเล็ก: คำอธิบายบรรทัดเดียว ไม่มี LabHub
+  s: { name: "เล็ก", w: 45, h: 32, qr: 22, cols: 4, rows: 8, gapX: 3, gapY: 2.5, room: 7.5, title: 18, hint: 7.5, brand: 0, short: true },
+  // 3×60 + 2×5 = 190 · 6×42 + 5×3 = 267
+  m: { name: "ปกติ", w: 60, h: 42, qr: 32, cols: 3, rows: 6, gapX: 5, gapY: 3, room: 8.5, title: 23, hint: 8, brand: 8.5, short: false },
+  // 2×92 + 5 = 189 · 4×62 + 3×3 = 257
+  l: { name: "ใหญ่", w: 92, h: 62, qr: 50, cols: 2, rows: 4, gapX: 5, gapY: 3, room: 12.5, title: 38, hint: 11.5, brand: 12, short: false },
+};
+export const labelsPerSheet = (size: LabelSize) => LABEL_SIZES[size].cols * LABEL_SIZES[size].rows;
 
-export function buildStationLabelsHtml(stations: StationLabel[], autoPrint = true) {
+// ชื่อเครื่องยาว → ย่อฟอนต์ (> 4 ตัว ×0.78, > 6 ตัว ×0.6, > 10 ตัว ย่อตามความยาว ไม่ต่ำกว่า ×0.36) + ตัดขึ้นบรรทัดใหม่ (overflow-wrap)
+const nameScale = (name: string) => {
+  const n = name.length;
+  if (n <= 4) return 1;
+  if (n <= 6) return 0.78;
+  if (n <= 10) return 0.6;
+  return Math.max(0.36, 6 / n);
+};
+
+export function buildStationLabelsHtml(stations: StationLabel[], autoPrint = true, sizeKey: LabelSize = "m") {
+  const z = LABEL_SIZES[sizeKey];
+  const per = z.cols * z.rows;
   const cells = sortStations(stations).map((st) => {
     const { size, path } = qrPath(stationLink(st.room_id, st.id));
+    const scale = nameScale(st.name);
     return `<div class="l">
   <svg class="q" viewBox="-1 -1 ${size + 2} ${size + 2}" shape-rendering="crispEdges"><path fill="#000" d="${path}"/></svg>
   <div class="t">
-    <div class="r">ห้อง ${esc(st.room_id)} · กลุ่ม ${st.group_no}</div>
-    <div class="n">${esc(st.name)}</div>
-    <div class="h">สแกนดูสถานะเครื่อง<br>แจ้งปัญหา / เครื่องเสีย</div>
-    <div class="b">LabHub</div>
+    <div class="r">ห้อง <b>${esc(st.room_id)}</b><br>กลุ่ม <b>${st.group_no}</b></div>
+    <div class="n"${scale < 1 ? ` style="font-size:${(z.title * scale).toFixed(1)}pt"` : ""}>${esc(st.name)}</div>
+    <div class="h">${z.short ? "สแกนแจ้งเครื่องเสีย" : "สแกนดูสถานะ<br>แจ้งเครื่องเสีย"}</div>
+    ${z.brand ? `<div class="b">LabHub</div>` : ""}
   </div>
 </div>`;
   });
   const pages: string[] = [];
-  for (let i = 0; i < Math.max(1, cells.length); i += PER_SHEET) {
-    pages.push(`<div class="p"><div class="g">${cells.slice(i, i + PER_SHEET).join("")}</div></div>`);
+  for (let i = 0; i < Math.max(1, cells.length); i += per) {
+    pages.push(`<div class="p"><div class="g">${cells.slice(i, i + per).join("")}</div></div>`);
   }
   const css = `
-.g{display:grid;grid-template-columns:repeat(3,60mm);grid-auto-rows:42mm;gap:3mm 5mm}
+.g{display:grid;grid-template-columns:repeat(${z.cols},${z.w}mm);grid-auto-rows:${z.h}mm;gap:${z.gapY}mm ${z.gapX}mm}
 .l{border:.25mm dashed #999;border-radius:2mm;display:flex;align-items:center;gap:2mm;padding:2mm;box-sizing:border-box;overflow:hidden;break-inside:avoid}
-.q{flex:none;width:34mm;height:34mm;display:block}
-.t{min-width:0}
-.r{font-size:7.5pt;color:#333;white-space:nowrap}
-.n{font-size:22pt;font-weight:700;line-height:1.1}
-.h{font-size:7pt;color:#333;line-height:1.3;margin-top:1mm}
-.b{font-size:8pt;font-weight:700;color:#1D4ED8;margin-top:1mm}`;
-  return page(`ป้าย QR คอม ${stations.length} เครื่อง`, css, pages.join(""), autoPrint);
+.q{flex:none;width:${z.qr}mm;height:${z.qr}mm;display:block}
+.t{min-width:0;flex:1}
+.r,.n{overflow-wrap:anywhere}
+.r{font-size:${z.room}pt;color:#000;line-height:1.65}
+.r b{font-weight:700}
+.n{font-size:${z.title}pt;font-weight:700;line-height:1.05}
+.h{font-size:${z.hint}pt;color:#000;line-height:1.65;margin-top:.8mm}
+.b{font-size:${z.brand}pt;font-weight:700;color:#1D4ED8;margin-top:.6mm}`;
+  return page(`ป้าย QR คอม ${stations.length} เครื่อง (${z.name})`, css, pages.join(""), autoPrint);
 }
 
 // สรุปห้องคอม (PDF) — ภาพรวมห้อง + แยกตามกลุ่ม + รายการที่ต้องดูแล
