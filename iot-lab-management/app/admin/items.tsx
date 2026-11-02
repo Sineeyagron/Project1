@@ -30,6 +30,8 @@ import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
 import LoadingState from "../../components/LoadingState";
 import { useProgressiveList } from "../../lib/progressiveList";
+import { buildLabelSheetHtml } from "../../lib/labels";
+import { openPrintView } from "../../lib/fileExport";
 
 const C = {
   bg: "#EAF1FC",
@@ -196,7 +198,7 @@ export default function AdminItems() {
 
   const fetchItems = async () => {
     const [{ data, error }, { data: borrows }, { data: cats }] = await Promise.all([
-      supabase.from("items").select("*"),
+      supabase.from("items").select("*, borrow_locations(name)"),
       supabase
         .from("borrow_records")
         .select("item_id, due_date")
@@ -217,7 +219,11 @@ export default function AdminItems() {
     if (error) {
       notify("โหลดข้อมูลไม่สำเร็จ", error.message);
     } else {
-      setItems((data || []).map((item: any) => ({ ...item, category: categoryOf(item) })).sort(compareItems));
+      setItems((data || []).map((item: any) => ({
+        ...item,
+        category: categoryOf(item),
+        location_name: item.borrow_locations?.name || "", // ป้าย QR ทั้งรุ่น (lib/labels) พิมพ์ "ห้อง …"
+      })).sort(compareItems));
     }
 
     const nextBorrowMap: Record<string, string> = {};
@@ -391,6 +397,67 @@ export default function AdminItems() {
   const modelKey = (item: any) => String(item.item_prefix || item.name || "").trim().toLowerCase();
   const sameModel = (item: any) => items.filter((i) => modelKey(i) === modelKey(item) && i.status !== "retired");
 
+  // จอคอม: ตารางจัดกลุ่มตามรุ่น (แถวรุ่น → กางเป็นรายชิ้น) · ค้นหาอยู่ = กางทุกรุ่นที่เจอ โชว์เฉพาะชิ้นที่ตรง
+  const [openModels, setOpenModels] = useState<Set<string>>(new Set());
+  const [allOpen, setAllOpen] = useState(false);
+  const modelGroups = (() => {
+    const map = new Map<string, any[]>();
+    filtered.forEach((item) => {
+      const key = modelKey(item);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    });
+    return [...map.entries()].map(([key, list]) => ({ key, list, head: list.find((i) => i.image_url) || list[0] }));
+  })();
+  const isModelOpen = (key: string) => !!search.trim() || allOpen || openModels.has(key);
+  const toggleModel = (key: string) => {
+    if (search.trim()) return; // ค้นหาอยู่ = กางตามผลค้นหา
+    if (allOpen) {
+      // พับรุ่นเดียวตอนกางทั้งหมด = เลิกโหมดกางทั้งหมด แต่รุ่นอื่นยังกางอยู่
+      setAllOpen(false);
+      setOpenModels(new Set(modelGroups.map((g) => g.key).filter((k) => k !== key)));
+      return;
+    }
+    setOpenModels((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+  const toggleAll = () => {
+    setOpenModels(new Set());
+    setAllOpen((v) => !v);
+  };
+
+  // ปริ้นป้าย QR ทั้งรุ่น (ป้ายอุปกรณ์ lib/labels แบบเดียวกับหน้า qrgen) · ไม่รวมของที่จำหน่ายแล้ว
+  const printModelLabels = (item: any) => {
+    setSheet(null);
+    const list = sameModel(item);
+    if (!list.length) return;
+    try {
+      openPrintView(
+        buildLabelSheetHtml(list),
+        `ป้าย QR ${item.item_prefix || item.name} ${list.length} ชิ้น`,
+        "ตั้งขนาด 100% (ไม่ย่อให้พอดีหน้า) ป้ายจะได้ขนาด 6 × 2.8 ซม. พอดีสติกเกอร์",
+      );
+    } catch (e: any) {
+      notify("เปิดหน้าพิมพ์ไม่ได้", e?.message || "ลองใหม่อีกครั้ง");
+    }
+  };
+
+  const openModelMenu = (item: any) => {
+    const count = sameModel(item).length;
+    setSheet({
+      title: `รุ่น ${item.item_prefix || item.name}`,
+      message: `${item.name} · ${count} ชิ้น (ไม่นับที่จำหน่ายแล้ว)`,
+      actions: [
+        { label: `ปริ้นป้าย QR ทั้งรุ่น (${count} ชิ้น)`, icon: "qr-code-outline", onPress: () => printModelLabels(item) },
+        { label: `เปลี่ยนรูปทั้งรุ่น (${count} ชิ้น)`, icon: "image-outline", onPress: () => openPhoto(item) },
+      ],
+    });
+  };
+
   const openPhoto = (item: any) => {
     setSheet(null);
     setPhotoUri("");
@@ -519,7 +586,7 @@ export default function AdminItems() {
           <View style={d.head}>
             <View style={{ flex: 1 }}>
               <Text style={d.title}>อุปกรณ์ IoT</Text>
-              <Text style={d.sub}>ทั้งหมด {activeItems.length} · พร้อมใช้ {availableCount} · ถูกยืม/ซ่อม {borrowedCount + repairCount}</Text>
+              <Text style={d.sub}>{new Set(activeItems.map(modelKey)).size} รุ่น · ทั้งหมด {activeItems.length} · พร้อมใช้ {availableCount} · ถูกยืม/ซ่อม {borrowedCount + repairCount}</Text>
             </View>
             <View style={d.search}>
               <Ionicons name="search" size={16} color="#94A3B8" />
@@ -528,6 +595,10 @@ export default function AdminItems() {
                 <Pressable onPress={() => setSearch("")} accessibilityLabel="ล้างคำค้น"><Ionicons name="close-circle" size={16} color="#94A3B8" /></Pressable>
               ) : null}
             </View>
+            <Pressable onPress={toggleAll} disabled={!!search.trim()} style={({ hovered }: any) => [d.btn, hovered && d.hover, !!search.trim() && { opacity: 0.5 }]} accessibilityLabel={allOpen ? "พับทุกรุ่น" : "กางทุกรุ่น"}>
+              <Ionicons name={allOpen ? "contract-outline" : "expand-outline"} size={16} color={C.purple} />
+              <Text style={d.btnText}>{allOpen ? "พับทั้งหมด" : "กางทั้งหมด"}</Text>
+            </Pressable>
             <Pressable ref={sortBtnRef} onPress={() => openSort(sortBtnRef)} style={({ hovered }: any) => [d.btn, hovered && d.hover]}>
               <Ionicons name="swap-vertical" size={16} color={C.purple} />
               <Text style={d.btnText}>{SORTS.find((o) => o.key === sortKey)?.short}</Text>
@@ -556,13 +627,15 @@ export default function AdminItems() {
 
           <View style={d.table}>
             <View style={[d.tr, d.trHead]}>
-              <View style={{ width: 32, marginRight: 12 }} />
-              <Text style={[d.th, { flex: 1.2 }]}>รหัส</Text>
+              <View style={{ width: 18 }} />
+              <View style={{ width: 32 }} />
+              <Text style={[d.th, { flex: 1.2 }]}>รุ่น / รหัส</Text>
               <Text style={[d.th, { flex: 1.6 }]}>ชื่อ</Text>
-              <Text style={[d.th, { flex: 1 }]}>หมวด</Text>
-              <Text style={[d.th, { width: 120 }]}>สถานะ</Text>
-              <Text style={[d.th, { flex: 1.2 }]}>กำหนดคืน / ประกัน</Text>
-              <Text style={[d.th, { width: 70 }]}>สแกน</Text>
+              <Text style={[d.th, { flex: 0.9 }]}>หมวด</Text>
+              <Text style={[d.th, { width: 50, textAlign: "right" }]}>จำนวน</Text>
+              <Text style={[d.th, { flex: 1.5 }]}>สถานะ</Text>
+              <Text style={[d.th, { flex: 1.1 }]}>กำหนดคืน / ประกัน</Text>
+              <Text style={[d.th, { width: 64 }]}>สแกน</Text>
               <View style={{ width: 36 }} />
             </View>
             {loading ? (
@@ -571,29 +644,68 @@ export default function AdminItems() {
               <View style={d.empty}><Ionicons name="cube-outline" size={40} color="#CBD5E1" /><Text style={d.emptyText}>ไม่พบอุปกรณ์</Text></View>
             ) : (
               <ScrollView style={{ flex: 1 }}>
-                {shownItems.map((item) => {
-                  const st = STATUS_CFG[item.status] || STATUS_CFG.available;
-                  const tc = getTypeConfig(item.category === OTHER ? item.type || item.name : item.category);
-                  const foot = item.status === "borrowed" && borrowMap[item.id]
-                    ? `คืน ${formatDue(borrowMap[item.id])}`
-                    : item.status === "retired" ? item.retire_reason || "" : warrantyText(item.warranty_expires_at);
+                {modelGroups.map(({ key, list, head }) => {
+                  const open = isModelOpen(key);
+                  const tc = getTypeConfig(head.category === OTHER ? head.type || head.name : head.category);
+                  // สรุปสถานะทั้งรุ่น (เรียงตามลำดับสถานะเดิมของหน้า)
+                  const counts: Record<string, number> = {};
+                  list.forEach((i) => { counts[i.status] = (counts[i.status] || 0) + 1; });
+                  const statuses = Object.keys(counts).sort((a, b) => (STATUS_ORDER[a] ?? 9) - (STATUS_ORDER[b] ?? 9));
+                  const dues = list.map((i) => i.status === "borrowed" && borrowMap[i.id]).filter(Boolean).sort() as string[];
                   return (
-                    <Pressable key={item.id} onPress={() => openManage(item)} style={({ hovered }: any) => [d.tr, hovered && d.hover, item.status === "retired" && { opacity: 0.6 }]} accessibilityLabel={`จัดการ ${label(item)}`}>
-                      <View style={[d.icon, { backgroundColor: tc.bg }]}>
-                        {item.image_url
-                          ? <Image source={{ uri: item.image_url }} style={d.thumb} contentFit="cover" cachePolicy="memory-disk" transition={0} />
-                          : <Ionicons name={tc.icon} size={17} color={tc.color} />}
-                      </View>
-                      <Text style={[d.td, d.code, { flex: 1.2 }]} numberOfLines={1}>{item.item_code || "-"}</Text>
-                      <Text style={[d.td, { flex: 1.6 }]} numberOfLines={1}>{item.name}</Text>
-                      <Text style={[d.td, d.muted, { flex: 1 }]} numberOfLines={1}>{item.category}</Text>
-                      <View style={{ width: 120 }}>
-                        <View style={[d.pill, { backgroundColor: st.bg }]}><Text style={[d.pillText, { color: st.color }]}>{st.label}</Text></View>
-                      </View>
-                      <Text style={[d.td, d.muted, { flex: 1.2 }]} numberOfLines={1}>{foot || "-"}</Text>
-                      <Text style={[d.td, d.muted, { width: 70 }]}>{item.barcode || "-"}</Text>
-                      <View style={{ width: 36, alignItems: "center" }}><Ionicons name="ellipsis-horizontal" size={18} color="#94A3B8" /></View>
-                    </Pressable>
+                    <React.Fragment key={key}>
+                      <Pressable onPress={() => toggleModel(key)} style={({ hovered }: any) => [d.tr, open && d.grpOpen, hovered && d.hover]} accessibilityLabel={`${open ? "พับ" : "กาง"}รุ่น ${head.item_prefix || head.name}`}>
+                        <View style={{ width: 18, alignItems: "center" }}>
+                          <Ionicons name={open ? "chevron-down" : "chevron-forward"} size={15} color={open ? C.purple : "#94A3B8"} />
+                        </View>
+                        <View style={[d.icon, { backgroundColor: tc.bg }]}>
+                          {head.image_url
+                            ? <Image source={{ uri: head.image_url }} style={d.thumb} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+                            : <Ionicons name={tc.icon} size={17} color={tc.color} />}
+                        </View>
+                        <Text style={[d.td, d.code, { flex: 1.2 }]} numberOfLines={1}>{head.item_prefix || "-"}</Text>
+                        <Text style={[d.td, { flex: 1.6 }]} numberOfLines={1}>{head.name}</Text>
+                        <Text style={[d.td, d.muted, { flex: 0.9 }]} numberOfLines={1}>{head.category}</Text>
+                        <Text style={[d.td, d.code, { width: 50, textAlign: "right" }]}>{list.length}</Text>
+                        <View style={[d.pillRow, { flex: 1.5 }]}>
+                          {statuses.map((stKey) => {
+                            const st = STATUS_CFG[stKey] || STATUS_CFG.available;
+                            return (
+                              <View key={stKey} style={[d.pill, { backgroundColor: st.bg }]}>
+                                <Text style={[d.pillText, { color: st.color }]}>{st.label} {counts[stKey]}</Text>
+                              </View>
+                            );
+                          })}
+                        </View>
+                        <Text style={[d.td, d.muted, { flex: 1.1 }]} numberOfLines={1}>{dues[0] ? `คืนเร็วสุด ${formatDue(dues[0])}` : "-"}</Text>
+                        <View style={{ width: 64 }} />
+                        <Pressable onPress={() => openModelMenu(head)} style={({ hovered }: any) => [d.more, hovered && d.moreHover]} accessibilityLabel={`เมนูทั้งรุ่น ${head.item_prefix || head.name}`}>
+                          <Ionicons name="ellipsis-horizontal" size={18} color="#64748B" />
+                        </Pressable>
+                      </Pressable>
+                      {open ? list.map((item) => {
+                        const st = STATUS_CFG[item.status] || STATUS_CFG.available;
+                        const foot = item.status === "borrowed" && borrowMap[item.id]
+                          ? `คืน ${formatDue(borrowMap[item.id])}`
+                          : item.status === "retired" ? item.retire_reason || "" : warrantyText(item.warranty_expires_at);
+                        return (
+                          <Pressable key={item.id} onPress={() => openManage(item)} style={({ hovered }: any) => [d.tr, d.child, hovered && d.hover, item.status === "retired" && { opacity: 0.6 }]} accessibilityLabel={`จัดการ ${label(item)}`}>
+                            <View style={{ width: 18 }} />
+                            <View style={{ width: 32 }} />
+                            <Text style={[d.td, d.code, { flex: 1.2 }]} numberOfLines={1}>{item.item_code || "-"}</Text>
+                            <Text style={[d.td, d.muted, { flex: 1.6 }]} numberOfLines={1}>{item.manufacturer_serial ? `S/N ${item.manufacturer_serial}` : ""}</Text>
+                            <View style={{ flex: 0.9 }} />
+                            <View style={{ width: 50 }} />
+                            <View style={{ flex: 1.5 }}>
+                              <View style={[d.pill, { backgroundColor: st.bg }]}><Text style={[d.pillText, { color: st.color }]}>{st.label}</Text></View>
+                            </View>
+                            <Text style={[d.td, d.muted, { flex: 1.1 }]} numberOfLines={1}>{foot || "-"}</Text>
+                            <Text style={[d.td, d.muted, { width: 64 }]}>{item.barcode || "-"}</Text>
+                            <View style={{ width: 36, alignItems: "center" }}><Ionicons name="ellipsis-horizontal" size={18} color="#94A3B8" /></View>
+                          </Pressable>
+                        );
+                      }) : null}
+                    </React.Fragment>
                   );
                 })}
               </ScrollView>
@@ -1152,6 +1264,11 @@ const d = StyleSheet.create({
   thumb: { width: 32, height: 32 },
   pill: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 },
   pillText: { fontSize: 11.5, fontWeight: "800" },
+  pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  grpOpen: { backgroundColor: "#F5F8FF" },
+  child: { backgroundColor: "#FBFCFF", paddingVertical: 8 },
+  more: { width: 36, height: 30, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  moreHover: { backgroundColor: "#EEF2FA" },
   empty: { alignItems: "center", paddingVertical: 50, gap: 8 },
   emptyText: { fontSize: 13.5, color: "#64748B", fontWeight: "600" },
 });
