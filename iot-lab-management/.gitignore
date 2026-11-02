@@ -56,3 +56,6 @@ backups/
 # log/ค่าส่วนตัวของเครื่อง dev (ไม่ขึ้น git)
 .expo-codex-logs/
 .claude/settings.local.json
+
+# mockup HTML ให้เจ้าของดูก่อนแก้โค้ด (ไม่ขึ้น git)
+mockups/

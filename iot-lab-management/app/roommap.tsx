@@ -68,14 +68,18 @@ export default function RoomMap() {
 
   // Admin/TA ที่เปิดจากหน้าผู้ดูแล: แก้เช็กลิสต์ตรงได้ + เห็นประวัติการเปลี่ยนสถานะ (RLS: staff เท่านั้น)
   const [isStaffRole, setIsStaffRole] = useState(false);
+  const [staffChecked, setStaffChecked] = useState(from !== "admin"); // เช็กสิทธิ์เสร็จหรือยัง (QR ต้องรอ ไม่งั้นข้ามโหลดประวัติ)
   const isStaff = isStaffRole && from === "admin";
-  const [stationLog, setStationLog] = useState<any[]>([]);
+  const [stationLog, setStationLog] = useState<any[] | null>([]); // null = กำลังโหลด
   const [equipSaving, setEquipSaving] = useState<string | null>(null);
   // เป้าหมายที่กำลังกรอกคำแจ้งปัญหา (เครื่อง หรือ LAN port)
   const [reportTarget, setReportTarget] = useState<{ kind: "station" | "lan"; id: string; label: string } | null>(null);
   useEffect(() => {
     if (from !== "admin") return; // โหมดนักศึกษา ไม่ต้องถาม
-    supabase.rpc("is_staff").then(({ data }) => setIsStaffRole(!!data));
+    supabase.rpc("is_staff").then(({ data }) => {
+      setIsStaffRole(!!data);
+      setStaffChecked(true);
+    });
   }, [from]);
 
   // Modal: Server LAN ports
@@ -134,12 +138,12 @@ export default function RoomMap() {
   // QR: โหลดห้องเสร็จ → เปิดแผ่นเครื่องที่สแกนครั้งเดียว (สแกนเครื่องใหม่ = param เปลี่ยน → เปิดอีกรอบ)
   const openedFromQr = useRef("");
   useEffect(() => {
-    if (!station || openedFromQr.current === station || stations.length === 0) return;
+    if (!station || openedFromQr.current === station || stations.length === 0 || !staffChecked) return;
     const target = stations.find((x) => x.id === station);
     openedFromQr.current = station;
     if (target) openStation(target);
     else notify("ไม่พบเครื่องนี้", "เครื่องอาจถูกปิดใช้งานหรือย้ายห้องแล้ว แจ้งผู้ดูแลได้ที่ผังห้อง");
-  }, [station, stations]);
+  }, [station, stations, staffChecked]);
 
   const getGroupPorts = (groupNo: number) =>
     lanPorts.filter(p => p.group_no === groupNo);
@@ -166,21 +170,55 @@ export default function RoomMap() {
     return { hasIssue, equips };
   };
 
+  // ประวัติสถานะเครื่อง (staff): เปิดแผ่น = 3 ครั้งล่าสุด · "ดูเพิ่ม" = ทีละ 5
+  const [logTotal, setLogTotal] = useState(0);
+  const [logMoreBusy, setLogMoreBusy] = useState(false);
+  const logFor = useRef(""); // กันผลของเครื่องเก่า (ตอบช้า) มาทับเครื่องที่เปิดอยู่
+  const fetchLogPage = async (stationId: string, offset: number, size: number) => {
+    const { data, count } = await supabase
+      .from("room_status_log").select("*", { count: "exact" }).eq("station_id", stationId)
+      .order("changed_at", { ascending: false }).range(offset, offset + size - 1);
+    const rows = data || [];
+    // ชื่อผู้เปลี่ยน ("ชื่อ · รหัส นศ." — lib/room/roomPeople ของระบบห้อง)
+    const ids = [...new Set(rows.map((row: any) => row.changed_by).filter(Boolean))] as string[];
+    const names = await fetchRoomPeople(ids);
+    return { rows: rows.map((row: any) => ({ ...row, who: names[row.changed_by] || "ระบบ" })), count: count ?? rows.length };
+  };
+
   const openStation = async (station: any) => {
+    logFor.current = station.id;
     setSelectedStation(station);
-    setStationLog([]);
+    setStationLog(isStaff ? null : []);
+    setLogTotal(0);
     setReportTarget(null);
     setCompModal(true);
     if (isStaff) {
-      const { data } = await supabase
-        .from("room_status_log").select("*").eq("station_id", station.id)
-        .order("changed_at", { ascending: false }).limit(5);
-      const rows = data || [];
-      // ชื่อผู้เปลี่ยน ("ชื่อ · รหัส นศ." — lib/room/roomPeople ของระบบห้อง)
-      const ids = [...new Set(rows.map((row: any) => row.changed_by).filter(Boolean))] as string[];
-      const names = await fetchRoomPeople(ids);
-      setStationLog(rows.map((row: any) => ({ ...row, who: names[row.changed_by] || "ระบบ" })));
+      const page = await fetchLogPage(station.id, 0, 3);
+      if (logFor.current !== station.id) return;
+      setLogTotal(page.count);
+      setStationLog(page.rows);
     }
+  };
+
+  const loadMoreLog = async () => {
+    if (!selectedStation || !stationLog || logMoreBusy) return;
+    const id = selectedStation.id;
+    setLogMoreBusy(true);
+    const page = await fetchLogPage(id, stationLog.length, 5);
+    setLogMoreBusy(false);
+    if (logFor.current !== id) return;
+    setLogTotal(page.count);
+    setStationLog((prev) => {
+      const list = prev || [];
+      return [...list, ...page.rows.filter((row: any) => !list.some((p: any) => p.id === row.id))];
+    });
+  };
+
+  const logTime = (iso: string) => {
+    const d = new Date(iso);
+    const time = d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+    if (d.toDateString() === new Date().toDateString()) return `วันนี้ ${time}`;
+    return `${d.toLocaleDateString("th-TH", { day: "numeric", month: "short" })} ${time}`;
   };
 
   // Admin/TA กดอุปกรณ์ในเช็กลิสต์ = เปลี่ยนสถานะวน ครบ → หาย → ชำรุด → ครบ
@@ -433,16 +471,41 @@ export default function RoomMap() {
             </View>
             {isStaff ? <Text style={s.staffHint}>ผู้ดูแล: กดอุปกรณ์เพื่อเปลี่ยน ครบ → หาย → ชำรุด</Text> : null}
 
-            {isStaff && stationLog.length > 0 ? (
+            {isStaff && stationLog ? (
               <View style={s.logBox}>
-                <Text style={s.checklistTitle}>ประวัติสถานะล่าสุด</Text>
-                {stationLog.map((row: any) => (
-                  <Text key={row.id} style={s.logRow} numberOfLines={1}>
-                    {new Date(row.changed_at).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                    {" · "}{roomStatus(STATION_STATUS, row.from_status).label} → {roomStatus(STATION_STATUS, row.to_status).label}
-                    {" · "}{row.source === "repair" ? "งานซ่อม" : row.who}
-                  </Text>
-                ))}
+                <View style={s.logHead}>
+                  <Text style={[s.checklistTitle, { marginBottom: 0 }]}>ประวัติสถานะ</Text>
+                  {logTotal > 0 ? <Text style={s.logCount}>ทั้งหมด {logTotal} ครั้ง</Text> : null}
+                </View>
+                {stationLog.length === 0 ? (
+                  <Text style={s.logRow}>ยังไม่มีประวัติเปลี่ยนสถานะเครื่อง (ใช้งานได้ / กำลังซ่อม / เสีย)</Text>
+                ) : (
+                  // เส้นเวลา: จุด + ป้ายสถานะใหม่ (สีตามสถานะ) + เวลา · คนเปลี่ยน
+                  <View style={s.timeline}>
+                    <View style={s.timelineLine} />
+                    {stationLog.map((row: any) => {
+                      const st = roomStatus(STATION_STATUS, row.to_status);
+                      return (
+                        <View key={row.id} style={s.logEvent}>
+                          <View style={[s.logDot, { backgroundColor: st.color }]} />
+                          <View style={[s.logChip, { backgroundColor: st.bg }]}>
+                            <Text style={[s.logChipText, { color: st.color }]}>{st.label}</Text>
+                          </View>
+                          <Text style={s.logMeta} numberOfLines={1}>
+                            {logTime(row.changed_at)} · {row.source === "repair" ? "งานซ่อม" : row.who}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+                {stationLog.length < logTotal ? (
+                  <TouchableOpacity style={s.logMore} onPress={loadMoreLog} disabled={logMoreBusy} activeOpacity={0.84}>
+                    {logMoreBusy
+                      ? <ActivityIndicator size="small" color="#2563EB" />
+                      : <Text style={s.logMoreText}>ดูเพิ่ม (อีก {logTotal - stationLog.length})</Text>}
+                  </TouchableOpacity>
+                ) : null}
               </View>
             ) : null}
 
@@ -585,6 +648,17 @@ const s = StyleSheet.create({
   staffHint: { fontSize: 11, color: "#475569", marginTop: 8, textAlign: "center" },
   logBox: { marginTop: 12, backgroundColor: "#F5F8FE", borderRadius: 15, padding: 10 },
   logRow: { fontSize: 11, color: "#334155", marginTop: 4 },
+  logHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  logCount: { fontSize: 11, color: "#475569" },
+  timeline: { paddingLeft: 16 },
+  timelineLine: { position: "absolute", left: 5, top: 6, bottom: 6, width: 2, backgroundColor: "#D6E2F5" },
+  logEvent: { paddingBottom: 10 },
+  logDot: { position: "absolute", left: -15, top: 5, width: 10, height: 10, borderRadius: 5, borderWidth: 2, borderColor: "#F5F8FE" },
+  logChip: { alignSelf: "flex-start", borderRadius: 999, paddingHorizontal: 9, paddingVertical: 2 },
+  logChipText: { fontSize: 12, fontWeight: "600" },
+  logMeta: { fontSize: 11, color: "#475569", marginTop: 3 },
+  logMore: { marginTop: 4, minHeight: 38, borderRadius: 12, borderWidth: 1, borderColor: "#CFDBF0", backgroundColor: "#FFFFFF", alignItems: "center", justifyContent: "center" },
+  logMoreText: { fontSize: 13, fontWeight: "600", color: "#2563EB" },
   reportBtn: { marginTop: 12, minHeight: 46, borderRadius: 15, borderWidth: 1, borderColor: "#fdba74", backgroundColor: "#fff7ed", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   reportBtnTxt: { color: "#c2410c", fontWeight: "600", fontSize: 14 },
 
