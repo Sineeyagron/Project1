@@ -106,7 +106,7 @@ export function buildStationLabelsHtml(stations: StationLabel[], autoPrint = tru
     return `<div class="l">
   <svg class="q" viewBox="-1 -1 ${size + 2} ${size + 2}" shape-rendering="crispEdges"><path fill="#000" d="${path}"/></svg>
   <div class="t">
-    <div class="r">ห้อง ${esc(st.room_id)}<br>กลุ่ม ${st.group_no}</div>
+    <div class="r">ห้อง <b>${esc(st.room_id)}</b><br>กลุ่ม <b>${st.group_no}</b></div>
     <div class="n"${scale < 1 ? ` style="font-size:${(z.title * scale).toFixed(1)}pt"` : ""}>${esc(st.name)}</div>
     <div class="h">${z.short ? "สแกนแจ้งเครื่องเสีย" : "สแกนดูสถานะ<br>แจ้งเครื่องเสีย"}</div>
     ${z.brand ? `<div class="b">LabHub</div>` : ""}
@@ -123,9 +123,10 @@ export function buildStationLabelsHtml(stations: StationLabel[], autoPrint = tru
 .q{flex:none;width:${z.qr}mm;height:${z.qr}mm;display:block}
 .t{min-width:0;flex:1}
 .r,.n{overflow-wrap:anywhere}
-.r{font-size:${z.room}pt;color:#333;line-height:1.2}
+.r{font-size:${z.room}pt;color:#000;line-height:1.2}
+.r b{font-weight:700}
 .n{font-size:${z.title}pt;font-weight:700;line-height:1.05}
-.h{font-size:${z.hint}pt;color:#333;line-height:1.2;margin-top:.8mm}
+.h{font-size:${z.hint}pt;color:#000;line-height:1.2;margin-top:.8mm}
 .b{font-size:${z.brand}pt;font-weight:700;color:#1D4ED8;margin-top:.6mm}`;
   return page(`ป้าย QR คอม ${stations.length} เครื่อง (${z.name})`, css, pages.join(""), autoPrint);
 }
