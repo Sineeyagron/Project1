@@ -123,10 +123,10 @@ export function buildStationLabelsHtml(stations: StationLabel[], autoPrint = tru
 .q{flex:none;width:${z.qr}mm;height:${z.qr}mm;display:block}
 .t{min-width:0;flex:1}
 .r,.n{overflow-wrap:anywhere}
-.r{font-size:${z.room}pt;color:#000;line-height:1.45}
+.r{font-size:${z.room}pt;color:#000;line-height:1.65}
 .r b{font-weight:700}
 .n{font-size:${z.title}pt;font-weight:700;line-height:1.05}
-.h{font-size:${z.hint}pt;color:#000;line-height:1.45;margin-top:.8mm}
+.h{font-size:${z.hint}pt;color:#000;line-height:1.65;margin-top:.8mm}
 .b{font-size:${z.brand}pt;font-weight:700;color:#1D4ED8;margin-top:.6mm}`;
   return page(`ป้าย QR คอม ${stations.length} เครื่อง (${z.name})`, css, pages.join(""), autoPrint);
 }
