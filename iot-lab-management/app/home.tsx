@@ -275,20 +275,6 @@ export default function Home() {
               </View>
             ) : null}
 
-            {/* ระบบห้อง: สแกน QR ที่แปะคอม → ดูสถานะเครื่อง / แจ้งปัญหา (แยกจากปุ่มสแกนยืม-คืนด้านล่าง) */}
-            <View style={s.quickGrid}>
-              <PressScale style={s.quickCard} onPress={() => router.push("/roomscan" as any)} scaleTo={0.98} accessibilityLabel="สแกน QR คอม">
-                <View style={iconDot(C.primary, 38)}>
-                  <Ionicons name="qr-code-outline" size={19} color="#FFFFFF" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={s.quickName}>สแกน QR คอม</Text>
-                  <Text style={s.quickSub}>ดูสถานะเครื่อง / แจ้งเครื่องเสีย</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={C.faint} />
-              </PressScale>
-            </View>
-
             <Text style={s.quickTitle}>ลิงก์ด่วน</Text>
             {/* ทางเข้าหลักของการยืม-คืน (แผน 2.6: ยืม/คืนได้ทางเดียวคือสแกน QR ที่ตัวของ) */}
             <PressScale style={s.scanCard} onPress={() => router.push("/scan")} scaleTo={0.98}>
@@ -300,6 +286,20 @@ export default function Home() {
                 <Text style={s.scanCardSub}>สแกน QR ที่ติดบนอุปกรณ์ในห้อง</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#fff" />
+            </PressScale>
+            {/* ระบบห้อง: สแกน QR ที่แปะคอม → ดูสถานะเครื่อง / แจ้งปัญหา · ปุ่มรอง (ขอบน้ำเงิน + ปุ่ม "สแกน" โทนอ่อน)
+                ไม่แย่งความเด่นปุ่มยืม-คืนด้านบน (DESIGN.md ข้อ 12: secondary = outlined/tonal) — เจ้าของเลือกแบบ A1 2 พ.ย. */}
+            <PressScale style={s.roomScanCard} onPress={() => router.push("/roomscan" as any)} scaleTo={0.98} accessibilityLabel="สแกน QR คอม">
+              <View style={s.roomScanIcon}>
+                <Ionicons name="scan" size={20} color={C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.roomScanTitle}>สแกน QR คอม</Text>
+                <Text style={s.quickSub}>ดูสถานะเครื่อง / แจ้งเครื่องเสีย</Text>
+              </View>
+              <View style={s.roomScanBtn}>
+                <Text style={s.roomScanBtnText}>สแกน</Text>
+              </View>
             </PressScale>
             <View style={s.quickGrid}>
               <PressScale style={s.quickCard} onPress={() => router.push("/lanstatus")}>
@@ -448,6 +448,22 @@ const s = StyleSheet.create({
   scanCardTitle: { color: "#fff", fontSize: 16, fontWeight: "600" },
   scanCardSub: { color: "rgba(255,255,255,0.9)", fontSize: 12, marginTop: 1 },
   quickGrid: { flexDirection: "row", gap: 12, marginBottom: 14 },
+  roomScanCard: {
+    ...W.card,
+    borderWidth: 1.5,
+    borderColor: C.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    paddingLeft: 14,
+    paddingRight: 12,
+    marginBottom: 12,
+  },
+  roomScanIcon: { width: 40, height: 40, borderRadius: 13, backgroundColor: C.primarySoft, alignItems: "center", justifyContent: "center" },
+  roomScanTitle: { color: C.primaryDark, fontSize: 15, fontWeight: "600" },
+  roomScanBtn: { backgroundColor: C.primarySoft, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 },
+  roomScanBtnText: { color: C.primaryDark, fontSize: 13, fontWeight: "600" },
   quickCard: {
     ...W.card,
     flex: 1,
