@@ -23,7 +23,7 @@
 
 `vercel.json` จัดการให้แล้ว: ทุก path ที่ไม่มีไฟล์ → `index.html` (เปิดลิงก์ตรง/รีเฟรชหน้าไหนก็ได้), `sw.js` ไม่ถูก cache ค้าง, ไฟล์ `/_expo/static` cache ยาว
 
-> deploy ครั้งต่อไป: แค่ push → Vercel build ใหม่เอง
+> deploy ครั้งต่อไป: Vercel ต่อกับ fork `parnppk/ProJect_LabHub` (ไม่ใช่ `Sineeyagron/Project1`) → merge เข้า `main` ของ Project1 ยังไม่ขึ้นเว็บ · เทสผ่านแล้วกด **Sync fork** ที่หน้า fork บน GitHub → Vercel build ใหม่เอง
 
 ## 2. สร้าง VAPID keys + ใส่ใน Supabase
 
