@@ -1,0 +1,41 @@
+# CI = ให้ GitHub ตรวจโค้ดอัตโนมัติทุกครั้งที่ push / เปิด PR
+# ผ่านครบ = ✅ เขียวใน PR · ไม่ผ่าน = ❌ แดง (กดดูได้ว่าพังขั้นไหน)
+name: CI
+
+on:
+  push:            # ทุก push ทุก branch
+  pull_request:    # ทุก PR ที่จะเข้า main
+    branches: [main]
+
+# push ซ้ำใน branch เดิม → ยกเลิกรอบเก่าที่ยังรันค้าง ประหยัดเวลา
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: tsc + lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: iot-lab-management   # แอปอยู่ในโฟลเดอร์นี้ ไม่ใช่ราก repo
+    steps:
+      - name: ดึงโค้ด
+        uses: actions/checkout@v4
+
+      - name: ติดตั้ง Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: iot-lab-management/package-lock.json
+
+      - name: ติดตั้ง package (npm ci = ตาม package-lock.json เป๊ะ)
+        run: npm ci
+
+      - name: ตรวจ TypeScript (tsc)
+        run: npx tsc --noEmit
+
+      - name: ตรวจรูปแบบโค้ด (lint)
+        run: npm run lint

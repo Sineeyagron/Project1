@@ -31,6 +31,8 @@
 - Ionicons บนเว็บ production = ฉบับย่อ (`scripts/subset-ionicons.js`) — **ห้ามประกอบชื่อไอคอนด้วยการต่อ string**
 - รูปก่อนอัปโหลด: `lib/shrinkPhoto.ts` (อุปกรณ์ 1000px, หลักฐานยืม 1600px) · แสดงผลใช้ `expo-image`
 - `expo-file-system`: `import * as FileSystem` แล้ว `const FS = FileSystem as any` · UI ค้าง → `npx expo start --clear`
+- **CI** (`.github/workflows/ci.yml` ที่ราก repo): ทุก push + ทุก PR เข้า main → `npm ci` → `npx tsc --noEmit` → `npm run lint` ใน `iot-lab-management/` · ต้องเขียวก่อน merge · เช็กในเครื่องก่อน push ด้วย 2 คำสั่งเดียวกัน
+- lint: กฎ react-hooks รุ่นใหม่ + `no-unescaped-entities` ถูกลดเป็น warning ใน `eslint.config.js` (โค้ดเดิมติด ~200 จุด) — โค้ดใหม่พยายามไม่เพิ่ม warning · แก้หมดแล้วเปลี่ยนกลับเป็น `'error'`
 
 ## PWA / Web Push (เว็บเท่านั้น)
 - `public/` (manifest, ไอคอน, `sw.js` — แก้แล้วเปลี่ยน `VERSION`), meta ใน `app/+html.tsx`, `lib/web/webPush.ts` (ลงทะเบียน SW ใน `_layout`), การ์ด `WebPushCard` ในหน้าแจ้งเตือน
