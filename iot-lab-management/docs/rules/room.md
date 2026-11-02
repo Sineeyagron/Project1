@@ -9,7 +9,7 @@
 - นศ. แจ้งปัญหา: RPC `report_room_problem` (กันซ้ำ, 5 ครั้ง/วัน) → คิว `admin/roomreports` (`decide_room_report`) · แจ้งเตือนผ่าน `_room_notify_staff` ของระบบห้องเอง · `app/notifications.tsx` ใช้ร่วม — แตะได้เฉพาะส่วนระบบห้อง
 - **QR แปะคอม** (`lib/room/stationQr.ts`): ค่าใน QR = ลิงก์ `https://labhub-kku.vercel.app/roommap?room_id=…&station=<id>` (`SITE_ORIGIN` — ห้ามใช้ window.location) → `roommap` เปิดแผ่นเครื่องนั้นเอง (param `station`) = ดูสถานะ + แจ้งปัญหา (ฟอร์มเดิม) · `from=admin` ต้องรอ `is_staff` ตอบก่อนค่อยเปิดแผ่น (ไม่งั้นข้ามโหลดประวัติ) · ประวัติว่าง = ขึ้น "ยังไม่มีประวัติ…" (ไม่ซ่อน)
   - ประวัติสถานะในแผ่นเครื่อง (staff) = เส้นเวลา 3 ครั้งล่าสุด + "ดูเพิ่ม" ทีละ 5 (`range` + `count`) · ป้ายสี = สถานะใหม่เท่านั้น ไม่มี "จาก…" และไม่มีไอคอน (เจ้าของเลือกแบบ A 2 พ.ย.)
-  - สแกนในแอป: `app/roomscan.tsx` (การ์ด "สแกน QR คอม" ใน `home.tsx` / ปุ่ม "สแกน QR" ใน `admin/room` ส่ง `from=admin` → ผังห้องโหมดผู้ดูแล) — รับเฉพาะ QR คอม ห้ามให้ `app/scan` (ระบบยืม) อ่าน
+  - สแกนในแอป: `app/roomscan.tsx` (การ์ด "สแกน QR คอม" ใน `home.tsx` ลิงก์ด่วน ใต้ปุ่มสแกนยืม-คืน = ปุ่มรอง ขอบน้ำเงิน + ปุ่ม "สแกน" โทนอ่อน ห้ามทำเด่นเท่าปุ่มยืม-คืน / ปุ่ม "สแกน QR" ใน `admin/room` ส่ง `from=admin` → ผังห้องโหมดผู้ดูแล) — รับเฉพาะ QR คอม ห้ามให้ `app/scan` (ระบบยืม) อ่าน
   - สแกนด้วยกล้องมือถือตอนยังไม่ล็อกอิน → `lib/returnTo.ts` (ใช้ร่วม เว็บเท่านั้น) จำหน้าไว้ 30 นาที ล็อกอินเสร็จ `login.tsx` พากลับ
   - `admin/room` แถวที่ 2: "ป้าย QR" (`buildStationLabelsHtml` 6×4.2 ซม. A4 18 ป้าย) + "สรุป PDF" (`buildRoomSummaryHtml`) ผ่าน `exportPdf` (lib/fileExport ใช้ร่วม) — TA ใช้ได้
   - กล้อง `components/ScanCamera` = ใช้ร่วม (แค่กล้อง)
