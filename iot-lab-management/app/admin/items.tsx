@@ -29,7 +29,6 @@ import StatWidget from "../../components/StatWidget";
 import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
 import LoadingState from "../../components/LoadingState";
-import { useProgressiveList } from "../../lib/progressiveList";
 import { buildLabelSheetHtml } from "../../lib/labels";
 import { openPrintView } from "../../lib/fileExport";
 
@@ -114,52 +113,91 @@ function warrantyText(dateValue?: string) {
   return `ประกันถึง ${end.toLocaleDateString("th-TH", { day: "numeric", month: "short", year: "2-digit" })}`;
 }
 
-function ItemCard({
-  item,
-  dueDate,
-  onPress,
+// มือถือ: การ์ดละรุ่น (รูป · ชื่อย่อรุ่น · ชื่อ · ป้ายสถานะ · จำนวน) แตะเพื่อกางรายชิ้นในการ์ดเดียวกัน
+function ModelCard({
+  head,
+  list,
+  open,
+  borrowMap,
+  onToggle,
+  onMenu,
+  onItem,
 }: {
-  item: any;
-  dueDate?: string;
-  onPress: (item: any) => void;
+  head: any;
+  list: any[];
+  open: boolean;
+  borrowMap: Record<string, string>;
+  onToggle: () => void;
+  onMenu: () => void;
+  onItem: (item: any) => void;
 }) {
-  const status = STATUS_CFG[item.status] || STATUS_CFG.available;
-  const typeCfg = getTypeConfig(item.category === OTHER ? item.type || item.name : item.category);
-  const meta = [item.name, item.category, item.barcode && `สแกน ${item.barcode}`]
-    .filter(Boolean).join(" · ");
-  const footText = item.status === "borrowed" && dueDate
-    ? `คืน ${formatDue(dueDate)}`
-    : item.status === "retired"
-      ? item.retire_reason || ""
-      : warrantyText(item.warranty_expires_at);
+  const typeCfg = getTypeConfig(head.category === OTHER ? head.type || head.name : head.category);
+  const counts: Record<string, number> = {};
+  list.forEach((i) => { counts[i.status] = (counts[i.status] || 0) + 1; });
+  const statuses = Object.keys(counts).sort((a, b) => (STATUS_ORDER[a] ?? 9) - (STATUS_ORDER[b] ?? 9));
+  const allRetired = list.every((i) => i.status === "retired");
 
   return (
-    <TouchableOpacity
-      style={[s.card, item.status === "retired" && s.cardRetired]}
-      activeOpacity={0.88}
-      onPress={() => onPress(item)}
-    >
-      <View style={[s.itemIconBox, { backgroundColor: typeCfg.bg }]}>
-        {item.image_url
-          ? <Image source={{ uri: item.image_url }} style={s.itemThumb} contentFit="cover" cachePolicy="memory-disk" transition={0} />
-          : <Ionicons name={typeCfg.icon} size={24} color={typeCfg.color} />}
-      </View>
-
-      <View style={s.cardBody}>
-        <Text style={s.cardName} numberOfLines={1}>{item.item_code || item.name || "ไม่มีชื่ออุปกรณ์"}</Text>
-        <Text style={s.cardMeta} numberOfLines={1}>{meta || "ยังไม่มีรายละเอียด"}</Text>
-        <View style={s.cardFooter}>
-          <View style={[s.statusPill, { backgroundColor: status.bg }]}>
-            <Text style={[s.statusText, { color: status.color }]}>• {status.label}</Text>
-          </View>
-          {!!footText && <Text style={s.qtyText} numberOfLines={1}>{footText}</Text>}
+    <View style={[s.card, s.modelCard, allRetired && s.cardRetired]}>
+      <TouchableOpacity style={s.modelRow} activeOpacity={0.88} onPress={onToggle} accessibilityLabel={`${open ? "พับ" : "กาง"}รุ่น ${head.item_prefix || head.name}`}>
+        <View style={[s.itemIconBox, { backgroundColor: typeCfg.bg }]}>
+          {head.image_url
+            ? <Image source={{ uri: head.image_url }} style={s.itemThumb} contentFit="cover" cachePolicy="memory-disk" transition={0} />
+            : <Ionicons name={typeCfg.icon} size={24} color={typeCfg.color} />}
         </View>
-      </View>
 
-      <View style={[s.cardAction, s.cardActionMuted]}>
-        <Ionicons name="ellipsis-vertical" size={18} color="#64748b" />
-      </View>
-    </TouchableOpacity>
+        <View style={s.cardBody}>
+          <Text style={s.cardName} numberOfLines={1}>{head.item_prefix || head.name || "ไม่มีชื่ออุปกรณ์"}</Text>
+          <Text style={s.cardMeta} numberOfLines={1}>{[head.name, head.category].filter(Boolean).join(" · ")}</Text>
+          <View style={[s.cardFooter, { flexWrap: "wrap", gap: 5 }]}>
+            {statuses.map((stKey) => {
+              const st = STATUS_CFG[stKey] || STATUS_CFG.available;
+              return (
+                <View key={stKey} style={[s.statusPill, { backgroundColor: st.bg }]}>
+                  <Text style={[s.statusText, { color: st.color }]}>{st.label} {counts[stKey]}</Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={s.modelCount}><Text style={s.modelCountText}>{list.length} ชิ้น</Text></View>
+        <TouchableOpacity style={[s.cardAction, s.cardActionMuted]} onPress={onMenu} activeOpacity={0.75} accessibilityLabel={`เมนูทั้งรุ่น ${head.item_prefix || head.name}`}>
+          <Ionicons name="ellipsis-vertical" size={18} color="#64748b" />
+        </TouchableOpacity>
+        <Ionicons name={open ? "chevron-down" : "chevron-forward"} size={17} color={open ? C.purple : C.faint} />
+      </TouchableOpacity>
+
+      {open ? (
+        <View style={s.unitList}>
+          {list.map((item, idx) => {
+            const st = STATUS_CFG[item.status] || STATUS_CFG.available;
+            const foot = item.status === "borrowed" && borrowMap[item.id]
+              ? `คืน ${formatDue(borrowMap[item.id])}`
+              : item.status === "retired" ? item.retire_reason || "" : "";
+            return (
+              <TouchableOpacity
+                key={item.id}
+                style={[s.unitRow, idx === list.length - 1 && { borderBottomWidth: 0 }, item.status === "retired" && s.cardRetired]}
+                activeOpacity={0.8}
+                onPress={() => onItem(item)}
+                accessibilityLabel={`จัดการ ${item.item_code || item.name}`}
+              >
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={s.unitCode} numberOfLines={1}>{item.item_code || item.name}</Text>
+                  {!!foot && <Text style={s.qtyText} numberOfLines={1}>{foot}</Text>}
+                </View>
+                <View style={[s.statusPill, { backgroundColor: st.bg }]}>
+                  <Text style={[s.statusText, { color: st.color }]}>{st.label}</Text>
+                </View>
+                <Text style={s.unitScan}>{item.barcode || "-"}</Text>
+                <Ionicons name="ellipsis-vertical" size={16} color="#94A3B8" />
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -293,8 +331,6 @@ export default function AdminItems() {
     }
     return sorted;
   })();
-  // ของเยอะ: วาดชุดแรกทันทีแล้วทยอยที่เหลือ (จำนวน/ค้นหา/ว่าง ยังดูจาก filtered เต็ม)
-  const shownItems = useProgressiveList(filtered);
 
   const sortBtnRef = useRef<any>(null);
   const headerSortRef = useRef<any>(null);
@@ -782,8 +818,13 @@ export default function AdminItems() {
 
             <View style={s.listHeader}>
               <Text style={s.listTitle}>
-                {search.trim() ? `ผลการค้นหา "${search.trim()}" · ${filtered.length} รายการ` : "รายการอุปกรณ์"}
+                {search.trim() ? `ผลการค้นหา "${search.trim()}" · ${filtered.length} รายการ` : `รายการอุปกรณ์ · ${modelGroups.length} รุ่น`}
               </Text>
+              {!search.trim() && filtered.length > 0 ? (
+                <TouchableOpacity onPress={toggleAll} activeOpacity={0.75} accessibilityLabel={allOpen ? "พับทุกรุ่น" : "กางทุกรุ่น"}>
+                  <Text style={s.sortText}>{allOpen ? "พับทั้งหมด" : "กางทั้งหมด"}</Text>
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity ref={sortBtnRef} style={s.sortBtn} onPress={() => openSort(sortBtnRef)} activeOpacity={0.75}>
                 <Text style={s.sortMuted}>เรียงตาม</Text>
                 <Text style={s.sortText}>{SORTS.find((o) => o.key === sortKey)?.short}</Text>
@@ -797,12 +838,17 @@ export default function AdminItems() {
                 <Text style={s.emptyTxt}>ไม่พบอุปกรณ์</Text>
               </View>
             ) : (
-              shownItems.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  dueDate={borrowMap[item.id]}
-                  onPress={openManage}
+              // มือถือ: การ์ดละรุ่น แตะเพื่อกางรายชิ้น (แบบเดียวกับตารางจอคอม) · ⋮ การ์ด = เมนูทั้งรุ่น / ⋮ แถวชิ้น = เมนูจัดการเดิม
+              modelGroups.map(({ key, list, head }) => (
+                <ModelCard
+                  key={key}
+                  head={head}
+                  list={list}
+                  open={isModelOpen(key)}
+                  borrowMap={borrowMap}
+                  onToggle={() => toggleModel(key)}
+                  onMenu={() => openModelMenu(head)}
+                  onItem={openManage}
                 />
               ))
             )}
@@ -1124,6 +1170,15 @@ const s = StyleSheet.create({
   cardRetired: {
     opacity: 0.6,
   },
+  // การ์ดรุ่น (มือถือ): หัวการ์ด = แถวรุ่น · กางแล้วรายชิ้นต่อท้ายในการ์ดเดียวกัน
+  modelCard: { flexDirection: "column", alignItems: "stretch", paddingHorizontal: 0, paddingVertical: 0, gap: 0, overflow: "hidden" },
+  modelRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 13, paddingVertical: 12, minHeight: 82 },
+  modelCount: { backgroundColor: "#EEF2FA", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3 },
+  modelCountText: { color: C.ink, fontSize: 12, fontWeight: "900" },
+  unitList: { borderTopWidth: 1, borderTopColor: "#E8EEF7", backgroundColor: "#FAFBFF" },
+  unitRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingLeft: 18, paddingRight: 13, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: "#F1F4FA" },
+  unitCode: { color: C.ink, fontSize: 13.5, fontWeight: "900" },
+  unitScan: { color: C.muted, fontSize: 11.5, fontWeight: "800", width: 40 },
   sheet: {
     backgroundColor: "#fff",
     borderTopLeftRadius: 20,
