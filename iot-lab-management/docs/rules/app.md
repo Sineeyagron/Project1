@@ -39,3 +39,9 @@
 - แถวใหม่ใน `notifications` → trigger `notifications_push` (pg_net, เฉพาะคนที่มี `push_subscriptions`) → Edge Function `send-push` (deploy `--no-verify-jwt`, VAPID ใน secrets)
 - คำขอใหม่ → trigger `borrow_requests_push`/`pickup_requests_push` + นศ. ยกเลิกเอง (`cancel_pickup`, `cancel_request`) → `_push_staff()` → push ถึง admin+TA (ไม่เพิ่มในกระดิ่ง)
 - ขั้นตอน deploy: `docs/DEPLOY_PWA.md`
+
+## ประกาศถึงนักศึกษา (`app/admin/announce.tsx` — admin เท่านั้น)
+- migration `20261103090000_announcements.sql` · ประวัติ = ตาราง `announcements` (admin อ่านได้ · เขียนผ่าน RPC) · แจ้งเตือนชี้กลับด้วย `notifications.announcement_id`
+- อัตโนมัติ (สวิตช์ `app_settings.announce_new_items` / `announce_invite` ตั้งต้นปิด): cron `announce-new-items` ทุกวัน 08:00 → `send_new_items_announcement()` (รุ่นที่ชิ้นแรกเข้าระบบใน 1 วัน + มีชิ้นว่าง → ข้อความเดียว) · `announce-invite` วันจันทร์ 08:00 → `send_invite_announcement()` (นศ. ไม่ได้ยืม 30 วัน/ไม่มีของค้าง · คนละ 1 ครั้ง/30 วัน)
+- ส่งเอง: `send_announcement(title ≤80, body ≤300, audience all|borrowing|test)` · กันส่งซ้ำ 2 นาที · `test` / `test_auto_announcement(kind)` = ส่งหาตัวเองคนเดียว (ใช้เทสบน DB จริง)
+- ผู้รับ = `profiles.role = 'user'` · type `announce_new_items` / `announce_invite` (กด → `/equipment`) / `announce` (อ่านอย่างเดียว) — for_staff = false · push ผ่าน trigger เดิม
