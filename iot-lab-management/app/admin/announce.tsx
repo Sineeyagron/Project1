@@ -37,7 +37,7 @@ const AUTO: { key: AutoKey; kind: "new_items" | "invite"; icon: any; color: stri
   {
     key: "announce_new_items", kind: "new_items", icon: "cube-outline", color: "#2563EB", bg: "#DBEAFE",
     label: "ของใหม่มาแล้ว",
-    hint: "ทุกวัน 08:00 · มีรุ่นใหม่เข้าระบบเมื่อวาน → ส่งรวม 1 ข้อความถึงนักศึกษาทุกคน",
+    hint: "ทุกวัน 08:00 · มีรุ่นใหม่เข้าระบบเมื่อวาน → ส่งรวม 1 ข้อความถึงนักศึกษา + TA ทุกคน",
   },
   {
     key: "announce_invite", kind: "invite", icon: "sparkles-outline", color: "#047857", bg: "#ECFDF5",
@@ -189,7 +189,7 @@ export default function AdminAnnounce() {
     if (!canSend) return;
     confirmAction(
       "ส่งประกาศ?",
-      `"${cleanTitle}"\nถึง${audience === "all" ? "นักศึกษาทุกคน" : "คนที่ยังยืมของค้าง"} ${count} คน · ส่งแล้วยกเลิกไม่ได้`,
+      `"${cleanTitle}"\nถึง${audience === "all" ? "นักศึกษา + TA ทุกคน" : "คนที่ยังยืมของค้าง"} ${count} คน · ส่งแล้วยกเลิกไม่ได้`,
       `ส่งถึง ${count} คน`,
       () => send(audience),
     );
@@ -308,7 +308,7 @@ export default function AdminAnnounce() {
                     accessibilityState={{ checked: audience === a }}
                   >
                     <Ionicons name={audience === a ? "radio-button-on" : "radio-button-off"} size={22} color={audience === a ? C.blue : "#94A3B8"} />
-                    <Text style={s.audienceText}>{a === "all" ? "นักศึกษาทุกคน" : "คนที่ยังยืมของค้าง"}</Text>
+                    <Text style={s.audienceText}>{a === "all" ? "นักศึกษา + TA ทุกคน" : "คนที่ยังยืมของค้าง"}</Text>
                     <Text style={s.audienceCount}>{counts[a]} คน</Text>
                   </TouchableOpacity>
                 ))}
