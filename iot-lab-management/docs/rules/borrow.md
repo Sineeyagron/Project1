@@ -5,7 +5,7 @@
 - ตาราง: `items` (status `available|reserved|borrowed|repair|retired`), `borrow_requests`, `borrow_records` (ไม่มี `created_at` → เรียง `borrow_date`), `pickup_requests`, `categories`, `borrow_locations`, `app_settings`, `notifications`, `item_alerts`, `staff_presence`
 - ชื่อ/สีสถานะ: `lib/status.ts` ที่เดียว (`ITEM_STATUS`, `PICKUP_STATUS` ฯลฯ)
 - **รหัสอุปกรณ์**: trigger `items_before_insert` ออก `item_code` (เช่น `DHT22 012`) + `barcode` 4 ตัว + `location_id` เอง (แอปไม่ส่ง) / `items_before_update` ล็อกรหัส · ป้าย QR `lib/labels.ts`
-- รูปอุปกรณ์: `lib/itemPhoto.ts` · ปุ่ม "เปลี่ยนรูปทั้งรุ่น" ใน `app/admin/items.tsx` · หน้า admin แสดงรูปจริงแทนไอคอนหมวด
+- รูปอุปกรณ์: `lib/itemPhoto.ts` · ปุ่ม "เปลี่ยนรูปทั้งรุ่น" ใน `app/admin/items.tsx` · หน้า admin แสดงรูปจริงแทนไอคอนหมวด · ใส่รูปครบทุกรุ่นแล้ว (3 พ.ย.) · Claude อัปรูปเองไม่ได้ (แอปเปิด file picker ของ Windows) → เจ้าของเลือกไฟล์เอง
 - `admin/items` จอคอม: ตารางจัดกลุ่มตามรุ่น (`itemModelKey` ใน `lib/itemInfo.ts` = item_prefix ไม่มีก็ชื่อ — ใช้ร่วมกับหน้า นศ. `equipment.tsx` · ต้องตรงกับ `_item_model` ใน DB) แถวรุ่น → กางเป็นรายชิ้น · ค้นหาอยู่ = กางรุ่นที่เจอ โชว์เฉพาะชิ้นที่ตรง · ⋯ แถวรุ่น = ปริ้นป้าย QR ทั้งรุ่น (`buildLabelSheetHtml` เดียวกับ qrgen) / เปลี่ยนรูปทั้งรุ่น · มือถือ/แอป: การ์ดละรุ่น (`ModelCard`) แตะกางรายชิ้นในการ์ด · ⋮ การ์ด = เมนูทั้งรุ่น · ปุ่ม "กางทั้งหมด" ที่หัวรายการ (ใช้ state กาง/พับชุดเดียวกับจอคอม) · รายชิ้นตอนกางวาดทีละชุด (`useProgressiveList`) · รุ่นที่จำหน่ายหมดแล้ว เมนูรุ่นไม่มีปุ่ม (บอกข้อความแทน)
 - วันหมดประกัน: ช่องกรอก วว/ดด/ปปปป พ.ศ. (`components/borrow/WarrantyDateField`, `parseThaiDate`/`toThaiDateInput` ใน lib/itemInfo) — DB เก็บ ค.ศ. `date`
 
