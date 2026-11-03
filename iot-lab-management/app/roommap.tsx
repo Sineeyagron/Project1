@@ -76,10 +76,18 @@ export default function RoomMap() {
   const [reportTarget, setReportTarget] = useState<{ kind: "station" | "lan"; id: string; label: string } | null>(null);
   useEffect(() => {
     if (from !== "admin") return; // โหมดนักศึกษา ไม่ต้องถาม
-    supabase.rpc("is_staff").then(({ data }) => {
-      setIsStaffRole(!!data);
-      setStaffChecked(true);
-    });
+    let active = true;
+    (async () => {
+      try {
+        const { data } = await supabase.rpc("is_staff");
+        if (active) setIsStaffRole(!!data);
+      } catch {
+        // เน็ตหลุด/เช็กไม่ได้ = ไม่ใช่ผู้ดูแล (ดูอย่างเดียว) แต่ยังต้องเปิดแผ่นเครื่องจาก QR ได้
+      } finally {
+        if (active) setStaffChecked(true);
+      }
+    })();
+    return () => { active = false; };
   }, [from]);
 
   // Modal: Server LAN ports
@@ -92,7 +100,11 @@ export default function RoomMap() {
   }, [roomName]);
   useRefreshOnFocus(() => { if (roomName) fetchAll(); });
   // อัปเดตสด: มีคนเปลี่ยนสถานะเครื่อง/LAN/เช็กลิสต์ในห้องนี้ → โหลดใหม่ทันที (REVIEW M12)
-  useRoomLive(() => { if (roomName) fetchAll(); }, roomName);
+  useRoomLive(() => {
+    if (!roomName) return;
+    fetchAll();
+    refreshLog(); // แผ่นเครื่องเปิดค้าง (ผู้ดูแล) → ประวัติสถานะต้องอัปเดตด้วย
+  }, roomName);
 
   const fetchAll = async () => {
     const room = roomName;
@@ -171,13 +183,23 @@ export default function RoomMap() {
   };
 
   // ประวัติสถานะเครื่อง (staff): เปิดแผ่น = 3 ครั้งล่าสุด · "ดูเพิ่ม" = ทีละ 5
+  //   หน้าถัดไปใช้ "เก่ากว่ารายการสุดท้าย" (changed_at) ไม่ใช้ offset — มีแถวใหม่เข้ามาระหว่างเปิดแผ่นก็ไม่ข้าม/ไม่ซ้ำ
   const [logTotal, setLogTotal] = useState(0);
   const [logMoreBusy, setLogMoreBusy] = useState(false);
   const logFor = useRef(""); // กันผลของเครื่องเก่า (ตอบช้า) มาทับเครื่องที่เปิดอยู่
-  const fetchLogPage = async (stationId: string, offset: number, size: number) => {
-    const { data, count } = await supabase
+  const fetchLogPage = async (stationId: string, size: number, before?: string) => {
+    let query = supabase
       .from("room_status_log").select("*", { count: "exact" }).eq("station_id", stationId)
-      .order("changed_at", { ascending: false }).range(offset, offset + size - 1);
+      .order("changed_at", { ascending: false }).limit(size);
+    if (before) query = query.lt("changed_at", before);
+    const { data, count: rest } = await query;
+    // count = จำนวนที่เหลือหลังเงื่อนไข before → ทั้งหมดนับแยกเฉพาะตอนไม่มี before
+    let count = rest ?? 0;
+    if (before) {
+      const { count: total } = await supabase
+        .from("room_status_log").select("id", { count: "exact", head: true }).eq("station_id", stationId);
+      count = total ?? count;
+    }
     const rows = data || [];
     // ชื่อผู้เปลี่ยน ("ชื่อ · รหัส นศ." — lib/room/roomPeople ของระบบห้อง)
     const ids = [...new Set(rows.map((row: any) => row.changed_by).filter(Boolean))] as string[];
@@ -193,18 +215,29 @@ export default function RoomMap() {
     setReportTarget(null);
     setCompModal(true);
     if (isStaff) {
-      const page = await fetchLogPage(station.id, 0, 3);
+      const page = await fetchLogPage(station.id, 3);
       if (logFor.current !== station.id) return;
       setLogTotal(page.count);
       setStationLog(page.rows);
     }
   };
 
+  // อัปเดตสด: โหลดประวัติใหม่ให้แผ่นที่เปิดอยู่ (เท่าจำนวนที่กางไว้แล้ว อย่างน้อย 3)
+  const refreshLog = async () => {
+    if (!isStaff || !compModal || !selectedStation || !stationLog) return;
+    const id = selectedStation.id;
+    const page = await fetchLogPage(id, Math.max(3, stationLog.length));
+    if (logFor.current !== id) return;
+    setLogTotal(page.count);
+    setStationLog(page.rows);
+  };
+
   const loadMoreLog = async () => {
     if (!selectedStation || !stationLog || logMoreBusy) return;
     const id = selectedStation.id;
+    const last = stationLog[stationLog.length - 1];
     setLogMoreBusy(true);
-    const page = await fetchLogPage(id, stationLog.length, 5);
+    const page = await fetchLogPage(id, 5, last?.changed_at);
     setLogMoreBusy(false);
     if (logFor.current !== id) return;
     setLogTotal(page.count);

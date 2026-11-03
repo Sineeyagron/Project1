@@ -158,8 +158,8 @@ export default function AdminRoom() {
         const k = keys[i];
         runExport(`${room.id}:labels`, () =>
           exportPdf(
-            buildStationLabelsHtml(data, false, k),
-            buildStationLabelsHtml(data, true, k),
+            () => buildStationLabelsHtml(data, false, k),
+            () => buildStationLabelsHtml(data, true, k),
             `ป้าย QR คอม ห้อง ${room.id} (${data.length} เครื่อง · ${LABEL_SIZES[k].name})`,
           ));
       }, 1);
@@ -187,7 +187,7 @@ export default function AdminRoom() {
         openRepairs: rep.count || 0,
         openReports: rr.count || 0,
       };
-      await exportPdf(buildRoomSummaryHtml(data, false), buildRoomSummaryHtml(data), `สรุปห้องคอม ${room.id}`);
+      await exportPdf(() => buildRoomSummaryHtml(data, false), () => buildRoomSummaryHtml(data), `สรุปห้องคอม ${room.id}`);
     });
 
   const totals = useMemo(() => {

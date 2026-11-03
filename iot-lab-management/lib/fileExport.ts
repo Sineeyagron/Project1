@@ -48,13 +48,17 @@ export async function exportCsv(rows: string[][], fileName: string, asciiName: s
 
 // PDF จาก HTML — เว็บ: เปิดแท็บใหม่แล้วเด้งกล่องพิมพ์ (เลือก "บันทึกเป็น PDF") / มือถือ: expo-print แล้วแชร์
 // html สำหรับเว็บควรมี autoPrint (สคริปต์เรียก window.print เอง)
-export async function exportPdf(html: string, webHtml: string, title: string, landscape = false) {
+// ส่งเป็นฟังก์ชันได้ → สร้างเฉพาะแบบที่ใช้จริงของแต่ละแพลตฟอร์ม (ประหยัดตอน HTML หนัก เช่น ป้าย QR หลายสิบอัน)
+type Html = string | (() => string);
+const resolve = (h: Html) => (typeof h === "function" ? h() : h);
+
+export async function exportPdf(html: Html, webHtml: Html, title: string, landscape = false) {
   if (Platform.OS === "web") {
-    openPrintView(webHtml, title, undefined, landscape ? PAGE_LANDSCAPE : PAGE_PORTRAIT);
+    openPrintView(resolve(webHtml), title, undefined, landscape ? PAGE_LANDSCAPE : PAGE_PORTRAIT);
     return;
   }
   const { uri } = await Print.printToFileAsync({
-    html,
+    html: resolve(html),
     width: landscape ? 842 : 595, // A4 = 595 × 842 pt
     height: landscape ? 595 : 842,
   });

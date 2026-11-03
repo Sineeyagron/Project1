@@ -19,6 +19,7 @@ import ScreenHeader from "../components/ScreenHeader";
 import { FadeIn, PressScale } from "../components/Motion";
 import { Group, OTHER, Thumb, availTone, formatDue, iconFor, setSelectedGroup, takePendingAction, toneOf } from "../components/borrow/EquipmentParts";
 import LoadingState from "../components/LoadingState";
+import { itemModelKey } from "../lib/itemInfo";
 
 // หน้าอุปกรณ์ของนักศึกษา (ดูอย่างเดียว — ยืม/คืนทางเดียวคือสแกน QR ที่ตัวของ แผน 2.6)
 // รวมเป็น "การ์ดละรุ่น" (item_prefix / ชื่อ) บอกว่าว่างกี่ชิ้น — นักศึกษาอยากรู้ว่า "DHT22 มีว่างไหม" ไม่ใช่ทีละชิ้น
@@ -116,7 +117,7 @@ export default function Equipment() {
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
     items.forEach((it: any) => {
-      const key = String(it.item_prefix || it.name || it.id).trim().toLowerCase();
+      const key = itemModelKey(it) || String(it.id).toLowerCase();
       let g = map.get(key);
       if (!g) {
         g = { key, name: it.name || it.item_prefix, category: it.category, image: null, description: null, location: it.location || "IoT Lab", units: [], available: 0, held: 0, nextDue: null };

@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import supabase from "../lib/supabase";
 import { currentUser } from "../lib/session";
+import { takeReturnTo } from "../lib/returnTo";
 import { STUDENT_ID_RE, formatStudentId } from "../lib/people";
 import { confirmAction, notify } from "../lib/notify";
 import { C, W, iconDot, TOP_INSET } from "../lib/theme";
@@ -46,7 +47,8 @@ export default function StudentIdScreen() {
           notify("บันทึกไม่สำเร็จ", "ลองออกจากระบบแล้วเข้าใหม่อีกครั้ง");
           return;
         }
-        router.replace("/home");
+        // สแกน QR คอมก่อนล็อกอิน (lib/returnTo) → กลับไปเครื่องนั้น
+        router.replace((takeReturnTo() || "/home") as any);
       }
     );
   };
