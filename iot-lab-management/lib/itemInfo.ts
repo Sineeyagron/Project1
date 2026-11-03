@@ -18,6 +18,11 @@ export const thaiDate = (value?: string | null) =>
 export const thaiDateTime = (value?: string | null) =>
   value ? new Date(value).toLocaleString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
 
+// "รุ่น" ของอุปกรณ์ = ชื่อย่อ (item_prefix) ไม่มีใช้ชื่อ — ใช้จัดกลุ่มทั้งหน้า นศ. (equipment) และ admin/items
+// ต้องตรงกับฟังก์ชัน _item_model ใน DB (เปลี่ยนรูปทั้งรุ่น) — แก้กฎต้องแก้ทั้งสองที่
+export const itemModelKey = (item: { item_prefix?: string | null; name?: string | null }) =>
+  String(item.item_prefix || item.name || "").trim().toLowerCase();
+
 // เรียงอุปกรณ์ตามชื่อรหัส แล้วตามเลขจริง (002 ก่อน 010)
 export function compareItems(a: any, b: any) {
   const byPrefix = (a.item_prefix || a.name || "").localeCompare(b.item_prefix || b.name || "", "th");

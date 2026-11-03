@@ -277,7 +277,7 @@ export default function Login() {
     await setRememberLogin(rememberMe);
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, student_id")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -323,11 +323,18 @@ export default function Login() {
       }
 
       setIsLoading(false);
-      router.replace((takeReturnTo() || "/home") as any);
+      // นศ. ใหม่ต้องกรอกรหัสนักศึกษาก่อน (ด่านเดียวกับ home.tsx) — ลิงก์ที่จำไว้ยังอยู่ student-id พากลับให้
+      router.replace((isStaffEmail(user.email) ? takeReturnTo() || "/home" : "/student-id") as any);
       return;
     }
 
     setIsLoading(false);
+
+    // นศ. ที่ยังไม่มีรหัสนักศึกษา → กรอกก่อน ไม่ว่าจะเปิดลิงก์อะไรมา (ลิงก์ที่จำไว้ยังอยู่ student-id พากลับให้)
+    if (profile.role === "user" && !profile.student_id && !isStaffEmail(user.email)) {
+      router.replace("/student-id" as any);
+      return;
+    }
 
     // เปิดลิงก์มาก่อนล็อกอิน (เช่น สแกน QR คอม) → กลับหน้านั้น / ไม่มี: admin และ TA เข้าหน้าผู้ดูแล (TA เห็นเมนูเท่าที่มีสิทธิ์)
     const back = takeReturnTo();

@@ -22,7 +22,7 @@ import { ITEM_STATUS } from "../../lib/status";
 import { goBack as navBack, useRefreshOnFocus } from "../../lib/nav";
 import { notify } from "../../lib/notify";
 import AnchoredMenu, { Anchor, measureAnchor } from "../../components/AnchoredMenu";
-import { compareItems, parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
+import { compareItems, itemModelKey, parseThaiDate, thaiDate, toThaiDateInput } from "../../lib/itemInfo";
 import WarrantyDateField, { warrantyBlocked } from "../../components/borrow/WarrantyDateField";
 import { W, NG } from "../../lib/theme";
 import StatWidget from "../../components/StatWidget";
@@ -30,6 +30,7 @@ import ScreenHeader, { HeaderButton } from "../../components/ScreenHeader";
 import BottomSheet from "../../components/BottomSheet";
 import LoadingState from "../../components/LoadingState";
 import { buildLabelSheetHtml } from "../../lib/labels";
+import { useProgressiveList } from "../../lib/progressiveList";
 import { openPrintView } from "../../lib/fileExport";
 
 const C = {
@@ -168,9 +169,17 @@ function ModelCard({
         <Ionicons name={open ? "chevron-down" : "chevron-forward"} size={17} color={open ? C.purple : C.faint} />
       </TouchableOpacity>
 
-      {open ? (
+      {open ? <UnitRows list={list} borrowMap={borrowMap} onItem={onItem} /> : null}
+    </View>
+  );
+}
+
+// รายชิ้นในการ์ดรุ่น (มือถือ) — วาดทีละชุดตอนกาง ("กางทั้งหมด" 300+ ชิ้นไม่ค้างจอ)
+function UnitRows({ list, borrowMap, onItem }: { list: any[]; borrowMap: Record<string, string>; onItem: (item: any) => void }) {
+  const shown = useProgressiveList(list, 8, 24);
+  return (
         <View style={s.unitList}>
-          {list.map((item, idx) => {
+          {shown.map((item, idx) => {
             const st = STATUS_CFG[item.status] || STATUS_CFG.available;
             const foot = item.status === "borrowed" && borrowMap[item.id]
               ? `คืน ${formatDue(borrowMap[item.id])}`
@@ -196,8 +205,37 @@ function ModelCard({
             );
           })}
         </View>
-      ) : null}
-    </View>
+  );
+}
+
+// รายชิ้นใต้แถวรุ่น (ตารางจอคอม) — วาดทีละชุดตอนกาง เหมือน UnitRows ของมือถือ
+function DesktopUnitRows({ list, borrowMap, onItem }: { list: any[]; borrowMap: Record<string, string>; onItem: (item: any) => void }) {
+  const shown = useProgressiveList(list, 8, 24);
+  return (
+    <>
+      {shown.map((item) => {
+        const st = STATUS_CFG[item.status] || STATUS_CFG.available;
+        const foot = item.status === "borrowed" && borrowMap[item.id]
+          ? `คืน ${formatDue(borrowMap[item.id])}`
+          : item.status === "retired" ? item.retire_reason || "" : warrantyText(item.warranty_expires_at);
+        return (
+          <Pressable key={item.id} onPress={() => onItem(item)} style={({ hovered }: any) => [d.tr, d.child, hovered && d.hover, item.status === "retired" && { opacity: 0.6 }]} accessibilityLabel={`จัดการ ${item.item_code || item.name}`}>
+            <View style={{ width: 18 }} />
+            <View style={{ width: 32 }} />
+            <Text style={[d.td, d.code, { flex: 1.2 }]} numberOfLines={1}>{item.item_code || "-"}</Text>
+            <Text style={[d.td, d.muted, { flex: 1.6 }]} numberOfLines={1}>{item.manufacturer_serial ? `S/N ${item.manufacturer_serial}` : ""}</Text>
+            <View style={{ flex: 0.9 }} />
+            <View style={{ width: 50 }} />
+            <View style={{ flex: 1.5 }}>
+              <View style={[d.pill, { backgroundColor: st.bg }]}><Text style={[d.pillText, { color: st.color }]}>{st.label}</Text></View>
+            </View>
+            <Text style={[d.td, d.muted, { flex: 1.1 }]} numberOfLines={1}>{foot || "-"}</Text>
+            <Text style={[d.td, d.muted, { width: 64 }]}>{item.barcode || "-"}</Text>
+            <View style={{ width: 36, alignItems: "center" }}><Ionicons name="ellipsis-horizontal" size={18} color="#94A3B8" /></View>
+          </Pressable>
+        );
+      })}
+    </>
   );
 }
 
@@ -430,7 +468,7 @@ export default function AdminItems() {
   };
 
   // เปลี่ยนรูปทั้งรุ่น: รุ่น = ชื่อย่อ (item_prefix) ไม่มีก็ใช้ชื่อ — แบบเดียวกับ _item_model ใน DB · ไม่แตะของที่จำหน่ายแล้ว
-  const modelKey = (item: any) => String(item.item_prefix || item.name || "").trim().toLowerCase();
+  const modelKey = itemModelKey;
   const sameModel = (item: any) => items.filter((i) => modelKey(i) === modelKey(item) && i.status !== "retired");
 
   // จอคอม: ตารางจัดกลุ่มตามรุ่น (แถวรุ่น → กางเป็นรายชิ้น) · ค้นหาอยู่ = กางทุกรุ่นที่เจอ โชว์เฉพาะชิ้นที่ตรง
@@ -486,11 +524,16 @@ export default function AdminItems() {
     const count = sameModel(item).length;
     setSheet({
       title: `รุ่น ${item.item_prefix || item.name}`,
-      message: `${item.name} · ${count} ชิ้น (ไม่นับที่จำหน่ายแล้ว)`,
-      actions: [
-        { label: `ปริ้นป้าย QR ทั้งรุ่น (${count} ชิ้น)`, icon: "qr-code-outline", onPress: () => printModelLabels(item) },
-        { label: `เปลี่ยนรูปทั้งรุ่น (${count} ชิ้น)`, icon: "image-outline", onPress: () => openPhoto(item) },
-      ],
+      // ทั้งรุ่นจำหน่ายแล้ว (ตัวกรอง "จำหน่ายแล้ว") = ไม่มีชิ้นให้ปริ้น/เปลี่ยนรูป → บอกแทนปุ่มที่กดแล้วไม่เกิดอะไร
+      message: count
+        ? `${item.name} · ${count} ชิ้น (ไม่นับที่จำหน่ายแล้ว)`
+        : `${item.name} · ทุกชิ้นในรุ่นนี้จำหน่ายแล้ว ไม่มีชิ้นให้ปริ้นป้ายหรือเปลี่ยนรูป`,
+      actions: count
+        ? [
+            { label: `ปริ้นป้าย QR ทั้งรุ่น (${count} ชิ้น)`, icon: "qr-code-outline", onPress: () => printModelLabels(item) },
+            { label: `เปลี่ยนรูปทั้งรุ่น (${count} ชิ้น)`, icon: "image-outline", onPress: () => openPhoto(item) },
+          ]
+        : [],
     });
   };
 
@@ -719,28 +762,7 @@ export default function AdminItems() {
                           <Ionicons name="ellipsis-horizontal" size={18} color="#64748B" />
                         </Pressable>
                       </Pressable>
-                      {open ? list.map((item) => {
-                        const st = STATUS_CFG[item.status] || STATUS_CFG.available;
-                        const foot = item.status === "borrowed" && borrowMap[item.id]
-                          ? `คืน ${formatDue(borrowMap[item.id])}`
-                          : item.status === "retired" ? item.retire_reason || "" : warrantyText(item.warranty_expires_at);
-                        return (
-                          <Pressable key={item.id} onPress={() => openManage(item)} style={({ hovered }: any) => [d.tr, d.child, hovered && d.hover, item.status === "retired" && { opacity: 0.6 }]} accessibilityLabel={`จัดการ ${label(item)}`}>
-                            <View style={{ width: 18 }} />
-                            <View style={{ width: 32 }} />
-                            <Text style={[d.td, d.code, { flex: 1.2 }]} numberOfLines={1}>{item.item_code || "-"}</Text>
-                            <Text style={[d.td, d.muted, { flex: 1.6 }]} numberOfLines={1}>{item.manufacturer_serial ? `S/N ${item.manufacturer_serial}` : ""}</Text>
-                            <View style={{ flex: 0.9 }} />
-                            <View style={{ width: 50 }} />
-                            <View style={{ flex: 1.5 }}>
-                              <View style={[d.pill, { backgroundColor: st.bg }]}><Text style={[d.pillText, { color: st.color }]}>{st.label}</Text></View>
-                            </View>
-                            <Text style={[d.td, d.muted, { flex: 1.1 }]} numberOfLines={1}>{foot || "-"}</Text>
-                            <Text style={[d.td, d.muted, { width: 64 }]}>{item.barcode || "-"}</Text>
-                            <View style={{ width: 36, alignItems: "center" }}><Ionicons name="ellipsis-horizontal" size={18} color="#94A3B8" /></View>
-                          </Pressable>
-                        );
-                      }) : null}
+                      {open ? <DesktopUnitRows list={list} borrowMap={borrowMap} onItem={openManage} /> : null}
                     </React.Fragment>
                   );
                 })}
