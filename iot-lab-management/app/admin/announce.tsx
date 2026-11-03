@@ -35,12 +35,12 @@ type History = {
 
 const AUTO: { key: AutoKey; kind: "new_items" | "invite"; icon: any; color: string; bg: string; label: string; hint: string }[] = [
   {
-    key: "announce_new_items", kind: "new_items", icon: "cube-outline", color: "#2563EB", bg: "#DBEAFE",
+    key: "announce_new_items", kind: "new_items", icon: "gift-outline", color: "#2563EB", bg: "#DBEAFE",
     label: "ของใหม่มาแล้ว",
     hint: "ทุกวัน 08:00 · มีรุ่นใหม่เข้าระบบเมื่อวาน → ส่งรวม 1 ข้อความถึงนักศึกษา + TA ทุกคน",
   },
   {
-    key: "announce_invite", kind: "invite", icon: "sparkles-outline", color: "#047857", bg: "#ECFDF5",
+    key: "announce_invite", kind: "invite", icon: "rocket-outline", color: "#047857", bg: "#ECFDF5",
     label: "ชวนมายืม",
     hint: "ทุกวันจันทร์ 08:00 · คนที่ไม่ได้ยืมเกิน 30 วัน (รวมคนที่ไม่เคยยืม) · คนละไม่เกินเดือนละครั้ง",
   },
@@ -67,6 +67,13 @@ const TEMPLATES: { label: string; title: string; body: string; audience?: Audien
   { label: "พิมพ์เอง", title: "", body: "" },
 ];
 
+// ปุ่ม "ทดสอบส่งหาตัวเอง" เฉพาะ dev server ในเครื่อง (__DEV__) — เว็บจริงไม่แสดง
+const SHOW_TEST = __DEV__;
+
+// ประวัติ: โหลดล่าสุด 100 รายการ (เพดานของ RPC) แต่โชว์ทีละ 5
+const HIST_MAX = 100;
+const HIST_STEP = 5;
+
 const TITLE_MAX = 80;
 const BODY_MAX = 300;
 
@@ -80,7 +87,7 @@ const fetchAll = () =>
   Promise.all([
     supabase.from("app_settings").select("key, value").in("key", AUTO.map((a) => a.key)),
     supabase.rpc("announcement_audience_counts"),
-    supabase.rpc("announcement_history", { p_limit: 30 }),
+    supabase.rpc("announcement_history", { p_limit: HIST_MAX }),
   ]);
 
 const badgeOf = (h: History) => (h.audience === "test" ? KIND_BADGE.test : h.kind === "manual" ? KIND_BADGE.manual : KIND_BADGE.auto);
@@ -92,6 +99,7 @@ export default function AdminAnnounce() {
   const [auto, setAuto] = useState<Record<AutoKey, boolean>>({ announce_new_items: false, announce_invite: false });
   const [counts, setCounts] = useState<Record<Audience, number>>({ all: 0, borrowing: 0 });
   const [history, setHistory] = useState<History[]>([]);
+  const [histShown, setHistShown] = useState(HIST_STEP); // ประวัติยาว → โชว์ทีละชุด กด "ดูเพิ่ม" เอง
   const [template, setTemplate] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
@@ -99,7 +107,7 @@ export default function AdminAnnounce() {
   const [busy, setBusy] = useState<string | null>(null); // ปุ่มที่กำลังทำงาน (กันกดซ้ำ)
 
   const loadHistory = useCallback(async () => {
-    const { data } = await supabase.rpc("announcement_history", { p_limit: 30 });
+    const { data } = await supabase.rpc("announcement_history", { p_limit: HIST_MAX });
     if (data) setHistory(data as History[]);
   }, []);
 
@@ -240,16 +248,18 @@ export default function AdminAnnounce() {
                       accessibilityLabel={`${a.label}: ${auto[a.key] ? "เปิดอยู่" : "ปิดอยู่"}`}
                     />
                   </View>
-                  <TouchableOpacity
-                    style={s.testLink}
-                    onPress={() => testAuto(a.kind, a.label)}
-                    disabled={!!busy}
-                    hitSlop={6}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="paper-plane-outline" size={14} color={C.blue} />
-                    <Text style={s.testLinkText}>{busy === `auto-${a.kind}` ? "กำลังส่ง..." : "ทดสอบส่งหาตัวเอง"}</Text>
-                  </TouchableOpacity>
+                  {SHOW_TEST && (
+                    <TouchableOpacity
+                      style={s.testLink}
+                      onPress={() => testAuto(a.kind, a.label)}
+                      disabled={!!busy}
+                      hitSlop={6}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="paper-plane-outline" size={14} color={C.blue} />
+                      <Text style={s.testLinkText}>{busy === `auto-${a.kind}` ? "กำลังส่ง..." : "ทดสอบส่งหาตัวเอง"}</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               ))}
             </View>
@@ -319,7 +329,7 @@ export default function AdminAnnounce() {
                   <Text style={s.fieldLabel}>ตัวอย่างที่นักศึกษาเห็น</Text>
                   <View style={s.preview}>
                     <View style={[s.iconBox, { backgroundColor: "#fef3c7" }]}>
-                      <Ionicons name="megaphone-outline" size={20} color="#b45309" />
+                      <Ionicons name="newspaper-outline" size={20} color="#b45309" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={s.previewTitle}>{cleanTitle}</Text>
@@ -332,14 +342,16 @@ export default function AdminAnnounce() {
               {!!formError && (title || body) ? <Text style={[s.hint, { color: C.red }]}>{formError}</Text> : null}
 
               <View style={s.sendRow}>
-                <TouchableOpacity
-                  style={[s.secondaryBtn, (!!formError || !!busy) && { opacity: 0.4 }]}
-                  disabled={!!formError || !!busy}
-                  onPress={() => send("test")}
-                  activeOpacity={0.85}
-                >
-                  <Text style={s.secondaryText}>{busy === "test" ? "กำลังส่ง..." : "ทดสอบส่งหาตัวเอง"}</Text>
-                </TouchableOpacity>
+                {SHOW_TEST && (
+                  <TouchableOpacity
+                    style={[s.secondaryBtn, (!!formError || !!busy) && { opacity: 0.4 }]}
+                    disabled={!!formError || !!busy}
+                    onPress={() => send("test")}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={s.secondaryText}>{busy === "test" ? "กำลังส่ง..." : "ทดสอบส่งหาตัวเอง"}</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   style={[s.sendBtn, !canSend && { opacity: 0.4 }]}
                   disabled={!canSend}
@@ -359,7 +371,7 @@ export default function AdminAnnounce() {
               {history.length === 0 ? (
                 <Text style={[s.hint, { padding: 14, marginTop: 0 }]}>ยังไม่เคยส่งประกาศ</Text>
               ) : (
-                history.map((h, idx) => {
+                history.slice(0, histShown).map((h, idx) => {
                   const b = badgeOf(h);
                   return (
                     <View key={h.id} style={[s.histRow, idx > 0 && s.divider]}>
@@ -380,6 +392,16 @@ export default function AdminAnnounce() {
                     </View>
                   );
                 })
+              )}
+              {history.length > histShown && (
+                <TouchableOpacity
+                  style={[s.moreBtn, s.divider]}
+                  onPress={() => setHistShown((n) => n + HIST_STEP)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={s.moreText}>ดูเพิ่ม (อีก {history.length - histShown} รายการ)</Text>
+                  <Ionicons name="chevron-down" size={16} color={C.blue} />
+                </TouchableOpacity>
               )}
             </View>
           </View>
@@ -441,4 +463,6 @@ const s = StyleSheet.create({
   badge: { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
   badgeText: { fontSize: 11.5, fontWeight: "800" },
   histStat: { fontSize: 12, color: C.faint },
+  moreBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4, minHeight: 46 },
+  moreText: { color: C.blue, fontSize: 14, fontWeight: "800" },
 });
