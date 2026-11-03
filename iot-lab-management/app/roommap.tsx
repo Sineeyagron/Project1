@@ -187,11 +187,12 @@ export default function RoomMap() {
   const [logTotal, setLogTotal] = useState(0);
   const [logMoreBusy, setLogMoreBusy] = useState(false);
   const logFor = useRef(""); // กันผลของเครื่องเก่า (ตอบช้า) มาทับเครื่องที่เปิดอยู่
-  const fetchLogPage = async (stationId: string, size: number, before?: string) => {
+  const fetchLogPage = async (stationId: string, size: number, before?: { changed_at: string; id: number }) => {
     let query = supabase
       .from("room_status_log").select("*", { count: "exact" }).eq("station_id", stationId)
-      .order("changed_at", { ascending: false }).limit(size);
-    if (before) query = query.lt("changed_at", before);
+      .order("changed_at", { ascending: false }).order("id", { ascending: false }).limit(size);
+    // เก่ากว่ารายการสุดท้าย — เวลาเท่ากันเป๊ะให้ id ตัดสิน (ไม่ข้ามแถวที่บันทึกพร้อมกัน)
+    if (before) query = query.or(`changed_at.lt."${before.changed_at}",and(changed_at.eq."${before.changed_at}",id.lt.${before.id})`);
     const { data, count: rest } = await query;
     // count = จำนวนที่เหลือหลังเงื่อนไข before → ทั้งหมดนับแยกเฉพาะตอนไม่มี before
     let count = rest ?? 0;
@@ -237,7 +238,7 @@ export default function RoomMap() {
     const id = selectedStation.id;
     const last = stationLog[stationLog.length - 1];
     setLogMoreBusy(true);
-    const page = await fetchLogPage(id, 5, last?.changed_at);
+    const page = await fetchLogPage(id, 5, last ? { changed_at: last.changed_at, id: last.id } : undefined);
     setLogMoreBusy(false);
     if (logFor.current !== id) return;
     setLogTotal(page.count);
