@@ -61,6 +61,10 @@ const TYPE_CFG: Record<string, { icon: any; iconColor: string; iconBg: string; d
   pickup_expired:   { icon: "time-outline",           iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
   pickup_cancelled: { icon: "ban-outline",            iconColor: "#64748b", iconBg: "#f1f5f9", dot: "#94a3b8" },
   pickup_no_show:   { icon: "alert-circle-outline",   iconColor: "#dc2626", iconBg: "#fee2e2", dot: "#ef4444" },
+  // ประกาศถึงนักศึกษา (admin/announce): ของใหม่ / ชวนมายืม → หน้าอุปกรณ์ · admin ส่งเอง = อ่านในข้อความพอ
+  announce_new_items: { icon: "cube-outline",          iconColor: "#2563EB", iconBg: "#DBEAFE", dot: "#3B82F6" },
+  announce_invite:    { icon: "sparkles-outline",      iconColor: "#047857", iconBg: "#ECFDF5", dot: "#10B981" },
+  announce:           { icon: "megaphone-outline",     iconColor: "#b45309", iconBg: "#fef3c7", dot: "#f59e0b" },
 };
 
 // ประกัน/อายุ → รายงานสต็อกกลุ่มนั้น
@@ -236,6 +240,11 @@ export default function Notifications() {
       return;
     }
     if (n.type === "room_report_accepted" || n.type === "room_report_closed") return;
+    if (n.type === "announce_new_items" || n.type === "announce_invite") {
+      router.push("/equipment");
+      return;
+    }
+    if (n.type === "announce") return;
     if (n.type === "role_changed") {
       // ด่าน admin เช็กสิทธิ์ล่าสุดเอง
       router.replace("/admin/home");

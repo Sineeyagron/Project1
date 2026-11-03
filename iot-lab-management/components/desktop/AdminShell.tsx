@@ -79,6 +79,7 @@ const NAV: { title?: string; tone: Tone; items: NavItem[] }[] = [
     tone: TONE.system,
     items: [
       { icon: "people-outline", label: "จัดการผู้ใช้", route: "/admin/users" },
+      { icon: "megaphone-outline", label: "ประกาศถึง นศ.", route: "/admin/announce" },
       { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings" },
     ],
   },

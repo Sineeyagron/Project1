@@ -111,6 +111,7 @@ const TOOL_GROUPS = [
     title: "ระบบ",
     items: [
       { icon: "people-outline", label: "จัดการผู้ใช้", route: "/admin/users", color: "#2563EB", bg: "#DBEAFE" },
+      { icon: "megaphone-outline", label: "ประกาศถึง นศ.", route: "/admin/announce", color: "#b45309", bg: "#fef3c7" },
       { icon: "settings-outline", label: "ตั้งค่าระบบ", route: "/admin/settings", color: "#475569", bg: "#f1f5f9" },
     ],
   },
