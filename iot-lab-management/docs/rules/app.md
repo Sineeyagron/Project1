@@ -43,5 +43,6 @@
 ## ประกาศถึงนักศึกษา (`app/admin/announce.tsx` — admin เท่านั้น)
 - migration `20261103090000_announcements.sql` · ประวัติ = ตาราง `announcements` (admin อ่านได้ · เขียนผ่าน RPC) · แจ้งเตือนชี้กลับด้วย `notifications.announcement_id`
 - อัตโนมัติ (สวิตช์ `app_settings.announce_new_items` / `announce_invite` ตั้งต้นปิด): cron `announce-new-items` ทุกวัน 08:00 → `send_new_items_announcement()` (รุ่นที่ชิ้นแรกเข้าระบบใน 1 วัน + มีชิ้นว่าง → ข้อความเดียว) · `announce-invite` วันจันทร์ 08:00 → `send_invite_announcement()` (นศ. ไม่ได้ยืม 30 วัน/ไม่มีของค้าง · คนละ 1 ครั้ง/30 วัน)
-- ส่งเอง: `send_announcement(title ≤80, body ≤300, audience all|borrowing|test)` · กันส่งซ้ำ 2 นาที · `test` / `test_auto_announcement(kind)` = ส่งหาตัวเองคนเดียว (ใช้เทสบน DB จริง)
+- ส่งเอง: `send_announcement(title ≤80, body ≤300, audience all|borrowing|test)` · กันส่งซ้ำ 2 นาที · `test` / `test_auto_announcement(kind)` = ส่งหาตัวเองคนเดียว (ใช้เทสบน DB จริง) — ปุ่มทดสอบโชว์เฉพาะ dev server (`__DEV__`) เว็บจริงไม่มี
+- ไอคอน: ของใหม่ = `gift` · ชวนมายืม = `rocket` · ประกาศ/เมนู = `newspaper` (ไม่ซ้ำ `cube` = อุปกรณ์, `megaphone` = แจ้งปัญหาห้อง)
 - ผู้รับ = นักศึกษา + TA (`role in ('user','ta')` — `20261103120000_announcements_include_ta.sql`) ไม่ส่ง admin · กลุ่ม "ยืมค้าง" = ทุกคนที่ยืมค้าง · TA เห็นในกระดิ่งโหมดนักศึกษา · type `announce_new_items` / `announce_invite` (กด → `/equipment`) / `announce` (อ่านอย่างเดียว) — for_staff = false · push ผ่าน trigger เดิม
