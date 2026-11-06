@@ -108,6 +108,12 @@
     "type": "boolean",
     "nul": true,
     "key": ""
+   },
+   {
+    "col": "announcement_id",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → announcements.id"
    }
   ]
  },
@@ -878,6 +884,59 @@
    },
    {
     "col": "checked_in_at",
+    "type": "timestamptz",
+    "nul": false,
+    "key": ""
+   }
+  ]
+ },
+ {
+  "name": "announcements",
+  "cols": [
+   {
+    "col": "id",
+    "type": "uuid",
+    "nul": false,
+    "key": "PK"
+   },
+   {
+    "col": "kind",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "title",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "body",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "audience",
+    "type": "text",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "sent_by",
+    "type": "uuid",
+    "nul": true,
+    "key": "FK → profiles.id"
+   },
+   {
+    "col": "recipients",
+    "type": "integer",
+    "nul": false,
+    "key": ""
+   },
+   {
+    "col": "created_at",
     "type": "timestamptz",
     "nul": false,
     "key": ""
