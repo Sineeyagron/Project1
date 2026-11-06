@@ -1,9 +1,9 @@
 ---
 title: ER Diagram — ระบบยืม-คืนอุปกรณ์ IoT
 ---
-%% สร้างจากโครงตารางจริงใน Supabase (public schema) 28 ต.ค. 2569
-%% แสดงเฉพาะ PK, FK และคอลัมน์หลัก — คอลัมน์ทั้งหมดดูใน Data Dictionary
-%% เส้นประ = ความสัมพันธ์ทางตรรกะ (อ้างถึงกันแต่ไม่มี FK constraint ในฐานข้อมูล)
+%% สร้างจากโครงตารางจริงใน Supabase (public schema) 6 พ.ย. 2569
+%% แสดงเฉพาะ PK, FK และคอลัมน์หลัก — คอลัมน์ทั้งหมดดูใน Data Dictionary · push_subscriptions/client_errors ใช้ร่วมทั้งสองระบบ FK ชี้ auth.users (ตารางบัญชีของ Supabase Auth นอก schema public จึงไม่มีเส้น)
+%% สัญลักษณ์ Crow's Foot (IE): เส้นทึบ = identifying (PK ของลูกมี FK ของแม่) · เส้นประ = non-identifying · จำนวนฝั่งลูกตาม constraint จริง (ไม่มี unique = หลายแถว)
 erDiagram
   profiles {
     uuid id PK
@@ -14,7 +14,7 @@ erDiagram
   categories {
     uuid id PK
     text name
-    bool active
+    boolean active
   }
   borrow_locations {
     uuid id PK
@@ -84,7 +84,15 @@ erDiagram
     text type
     uuid item_id FK
     uuid request_id FK
-    bool read
+    uuid announcement_id FK
+    boolean read
+  }
+  announcements {
+    uuid id PK
+    text kind
+    text audience
+    uuid sent_by FK
+    integer recipients
   }
   app_settings {
     text key PK
@@ -92,30 +100,42 @@ erDiagram
   }
   item_code_counters {
     text prefix_key PK
-    int last_no
+    integer last_no
+  }
+  push_subscriptions {
+    uuid id PK
+    uuid user_id FK "→ auth.users.id"
+    text endpoint
+  }
+  client_errors {
+    uuid id PK
+    uuid user_id FK "→ auth.users.id"
+    text message
   }
 
-  categories |o--o{ items : "จัดหมวด"
-  borrow_locations ||--o{ items : "เก็บที่"
-  profiles ||--o{ borrow_requests : "ส่งคำขอ"
-  profiles |o--o{ borrow_requests : "พิจารณา"
-  items |o--o{ borrow_requests : "ถูกขอ"
-  borrow_requests |o--o| borrow_records : "อนุมัติแล้วเกิด"
-  borrow_records |o--o{ borrow_requests : "อ้างถึงการยืม"
-  borrow_locations |o--o{ borrow_requests : "จุดรับ-คืน"
-  borrow_locations |o--o{ pickup_requests : "จุดนัดรับ"
+  categories |o..o{ items : "จัดหมวด"
+  borrow_locations ||..o{ items : "เก็บที่"
+  profiles ||..o{ borrow_requests : "ส่งคำขอ"
+  profiles |o..o{ borrow_requests : "พิจารณา"
+  items |o..o{ borrow_requests : "ถูกขอ"
+  borrow_requests |o..o{ borrow_records : "อนุมัติแล้วเกิด"
+  borrow_records |o..o{ borrow_requests : "อ้างถึงการยืม"
+  borrow_locations |o..o{ borrow_requests : "จุดรับ-คืน"
+  borrow_locations |o..o{ pickup_requests : "จุดนัดรับ"
   profiles ||..o{ borrow_records : "ยืม"
-  profiles |o--o{ borrow_records : "ตรวจรับคืน"
-  items |o--o{ borrow_records : "ถูกยืม"
-  profiles ||--o{ pickup_requests : "ขอนัดรับ"
-  profiles |o--o{ pickup_requests : "นัดเวลา"
-  items |o--o{ pickup_requests : "ส่งมอบ"
-  borrow_records |o--o| pickup_requests : "รับแล้วเกิด"
-  items |o--o{ item_inspections : "ถูกตรวจ"
-  profiles |o--o{ item_inspections : "ตรวจ"
+  profiles |o..o{ borrow_records : "ตรวจรับคืน"
+  items |o..o{ borrow_records : "ถูกยืม"
+  profiles ||..o{ pickup_requests : "ขอนัดรับ"
+  profiles |o..o{ pickup_requests : "นัดเวลา"
+  items |o..o{ pickup_requests : "ส่งมอบ"
+  borrow_records |o..o{ pickup_requests : "รับแล้วเกิด"
+  items |o..o{ item_inspections : "ถูกตรวจ"
+  profiles |o..o{ item_inspections : "ตรวจ"
   items ||--o{ item_alerts : "มีการเตือน"
   profiles ||--o| staff_presence : "เช็กอิน"
-  borrow_locations |o--o{ staff_presence : "ที่"
+  borrow_locations |o..o{ staff_presence : "ที่"
   profiles ||..o{ notifications : "ได้รับ"
-  items |o--o{ notifications : "อ้างถึง"
-  borrow_requests |o--o{ notifications : "อ้างถึง"
+  items |o..o{ notifications : "อ้างถึง"
+  borrow_requests |o..o{ notifications : "อ้างถึง"
+  profiles |o..o{ announcements : "ส่งประกาศ"
+  announcements |o..o{ notifications : "ส่งเป็นแจ้งเตือน"
