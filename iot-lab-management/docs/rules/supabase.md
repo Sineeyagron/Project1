@@ -14,6 +14,7 @@
 - ตาราง `realtime.messages` แบ่งพาร์ทิชันรายวัน ไม่มีพาร์ทิชัน = ส่งล้มเงียบ (แอปมีรีเฟรชสำรอง 5 นาที)
 
 ## cron (แพ็กเกจฟรี ระวัง Disk IO)
+- กันโดน pause (ฟรี: ไม่มีคนใช้ 7 วัน · pg_cron ข้างในไม่นับ): GitHub Actions `.github/workflows/supabase-keepalive.yml` ยิง REST อ่าน `rooms` ทุก 3 วัน (Secrets `SUPABASE_URL`/`SUPABASE_ANON_KEY` · cron รันเฉพาะบน main · repo public ไม่มี commit 60 วัน GitHub ปิด cron เอง)
 - `expire-borrow-requests` ทุก 5 นาที (+ `expire_pickups`), `send_due_reminders` + `item-health-alerts` 08:00 ไทย, `staff-auto-checkout` 18:00 ไทย (เช็กอินได้ 07:00–18:00), `cleanup-cron-history` (เก็บ 7 วัน)
 
 ## ล็อกอิน Google (`lib/googleAuth.ts`)

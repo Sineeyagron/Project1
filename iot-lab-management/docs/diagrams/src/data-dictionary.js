@@ -1,5 +1,5 @@
 // สร้างพจนานุกรมข้อมูล (Data Dictionary) เป็น Word → docs/diagrams/data-dictionary.docx
-// ข้อมูลคอลัมน์ (ชนิด, null, ค่าเริ่มต้น, check, คีย์) ตรงกับฐานข้อมูลจริงใน Supabase (public schema) ณ 28 ต.ค. 2569
+// ข้อมูลคอลัมน์ (ชนิด, null, ค่าเริ่มต้น, check, คีย์) ตรงกับฐานข้อมูลจริงใน Supabase (public schema) ณ 6 พ.ย. 2569
 // คำอธิบายภาษาไทยอ้างจาก migration / โค้ดแอป · แก้ตารางในฐานข้อมูลเมื่อไหร่ ต้องแก้ข้อมูลด้านล่างด้วย
 // รัน (ในโฟลเดอร์ docs/diagrams): npm install ครั้งแรกครั้งเดียว แล้ว npm run dd — ดู README.md
 const fs = require("fs");
@@ -32,7 +32,7 @@ const GROUPS = [
       T("notifications", "การแจ้งเตือน", "การแจ้งเตือนในแอปของผู้ใช้แต่ละคน (กระดิ่ง) ทั้งระบบยืม-คืนและระบบห้องคอม — แถวใหม่จะส่ง Web Push ให้ผู้รับที่เปิดรับการแจ้งเตือนไว้ (มีแถวใน push_subscriptions) อัตโนมัติ", [
         ["id", "uuid", false, "PK", UUID, "", "รหัสการแจ้งเตือน"],
         ["user_id", "uuid", false, "", "", "", "ผู้รับการแจ้งเตือน (อ้างถึง profiles.id — ไม่มี FK constraint)"],
-        ["type", "text", true, "", "'borrow'", "26 ประเภท เช่น approved, declined, due_soon, overdue, warranty_soon, room_report, pickup_scheduled", "ประเภทการแจ้งเตือน ใช้เลือกไอคอนและหน้าที่จะเปิดเมื่อกด"],
+        ["type", "text", true, "", "'borrow'", "29 ประเภท เช่น approved, declined, due_soon, overdue, warranty_soon, room_report, pickup_scheduled, announce", "ประเภทการแจ้งเตือน ใช้เลือกไอคอนและหน้าที่จะเปิดเมื่อกด"],
         ["title", "text", false, "", "", "", "หัวข้อ"],
         ["body", "text", false, "", "", "", "ข้อความ"],
         ["item_name", "text", true, "", "", "", "ชื่ออุปกรณ์ที่เกี่ยวข้อง ณ เวลาที่แจ้ง"],
@@ -41,6 +41,7 @@ const GROUPS = [
         ["request_id", "uuid", true, "FK → borrow_requests.id", "", "", "คำขอที่เกี่ยวข้อง (ถ้ามี)"],
         ["item_id", "uuid", true, "FK → items.id", "", "", "อุปกรณ์ที่เกี่ยวข้อง (ถ้ามี)"],
         ["for_staff", "boolean", true, "", "คำนวณอัตโนมัติ", "", "เป็นการแจ้งเตือนสำหรับผู้ดูแลหรือไม่ (generated column คำนวณจาก type และ title)"],
+        ["announcement_id", "uuid", true, "FK → announcements.id", "", "", "ประกาศต้นทาง ถ้าการแจ้งเตือนนี้เป็นประกาศถึงนักศึกษา (ลบประกาศแล้วเป็นค่าว่าง)"],
       ]),
       T("push_subscriptions", "อุปกรณ์ที่รับ Web Push", "เครื่อง/เบราว์เซอร์ที่ผู้ใช้อนุญาตให้ส่งการแจ้งเตือนแบบ Push (เว็บแอป PWA) — เพิ่มผ่านฟังก์ชัน save_push_subscription เท่านั้น", [
         ["id", "uuid", false, "PK", UUID, "", "รหัสรายการ"],
@@ -52,7 +53,7 @@ const GROUPS = [
         ["created_at", "timestamptz", false, "", NOW, "", "เวลาที่สมัครรับ"],
       ]),
       T("app_settings", "การตั้งค่าระบบ", "ค่าตั้งของระบบแบบ key-value ที่ผู้ดูแลระบบแก้ได้จากหน้าตั้งค่า", [
-        ["key", "text", false, "PK", "", "age_replace_years, age_warn_years, allowed_email_domain, borrow_day_options, borrow_rules, max_active_borrows, pickup_expiry_hours, pickup_grace_minutes, request_expiry_minutes, warranty_warn_days", "ชื่อค่าตั้ง"],
+        ["key", "text", false, "PK", "", "age_replace_years, age_warn_years, allowed_email_domain, announce_invite, announce_new_items, borrow_day_options, borrow_rules, max_active_borrows, pickup_expiry_hours, pickup_grace_minutes, request_expiry_minutes, warranty_warn_days", "ชื่อค่าตั้ง"],
         ["value", "jsonb", false, "", "", "", "ค่าของการตั้งค่า (เก็บแบบ JSON เช่น ตัวเลข ข้อความ หรือรายการ)"],
         ["updated_at", "timestamptz", false, "", NOW, "", "เวลาที่แก้ไขล่าสุด"],
       ]),
@@ -171,7 +172,7 @@ const GROUPS = [
         ["created_at", "timestamptz", false, "", NOW, "", "เวลาที่ส่งคำขอ"],
         ["expires_at", "timestamptz", false, "", "เวลาปัจจุบัน + 12 ชั่วโมง", "", "เวลาที่คำขอหมดอายุถ้ายังไม่มีผู้ดูแลนัด"],
       ]),
-      T("item_inspections", "ผลตรวจสภาพอุปกรณ์ประจำภาคเรียน", "ผลการตรวจสภาพอุปกรณ์ IoT แต่ละชิ้นในแต่ละภาคเรียน", [
+      T("item_inspections", "ผลตรวจสภาพอุปกรณ์ประจำภาคเรียน", "ผลการตรวจสภาพอุปกรณ์ IoT แต่ละชิ้นในแต่ละภาคเรียน — บันทึกผลแล้วระบบปรับสถานะอุปกรณ์ให้เอง (trigger item_inspections_sync_item): ชำรุด/สูญหาย = ว่าง → ซ่อมบำรุง · ปกติ = ซ่อมบำรุง → ว่าง", [
         ["id", "uuid", false, "PK", UUID, "", "รหัสผลตรวจ"],
         ["term", "text", false, "", "", "", "ภาคเรียน เช่น 2569/1"],
         ["item_id", "uuid", true, "FK → items.id", "", "", "อุปกรณ์ที่ตรวจ"],
@@ -186,10 +187,20 @@ const GROUPS = [
         ["alert_key", "text", false, "PK", "", "", "ตัวแยกครั้งการเตือน: วันหมดประกัน (เรื่องประกัน) หรือเกณฑ์ปี (เรื่องอายุ)"],
         ["sent_at", "timestamptz", false, "", NOW, "", "เวลาที่ส่งการเตือน"],
       ]),
-      T("staff_presence", "ผู้ดูแลที่อยู่ห้อง", "ผู้ดูแล/TA ที่เช็กอินว่าอยู่ห้องตอนนี้ (1 แถวต่อคน ลบเมื่อเช็กเอาท์ และระบบเช็กเอาท์ให้อัตโนมัติ 17:00)", [
+      T("staff_presence", "ผู้ดูแลที่อยู่ห้อง", "ผู้ดูแล/TA ที่เช็กอินว่าอยู่ห้องตอนนี้ (1 แถวต่อคน ลบเมื่อเช็กเอาท์ และระบบเช็กเอาท์ให้อัตโนมัติ 18:00 · เช็กอินได้เฉพาะ 07:00–18:00)", [
         ["user_id", "uuid", false, "PK, FK → profiles.id", "", "", "ผู้ดูแลที่เช็กอิน"],
         ["location_id", "uuid", true, "FK → borrow_locations.id", "", "", "จุดที่อยู่"],
         ["checked_in_at", "timestamptz", false, "", NOW, "", "เวลาที่เช็กอิน"],
+      ]),
+      T("announcements", "ประวัติประกาศถึงนักศึกษา", "ประกาศที่ส่งถึงนักศึกษาและ TA (ของใหม่มาแล้ว / ชวนมายืม / ผู้ดูแลระบบเขียนเอง) 1 แถวต่อการส่ง 1 ครั้ง — ตัวประกาศส่งเป็นแถวใน notifications ของผู้รับแต่ละคน · ผู้ดูแลระบบอ่านได้ เพิ่มผ่านฟังก์ชันส่งประกาศเท่านั้น", [
+        ["id", "uuid", false, "PK", UUID, "", "รหัสประกาศ"],
+        ["kind", "text", false, "", "", "new_items, invite, manual", "ชนิด: ของใหม่มาแล้ว (ระบบส่งทุกวัน 08:00) / ชวนมายืม (ระบบส่งทุกวันจันทร์ 08:00) / ผู้ดูแลระบบเขียนเอง"],
+        ["title", "text", false, "", "", "", "หัวข้อประกาศ"],
+        ["body", "text", false, "", "", "", "ข้อความประกาศ"],
+        ["audience", "text", false, "", "", "all, borrowing, inactive, test", "กลุ่มผู้รับ: ทุกคน / คนที่ยืมค้าง / คนที่ไม่ได้ยืมมา 30 วัน / ทดสอบส่งหาตัวเอง"],
+        ["sent_by", "uuid", true, "FK → profiles.id", "", "", "ผู้ดูแลระบบที่เขียนประกาศ (ค่าว่าง = ประกาศอัตโนมัติ ของใหม่ / ชวนมายืม)"],
+        ["recipients", "integer", false, "", "0", "", "จำนวนผู้รับ"],
+        ["created_at", "timestamptz", false, "", NOW, "", "เวลาที่ส่ง"],
       ]),
     ],
   },
@@ -341,7 +352,7 @@ children.push(para(run("พจนานุกรมข้อมูล (Data Dict
 children.push(para(run("ระบบ LabHub — ระบบจัดการห้องปฏิบัติการ IoT มหาวิทยาลัยขอนแก่น", { size: 30 }), { align: AlignmentType.CENTER, after: 240 }));
 const total = GROUPS.reduce((n, g) => n + g.tables.length, 0);
 for (const line of [
-  `ฐานข้อมูล PostgreSQL บน Supabase (schema public) จำนวน ${total} ตาราง แบ่งเป็น 3 กลุ่มตามระบบ ข้อมูลชนิด คีย์ ค่า Null ค่าเริ่มต้น และค่าที่ใช้ได้ ตรงกับโครงสร้างฐานข้อมูลจริง ณ วันที่ 28 ตุลาคม 2569`,
+  `ฐานข้อมูล PostgreSQL บน Supabase (schema public) จำนวน ${total} ตาราง แบ่งเป็น 3 กลุ่มตามระบบ ข้อมูลชนิด คีย์ ค่า Null ค่าเริ่มต้น และค่าที่ใช้ได้ ตรงกับโครงสร้างฐานข้อมูลจริง ณ วันที่ 6 พฤศจิกายน 2569`,
   "คำอธิบายสัญลักษณ์: PK = คีย์หลัก (Primary Key) · FK → ตาราง.คอลัมน์ = คีย์นอก (Foreign Key) อ้างถึงตารางนั้น · UQ = ค่าห้ามซ้ำ (Unique) · Null \"ได้\" = เว้นว่างได้",
   "ชนิดข้อมูล: uuid = รหัสสุ่มไม่ซ้ำ 128 บิต · text = ข้อความ · integer / bigint = จำนวนเต็ม · numeric = ตัวเลขทศนิยม · boolean = จริง/เท็จ · date = วันที่ · timestamptz = วันและเวลาพร้อมเขตเวลา · jsonb = ข้อมูลรูปแบบ JSON",
 ]) children.push(para(run(line), { after: 120, line: 276 }));

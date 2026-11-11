@@ -11,7 +11,7 @@
 | `usecase-room` | Use Case ระบบห้องคอมพิวเตอร์ |
 | `er-borrow-overview`, `er-room-overview` | ER ภาพรวม: ชื่อตาราง + ความสัมพันธ์ (ใส่ในเนื้อเรื่อง) |
 | `er-borrow`, `er-room` | ER แบบละเอียด: PK, FK, คอลัมน์หลัก (ใส่ภาคผนวก หน้าแนวนอน) |
-| `data-dictionary.docx` | พจนานุกรมข้อมูล 23 ตาราง ทุกคอลัมน์ |
+| `data-dictionary.docx` | พจนานุกรมข้อมูล 24 ตาราง ทุกคอลัมน์ |
 
 รูปทุกรูปมี 2 แบบ: `.svg` คมทุกขนาด (แนะนำสำหรับ Word 365) · `.png` ใช้ได้ทุกโปรแกรม
 
@@ -75,11 +75,13 @@ CHROME="C:/path/to/chrome.exe" npm run er
 
 - เส้นความสัมพันธ์: `A ||--o{ B : "ป้าย"` อ่านว่า A 1 แถว มี B ได้ 0 ถึงหลายแถว
 - สัญลักษณ์ฝั่งตารางแม่: `||` = คอลัมน์ FK ห้ามว่าง (not null) · `|o` = ว่างได้ (null)
-- `..` แทน `--` = เส้นประ (อ้างถึงกันแต่ฐานข้อมูลไม่ได้ตั้ง FK)
+- `--` = เส้นทึบ (identifying: PK ของตารางลูกมี FK ของแม่อยู่ด้วย) · `..` = เส้นประ (non-identifying: ตารางลูกมี PK ของตัวเอง) ตามสัญลักษณ์ Crow's Foot สากล
+- ฝั่งตารางลูก: `o{` = 0 ถึงหลายแถว · `o|` = 0 หรือ 1 แถว (ใช้เฉพาะเมื่อฐานข้อมูลบังคับไม่ซ้ำจริง เช่น FK เป็น PK)
+- อ้างถึงกันแต่ฐานข้อมูลไม่ได้ตั้ง FK (เช่น borrow_records.user_id) ก็วาดเส้นตามปกติ แล้วระบุไว้ใน Data Dictionary
 
 ## สำคัญ: ต้องตรงกับฐานข้อมูลจริง
 
-ทุกอย่างในโฟลเดอร์นี้ตรงกับฐานข้อมูลจริงใน Supabase ณ 28 ต.ค. 2569 (ตรวจทุกคอลัมน์และทุก FK แล้ว) ถ้ามีการเพิ่ม/แก้ตารางในฐานข้อมูลภายหลัง (ไฟล์ใหม่ใน `supabase/migrations/`) ต้องแก้ทั้ง ER และ Data Dictionary ตาม
+ทุกอย่างในโฟลเดอร์นี้ตรงกับฐานข้อมูลจริงใน Supabase ณ 6 พ.ย. 2569 (ตรวจทุกคอลัมน์และทุก FK แล้ว) ถ้ามีการเพิ่ม/แก้ตารางในฐานข้อมูลภายหลัง (ไฟล์ใหม่ใน `supabase/migrations/`) ต้องแก้ทั้ง ER และ Data Dictionary ตาม
 
 ดูโครงสร้างจริงได้ที่ Supabase Dashboard → Table Editor หรือรันใน SQL Editor:
 
@@ -88,3 +90,5 @@ select table_name, column_name, data_type, is_nullable, column_default
 from information_schema.columns where table_schema = 'public'
 order by table_name, ordinal_position;
 ```
+
+ตรวจอัตโนมัติ (Claude): skill `report-diagrams` ในเครื่องเจ้าของ (`~/.claude/skills/report-diagrams/`) มีวิธีทำทั้งชุด + สคริปต์ตรวจ 3 ตัว (ตรงฐานข้อมูลจริง, ER ↔ Data Dictionary, สัญลักษณ์ Crow's Foot) — ของโปรเจกต์นี้ใช้ `scripts/logical.labhub.json`
