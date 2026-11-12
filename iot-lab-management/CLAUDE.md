@@ -44,5 +44,6 @@
 - ประกาศ (`admin/announce`): สวิตช์อัตโนมัติ**เปิดอยู่** — ของใหม่ทุกวัน 08:00 · ชวนมายืมวันจันทร์ 08:00 · เทสถึงมือถือจริงผ่าน (กระดิ่ง + push + เสียง)
 - เทสค้าง (`docs/TEST_ROOM_QR.md`): พิมพ์ป้าย QR ลงกระดาษจริง, สแกนกล้องจริง (N1/N4/ส่วน C), นศ. แจ้งปัญหา (N3), "ดูเพิ่ม" ประวัติเครื่อง
 - ค้าง: branch protection ของ main (admin repo `Sineeyagron` ตั้งเอง: Settings → Branches · CI `tsc + lint` มีแล้ว) · ลบรูปหลักฐานยืม-คืนเก่ากว่า 1 เทอม (ไม่ด่วน)
-- Supabase โดน pause แล้ว restore 11 พ.ย. → เพิ่ม keep-alive (`.github/workflows/supabase-keepalive.yml`) ใน branch นี้ · รอเจ้าของใส่ Secrets + กด Run workflow เทส
+- Supabase โดน pause แล้ว restore 11 พ.ย. → keep-alive (`.github/workflows/supabase-keepalive.yml`) ขึ้น main แล้ว (PR #63) · Secrets ตั้งแล้ว · เทส Run workflow ผ่าน 11 พ.ย.
+- branch `ios-pwa-print`: iPhone แอปบนหน้าจอหลักกดพิมพ์ไม่ได้ (Safari ได้) → ทำเป็น PDF แล้วส่งเข้าเมนูแชร์ (พิมพ์ / LINE) · รอเทสบน iPhone จริงหลัง merge (เช็กขนาดป้าย QR ตอนพิมพ์ 100%)
 - ตัดสินใจแล้ว: ไม่อัป Expo SDK 58 (เทสผ่านเว็บอย่างเดียว อัปแล้วเสี่ยงพัง)

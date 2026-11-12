@@ -38,6 +38,7 @@
 - `public/` (manifest, ไอคอน, `sw.js` — แก้แล้วเปลี่ยน `VERSION`), meta ใน `app/+html.tsx`, `lib/web/webPush.ts` (ลงทะเบียน SW ใน `_layout`), การ์ด `WebPushCard` ในหน้าแจ้งเตือน
 - แถวใหม่ใน `notifications` → trigger `notifications_push` (pg_net, เฉพาะคนที่มี `push_subscriptions`) → Edge Function `send-push` (deploy `--no-verify-jwt`, VAPID ใน secrets)
 - คำขอใหม่ → trigger `borrow_requests_push`/`pickup_requests_push` + นศ. ยกเลิกเอง (`cancel_pickup`, `cancel_request`) → `_push_staff()` → push ถึง admin+TA (ไม่เพิ่มในกระดิ่ง)
+- หน้าพิมพ์ (`lib/fileExport.ts` `showPrintOverlay`): iPhone แอปบนหน้าจอหลัก `window.print()` เงียบ ไม่ทำงาน → ทำ PDF ในเครื่อง (`buildPdf`: `html2canvas` + `jspdf` โหลดเฉพาะตอนนั้น, จับภาพทีละแผ่น `.p` ขนาดจริง) ตั้งแต่เปิดหน้า แล้วปุ่มส่งเข้าเมนูแชร์ (พิมพ์ / LINE / บันทึกลงไฟล์) · ต้องทำไว้ก่อน เพราะ `navigator.share` ต้องเรียกทันทีตอนแตะ · ไฟล์ .html แชร์ได้แต่ iOS ไม่มีปุ่มพิมพ์ · Safari/Android/คอม ใช้ print เดิม
 - ขั้นตอน deploy: `docs/DEPLOY_PWA.md`
 
 ## ประกาศถึงนักศึกษา (`app/admin/announce.tsx` — admin เท่านั้น)

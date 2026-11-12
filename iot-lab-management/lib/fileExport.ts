@@ -3,7 +3,7 @@ import { File as FSFile, Paths } from "expo-file-system";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { toCsv } from "./csv";
-import { isStandalone } from "./web/webPush";
+import { isIOS, isStandalone } from "./web/webPush";
 
 // ส่งออกไฟล์: เว็บคอม = ดาวน์โหลด / เปิดหน้าพิมพ์ในแท็บใหม่ · มือถือ (แอป) = สร้างไฟล์แล้วเปิดเมนูแชร์ (LINE, อีเมล, Files, Drive)
 // เว็บบนมือถือ / แอปที่ติดตั้ง (PWA): ไม่มีแถบเบราว์เซอร์ให้กดย้อน → แท็บใหม่/ไฟล์ที่เปิดเต็มจอ = ค้างออกไม่ได้
@@ -158,6 +158,7 @@ function showPrintOverlay(html: string, title: string, note: string | undefined,
     // ฟอนต์ไทยโหลดเสร็จทีหลัง = ความสูงเปลี่ยน
     (frame.contentDocument as any)?.fonts?.ready?.then(layout);
     setTimeout(layout, 600);
+    if (iosApp) preparePdf();
   };
   window.addEventListener("resize", layout);
 
@@ -165,6 +166,9 @@ function showPrintOverlay(html: string, title: string, note: string | undefined,
   bottom.style.cssText =
     "padding:10px 14px calc(env(safe-area-inset-bottom, 0px) + 12px);background:#fff;" +
     "border-top:1px solid #E3EAF5;box-shadow:0 -4px 14px rgba(23,32,51,.08);";
+  // iPhone แอปบนหน้าจอหลัก: window.print() เงียบ ไม่ทำอะไร → ทำ PDF ในเครื่องแล้วส่งเข้าเมนูแชร์ (พิมพ์ / LINE / บันทึกลงไฟล์)
+  const iosApp = isIOS() && isStandalone();
+  if (iosApp) note = "กดแล้วเลือก \"พิมพ์\" ในเมนูแชร์ หรือส่ง LINE / บันทึกลงไฟล์ก็ได้ (พิมพ์ขนาด 100%)";
   if (note) {
     const info = document.createElement("div");
     info.style.cssText =
@@ -179,6 +183,7 @@ function showPrintOverlay(html: string, title: string, note: string | undefined,
   const print = document.createElement("button");
   print.type = "button";
   print.innerHTML = svgIcon(ICON_PRINT, 20) + "<span>พิมพ์ / บันทึก PDF</span>";
+  const setLabel = (t: string) => { print.querySelector("span")!.textContent = t; };
   print.style.cssText =
     "width:100%;height:48px;border:0;border-radius:14px;background:#2563EB;color:#fff;font:inherit;font-size:16px;" +
     "display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;";
@@ -188,7 +193,58 @@ function showPrintOverlay(html: string, title: string, note: string | undefined,
     window.removeEventListener("resize", layout);
     wrap.remove();
   };
-  print.onclick = () => frame.contentWindow?.print();
+  // ทำ PDF ไว้ก่อนตั้งแต่เปิดหน้า: share() ต้องเรียกทันทีตอนแตะ (รอทำ PDF หลายวินาทีแล้วค่อยแชร์ = iOS ปฏิเสธ)
+  let pdf: File | null = null;
+  let pdfState: "busy" | "ready" | "failed" = "busy";
+  const preparePdf = () => {
+    pdfState = "busy";
+    setLabel("กำลังเตรียม PDF…");
+    buildPdf(frame.contentDocument!, title, pageWidth === PAGE_LANDSCAPE)
+      .then((f) => { pdf = f; pdfState = "ready"; setLabel("พิมพ์ / แชร์ PDF"); })
+      .catch((e) => { console.warn(e); pdfState = "failed"; setLabel("ทำ PDF ไม่สำเร็จ · แตะลองใหม่"); });
+  };
+  if (iosApp) setLabel("กำลังเตรียม PDF…");
+  print.onclick = async () => {
+    if (!iosApp) return frame.contentWindow?.print();
+    if (pdfState === "failed") return preparePdf();
+    if (!pdf) return;
+    try {
+      await (navigator as any).share({ files: [pdf], title });
+    } catch (e: any) {
+      if (e?.name !== "AbortError") setLabel("แชร์ไม่ได้ · แตะลองใหม่"); // กดปิดเมนูแชร์ = ไม่ใช่ error
+    }
+  };
   wrap.append(top, scroller, bottom);
   document.body.appendChild(wrap);
+}
+
+// PDF A4 จากหน้าพิมพ์ในกรอบตัวอย่าง: แผ่น .p (ป้าย QR / สรุปห้อง กว้าง 210มม. = ขนาดจริง) ทีละหน้า · ไม่มี .p (รายงาน) = ทั้งหน้าแล้วตัดเป็นหลายหน้า
+// ไลบรารีโหลดเฉพาะตอนใช้ (iPhone แอปบนหน้าจอหลักเท่านั้น)
+async function buildPdf(doc: Document, title: string, landscape: boolean) {
+  // ระบุไฟล์ build ของเบราว์เซอร์ตรง ๆ — "jspdf" เฉย ๆ ตอน render ฝั่ง node (expo export) จะได้ไฟล์ node ที่ metro bundle ไม่ผ่าน
+  const [{ jsPDF }, { default: html2canvas }] = await Promise.all([
+    import("jspdf/dist/jspdf.es.min.js" as string) as Promise<typeof import("jspdf")>,
+    import("html2canvas"),
+  ]);
+  await (doc as any).fonts?.ready;
+  const out = new jsPDF({ orientation: landscape ? "l" : "p", unit: "mm", format: "a4" });
+  const W = out.internal.pageSize.getWidth();
+  const H = out.internal.pageSize.getHeight();
+  const sheets = Array.from(doc.querySelectorAll<HTMLElement>(".p"));
+  let first = true;
+  for (const el of sheets.length ? sheets : [doc.body]) {
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", logging: false });
+    const pageH = Math.round((canvas.width * H) / W);
+    for (let y = 0; canvas.height - y > 8; y += pageH) { // เศษไม่กี่ px จากการปัด ≠ หน้าใหม่
+      const h = Math.min(pageH, canvas.height - y);
+      const slice = document.createElement("canvas");
+      slice.width = canvas.width;
+      slice.height = h;
+      slice.getContext("2d")!.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+      if (!first) out.addPage();
+      first = false;
+      out.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, W, (h * W) / canvas.width);
+    }
+  }
+  return new File([out.output("blob")], `${title.replace(/[\\/:*?"<>|]/g, "-")}.pdf`, { type: "application/pdf" });
 }
