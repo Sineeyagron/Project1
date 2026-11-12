@@ -231,20 +231,50 @@ async function buildPdf(doc: Document, title: string, landscape: boolean) {
   const W = out.internal.pageSize.getWidth();
   const H = out.internal.pageSize.getHeight();
   const sheets = Array.from(doc.querySelectorAll<HTMLElement>(".p"));
+  const M = 12; // มม. ขอบบน/ล่างของหน้าที่เกิดจากการตัด
   let first = true;
   for (const el of sheets.length ? sheets : [doc.body]) {
     const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", logging: false });
-    const pageH = Math.round((canvas.width * H) / W);
-    for (let y = 0; canvas.height - y > 8; y += pageH) { // เศษไม่กี่ px จากการปัด ≠ หน้าใหม่
-      const h = Math.min(pageH, canvas.height - y);
+    const pxW = el.getBoundingClientRect().width;
+    const k = canvas.width / pxW; // css px → px ในภาพ
+    const mm = W / pxW; // css px → มม.
+    const starts = pageStarts(el, H / mm, M / mm);
+    starts.forEach((s, i) => {
+      const e = i + 1 < starts.length ? starts[i + 1] : canvas.height / k;
+      const h = Math.round((e - s) * k);
+      if (h < 8) return; // เศษจากการปัด ≠ หน้าใหม่
       const slice = document.createElement("canvas");
       slice.width = canvas.width;
       slice.height = h;
-      slice.getContext("2d")!.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+      slice.getContext("2d")!.drawImage(canvas, 0, Math.round(s * k), canvas.width, h, 0, 0, canvas.width, h);
       if (!first) out.addPage();
       first = false;
-      out.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", 0, 0, W, (h * W) / canvas.width);
-    }
+      out.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", 0, i ? M : 0, W, h / k * mm);
+    });
   }
   return new File([out.output("blob")], `${title.replace(/[\\/:*?"<>|]/g, "-")}.pdf`, { type: "application/pdf" });
+}
+
+// จุดเริ่มแต่ละหน้า (css px จากขอบบนของ el): ตัดตรงช่องว่างระหว่างแถว ไม่ผ่ากลางแถว · ทำตาม break-before: page
+// pageH = สูง 1 หน้า A4 · margin = ขอบบน/ล่างของหน้าที่เกิดจากการตัด (หน้าแรกใช้ padding ของเนื้อหาเอง)
+function pageStarts(el: HTMLElement, pageH: number, margin: number) {
+  const top0 = el.getBoundingClientRect().top;
+  const total = el.getBoundingClientRect().height;
+  const view = el.ownerDocument.defaultView!;
+  const span = (e: Element) => { const r = e.getBoundingClientRect(); return [r.top - top0, r.bottom - top0]; };
+  const atoms = Array.from(el.querySelectorAll("tr, h1, h2, .mh, .kpi, .stack, .foot, .none, .more, .l, .e")).map(span);
+  const forced = Array.from(el.querySelectorAll("*"))
+    .filter((e) => { const cs = view.getComputedStyle(e); return cs.breakBefore === "page" || cs.pageBreakBefore === "always"; })
+    .map((e) => span(e)[0]);
+  const edges = atoms.flat().sort((a, b) => a - b);
+  const starts = [0];
+  for (;;) {
+    const start = starts[starts.length - 1];
+    const avail = starts.length === 1 ? (total <= pageH + 2 ? pageH + 2 : pageH - margin) : pageH - 2 * margin;
+    const limit = start + avail;
+    const f = forced.find((y) => y > start + 1 && y <= limit);
+    if (f === undefined && total - start <= avail) return starts;
+    const safe = edges.filter((y) => y > start + 1 && y <= limit && !atoms.some(([a, b]) => a < y - 0.5 && b > y + 0.5)).pop();
+    starts.push(f ?? safe ?? limit);
+  }
 }
