@@ -234,8 +234,14 @@ async function buildPdf(doc: Document, title: string, landscape: boolean) {
   const M = 12; // มม. ขอบบน/ล่างของหน้าที่เกิดจากการตัด
   let first = true;
   for (const el of sheets.length ? sheets : [doc.body]) {
-    const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", logging: false });
-    const pxW = el.getBoundingClientRect().width;
+    // ครอปตรงกรอบ el เอง — ถ้าเป็น body ไลบรารีจะจับทั้งเอกสาร (รวม margin บน) ภาพเลื่อนไม่ตรงจุดตัดหน้า
+    const r = el.getBoundingClientRect();
+    const win = doc.defaultView!;
+    const canvas = await html2canvas(el, {
+      scale: 2, backgroundColor: "#ffffff", logging: false,
+      x: r.left + win.scrollX, y: r.top + win.scrollY, width: r.width, height: r.height,
+    });
+    const pxW = r.width;
     const k = canvas.width / pxW; // css px → px ในภาพ
     const mm = W / pxW; // css px → มม.
     const starts = pageStarts(el, H / mm, M / mm);
