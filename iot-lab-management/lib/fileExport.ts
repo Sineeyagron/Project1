@@ -234,28 +234,35 @@ async function buildPdf(doc: Document, title: string, landscape: boolean) {
   const M = 12; // มม. ขอบบน/ล่างของหน้าที่เกิดจากการตัด
   let first = true;
   for (const el of sheets.length ? sheets : [doc.body]) {
-    // ครอปตรงกรอบ el เอง — ถ้าเป็น body ไลบรารีจะจับทั้งเอกสาร (รวม margin บน) ภาพเลื่อนไม่ตรงจุดตัดหน้า
+    // body: ครอปตรงกรอบ (ไม่ครอป ไลบรารีจับทั้งเอกสารรวม margin บน ภาพเลื่อนไม่ตรงจุดตัดหน้า)
+    // แผ่น .p ห้ามส่ง x/y: แผ่นที่ 2 เป็นต้นไปได้ภาพว่าง (เทสป้าย 330 ชิ้น)
     const r = el.getBoundingClientRect();
     const win = doc.defaultView!;
-    const canvas = await html2canvas(el, {
-      scale: 2, backgroundColor: "#ffffff", logging: false,
-      x: r.left + win.scrollX, y: r.top + win.scrollY, width: r.width, height: r.height,
-    });
+    const crop = el === doc.body ? { x: r.left + win.scrollX, y: r.top + win.scrollY, width: r.width, height: r.height } : {};
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: "#ffffff", logging: false, ...crop });
     const pxW = r.width;
     const k = canvas.width / pxW; // css px → px ในภาพ
     const mm = W / pxW; // css px → มม.
-    const starts = pageStarts(el, H / mm, M / mm);
-    starts.forEach((s, i) => {
-      const e = i + 1 < starts.length ? starts[i + 1] : canvas.height / k;
-      const h = Math.round((e - s) * k);
-      if (h < 8) return; // เศษจากการปัด ≠ หน้าใหม่
+    const heads = tableHeads(el);
+    const starts = pageStarts(el, H / mm, M / mm, heads);
+    // วางช่วง a..b (css px) ของภาพลงหน้าที่ y (มม.) → คืนความสูงที่ใช้ (มม.)
+    const put = (a: number, b: number, y: number) => {
+      const h = Math.round((b - a) * k);
       const slice = document.createElement("canvas");
       slice.width = canvas.width;
       slice.height = h;
-      slice.getContext("2d")!.drawImage(canvas, 0, Math.round(s * k), canvas.width, h, 0, 0, canvas.width, h);
+      slice.getContext("2d")!.drawImage(canvas, 0, Math.round(a * k), canvas.width, h, 0, 0, canvas.width, h);
+      out.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", 0, y, W, h / k * mm);
+      return h / k * mm;
+    };
+    starts.forEach((s, i) => {
+      const e = i + 1 < starts.length ? starts[i + 1] : canvas.height / k;
+      if ((e - s) * k < 8) return; // เศษจากการปัด ≠ หน้าใหม่
       if (!first) out.addPage();
       first = false;
-      out.addImage(slice.toDataURL("image/jpeg", 0.95), "JPEG", 0, i ? M : 0, W, h / k * mm);
+      const hd = i ? headAt(heads, s) : undefined;
+      // หน้าที่เริ่มกลางตาราง: ซ้ำหัวคอลัมน์ไว้บนสุด (แบบที่ Safari/คอมพิมพ์)
+      put(s, e, (i ? M : 0) + (hd ? put(hd.a, hd.b, M) : 0));
     });
   }
   return new File([out.output("blob")], `${title.replace(/[\\/:*?"<>|]/g, "-")}.pdf`, { type: "application/pdf" });
@@ -263,7 +270,19 @@ async function buildPdf(doc: Document, title: string, landscape: boolean) {
 
 // จุดเริ่มแต่ละหน้า (css px จากขอบบนของ el): ตัดตรงช่องว่างระหว่างแถว ไม่ผ่ากลางแถว · ทำตาม break-before: page
 // pageH = สูง 1 หน้า A4 · margin = ขอบบน/ล่างของหน้าที่เกิดจากการตัด (หน้าแรกใช้ padding ของเนื้อหาเอง)
-function pageStarts(el: HTMLElement, pageH: number, margin: number) {
+// หัวตาราง (thead): a..b = ตัวหัว, end = ล่างสุดของตาราง (css px จากขอบบนของ el)
+type Head = { a: number; b: number; end: number };
+function tableHeads(el: HTMLElement): Head[] {
+  const top0 = el.getBoundingClientRect().top;
+  return Array.from(el.querySelectorAll("thead")).map((t) => {
+    const r = t.getBoundingClientRect();
+    return { a: r.top - top0, b: r.bottom - top0, end: t.closest("table")!.getBoundingClientRect().bottom - top0 };
+  });
+}
+// หน้าที่เริ่มที่ y อยู่กลางตารางไหน (ใต้หัว ก่อนจบตาราง)
+const headAt = (heads: Head[], y: number) => heads.find((h) => y > h.b - 0.5 && y < h.end - 0.5);
+
+function pageStarts(el: HTMLElement, pageH: number, margin: number, heads: Head[]) {
   const top0 = el.getBoundingClientRect().top;
   const total = el.getBoundingClientRect().height;
   const view = el.ownerDocument.defaultView!;
@@ -276,11 +295,12 @@ function pageStarts(el: HTMLElement, pageH: number, margin: number) {
   const starts = [0];
   for (;;) {
     const start = starts[starts.length - 1];
-    const avail = starts.length === 1 ? (total <= pageH + 2 ? pageH + 2 : pageH - margin) : pageH - 2 * margin;
+    const hd = headAt(heads, start); // หน้านี้ต้องเว้นที่ให้หัวตารางที่ซ้ำ
+    const avail = starts.length === 1 ? (total <= pageH + 2 ? pageH + 2 : pageH - margin) : pageH - 2 * margin - (hd ? hd.b - hd.a : 0);
     const limit = start + avail;
     const f = forced.find((y) => y > start + 1 && y <= limit);
     if (f === undefined && total - start <= avail) return starts;
-    const safe = edges.filter((y) => y > start + 1 && y <= limit && !atoms.some(([a, b]) => a < y - 0.5 && b > y + 0.5)).pop();
+    const safe = edges.filter((y) => y > start + 1 && y <= limit && !atoms.some(([a, b]) => a < y - 0.5 && b > y + 0.5) && !heads.some((h) => Math.abs(y - h.b) < 0.5)).pop();
     starts.push(f ?? safe ?? limit);
   }
 }
