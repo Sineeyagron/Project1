@@ -3,7 +3,7 @@ import { File as FSFile, Paths } from "expo-file-system";
 import * as Print from "expo-print";
 import * as Sharing from "expo-sharing";
 import { toCsv } from "./csv";
-import { isStandalone } from "./web/webPush";
+import { isIOS, isStandalone } from "./web/webPush";
 
 // ส่งออกไฟล์: เว็บคอม = ดาวน์โหลด / เปิดหน้าพิมพ์ในแท็บใหม่ · มือถือ (แอป) = สร้างไฟล์แล้วเปิดเมนูแชร์ (LINE, อีเมล, Files, Drive)
 // เว็บบนมือถือ / แอปที่ติดตั้ง (PWA): ไม่มีแถบเบราว์เซอร์ให้กดย้อน → แท็บใหม่/ไฟล์ที่เปิดเต็มจอ = ค้างออกไม่ได้
@@ -165,6 +165,9 @@ function showPrintOverlay(html: string, title: string, note: string | undefined,
   bottom.style.cssText =
     "padding:10px 14px calc(env(safe-area-inset-bottom, 0px) + 12px);background:#fff;" +
     "border-top:1px solid #E3EAF5;box-shadow:0 -4px 14px rgba(23,32,51,.08);";
+  // iPhone แอปบนหน้าจอหลัก: window.print() เงียบ ไม่ทำอะไร → ส่งไฟล์เข้าเมนูแชร์ (มีปุ่ม พิมพ์ / บันทึกลงไฟล์)
+  const iosApp = isIOS() && isStandalone();
+  if (iosApp) note = "กดแล้วเลือก \"พิมพ์\" ในเมนูแชร์ (บันทึก PDF: ในหน้าพิมพ์ กดแชร์ → บันทึกลงไฟล์)";
   if (note) {
     const info = document.createElement("div");
     info.style.cssText =
@@ -188,7 +191,16 @@ function showPrintOverlay(html: string, title: string, note: string | undefined,
     window.removeEventListener("resize", layout);
     wrap.remove();
   };
-  print.onclick = () => frame.contentWindow?.print();
+  print.onclick = async () => {
+    const file = typeof File !== "undefined" && new File([html], `${title.replace(/[\\/:*?"<>|]/g, "-")}.html`, { type: "text/html" });
+    const nav = navigator as any;
+    if (!iosApp || !file || !nav.canShare?.({ files: [file] })) return frame.contentWindow?.print();
+    try {
+      await nav.share({ files: [file], title });
+    } catch (e: any) {
+      if (e?.name !== "AbortError") throw e; // กดปิดเมนูแชร์ = ไม่ใช่ error
+    }
+  };
   wrap.append(top, scroller, bottom);
   document.body.appendChild(wrap);
 }
