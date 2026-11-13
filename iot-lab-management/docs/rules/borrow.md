@@ -12,7 +12,7 @@
 ## ยืม/คืน (กติกาทั้งหมดอยู่ใน RPC security definer — แอปเรียกอย่างเดียว)
 - นศ. สแกน QR (`app/scan.tsx` → `scan_lookup`) → ถ่ายรูป + สภาพ (`lib/borrowPhotos.ts`) → `request_borrow` / `request_return` / `request_renew` → ผู้ดูแลอนุมัติใน `admin/requests` (`decide_request`)
 - ไม่มีคนตอบใน `request_expiry_minutes` = ยืมหมดอายุ / คืนอัตโนมัติ · ผู้ดูแลยืม/คืนแทนไม่ได้ · ผู้ดูแลสแกน = ดูอย่างเดียว (`admin/lookup`)
-- โควตา `max_active_borrows` (3) นับ ยืม + รออนุมัติ + นัดรับ (`_active_borrow_count`) · วันยืม `borrow_day_options`
+- โควตา `max_active_borrows` (3) นับ ยืม + รออนุมัติ + นัดรับ (`_active_borrow_count`) · วันยืม `borrow_day_options` (1–160 วัน: DB `borrow_requests_days_check` + `DAY_MAX` ใน `admin/settings`)
 - กระดิ่งผู้ดูแล = ประกัน/อายุ/เกินกำหนด/คืนอัตโนมัติ (คำขอขึ้นกล่องคำขออย่างเดียว) · แจ้งเตือนประกัน/อายุ ส่งเฉพาะ admin
 - นศ. ไม่มีรหัส นศ. → บังคับไป `/student-id`
 
