@@ -46,4 +46,5 @@
 - ค้าง: branch protection ของ main (admin repo `Sineeyagron` ตั้งเอง: Settings → Branches · CI `tsc + lint` มีแล้ว) · ลบรูปหลักฐานยืม-คืนเก่ากว่า 1 เทอม (ไม่ด่วน)
 - Supabase โดน pause แล้ว restore 11 พ.ย. → keep-alive (`.github/workflows/supabase-keepalive.yml`) ขึ้น main แล้ว (PR #63) · Secrets ตั้งแล้ว · เทส Run workflow ผ่าน 11 พ.ย.
 - iPhone แอปบนหน้าจอหลัก: ปุ่มพิมพ์ทำเป็น PDF แล้วส่งเข้าเมนูแชร์ (PR #64–#66 ขึ้นแล้ว) · **PR #66 ทำ PDF ป้าย QR หลายแผ่นว่างตั้งแต่แผ่น 2** → แก้ใน branch `pdf-sheets-fix` (+ ซ้ำหัวตารางหน้าต่อ) เทสในเครื่องผ่าน (ป้าย 330 ชิ้น 13 แผ่นครบ) · รอ merge แล้วเทสบน iPhone + พิมพ์ป้าย QR 100% วัดขนาดจริง
+- 13 พ.ย.: ระยะยืมสูงสุด 60 → 160 วัน (migration `20261113090000_borrow_days_max_160.sql` ขยาย check + เพิ่ม 160 เข้า `borrow_day_options` · **รันบน DB จริงแล้ว** ตัวเลือกตอนนี้ [3,5,7,14,160]) · `admin/settings` DAY_MAX 30 → 160 + ช่องเพิ่มวันพิมพ์ได้ 3 หลัก · branch `borrow-days-max-160` รอ merge PR
 - ตัดสินใจแล้ว: ไม่อัป Expo SDK 58 (เทสผ่านเว็บอย่างเดียว อัปแล้วเสี่ยงพัง)

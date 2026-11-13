@@ -119,7 +119,7 @@ const GROUPS = [
         ["user_id", "uuid", false, "FK → profiles.id", "", "", "ผู้ส่งคำขอ"],
         ["borrow_record_id", "uuid", true, "FK → borrow_records.id", "", "", "การยืมที่เกี่ยวข้อง (คำขอยืมที่อนุมัติแล้ว หรือการยืมที่ขอคืน/ยืมต่อ)"],
         ["location_id", "uuid", true, "FK → borrow_locations.id", "", "", "จุดรับ-คืน"],
-        ["days", "integer", true, "", "", "1 – 60", "จำนวนวันที่ขอยืม / ขอยืมต่อ"],
+        ["days", "integer", true, "", "", "1 – 160", "จำนวนวันที่ขอยืม / ขอยืมต่อ"],
         ["condition", "text", true, "", "", "good, damaged", "สภาพอุปกรณ์ที่ผู้ใช้ระบุ: ปกติ / ชำรุด"],
         ["condition_note", "text", true, "", "", "", "หมายเหตุสภาพ"],
         ["photo_path", "text", true, "", "", "", "ที่อยู่รูปถ่ายหลักฐาน (Storage: borrow-photos)"],

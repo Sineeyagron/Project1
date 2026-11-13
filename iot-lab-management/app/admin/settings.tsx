@@ -66,7 +66,7 @@ const GROUPS: { title: string; fields: Field[]; days?: boolean }[] = [
   },
 ];
 const DAY_MIN = 1;
-const DAY_MAX = 30;
+const DAY_MAX = 160;
 const DAY_LIMIT = 6;
 const FIELDS = GROUPS.flatMap((g) => g.fields);
 
@@ -335,7 +335,7 @@ export default function AdminSettings() {
                             onSubmitEditing={addDay}
                             keyboardType="number-pad"
                             returnKeyType="done"
-                            maxLength={2}
+                            maxLength={3}
                             placeholder="วัน"
                             placeholderTextColor={C.faint}
                             autoFocus
@@ -528,7 +528,7 @@ export default function AdminSettings() {
                             onSubmitEditing={addDay}
                             keyboardType="number-pad"
                             returnKeyType="done"
-                            maxLength={2}
+                            maxLength={3}
                             placeholder="วัน"
                             placeholderTextColor={C.faint}
                             autoFocus
